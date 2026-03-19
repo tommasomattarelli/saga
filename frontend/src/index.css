@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply min-h-screen antialiased;
+  }
+
+  /* Custom scrollbar for the narrative stream */
+  .narrative-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .narrative-scroll::-webkit-scrollbar-track {
+    @apply bg-parchment-900/50;
+  }
+
+  .narrative-scroll::-webkit-scrollbar-thumb {
+    @apply bg-parchment-600/50 rounded-full;
+  }
+}
+
+/* Dice roll animation */
+@keyframes dice-roll {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(90deg) scale(1.2);
+  }
+  50% {
+    transform: rotate(180deg) scale(1);
+  }
+  75% {
+    transform: rotate(270deg) scale(1.1);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.animate-dice-roll {
+  animation: dice-roll 0.6s ease-out;
+}
+
+/* Typing indicator for AI narration */
+@keyframes typing-dots {
+  0%,
+  60%,
+  100% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+
+.typing-dot {
+  animation: typing-dots 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}

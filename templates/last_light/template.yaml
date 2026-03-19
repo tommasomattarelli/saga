@@ -1,0 +1,119 @@
+meta:
+  slug: last_light
+  name: "Last Light"
+  description: "Dark fantasy survival. The sun is dying, monsters roam the eternal dusk, and hope is a luxury."
+  author: "SAGA Team"
+  version: "1.0.0"
+  difficulty: 9
+  tags: ["dark fantasy", "survival", "horror", "advanced"]
+  estimated_hours: 15
+
+world:
+  setting: >
+    The Dimming began six months ago. The sun rises weaker each day, and the
+    nights grow longer. From the darkness came the Hollow — eyeless creatures
+    that hunt by sound and fear. Civilization has retreated to fortified
+    settlements lit by precious Ember Stones, the last source of true light.
+    You are a Lamplighter, one of the few brave enough to travel between
+    settlements, carrying light and hope through the dark.
+
+  locations:
+    - name: "Haven"
+      description: "A walled settlement built around a cathedral. Its great Ember Stone keeps the Hollow at bay."
+      connections: ["The Dusk Road", "Outer Farms"]
+
+    - name: "The Dusk Road"
+      description: "The main road between settlements. Lamplighter posts mark the way, but some have gone dark."
+      connections: ["Haven", "Ashwick", "The Hollow Wastes"]
+
+    - name: "Ashwick"
+      description: "A mining town. Their Ember Stone is failing. Without resupply, they have weeks."
+      connections: ["The Dusk Road"]
+
+    - name: "The Hollow Wastes"
+      description: "Abandoned lands overrun by the Hollow. No light reaches here."
+      connections: ["The Dusk Road"]
+
+    - name: "Outer Farms"
+      description: "Struggling farmland at the edge of Haven's light radius. Crops grow poorly in the dim."
+      connections: ["Haven"]
+
+  factions:
+    - name: "The Lamplighters"
+      description: "Couriers of light and hope between settlements."
+      disposition: 8
+
+    - name: "Haven Council"
+      description: "Governance of Haven. Pragmatic, sometimes cruel in rationing."
+      disposition: 3
+
+    - name: "The Ashborn"
+      description: "Desperate survivors from Ashwick who want Haven's resources."
+      disposition: -1
+
+  npcs:
+    - name: "Sister Ember"
+      role: "Cathedral keeper"
+      location: "Haven"
+      personality: "Fierce faith, iron will, compassionate but unyielding."
+      motivation: "Protect Haven's Ember Stone at all costs."
+      secret: "She knows the Ember Stones are fragments of the dying sun itself."
+
+    - name: "Crag"
+      role: "Ashwick foreman"
+      location: "Ashwick"
+      personality: "Gruff, exhausted, desperate. Would do anything for his people."
+      motivation: "Save Ashwick before their light fails."
+      secret: "He's been trading with something in the dark."
+
+  companions:
+    - name: "Wren"
+      personality: "Gallows humor, surprisingly gentle. Uses jokes to cope with terror."
+      background: "A fellow Lamplighter. Lost their partner to the Hollow last month."
+      stats:
+        hp: 18
+        max_hp: 18
+        ac: 12
+        loyalty: 7
+        trust: 6
+        mood: "anxious"
+
+opening:
+  narration: >
+    The light is dying again.
+
+    You stand at the gate of Haven, your Ember Lantern clutched in one
+    hand, its warm glow pushing back the creeping dusk. Beyond the wall,
+    the world fades to grey within a hundred paces and to black within
+    two hundred. Somewhere out there, Ashwick's light grows dimmer.
+
+    "Ready?" Wren adjusts their pack beside you, their own lantern
+    swinging at their hip. Their smile doesn't reach their eyes.
+    "Dusk Road's been quiet lately. That usually means it's about to
+    get loud."
+
+    The gate guard — barely more than a teenager — checks your
+    Lamplighter seal and nods. "Maker keep your light," she whispers.
+
+    The gate opens. The dark waits.
+
+  location: "Haven"
+  time_of_day: "dusk"
+  weather: "dim"
+
+  initial_quests:
+    - name: "The Road to Ashwick"
+      description: "Deliver emergency Ember Stones to Ashwick before their light fails completely."
+      objectives:
+        - "Traverse the Dusk Road safely"
+        - "Keep your Ember Lantern lit"
+        - "Reach Ashwick within 3 days"
+
+story_arcs:
+  - name: "The Dying Sun"
+    trigger: "Player learns about the Ember Stones' true nature"
+    description: "The sun isn't dying naturally. Something is consuming it."
+
+  - name: "Crag's Bargain"
+    trigger: "Player investigates Ashwick's mysterious supplies"
+    description: "The foreman has made a deal with something that lives in the dark."
