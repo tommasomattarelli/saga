@@ -1,0 +1,80 @@
+# SAGA — AI Model Configuration
+# 
+# Default model assignments per call type and tier.
+# Override any value via environment variables:
+#   SAGA_MODEL_DM_LOW, SAGA_MODEL_DM_MEDIUM, SAGA_MODEL_DM_HIGH
+#   SAGA_MODEL_COMPANION, SAGA_MODEL_NPC, SAGA_MODEL_WORLD_SIM
+#   SAGA_MODEL_MEMORY, SAGA_MODEL_EMBEDDING
+#
+# When a provider deprecates a model, update the defaults here and cut a new release.
+# At runtime, if a configured model returns a deprecation error the router treats it
+# as a provider failure and falls back to the next tier down.
+
+# ---------------------------------------------------------------------------
+# DM Narration — three-tier routing based on scene importance (0-10)
+# ---------------------------------------------------------------------------
+dm_narration:
+  low:                       # importance 0-3: routine exploration / simple responses
+    provider: openai
+    model: gpt-4o-mini
+    temperature: 0.8
+    max_tokens: 2000
+  medium:                    # importance 4-6: normal gameplay
+    provider: openai
+    model: gpt-4o
+    temperature: 0.8
+    max_tokens: 3000
+  high:                      # importance 7-10: boss fights, dramatic reveals
+    provider: openai
+    model: gpt-4o
+    temperature: 0.9
+    max_tokens: 4000
+
+# ---------------------------------------------------------------------------
+# Companion Dialogue — single tier, high-quality conversational model
+# ---------------------------------------------------------------------------
+companion_dialogue:
+  default:
+    provider: google
+    model: gemini-2.5-pro
+    temperature: 0.7
+    max_tokens: 1500
+
+# ---------------------------------------------------------------------------
+# NPC Behavior — budget model, high volume
+# ---------------------------------------------------------------------------
+npc_behavior:
+  default:
+    provider: openai
+    model: gpt-4o-mini
+    temperature: 0.7
+    max_tokens: 1000
+
+# ---------------------------------------------------------------------------
+# World Simulation — deterministic scoring, lower temperature
+# ---------------------------------------------------------------------------
+world_sim:
+  default:
+    provider: openai
+    model: gpt-4o-mini
+    temperature: 0.5
+    max_tokens: 1500
+
+# ---------------------------------------------------------------------------
+# Memory Compression — very focused summarization task
+# ---------------------------------------------------------------------------
+memory_compression:
+  default:
+    provider: openai
+    model: gpt-4o-mini
+    temperature: 0.3
+    max_tokens: 500
+
+# ---------------------------------------------------------------------------
+# Embeddings — provider / model used for pgvector embeddings
+# ---------------------------------------------------------------------------
+embedding:
+  default:
+    provider: openai
+    model: text-embedding-3-small
+    dimensions: 1536

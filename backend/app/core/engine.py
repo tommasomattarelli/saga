@@ -83,10 +83,10 @@ async def process_game_turn(
                 "success": result["success"],
             }
 
-    # 6. Apply world updates to campaign state
+    # 6. Apply world updates to campaign state (validated + migrated)
     if parsed.world_updates:
-        merged = {**campaign.world_state, **parsed.world_updates}
-        campaign.world_state = merged
+        from app.memory.world_state import apply_world_updates
+        await apply_world_updates(campaign, parsed.world_updates, db)
 
     return ProcessedTurn(
         narration=parsed.narration,

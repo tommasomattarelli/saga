@@ -1,6 +1,20 @@
 import { create } from "zustand";
 import type { Campaign, TurnResponse, WorldState, CharacterData } from "../types";
 
+// Narrative world state keys that are authoritative on the backend.
+// This mirrors backend/app/memory/world_state.py ALLOWED_WORLD_STATE_KEYS.
+// UI-only state (sidePanel, soundEnabled, theme, etc.) must NEVER appear here —
+// keep those in ui-store.ts so they stay in memory and never reach the DB.
+const ALLOWED_WORLD_STATE_KEYS = new Set([
+  "meta", "locations", "factions", "npcs", "companions",
+  "time_of_day", "weather", "global_flags",
+]);
+
+/** True in development builds — stripped by the bundler in production. */
+const __DEV__ = typeof window !== "undefined"
+  && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
+
 interface GameState {
   campaign: Campaign | null;
   turnHistory: TurnResponse[];
@@ -23,6 +37,20 @@ export const useGameStore = create<GameState>()((set) => ({
   setProcessing: (processing) => set({ isProcessing: processing }),
   updateWorldState: (updates) =>
     set((state) => {
+      // Dev-mode guard: warn if a UI-only key is accidentally passed here.
+      if (__DEV__) {
+        const leaked = Object.keys(updates).filter(
+          (k) => !ALLOWED_WORLD_STATE_KEYS.has(k),
+        );
+        if (leaked.length > 0) {
+          console.warn(
+            "[game-store] updateWorldState received UI-only keys that will NOT be sent to the backend:",
+            leaked,
+            "\n→ Move these to ui-store.ts",
+          );
+        }
+      }
+
       if (!state.campaign) return state;
       return {
         campaign: {

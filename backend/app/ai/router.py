@@ -1,7 +1,14 @@
 """AI model router - selects the best model per call based on scene importance."""
 
+from __future__ import annotations
+
+import os
 from dataclasses import dataclass
 from enum import StrEnum
+from functools import lru_cache
+from pathlib import Path
+
+import yaml
 
 from app.config import settings
 
@@ -27,48 +34,110 @@ class ModelConfig:
     max_tokens: int
 
 
-# Default routing table
-ROUTING_TABLE: dict[AICallType, list[ModelConfig]] = {
-    AICallType.DM_NARRATION: [
-        # Low importance (0-3): budget model
-        ModelConfig(provider="openai", model="gpt-4o-mini", temperature=0.8, max_tokens=2000),
-        # Medium importance (4-6): standard model
-        ModelConfig(provider="openai", model="gpt-4o", temperature=0.8, max_tokens=3000),
-        # High importance (7-10): premium model
-        ModelConfig(provider="openai", model="gpt-4o", temperature=0.9, max_tokens=4000),
-    ],
-    AICallType.COMPANION_DIALOGUE: [
-        ModelConfig(provider="google", model="gemini-2.5-pro", temperature=0.7, max_tokens=1500),
-    ],
-    AICallType.NPC_BEHAVIOR: [
-        ModelConfig(provider="openai", model="gpt-4o-mini", temperature=0.7, max_tokens=1000),
-    ],
-    AICallType.WORLD_SIM: [
-        ModelConfig(provider="openai", model="gpt-4o-mini", temperature=0.5, max_tokens=1500),
-    ],
-    AICallType.MEMORY_COMPRESSION: [
-        ModelConfig(provider="openai", model="gpt-4o-mini", temperature=0.3, max_tokens=500),
-    ],
-}
+# Path to the YAML config file
+_CONFIG_PATH = Path(__file__).parent / "model_config.yaml"
+
+
+@lru_cache(maxsize=1)
+def _load_config() -> dict:
+    """Load model config from YAML, cached after first read."""
+    with open(_CONFIG_PATH) as f:
+        return yaml.safe_load(f)
+
+
+def _cfg_to_model_config(cfg: dict) -> ModelConfig:
+    """Convert a YAML config dict to a ModelConfig dataclass."""
+    return ModelConfig(
+        provider=cfg["provider"],
+        model=cfg["model"],
+        temperature=float(cfg.get("temperature", 0.8)),
+        max_tokens=int(cfg.get("max_tokens", 2000)),
+    )
+
+
+def _get_config_for_call(call_type: AICallType, tier: str = "default") -> ModelConfig:
+    """Resolve a ModelConfig with a three-level override hierarchy.
+
+    Priority (highest → lowest):
+    1. Specific env-var override: ``SAGA_MODEL_{CALL_TYPE}_{TIER}``
+       e.g. ``SAGA_MODEL_DM_NARRATION_HIGH=gpt-4o``
+       Overrides model name only; provider stays from YAML or global.
+
+    2. Global env-var overrides (set in ``.env``):
+       - ``SAGA_GLOBAL_PROVIDER`` → applies the same provider to every call.
+       - ``SAGA_GLOBAL_MODEL_HIGH/MEDIUM/LOW`` → sets the model for that tier.
+       Use this to switch to "Gemini for everything" or "OpenAI for everything"
+       without touching YAML files.
+
+    3. ``model_config.yaml`` defaults — the base configuration shipped with
+       the project.
+    """
+    config = _load_config()
+    key = call_type.value  # e.g. "dm_narration"
+    tier_cfg = config.get(key, {}).get(tier) or config.get(key, {}).get("default", {})
+    model_config = _cfg_to_model_config(tier_cfg)
+
+    # ------------------------------------------------------------------ #
+    # Level 2: Global overrides from settings / .env                      #
+    # ------------------------------------------------------------------ #
+    global_provider = settings.saga_global_provider.strip()
+    if global_provider:
+        model_config.provider = global_provider
+
+    # Map tier name → global model setting
+    global_model_by_tier: dict[str, str] = {
+        "high":   settings.saga_global_model_high.strip(),
+        "medium": settings.saga_global_model_medium.strip(),
+        "low":    settings.saga_global_model_low.strip(),
+    }
+    global_model = global_model_by_tier.get(tier, "")
+    if global_model:
+        model_config.model = global_model
+
+    # ------------------------------------------------------------------ #
+    # Level 1: Specific per-call env-var override (highest priority)      #
+    # Pattern: SAGA_MODEL_{CALL_TYPE}_{TIER}                              #
+    # e.g.  SAGA_MODEL_DM_NARRATION_HIGH=claude-opus-4                    #
+    # ------------------------------------------------------------------ #
+    specific_env_key = f"SAGA_MODEL_{call_type.value.upper()}_{tier.upper()}"
+    specific_model = os.getenv(specific_env_key, "").strip()
+    if specific_model:
+        model_config.model = specific_model
+
+    # Also check for a specific provider override for this call
+    # e.g. SAGA_MODEL_DM_NARRATION_HIGH_PROVIDER=openai
+    specific_provider_env_key = f"{specific_env_key}_PROVIDER"
+    specific_provider = os.getenv(specific_provider_env_key, "").strip()
+    if specific_provider:
+        model_config.provider = specific_provider
+
+    return model_config
 
 
 async def route_ai_call(call_type: AICallType, context: "GameContext") -> ModelConfig:  # noqa: F821
     """Select the appropriate model based on call type and context importance.
 
-    For DM narration, routes based on importance score:
-    - 0-3: budget model (background events, simple responses)
-    - 4-6: standard model (normal gameplay)
-    - 7-10: premium model (boss fights, dramatic reveals, key story moments)
-    """
-    configs = ROUTING_TABLE.get(call_type, ROUTING_TABLE[AICallType.NPC_BEHAVIOR])
+    For DM narration, routes based on importance score (from GameContext):
+    - 0-3:  low    tier (budget model — background events, simple responses)
+    - 4-6:  medium tier (standard model — normal gameplay)
+    - 7-10: high   tier (premium model — boss fights, dramatic reveals)
 
-    if call_type == AICallType.DM_NARRATION and len(configs) >= 3:
+    All other call types use their single "default" tier.
+
+    Override hierarchy (set in .env):
+    1. ``SAGA_MODEL_{CALL_TYPE}_{TIER}``       — per-call model override
+    2. ``SAGA_GLOBAL_PROVIDER``                — single provider for everything
+       ``SAGA_GLOBAL_MODEL_HIGH/MEDIUM/LOW``   — global model per tier
+    3. ``model_config.yaml``                   — project defaults
+    """
+    if call_type == AICallType.DM_NARRATION:
         importance = getattr(context, "importance_score", 5)
         if importance <= 3:
-            return configs[0]
+            tier = "low"
         elif importance <= 6:
-            return configs[1]
+            tier = "medium"
         else:
-            return configs[2]
+            tier = "high"
+        return _get_config_for_call(call_type, tier)
 
-    return configs[0]
+    return _get_config_for_call(call_type, "default")

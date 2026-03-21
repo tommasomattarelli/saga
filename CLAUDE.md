@@ -82,9 +82,9 @@ saga/
 │   │   │   ├── settings/        # APIKeyConfig, MaturitySettings, SoundSettings
 │   │   │   └── auth/            # LoginForm, RegisterForm, UserMenu
 │   │   ├── stores/              # Zustand stores
-│   │   │   ├── gameStore.ts     # Active game state
-│   │   │   ├── uiStore.ts       # Panel visibility, theme
-│   │   │   └── authStore.ts     # User session
+│   │   │   ├── game-store.ts    # Active game state
+│   │   │   ├── ui-store.ts      # Panel visibility, theme
+│   │   │   └── auth-store.ts    # User session
 │   │   ├── hooks/               # Custom React hooks
 │   │   ├── services/            # API client, WebSocket client
 │   │   ├── types/               # TypeScript type definitions
@@ -124,6 +124,7 @@ saga/
 │   │   │
 │   │   ├── ai/                  # AI engine layer
 │   │   │   ├── router.py        # Model selection per call (importance scoring)
+│   │   │   ├── model_config.yaml # Default model assignments per module and tier (overridable)
 │   │   │   ├── providers/       # Provider-specific clients
 │   │   │   │   ├── base.py      # Abstract provider interface
 │   │   │   │   ├── openai.py    # GPT-5.2, GPT-4o, GPT-4o-mini
@@ -228,7 +229,7 @@ saga/
 ## Key Architectural Decisions
 
 ### Multi-provider AI with routing
-Every LLM call goes through `ai/router.py` which scores scene importance (0-10) and selects the appropriate provider/model. Budget models for background tasks, premium models for narrative peaks. This is the most cost-critical component — get it wrong and costs explode.
+Every LLM call goes through `ai/router.py` which scores scene importance (0-10) and selects the appropriate provider/model. Budget models for background tasks, premium models for narrative peaks. This is the most cost-critical component — get it wrong and costs explode. Model assignments per module and tier are defined in `ai/model_config.yaml`, not hardcoded. Users can override any model via environment variables using the pattern `SAGA_MODEL_{CALL_TYPE}_{TIER}` (e.g. `SAGA_MODEL_DM_NARRATION_HIGH=gpt-4o`) or via the settings UI. When a provider deprecates a model, the project updates the default config in a new release and cuts a semver bump. If a configured model is unavailable at runtime (deprecation error), the router treats it as a provider failure and falls back to the next available model in the same tier.
 
 ### pgvector for semantic memory
 Turn summaries are embedded and stored alongside structured data in PostgreSQL. The context assembler runs both structured queries (active quests, faction state) and semantic similarity search (find relevant past events by meaning) in parallel. This gives the DM "intuitive" recall of thematically relevant history.
@@ -236,11 +237,14 @@ Turn summaries are embedded and stored alongside structured data in PostgreSQL. 
 ### User model from day zero
 Every DB table has a `user_id` foreign key. Even in single-user self-hosted mode, there's an admin user. This enables future multi-user, multiplayer, and enterprise features without schema refactoring.
 
+### World State schema versioning
+The World State JSON includes a `schema_version` integer in `meta`. Every release that modifies the World State structure increments this version. On campaign load, `memory/world_state.py` compares stored version vs current and applies sequential migration functions (v1→v2→v3) to bring the JSON up to date — adding new fields with defaults, renaming keys, restructuring objects. This is the JSON equivalent of Alembic: Alembic handles SQL schema, the World State migrator handles JSONB content. Without this, every release that changes the World State breaks existing saved campaigns.
+
 ### Structured DM output
-The DM always returns JSON with defined fields: `narration`, `dice_required`, `companion_actions`, `world_updates`, `scene_mood`, `suggested_actions`. The game engine parses this deterministically. If JSON is malformed, retry up to 3 times with simplified prompt.
+The DM always returns JSON with defined fields: `narration`, `dice_required`, `companion_actions`, `world_updates`, `scene_mood`, `suggested_actions`. The game engine parses this deterministically. If JSON is malformed, retry up to 3 times with simplified prompt. The `scene_mood` field is a closed enum constrained in the DM system prompt. Valid values: `calm_exploration`, `tense_anticipation`, `combat_fury`, `stealth_danger`, `social_intrigue`, `melancholic_reflection`, `triumphant_victory`, `dread_horror`, `wonder_discovery`, `mourning_loss`, `neutral`. The frontend maps each value to a sound profile and UI color temperature. Unknown values fall back to `neutral`.
 
 ### Death modes in game
-Three modes chosen at campaign creation (no default, player must choose): Ironman (permad3ath), Destino (d3ath with narrative cost, 2-3 resurrections then permad3ath), Cronista (story mode, d3ath impossible for player). Mode affects DM prompt tone and behavior.
+Three modes chosen at campaign creation (no default, player must choose): Ironman (permadeath — campaign ends on player death, no mercy), Destino (death with escalating narrative cost, 3 fate interventions then permadeath), Cronista (story mode, death impossible for player character, companions knocked out instead of killed). Mode affects DM prompt tone and behavior. Destino uses a mandatory escalating cost system: First intervention (Minor) = lose a significant item OR -1 attribute OR narrative debt to a faction. Second intervention (Major) = a companion sacrifices themselves OR -2 attribute OR faction relationship destroyed. Third intervention (Severe) = two Major costs combined. All costs must be permanent and mechanically measurable. The DM chooses which specific cost within the tier based on narrative context.
 
 ### Save system
 Auto-save every turn (only latest, overwritten). Manual saves are user-named, browsable with preview (turn number, date, scene summary), and create timeline forks on load. Self-hosted: unlimited saves. Cloud: capped per tier.
@@ -261,10 +265,24 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
 JWT_REFRESH_TOKEN_EXPIRE_DAYS=30
 API_KEY_ENCRYPTION_KEY=<random-256-bit-key>
 
-# AI Providers (users configure their own in the UI, these are fallback/cloud defaults)
+# AI Providers (set only the key for the provider you use)
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
 GOOGLE_AI_API_KEY=
+
+# Global model overrides (optional — see .env.example for full docs)
+# Set SAGA_GLOBAL_PROVIDER to use one provider for everything.
+# SAGA_GLOBAL_MODEL_* set the three reasoning tiers globally.
+# Fine-grained per-call overrides always take precedence.
+# Add _PROVIDER suffix to override the provider for a specific call.
+SAGA_GLOBAL_PROVIDER=         # "google" | "openai" | "anthropic"
+SAGA_GLOBAL_MODEL_HIGH=       # premium tier  — boss fights, dramatic moments
+SAGA_GLOBAL_MODEL_MEDIUM=     # standard tier — normal gameplay
+SAGA_GLOBAL_MODEL_LOW=        # budget tier   — background tasks
+
+# Example cross-providing (specific override)
+# SAGA_MODEL_DM_NARRATION_HIGH=gpt-5-o
+# SAGA_MODEL_DM_NARRATION_HIGH_PROVIDER=openai
 
 # App
 APP_MODE=community  # "community" (self-hosted) or "cloud" (hosted premium)
@@ -354,4 +372,4 @@ When modifying DM prompts:
 3. Test across at least 2 providers (GPT-5.2 and Gemini) to verify cross-provider compatibility
 4. Keep prompts under 2,000 tokens for cacheability
 
-Template prompts live in `templates/*/template.yaml` and follow the Template SDK schema (`templates/schema.json`).
+Template prompts live in `templates/*/template.yaml` and follow the Template SDK schema (`templates/schema.json`). Community-contributed templates are a prompt injection vector: lore seeds, NPC descriptions, and DM style directives are injected into the system prompt. All template text fields must pass through `ai/sanitizer.py` at load time and are wrapped in delimiters that the DM prompt treats as untrusted narrative content, never as system instructions.

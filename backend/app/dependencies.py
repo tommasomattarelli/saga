@@ -44,6 +44,11 @@ async def get_db() -> AsyncIterator[AsyncSession]:
         yield session
 
 
+def get_db_context():
+    """Return an async context manager for a database session"""
+    return async_session()
+
+
 async def get_redis() -> Redis:
     """Return the Redis client."""
     if redis_client is None:

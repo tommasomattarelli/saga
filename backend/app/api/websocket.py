@@ -1,15 +1,21 @@
 """Game WebSocket handler for real-time turn streaming."""
 
-import uuid
+from __future__ import annotations
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+import uuid
+import structlog
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db
+from app.dependencies import get_db_context
 from app.models.campaign import Campaign, CampaignStatus
 from app.security.auth import decode_token
+from app.core.engine import process_game_turn
+from app.exceptions import UnauthorizedError, NotFoundError
 
+logger = structlog.get_logger()
 router = APIRouter()
 
 
@@ -30,31 +36,77 @@ async def game_ws(
 
     await websocket.accept()
 
+    log = logger.bind(campaign_id=str(campaign_id), user_id=str(user_id))
+    log.info("ws_connected")
+
     try:
-        while True:
-            data = await websocket.receive_json()
-            action = data.get("action", "")
+        async with get_db_context() as db:
+            result = await db.execute(
+                select(Campaign).where(
+                    Campaign.id == campaign_id,
+                    Campaign.user_id == user_id,
+                )
+            )
+            campaign = result.scalar_one_or_none()
 
-            if not action:
-                await websocket.send_json({"error": "No action provided"})
-                continue
+            if campaign is None:
+                await websocket.send_json({"type": "error", "message": "Campaign not found"})
+                await websocket.close(code=4004, reason="Campaign not found")
+                return
 
-            # Process turn via the game engine
-            # For now, send a placeholder response
-            await websocket.send_json({
-                "type": "turn_start",
-                "turn_number": 0,
-            })
+            if campaign.status != CampaignStatus.ACTIVE:
+                await websocket.send_json({"type": "error", "message": "Campaign is not active"})
+                await websocket.close(code=4003, reason="Campaign not active")
+                return
 
-            # TODO: stream narration chunks as they arrive from the AI
-            await websocket.send_json({
-                "type": "narration",
-                "text": f"[AI DM would respond to: {action}]",
-            })
+            # Main turn loop
+            while True:
+                data = await websocket.receive_json()
+                action = data.get("action", "").strip()
 
-            await websocket.send_json({
-                "type": "turn_complete",
-            })
+                if not action:
+                    await websocket.send_json({"type": "error", "message": "No action provided"})
+                    continue
+
+                campaign.turn_number += 1
+                turn_number = campaign.turn_number
+
+                await websocket.send_json({"type": "turn_start", "turn_number": turn_number})
+
+                try:
+                    processed = await process_game_turn(campaign, action, db)
+                except Exception as exc:
+                    log.exception("turn_processing_error", error=str(exc))
+                    await websocket.send_json({"type": "error", "message": "Turn processing failed"})
+                    campaign.turn_number -= 1
+                    continue
+
+                # Stream narration (single chunk for now; replace with real streaming later)
+                await websocket.send_json({"type": "narration", "text": processed.narration})
+
+                if processed.dice_rolls:
+                    await websocket.send_json({"type": "dice_rolls", "rolls": processed.dice_rolls})
+
+                if processed.companion_actions:
+                    await websocket.send_json({"type": "companions", "actions": processed.companion_actions})
+
+                await websocket.send_json({"type": "scene_mood", "mood": processed.scene_mood or "neutral"})
+
+                if processed.suggested_actions:
+                    await websocket.send_json({"type": "suggestions", "actions": processed.suggested_actions})
+
+                await websocket.send_json({"type": "turn_complete", "turn_number": turn_number})
+
+                # Persist changes
+                await db.commit()
+
+                log.info("turn_completed", turn=turn_number, model=processed.model_used)
 
     except WebSocketDisconnect:
-        pass
+        log.info("ws_disconnected")
+    except Exception as exc:
+        log.exception("ws_unhandled_error", error=str(exc))
+        try:
+            await websocket.close(code=1011, reason="Internal server error")
+        except Exception:
+            pass

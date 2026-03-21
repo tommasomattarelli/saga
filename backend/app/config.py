@@ -22,6 +22,17 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     google_ai_api_key: str = ""
 
+    # Global model overrides (optional — override model_config.yaml defaults)
+    # Set SAGA_GLOBAL_PROVIDER to use a single provider for everything.
+    # Set SAGA_GLOBAL_MODEL_* to define the three reasoning tiers globally.
+    # Fine-grained per-call overrides (SAGA_MODEL_DM_NARRATION_HIGH etc.) still
+    # take precedence over these globals.
+    saga_global_provider: str = ""       # e.g. "google", "openai", "anthropic"
+    saga_global_model_high: str = ""     # premium model — boss fights, dramatic moments
+    saga_global_model_medium: str = ""   # standard model — normal gameplay
+    saga_global_model_low: str = ""      # budget model  — background tasks, simple actions
+
+
     # App
     app_mode: str = "community"
     default_language: str = "en"
