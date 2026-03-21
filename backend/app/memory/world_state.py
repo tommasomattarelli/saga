@@ -13,13 +13,6 @@ logger = structlog.get_logger()
 
 # ---------------------------------------------------------------------------
 # World State schema — authoritative list of allowed top-level keys.
-#
-# Only these keys are persisted to the database.  Any other key that arrives
-# via world_updates (e.g. a UI field that leaked from the frontend, or an
-# unexpected AI hallucination) is silently stripped and logged as a warning.
-#
-# When adding a new game-world concept, extend this set AND add a v→v+1
-# migration below so old saves get the new field with a sensible default.
 # ---------------------------------------------------------------------------
 
 ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
@@ -35,20 +28,8 @@ ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
     }
 )
 
-#
-# Every release that modifies the World State structure increments this
-# constant.  On campaign load, ``migrate_world_state`` compares the stored
-# ``meta.schema_version`` against CURRENT_SCHEMA_VERSION and applies
-# sequential migration functions to bring old saves up to date.
-#
-# This is the JSON equivalent of Alembic: Alembic handles SQL schema,
-# this migrator handles JSONB content.  Without it, every release that
-# changes the World State breaks existing saved campaigns.
-#
-# Adding a new migration:
-#   1. Increment CURRENT_SCHEMA_VERSION.
-#   2. Write a function _migrate_vN_to_vN1(state: dict) -> dict.
-#   3. Add it to _MIGRATIONS in order.
+# ---------------------------------------------------------------------------
+# Schema versioning
 # ---------------------------------------------------------------------------
 
 CURRENT_SCHEMA_VERSION: int = 1
@@ -66,7 +47,7 @@ def _register_migration(from_version: int):
 
 
 # ---------------------------------------------------------------------------
-# Migration functions — one per version step
+# Migration functions
 # ---------------------------------------------------------------------------
 
 @_register_migration(0)

@@ -97,7 +97,6 @@ async def game_ws(
 
                 await websocket.send_json({"type": "turn_complete", "turn_number": turn_number})
 
-                # Persist changes
                 await db.commit()
 
                 log.info("turn_completed", turn=turn_number, model=processed.model_used)

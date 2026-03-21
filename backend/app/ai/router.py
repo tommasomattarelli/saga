@@ -77,14 +77,10 @@ def _get_config_for_call(call_type: AICallType, tier: str = "default") -> ModelC
     tier_cfg = config.get(key, {}).get(tier) or config.get(key, {}).get("default", {})
     model_config = _cfg_to_model_config(tier_cfg)
 
-    # ------------------------------------------------------------------ #
-    # Level 2: Global overrides from settings / .env                      #
-    # ------------------------------------------------------------------ #
     global_provider = settings.saga_global_provider.strip()
     if global_provider:
         model_config.provider = global_provider
 
-    # Map tier name → global model setting
     global_model_by_tier: dict[str, str] = {
         "high":   settings.saga_global_model_high.strip(),
         "medium": settings.saga_global_model_medium.strip(),
@@ -94,18 +90,11 @@ def _get_config_for_call(call_type: AICallType, tier: str = "default") -> ModelC
     if global_model:
         model_config.model = global_model
 
-    # ------------------------------------------------------------------ #
-    # Level 1: Specific per-call env-var override (highest priority)      #
-    # Pattern: SAGA_MODEL_{CALL_TYPE}_{TIER}                              #
-    # e.g.  SAGA_MODEL_DM_NARRATION_HIGH=claude-opus-4                    #
-    # ------------------------------------------------------------------ #
     specific_env_key = f"SAGA_MODEL_{call_type.value.upper()}_{tier.upper()}"
     specific_model = os.getenv(specific_env_key, "").strip()
     if specific_model:
         model_config.model = specific_model
 
-    # Also check for a specific provider override for this call
-    # e.g. SAGA_MODEL_DM_NARRATION_HIGH_PROVIDER=openai
     specific_provider_env_key = f"{specific_env_key}_PROVIDER"
     specific_provider = os.getenv(specific_provider_env_key, "").strip()
     if specific_provider:

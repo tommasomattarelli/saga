@@ -37,17 +37,12 @@ export const useGameStore = create<GameState>()((set) => ({
   setProcessing: (processing) => set({ isProcessing: processing }),
   updateWorldState: (updates) =>
     set((state) => {
-      // Dev-mode guard: warn if a UI-only key is accidentally passed here.
       if (__DEV__) {
         const leaked = Object.keys(updates).filter(
           (k) => !ALLOWED_WORLD_STATE_KEYS.has(k),
         );
         if (leaked.length > 0) {
-          console.warn(
-            "[game-store] updateWorldState received UI-only keys that will NOT be sent to the backend:",
-            leaked,
-            "\n→ Move these to ui-store.ts",
-          );
+          console.warn("[game-store] WorldState leakage (UI keys found):", leaked);
         }
       }
 

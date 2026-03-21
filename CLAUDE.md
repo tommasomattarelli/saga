@@ -204,15 +204,16 @@ saga/
 - **Style:** Follow PEP 8, enforced via Ruff
 - **Type hints:** Required on all function signatures
 - **Async:** Use async/await for all I/O operations (DB, API calls, WebSocket)
-- **Docstrings:** Google style on all public functions and classes
-- **Error handling:** Custom exception classes in `app/exceptions.py`, caught by FastAPI exception handlers
-- **Naming:** snake_case for functions/variables, PascalCase for classes, UPPER_SNAKE for constants
+- **Docstrings:** Google style on public APIs only; avoid internal implementation docstrings
+- **Comments:** Minimal "Why", never "What". Prefer self-documenting code (expressive variable/function names) over inline comments
+- **Testing:** TDD (Red-Green-Refactor) — write the test first (Red), implement minimum code to pass (Green), then improve structure (Refactor/Blue)
 - **Imports:** stdlib → third-party → local, enforced by isort
 
 ### TypeScript (Frontend)
 - **Style:** ESLint + Prettier
 - **Components:** Functional components only, no class components
 - **State:** Zustand for global state, React Query for server data, local useState for component state
+- **Comments:** No comments allowed for component logic; code must be self-explanatory. Use JSDoc only for complex shared hooks or utils
 - **Naming:** camelCase for variables/functions, PascalCase for components/types, kebab-case for files
 - **Props:** Explicit interface for all component props, no `any` types
 - **CSS:** Tailwind utility classes only, no custom CSS files except for animations

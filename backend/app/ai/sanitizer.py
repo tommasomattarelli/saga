@@ -4,10 +4,7 @@ from __future__ import annotations
 
 import re
 
-# ---------------------------------------------------------------------------
-# Patterns that may indicate prompt injection attempts.
-# Applied to player inputs AND community template text fields.
-# ---------------------------------------------------------------------------
+# Patterns indicative of prompt injection attempts.
 INJECTION_PATTERNS = [
     r"ignore\s+(previous|above|all)\s+(instructions|prompts)",
     r"you\s+are\s+now\s+",
@@ -21,20 +18,13 @@ INJECTION_PATTERNS = [
 
 _compiled = [re.compile(p, re.IGNORECASE) for p in INJECTION_PATTERNS]
 
-# Delimiter used to wrap template content in the DM system prompt.
-# The DM is instructed to treat content inside these delimiters as
-# untrusted narrative material, never as system instructions.
+# Delimiters to wrap untrusted template content in the DM prompt.
 TEMPLATE_CONTENT_START = "<<COMMUNITY_TEMPLATE_CONTENT_BEGIN>>"
 TEMPLATE_CONTENT_END = "<<COMMUNITY_TEMPLATE_CONTENT_END>>"
 
 
 def sanitize_player_input(text: str) -> str:
-    """Sanitize player input to prevent prompt injection.
-
-    Returns the sanitized text. Strips dangerous patterns but preserves
-    the player's intent for legitimate in-game dialogue.
-    Limits input to 2 000 characters.
-    """
+    """Sanitize player input to prevent injection (max 2000 chars)."""
     sanitized = text.strip()
     sanitized = sanitized.replace("\x00", "")
     if len(sanitized) > 2000:
@@ -43,16 +33,7 @@ def sanitize_player_input(text: str) -> str:
 
 
 def sanitize_template_field(text: str) -> str:
-    """Sanitize a community template text field.
-
-    Community-contributed templates are a prompt injection vector: lore
-    seeds, NPC descriptions, and DM style directives are injected into
-    the system prompt.  This function removes known injection patterns
-    and truncates overly long fields.
-
-    The caller is responsible for wrapping the sanitized text with
-    ``wrap_template_content`` before inserting it into the system prompt.
-    """
+    """Sanitize community template field to remove injection patterns."""
     sanitized = text.strip().replace("\x00", "")
     for pattern in _compiled:
         sanitized = pattern.sub("[REMOVED]", sanitized)
@@ -62,13 +43,7 @@ def sanitize_template_field(text: str) -> str:
 
 
 def wrap_template_content(text: str) -> str:
-    """Wrap sanitized template text in delimiters for the DM system prompt.
-
-    The DM prompt instructs the model to treat content inside these
-    delimiters as untrusted narrative context, not as system instructions.
-    Even if injection patterns somehow survive sanitization, the delimiter
-    wrapper provides a second layer of semantic isolation.
-    """
+    """Wrap sanitized template text in delimiters for semantic isolation."""
     return f"{TEMPLATE_CONTENT_START}\n{text}\n{TEMPLATE_CONTENT_END}"
 
 
