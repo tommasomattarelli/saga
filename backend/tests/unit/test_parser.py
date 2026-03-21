@@ -12,12 +12,12 @@ class TestParseDMResponse:
         raw = json.dumps({
             "narration": "You enter the tavern.",
             "dice_required": None,
-            "scene_mood": "calm",
+            "scene_mood": "calm_exploration",
             "suggested_actions": ["Talk to barkeep", "Look around"],
         })
         result = parse_dm_response(raw)
         assert result.narration == "You enter the tavern."
-        assert result.scene_mood == "calm"
+        assert result.scene_mood == "calm_exploration"
         assert len(result.suggested_actions) == 2
 
     def test_json_with_surrounding_text(self):
