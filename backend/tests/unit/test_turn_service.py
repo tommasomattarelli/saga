@@ -1,48 +1,52 @@
 import uuid
 import pytest
-from unittest.mock import AsyncMock, MagicMock
-
+from unittest.mock import MagicMock
 from app.services.turn_service import process_turn
 from app.models.campaign import Campaign
-from datetime import datetime
-
-
-
+from app.core.engine import ProcessedTurn
+from app.schemas.campaign import TurnResponse
 
 @pytest.mark.asyncio
 async def test_process_turn(mocker):
+    # Mocking dependencies
     mock_db = mocker.AsyncMock()
+    mock_user = MagicMock()
+    mock_user.id = uuid.uuid4()
     
-    camp = Campaign(
+    mock_campaign = Campaign(
         id=uuid.uuid4(),
-        name="Test",
-        user_id=uuid.uuid4(),
-        template_id="fantasy",
+        name="Test Campaign",
+        user_id=mock_user.id,
         turn_number=1,
-        character_data={"name": "Hero", "hp": 10},
-        world_state={"time": 10},
-        quests={}
+        character_data={"name": "Hero"},
+        world_state={"location": "Forest"},
     )
-    user = MagicMock()
-    user.id = uuid.uuid4()
-    user.preferred_language = "en"
     
-    # Mock all the heavy context building
-    mocker.patch("app.services.turn_service.build_system_context", return_value="SYS")
-    mocker.patch("app.services.turn_service.build_action_prompt", return_value="ACT")
-    mocker.patch("app.services.turn_service.route_ai_call", AsyncMock(return_value="""{"narration": "You hit it", "scene_mood": "tense", "dice_rolls": {"attack": 15}}"""))
-    mocker.patch("app.services.turn_service.parse_ai_response", return_value={"narration": "You hit it", "scene_mood": "tense", "dice_rolls": {"attack": 15}})
-    mocker.patch("app.services.turn_service.apply_world_updates")
-    mocker.patch("app.services.turn_service.update_quests")
-    mocker.patch("app.services.turn_service.apply_combat_effects", return_value=True)
-    mocker.patch("app.services.turn_service.check_death_condition", return_value=False)
-    mocker.patch("app.services.turn_service.generate_dynamic_embedding", AsyncMock(return_value=[0.1]*384))
+    # Mock the engine call
+    mock_processed = ProcessedTurn(
+        narration="You walk into the woods.",
+        dice_rolls={"stealth": 15},
+        companion_actions={},
+        world_updates={},
+        scene_mood="quiet",
+        suggested_actions=["Look around", "Keep moving"],
+        model_used="gpt-4o",
+        importance_score=5
+    )
     
-    turn = await process_turn(camp, "I attack with my sword", user, mock_db)
+    mocker.patch("app.services.turn_service.sanitize_player_input", side_effect=lambda x: x)
+    mocker.patch("app.services.turn_service.detect_injection", return_value=False)
+    mocker.patch("app.services.turn_service.process_game_turn", mocker.AsyncMock(return_value=mock_processed))
+    mocker.patch("app.services.turn_service.compress_turn_to_summary", mocker.AsyncMock(return_value="Summary"))
+    mocker.patch("app.services.turn_service.generate_embedding", mocker.AsyncMock(return_value=[0.1]*1536))
     
-    assert turn.turn_number == 2
-    assert turn.player_action == "I attack with my sword"
-    assert turn.narration == "You hit it"
-    assert turn.model_used is not None
+    # Mocking Save deletion and creation
+    mock_db.execute = mocker.AsyncMock()
+    
+    result = await process_turn(mock_campaign, "I go north", mock_user, mock_db)
+    
+    assert isinstance(result, TurnResponse)
+    assert result.turn_number == 2
+    assert result.narration == "You walk into the woods."
     assert mock_db.add.called
     assert mock_db.commit.called

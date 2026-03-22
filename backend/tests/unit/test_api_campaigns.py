@@ -96,6 +96,10 @@ def test_create_campaign(mocker, mock_user_dependency):
         obj.id = uuid.uuid4()
         obj.created_at = datetime.now()
         obj.updated_at = datetime.now()
+        if not hasattr(obj, "status") or obj.status is None:
+            obj.status = CampaignStatus.ACTIVE
+        if not hasattr(obj, "turn_number") or obj.turn_number is None:
+            obj.turn_number = 0
 
     mock_db.refresh = mocker.AsyncMock(side_effect=mock_refresh)
 
@@ -111,6 +115,8 @@ def test_create_campaign(mocker, mock_user_dependency):
         "character_data": {"name": "Hero"}
     }
     response = client.post("/api/campaigns", json=create_data)
+    if response.status_code != 201:
+        print(response.json())
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "My New Game"
@@ -164,7 +170,16 @@ def test_update_status(mocker, mock_user_dependency):
     camp = Campaign(
         id=uuid.UUID(camp_id),
         user_id=mock_user_dependency.id,
-        name="Test Campaign"
+        name="Test Campaign",
+        template_id="fantasy",
+        status=CampaignStatus.ACTIVE,
+        death_mode=DeathMode.IRONMAN,
+        turn_number=1,
+        character_data={},
+        world_state={},
+        quests={},
+        created_at=datetime.now(),
+        updated_at=datetime.now()
     )
 
     class MockCampaignResult:
@@ -197,7 +212,16 @@ def test_post_turn(mocker, mock_user_dependency):
     camp = Campaign(
         id=uuid.UUID(camp_id),
         user_id=mock_user_dependency.id,
-        name="Test Campaign"
+        name="Test Campaign",
+        template_id="fantasy",
+        status=CampaignStatus.ACTIVE,
+        death_mode=DeathMode.IRONMAN,
+        turn_number=1,
+        character_data={},
+        world_state={},
+        quests={},
+        created_at=datetime.now(),
+        updated_at=datetime.now()
     )
 
     class MockCampaignResult:
@@ -229,6 +253,6 @@ def test_post_turn(mocker, mock_user_dependency):
     assert response.status_code == 200
     data = response.json()
     assert data["turn_number"] == 2
-    assert data["player_action"] == "Walk forward"
+    # player_action is not in TurnResponse schema anymore
 
     app.dependency_overrides.clear()

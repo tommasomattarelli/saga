@@ -46,7 +46,7 @@ def test_update_settings(mocker, mock_user_dependency):
     response = client.patch("/api/settings", json={"preferred_language": "it"})
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "ok"
+    assert data["message"] == "Settings updated"
 
     # User preferred_language should be updated
     assert mock_user_dependency.preferred_language == "it"
@@ -69,7 +69,7 @@ def test_update_api_keys(mocker, mock_user_dependency):
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "ok"
+    assert data["message"] == "API keys updated"
 
     assert mock_user_dependency.openai_api_key_enc == b"new_encrypted_key"
     mock_db.commit.assert_awaited_once()

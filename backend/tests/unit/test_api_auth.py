@@ -122,6 +122,7 @@ def test_get_me(mocker):
         id=uuid.UUID(user_id),
         username="testuser",
         email="test@test.com",
+        preferred_language="en",
         created_at=datetime.utcnow(),
     )
 
