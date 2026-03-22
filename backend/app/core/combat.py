@@ -1,9 +1,8 @@
-"""Combat resolution and initiative tracking."""
 
-import random
+
 from dataclasses import dataclass, field
 
-from app.core.dice import roll_dice, DiceResult
+from app.core.dice import DiceResult, roll_dice
 
 
 @dataclass
@@ -44,7 +43,6 @@ class CombatState:
 
 
 def roll_initiative(combatants: list[Combatant]) -> list[Combatant]:
-    """Roll initiative for all combatants and sort by descending order."""
     for c in combatants:
         result = roll_dice("1d20")
         c.initiative = result.total
@@ -52,8 +50,9 @@ def roll_initiative(combatants: list[Combatant]) -> list[Combatant]:
 
 
 def attack_roll(attacker_modifier: int, target_ac: int) -> dict:
-    """Perform an attack roll against a target's AC."""
-    result = roll_dice(f"1d20+{attacker_modifier}" if attacker_modifier >= 0 else f"1d20{attacker_modifier}")
+    result = roll_dice(
+        f"1d20+{attacker_modifier}" if attacker_modifier >= 0 else f"1d20{attacker_modifier}"
+    )
     return {
         "roll": result.total,
         "rolls": result.rolls,
@@ -64,5 +63,4 @@ def attack_roll(attacker_modifier: int, target_ac: int) -> dict:
 
 
 def damage_roll(expression: str) -> DiceResult:
-    """Roll damage dice."""
     return roll_dice(expression)

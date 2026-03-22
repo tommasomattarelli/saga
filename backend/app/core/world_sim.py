@@ -39,10 +39,12 @@ async def simulate_world_tick(
             # AI will generate specific faction events
             # This is the structured hook for it
             if faction_data.get("active_plan"):
-                events.append(WorldEvent(
-                    description=f"{faction_name} advances their plans",
-                    faction=faction_name,
-                    impact="moderate",
-                ))
+                events.append(
+                    WorldEvent(
+                        description=f"{faction_name} advances their plans",
+                        faction=faction_name,
+                        impact="moderate",
+                    )
+                )
 
     return events

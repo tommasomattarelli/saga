@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import uuid
-import structlog
 
+import structlog
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.engine import process_game_turn
 from app.dependencies import get_db_context
 from app.models.campaign import Campaign, CampaignStatus
 from app.security.auth import decode_token
-from app.core.engine import process_game_turn
-from app.exceptions import UnauthorizedError, NotFoundError
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -77,7 +75,9 @@ async def game_ws(
                     processed = await process_game_turn(campaign, action, db)
                 except Exception as exc:
                     log.exception("turn_processing_error", error=str(exc))
-                    await websocket.send_json({"type": "error", "message": "Turn processing failed"})
+                    await websocket.send_json(
+                        {"type": "error", "message": "Turn processing failed"}
+                    )
                     campaign.turn_number -= 1
                     continue
 
@@ -85,15 +85,23 @@ async def game_ws(
                 await websocket.send_json({"type": "narration", "text": processed.narration})
 
                 if processed.dice_rolls:
-                    await websocket.send_json({"type": "dice_rolls", "rolls": processed.dice_rolls})
+                    await websocket.send_json(
+                        {"type": "dice_rolls", "rolls": processed.dice_rolls}
+                    )
 
                 if processed.companion_actions:
-                    await websocket.send_json({"type": "companions", "actions": processed.companion_actions})
+                    await websocket.send_json(
+                        {"type": "companions", "actions": processed.companion_actions}
+                    )
 
-                await websocket.send_json({"type": "scene_mood", "mood": processed.scene_mood or "neutral"})
+                await websocket.send_json(
+                    {"type": "scene_mood", "mood": processed.scene_mood or "neutral"}
+                )
 
                 if processed.suggested_actions:
-                    await websocket.send_json({"type": "suggestions", "actions": processed.suggested_actions})
+                    await websocket.send_json(
+                        {"type": "suggestions", "actions": processed.suggested_actions}
+                    )
 
                 await websocket.send_json({"type": "turn_complete", "turn_number": turn_number})
 

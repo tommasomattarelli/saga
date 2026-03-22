@@ -1,17 +1,17 @@
-"""Campaign model."""
+
 
 import uuid
 from enum import StrEnum
 
-from sqlalchemy import String, Integer, Text, ForeignKey, Enum as SAEnum
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, UUIDMixin, TimestampMixin
+from app.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class CampaignStatus(StrEnum):
-    """Campaign lifecycle status."""
 
     ACTIVE = "active"
     PAUSED = "paused"
@@ -20,7 +20,6 @@ class CampaignStatus(StrEnum):
 
 
 class DeathMode(StrEnum):
-    """Player death handling mode."""
 
     IRONMAN = "ironman"
     DESTINO = "destino"
@@ -28,7 +27,6 @@ class DeathMode(StrEnum):
 
 
 class Campaign(Base, UUIDMixin, TimestampMixin):
-    """A single campaign / playthrough."""
 
     __tablename__ = "campaigns"
 

@@ -1,4 +1,4 @@
-"""Dice engine - d20 system with advantage/disadvantage."""
+
 
 import random
 import re
@@ -18,10 +18,7 @@ class DiceResult:
 
 
 def roll_dice(expression: str) -> DiceResult:
-    """Roll dice from an expression like '2d6+3', '1d20', 'd8'.
-
-    Supports: NdS+M, NdS-M, NdS, dS
-    """
+    """Roll dice from an expression."""
     expr = expression.strip().lower()
     match = re.match(r"^(\d*)d(\d+)([+-]\d+)?$", expr)
     if not match:
@@ -47,8 +44,7 @@ def roll_dice(expression: str) -> DiceResult:
     )
 
 
-def roll_with_advantage(sides: int = 20, modifier: int = 0) -> DiceResult:
-    """Roll with advantage (take higher of two d20s)."""
+def roll_with_advantage(sides: int = 20, modifier: int = 20) -> DiceResult:
     r1 = random.randint(1, sides)
     r2 = random.randint(1, sides)
     best = max(r1, r2)
@@ -63,7 +59,6 @@ def roll_with_advantage(sides: int = 20, modifier: int = 0) -> DiceResult:
 
 
 def roll_with_disadvantage(sides: int = 20, modifier: int = 0) -> DiceResult:
-    """Roll with disadvantage (take lower of two d20s)."""
     r1 = random.randint(1, sides)
     r2 = random.randint(1, sides)
     worst = min(r1, r2)
@@ -77,7 +72,9 @@ def roll_with_disadvantage(sides: int = 20, modifier: int = 0) -> DiceResult:
     )
 
 
-def ability_check(modifier: int, dc: int, advantage: bool = False, disadvantage: bool = False) -> dict:
+def ability_check(
+    modifier: int, dc: int, advantage: bool = False, disadvantage: bool = False
+) -> dict:
     """Perform a d20 ability check against a DC."""
     if advantage and not disadvantage:
         result = roll_with_advantage(modifier=modifier)

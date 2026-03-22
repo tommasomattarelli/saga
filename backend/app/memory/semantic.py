@@ -1,6 +1,6 @@
 """Semantic memory search via pgvector."""
 
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.embeddings import generate_embedding

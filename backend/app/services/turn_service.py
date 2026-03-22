@@ -31,16 +31,13 @@ async def process_turn(
     5. Compress old turns
     6. Return response
     """
-    # 1. Sanitize
     action = sanitize_player_input(raw_action)
     if detect_injection(action):
         logger.warning("prompt_injection_detected", user_id=str(user.id))
         action = "[The player looks around cautiously]"
 
-    # 2. Run game engine
     processed = await process_game_turn(campaign, action, db)
 
-    # 3. Store turn
     campaign.turn_number += 1
     summary = await compress_turn_to_summary(processed.narration, action)
     embedding = await generate_embedding(summary)
@@ -62,8 +59,7 @@ async def process_turn(
     )
     db.add(turn)
 
-    # 4. Auto-save (overwrite previous auto-save)
-    from sqlalchemy import select, delete
+    from sqlalchemy import delete
 
     await db.execute(
         delete(Save).where(Save.campaign_id == campaign.id, Save.is_auto == True)  # noqa: E712

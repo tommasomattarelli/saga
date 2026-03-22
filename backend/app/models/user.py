@@ -1,16 +1,12 @@
-"""User model."""
 
-import uuid
 
-from sqlalchemy import String, Boolean, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, UUIDMixin, TimestampMixin
+from app.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class User(Base, UUIDMixin, TimestampMixin):
-    """User account."""
 
     __tablename__ = "users"
 

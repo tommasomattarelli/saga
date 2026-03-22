@@ -1,12 +1,12 @@
 """JWT authentication utilities."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
-from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,14 +29,14 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_access_token(user_id: uuid.UUID) -> str:
     """Create a JWT access token."""
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
+    expire = datetime.now(UTC) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
     payload = {"sub": str(user_id), "exp": expire, "type": "access"}
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
 def create_refresh_token(user_id: uuid.UUID) -> str:
     """Create a JWT refresh token."""
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.jwt_refresh_token_expire_days)
+    expire = datetime.now(UTC) + timedelta(days=settings.jwt_refresh_token_expire_days)
     payload = {"sub": str(user_id), "exp": expire, "type": "refresh"}
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 

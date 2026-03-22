@@ -1,4 +1,4 @@
-"""Character endpoints."""
+
 
 import uuid
 
@@ -20,7 +20,7 @@ async def get_character(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Get character data for a campaign."""
+    """Get character data."""
     result = await db.execute(
         select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user.id)
     )
@@ -37,7 +37,7 @@ async def update_character(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Update character data (inventory, notes, etc.)."""
+    """Update character data."""
     result = await db.execute(
         select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user.id)
     )

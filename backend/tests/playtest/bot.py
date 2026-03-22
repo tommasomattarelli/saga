@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+
 import structlog
 
 logger = structlog.get_logger()

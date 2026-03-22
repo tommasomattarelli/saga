@@ -1,4 +1,4 @@
-"""Save schemas."""
+
 
 import uuid
 from datetime import datetime
@@ -7,13 +7,11 @@ from pydantic import BaseModel
 
 
 class SaveCreate(BaseModel):
-    """Create a manual save."""
 
     name: str
 
 
 class SaveResponse(BaseModel):
-    """Save info."""
 
     id: uuid.UUID
     campaign_id: uuid.UUID

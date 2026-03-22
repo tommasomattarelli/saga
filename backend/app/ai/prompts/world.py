@@ -1,4 +1,4 @@
-"""World simulation prompts."""
+
 
 WORLD_SIM_PROMPT = """You are a world simulation engine for a tabletop RPG. Your job is to advance the state of the world independently of the player's actions.
 
@@ -32,7 +32,6 @@ Respond as JSON:
 
 
 def build_world_sim_prompt(world_state: dict, turn_number: int) -> str:
-    """Build the world simulation prompt."""
     import json
 
     return WORLD_SIM_PROMPT.format(

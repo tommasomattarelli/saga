@@ -1,6 +1,6 @@
 """Tests for the anti-injection sanitizer."""
 
-from app.ai.sanitizer import sanitize_player_input, detect_injection
+from app.ai.sanitizer import detect_injection, sanitize_player_input
 
 
 class TestSanitizer:

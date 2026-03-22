@@ -11,7 +11,18 @@ def score_narration(narration: str) -> dict:
         "has_dialogue": '"' in narration or "\u2018" in narration,
         "has_sensory_detail": any(
             word in narration.lower()
-            for word in ["smell", "sound", "feel", "see", "hear", "taste", "cold", "warm", "dark", "light"]
+            for word in [
+                "smell",
+                "sound",
+                "feel",
+                "see",
+                "hear",
+                "taste",
+                "cold",
+                "warm",
+                "dark",
+                "light",
+            ]
         ),
         "second_person": narration.lower().startswith("you") or " you " in narration.lower(),
         "not_repetitive": len(set(narration.split())) / max(len(narration.split()), 1) > 0.4,

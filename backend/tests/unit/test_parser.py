@@ -9,12 +9,14 @@ class TestParseDMResponse:
     """Test DM response parsing."""
 
     def test_valid_json(self):
-        raw = json.dumps({
-            "narration": "You enter the tavern.",
-            "dice_required": None,
-            "scene_mood": "calm_exploration",
-            "suggested_actions": ["Talk to barkeep", "Look around"],
-        })
+        raw = json.dumps(
+            {
+                "narration": "You enter the tavern.",
+                "dice_required": None,
+                "scene_mood": "calm_exploration",
+                "suggested_actions": ["Talk to barkeep", "Look around"],
+            }
+        )
         result = parse_dm_response(raw)
         assert result.narration == "You enter the tavern."
         assert result.scene_mood == "calm_exploration"

@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.core.dice import roll_dice, roll_with_advantage, roll_with_disadvantage, ability_check
+from app.core.dice import ability_check, roll_dice, roll_with_advantage, roll_with_disadvantage
 
 
 class TestRollDice:

@@ -1,4 +1,4 @@
-"""Campaign request/response schemas."""
+
 
 import uuid
 from datetime import datetime
@@ -9,7 +9,6 @@ from app.models.campaign import CampaignStatus, DeathMode
 
 
 class CampaignCreate(BaseModel):
-    """Create a new campaign."""
 
     template_id: str
     name: str
@@ -18,7 +17,6 @@ class CampaignCreate(BaseModel):
 
 
 class CampaignResponse(BaseModel):
-    """Campaign info."""
 
     id: uuid.UUID
     name: str
@@ -36,13 +34,11 @@ class CampaignResponse(BaseModel):
 
 
 class TurnSubmit(BaseModel):
-    """Player action submission."""
 
     action: str
 
 
 class TurnResponse(BaseModel):
-    """DM response to a player action."""
 
     turn_number: int
     narration: str

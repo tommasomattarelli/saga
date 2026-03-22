@@ -1,19 +1,18 @@
-"""FastAPI application factory."""
 
-from contextlib import asynccontextmanager
+
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import settings
-from app.api import auth, campaigns, characters, templates, saves, journal, settings as settings_api, export, websocket
-from app.dependencies import init_db, close_db, init_redis, close_redis
+from app.api import auth, campaigns, characters, export, journal, saves, templates, websocket
+from app.api import settings as settings_api
+from app.dependencies import close_db, close_redis, init_db, init_redis
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Manage application startup and shutdown."""
     await init_db()
     await init_redis()
     yield
@@ -22,7 +21,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
-    """Create and configure the FastAPI application."""
     app = FastAPI(
         title="SAGA",
         description="AI-Driven Tabletop RPG",

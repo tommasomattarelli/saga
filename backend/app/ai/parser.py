@@ -4,17 +4,14 @@ from __future__ import annotations
 
 import json
 import re
-import structlog
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
+
+import structlog
 
 logger = structlog.get_logger()
 
-# ---------------------------------------------------------------------------
-# Scene Mood — closed enum (11 valid values).
-# The DM system prompt constrains the AI to emit only these values.
-# Unknown values fall back to NEUTRAL so the frontend always has a safe default.
-# ---------------------------------------------------------------------------
+
 
 
 class SceneMood(StrEnum):
@@ -33,7 +30,7 @@ class SceneMood(StrEnum):
     NEUTRAL = "neutral"
 
     @classmethod
-    def from_string(cls, value: str | None) -> "SceneMood":
+    def from_string(cls, value: str | None) -> SceneMood:
         """Coerce a raw string to a SceneMood, falling back to NEUTRAL.
 
         This is the single safe entry point when handling AI output.

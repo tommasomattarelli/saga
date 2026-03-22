@@ -1,4 +1,4 @@
-"""NPC behavior prompts."""
+
 
 NPC_BASE_PROMPT = """You are an NPC in a tabletop RPG. You have your own life, goals, and psychology.
 
@@ -25,7 +25,6 @@ Respond as JSON:
 
 
 def build_npc_prompt(npc_data: dict) -> str:
-    """Build a behavior prompt for an NPC."""
     return NPC_BASE_PROMPT.format(
         name=npc_data.get("name", "Unknown"),
         role=npc_data.get("role", "Commoner"),

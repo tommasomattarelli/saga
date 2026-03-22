@@ -1,10 +1,10 @@
 """Campaign template model."""
 
-from sqlalchemy import String, Text, Integer
+from sqlalchemy import Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, UUIDMixin, TimestampMixin
+from app.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class Template(Base, UUIDMixin, TimestampMixin):

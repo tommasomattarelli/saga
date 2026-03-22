@@ -1,4 +1,4 @@
-"""Campaign template endpoints."""
+
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.get("")
 async def list_templates(db: AsyncSession = Depends(get_db)) -> list[dict]:
-    """List available campaign templates."""
+
     result = await db.execute(select(Template).order_by(Template.name))
     templates = result.scalars().all()
     return [
@@ -31,7 +31,7 @@ async def list_templates(db: AsyncSession = Depends(get_db)) -> list[dict]:
 
 @router.get("/{slug}")
 async def get_template(slug: str, db: AsyncSession = Depends(get_db)) -> dict:
-    """Get a template by slug."""
+
     result = await db.execute(select(Template).where(Template.slug == slug))
     template = result.scalar_one_or_none()
     if not template:

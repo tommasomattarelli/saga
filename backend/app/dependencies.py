@@ -1,9 +1,9 @@
-"""FastAPI dependency injection."""
+
 
 from collections.abc import AsyncIterator
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
 
@@ -14,10 +14,11 @@ redis_client: Redis | None = None
 
 
 async def seed_templates() -> None:
-    """Scan the templates/ folder and upsert all YAML templates into the DB."""
-    import yaml
     from pathlib import Path
+
+    import yaml
     from sqlalchemy import select
+
     from app.models.template import Template
 
     root_dir = Path(__file__).resolve().parent.parent.parent
@@ -33,7 +34,7 @@ async def seed_templates() -> None:
             try:
                 with open(template_file, encoding="utf-8") as f:
                     data = yaml.safe_load(f)
-                
+
                 meta = data.get("meta", {})
                 slug = meta.get("slug")
                 if not slug:
@@ -41,11 +42,11 @@ async def seed_templates() -> None:
 
                 # Remove meta from content to avoid redundancy
                 content = {k: v for k, v in data.items() if k != "meta"}
-                
+
                 # Check for existence (Upsert)
                 result = await db.execute(select(Template).where(Template.slug == slug))
                 existing = result.scalar_one_or_none()
-                
+
                 if existing:
                     existing.name = meta.get("name", existing.name)
                     existing.description = meta.get("description", existing.description)
@@ -63,58 +64,52 @@ async def seed_templates() -> None:
                         version=meta.get("version", "1.0"),
                         difficulty=meta.get("difficulty", 5),
                         tags=meta.get("tags", []),
-                        content=content
+                        content=content,
                     )
                     db.add(new_template)
-                
+
             except Exception as e:
                 from structlog import get_logger
+
                 get_logger().error("template_seed_failed", file=str(template_file), error=str(e))
 
         await db.commit()
 
 
 async def init_db() -> None:
-    """Initialize the database engine and seed templates."""
     from app.models.base import Base  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
-    # Run seeding after tables are created
+
+
     await seed_templates()
 
 
 async def close_db() -> None:
-    """Close the database engine."""
     await engine.dispose()
 
 
 async def init_redis() -> None:
-    """Initialize Redis connection."""
     global redis_client
     redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
 
 
 async def close_redis() -> None:
-    """Close Redis connection."""
     if redis_client:
         await redis_client.aclose()
 
 
 async def get_db() -> AsyncIterator[AsyncSession]:
-    """Yield a database session."""
     async with async_session() as session:
         yield session
 
 
 def get_db_context():
-    """Return an async context manager for a database session"""
     return async_session()
 
 
 async def get_redis() -> Redis:
-    """Return the Redis client."""
     if redis_client is None:
         raise RuntimeError("Redis not initialized")
     return redis_client

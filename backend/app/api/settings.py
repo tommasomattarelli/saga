@@ -1,4 +1,4 @@
-"""User settings and API key management endpoints."""
+
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.get("")
 async def get_settings(user: User = Depends(get_current_user)) -> dict:
-    """Get current user settings."""
+
     return {
         "preferred_language": user.preferred_language,
         "has_openai_key": bool(user.openai_api_key_enc),
@@ -28,7 +28,7 @@ async def update_settings(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Update user settings."""
+
     if "preferred_language" in updates:
         user.preferred_language = updates["preferred_language"]
     await db.commit()
@@ -41,7 +41,7 @@ async def update_api_keys(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Update encrypted API keys."""
+
     if "openai" in keys and keys["openai"]:
         user.openai_api_key_enc = encrypt_api_key(keys["openai"])
     if "anthropic" in keys and keys["anthropic"]:

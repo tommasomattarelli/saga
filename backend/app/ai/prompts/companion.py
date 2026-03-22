@@ -1,4 +1,4 @@
-"""Companion personality prompts."""
+
 
 COMPANION_BASE_PROMPT = """You are roleplaying as {name}, a companion character in a tabletop RPG.
 
@@ -26,7 +26,6 @@ Respond ONLY as {name}. Format:
 
 
 def build_companion_prompt(companion_data: dict) -> str:
-    """Build a personality prompt for a specific companion."""
     return COMPANION_BASE_PROMPT.format(
         name=companion_data.get("name", "Companion"),
         personality=companion_data.get("personality", "Friendly and helpful"),

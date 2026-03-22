@@ -1,10 +1,10 @@
-"""Anti prompt-injection layer for player and template inputs."""
+
 
 from __future__ import annotations
 
 import re
 
-# Patterns indicative of prompt injection attempts.
+
 INJECTION_PATTERNS = [
     r"ignore\s+(previous|above|all)\s+(instructions|prompts)",
     r"you\s+are\s+now\s+",
@@ -12,13 +12,13 @@ INJECTION_PATTERNS = [
     r"<\|im_start\|>",
     r"\[INST\]",
     r"###\s*(instruction|system)",
-    r"<\s*/?\s*system\s*>",        # XML-style system tags
-    r"--\s*system\s*--",           # Markdown-style system delimiters
+    r"<\s*/?\s*system\s*>",  # XML-style system tags
+    r"--\s*system\s*--",  # Markdown-style system delimiters
 ]
 
 _compiled = [re.compile(p, re.IGNORECASE) for p in INJECTION_PATTERNS]
 
-# Delimiters to wrap untrusted template content in the DM prompt.
+
 TEMPLATE_CONTENT_START = "<<COMMUNITY_TEMPLATE_CONTENT_BEGIN>>"
 TEMPLATE_CONTENT_END = "<<COMMUNITY_TEMPLATE_CONTENT_END>>"
 

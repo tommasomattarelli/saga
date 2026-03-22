@@ -1,4 +1,4 @@
-"""Adventure journal/log endpoints."""
+
 
 import uuid
 
@@ -23,8 +23,7 @@ async def get_journal(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
-    """Get the adventure journal (turn history) for a campaign."""
-    # Verify ownership
+
     campaign = await db.execute(
         select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user.id)
     )

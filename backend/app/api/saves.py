@@ -1,4 +1,4 @@
-"""Save/load endpoints."""
+
 
 import uuid
 
@@ -22,8 +22,7 @@ async def list_saves(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[Save]:
-    """List all saves for a campaign."""
-    # Verify ownership
+
     campaign = await db.execute(
         select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user.id)
     )
@@ -43,7 +42,7 @@ async def create_save(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Save:
-    """Create a manual save."""
+
     result = await db.execute(
         select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user.id)
     )
@@ -77,7 +76,7 @@ async def load_save(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Load a save, restoring campaign state."""
+
     result = await db.execute(
         select(Save).where(Save.id == save_id, Save.campaign_id == campaign_id)
     )

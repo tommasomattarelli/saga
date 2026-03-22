@@ -1,4 +1,4 @@
-"""Data export/import endpoints."""
+
 
 import uuid
 
@@ -21,7 +21,6 @@ async def export_campaign(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Export a campaign and all its turns as JSON."""
     result = await db.execute(
         select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user.id)
     )

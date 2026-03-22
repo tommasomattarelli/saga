@@ -1,4 +1,4 @@
-"""Campaign endpoints: CRUD and turn submission."""
+
 
 import uuid
 
@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.user import User
-from app.schemas.campaign import CampaignCreate, CampaignResponse, TurnSubmit, TurnResponse
+from app.schemas.campaign import CampaignCreate, CampaignResponse, TurnResponse, TurnSubmit
 from app.security.auth import get_current_user
 from app.services.turn_service import process_turn
 
@@ -43,7 +43,7 @@ async def list_campaigns(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[Campaign]:
-    """List all campaigns for the current user."""
+    """List all campaigns for current user."""
     result = await db.execute(
         select(Campaign).where(Campaign.user_id == user.id).order_by(Campaign.updated_at.desc())
     )
@@ -73,7 +73,7 @@ async def submit_turn(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> TurnResponse:
-    """Submit a player action and get the DM response."""
+    """Submit player action and get response."""
     result = await db.execute(
         select(Campaign).where(
             Campaign.id == campaign_id,
@@ -83,7 +83,9 @@ async def submit_turn(
     )
     campaign = result.scalar_one_or_none()
     if not campaign:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Active campaign not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Active campaign not found"
+        )
 
     turn = await process_turn(campaign, body.action, user, db)
     return turn
@@ -96,7 +98,7 @@ async def update_campaign_status(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Update campaign status (pause, abandon, complete)."""
+    """Update campaign status."""
     result = await db.execute(
         select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user.id)
     )

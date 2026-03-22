@@ -1,17 +1,15 @@
 """Turn processing pipeline - the heart of the game engine."""
 
-import json
-import structlog
 from dataclasses import dataclass
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.router import route_ai_call, AICallType
 from app.ai.context import build_context
 from app.ai.parser import parse_dm_response
-from app.core.dice import roll_dice, ability_check
+from app.ai.router import AICallType, route_ai_call
+from app.core.dice import ability_check
 from app.models.campaign import Campaign
-from app.models.turn import Turn
 
 logger = structlog.get_logger()
 
@@ -46,13 +44,10 @@ async def process_game_turn(
     6. Apply world updates
     7. Return processed turn
     """
-    # 1. Build context
     context = await build_context(campaign, player_action, db)
 
-    # 2. Route to AI model based on scene importance
     model_config = await route_ai_call(AICallType.DM_NARRATION, context)
 
-    # 3. Get DM response from AI
     from app.ai.providers.base import get_provider
 
     provider = get_provider(model_config.provider)
@@ -63,10 +58,8 @@ async def process_game_turn(
         temperature=model_config.temperature,
     )
 
-    # 4. Parse structured output
     parsed = parse_dm_response(raw_response)
 
-    # 5. Execute dice rolls if required
     dice_results = None
     if parsed.dice_required:
         dice_results = {}
@@ -83,9 +76,9 @@ async def process_game_turn(
                 "success": result["success"],
             }
 
-    # 6. Apply world updates to campaign state (validated + migrated)
     if parsed.world_updates:
         from app.memory.world_state import apply_world_updates
+
         await apply_world_updates(campaign, parsed.world_updates, db)
 
     return ProcessedTurn(

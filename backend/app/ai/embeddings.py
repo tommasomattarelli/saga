@@ -1,4 +1,4 @@
-"""Embedding generation for pgvector semantic search."""
+
 
 import httpx
 import structlog
@@ -9,11 +9,7 @@ logger = structlog.get_logger()
 
 
 async def generate_embedding(text: str) -> list[float] | None:
-    """Generate a 384-dimensional embedding for text.
-
-    Uses OpenAI embeddings API as default, falls back to None
-    if no API key is configured (semantic search disabled).
-    """
+    """Generate a 384-dimensional embedding for text."""
     if not settings.openai_api_key:
         logger.debug("embedding_skipped", reason="no_api_key")
         return None
