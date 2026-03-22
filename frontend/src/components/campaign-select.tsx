@@ -19,8 +19,7 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
         <span className="capitalize">{campaign.status}</span>
       </div>
       <p className="mt-2 text-xs text-parchment-500">
-        {campaign.character_data?.name || "Unknown hero"} &mdash;{" "}
-        {campaign.template_id}
+        {campaign.character_data?.name || "Unknown hero"} &mdash; {campaign.template_id}
       </p>
     </button>
   );
@@ -40,12 +39,8 @@ export default function CampaignSelect() {
     <div className="mx-auto max-w-2xl px-4 py-12">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold text-gold-400">
-            Your Sagas
-          </h1>
-          <p className="text-sm text-parchment-400">
-            Welcome back, {user?.username}
-          </p>
+          <h1 className="font-display text-3xl font-bold text-gold-400">Your Sagas</h1>
+          <p className="text-sm text-parchment-400">Welcome back, {user?.username}</p>
         </div>
         <button
           onClick={() => {
@@ -62,12 +57,12 @@ export default function CampaignSelect() {
         <p className="text-parchment-400">Loading campaigns...</p>
       ) : (
         <div className="space-y-3">
-          {campaigns?.map((c) => <CampaignCard key={c.id} campaign={c} />)}
+          {campaigns?.map((c) => (
+            <CampaignCard key={c.id} campaign={c} />
+          ))}
 
           {(!campaigns || campaigns.length === 0) && (
-            <p className="text-parchment-500">
-              No campaigns yet. Start a new adventure!
-            </p>
+            <p className="text-parchment-500">No campaigns yet. Start a new adventure!</p>
           )}
         </div>
       )}

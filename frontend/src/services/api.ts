@@ -1,19 +1,12 @@
 import axios from "axios";
 import { useAuthStore } from "../stores/auth-store";
-import type {
-  Campaign,
-  TokenPair,
-  TurnResponse,
-  User,
-  SavePoint,
-} from "../types";
+import type { Campaign, TokenPair, TurnResponse, User, SavePoint } from "../types";
 
 const api = axios.create({
   baseURL: "/api",
   headers: { "Content-Type": "application/json" },
 });
 
-// Attach auth token to requests
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) {
@@ -22,7 +15,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 - try refresh token
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -46,7 +38,6 @@ api.interceptors.response.use(
   },
 );
 
-// Auth
 export const register = (username: string, email: string, password: string) =>
   api.post<TokenPair>("/auth/register", { username, email, password });
 
@@ -55,7 +46,6 @@ export const login = (username: string, password: string) =>
 
 export const getMe = () => api.get<User>("/auth/me");
 
-// Campaigns
 export const getCampaigns = () => api.get<Campaign[]>("/campaigns");
 
 export const getCampaign = (id: string) => api.get<Campaign>(`/campaigns/${id}`);
@@ -70,7 +60,6 @@ export const createCampaign = (data: {
 export const submitTurn = (campaignId: string, action: string) =>
   api.post<TurnResponse>(`/campaigns/${campaignId}/turn`, { action });
 
-// Templates
 export interface TemplateOption {
   id: string;
   slug: string;
@@ -83,9 +72,7 @@ export interface TemplateOption {
 
 export const getTemplates = () => api.get<TemplateOption[]>("/templates");
 
-// Saves
-export const getSaves = (campaignId: string) =>
-  api.get<SavePoint[]>(`/saves/${campaignId}`);
+export const getSaves = (campaignId: string) => api.get<SavePoint[]>(`/saves/${campaignId}`);
 
 export const createSave = (campaignId: string, name: string) =>
   api.post<SavePoint>(`/saves/${campaignId}`, { name });
@@ -93,18 +80,13 @@ export const createSave = (campaignId: string, name: string) =>
 export const loadSave = (campaignId: string, saveId: string) =>
   api.post(`/saves/${campaignId}/load/${saveId}`);
 
-// Journal
 export const getJournal = (campaignId: string, limit = 50, offset = 0) =>
   api.get(`/journal/${campaignId}`, { params: { limit, offset } });
 
-// Settings
 export const getSettings = () => api.get("/settings");
 
-export const updateApiKeys = (keys: Record<string, string>) =>
-  api.put("/settings/api-keys", keys);
+export const updateApiKeys = (keys: Record<string, string>) => api.put("/settings/api-keys", keys);
 
-// Export
-export const exportCampaign = (campaignId: string) =>
-  api.get(`/export/${campaignId}`);
+export const exportCampaign = (campaignId: string) => api.get(`/export/${campaignId}`);
 
 export default api;

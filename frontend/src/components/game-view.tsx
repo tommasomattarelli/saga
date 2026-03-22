@@ -38,14 +38,10 @@ export default function GameView() {
 
   return (
     <div className="flex h-screen">
-      {/* Main game area */}
       <div className="flex flex-1 flex-col">
-        {/* Top bar */}
         <header className="flex items-center justify-between border-b border-parchment-700/20 bg-parchment-900/90 px-4 py-2">
           <div>
-            <h2 className="font-display text-lg text-gold-400">
-              {campaign.name}
-            </h2>
+            <h2 className="font-display text-lg text-gold-400">{campaign.name}</h2>
             <span className="text-xs text-parchment-500">
               Turn {campaign.turn_number} &mdash;{" "}
               {campaign.world_state?.location || "Unknown location"}
@@ -73,51 +69,34 @@ export default function GameView() {
           </div>
         </header>
 
-        {/* Companion bar */}
         <CompanionBar />
 
-        {/* Narrative stream */}
         <div className="narrative-scroll flex-1 overflow-y-auto px-6 py-4">
           <NarrativeStream />
         </div>
 
-        {/* Action input */}
         <ActionInput campaignId={campaign.id} />
       </div>
 
-      {/* Side panel */}
       {sidePanel && (
         <aside className="w-80 overflow-y-auto border-l border-parchment-700/20 bg-parchment-900/95 p-4">
           {sidePanel === "character" && <CharacterSheet />}
           {sidePanel === "quests" && (
             <div>
-              <h3 className="mb-3 font-display text-lg text-gold-400">
-                Active Quests
-              </h3>
+              <h3 className="mb-3 font-display text-lg text-gold-400">Active Quests</h3>
               {campaign.quests?.active?.map(
                 (q: { name: string; description: string }, i: number) => (
-                  <div
-                    key={i}
-                    className="mb-2 rounded border border-parchment-700/20 p-3"
-                  >
-                    <p className="font-semibold text-parchment-200">
-                      {q.name}
-                    </p>
-                    <p className="text-sm text-parchment-400">
-                      {q.description}
-                    </p>
+                  <div key={i} className="mb-2 rounded border border-parchment-700/20 p-3">
+                    <p className="font-semibold text-parchment-200">{q.name}</p>
+                    <p className="text-sm text-parchment-400">{q.description}</p>
                   </div>
                 ),
-              ) || (
-                <p className="text-sm text-parchment-500">No active quests</p>
-              )}
+              ) || <p className="text-sm text-parchment-500">No active quests</p>}
             </div>
           )}
           {sidePanel === "settings" && (
             <div>
-              <h3 className="mb-3 font-display text-lg text-gold-400">
-                Settings
-              </h3>
+              <h3 className="mb-3 font-display text-lg text-gold-400">Settings</h3>
               <p className="text-sm text-parchment-400">Settings panel (WIP)</p>
             </div>
           )}

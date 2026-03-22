@@ -32,24 +32,14 @@ export default function LoginForm() {
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="w-full max-w-md rounded-lg border border-parchment-700/30 bg-parchment-900/80 p-8 shadow-2xl">
-        <h1 className="mb-2 text-center font-display text-3xl font-bold text-gold-400">
-          SAGA
-        </h1>
-        <p className="mb-8 text-center text-sm text-parchment-400">
-          AI Dungeon Master
-        </p>
+        <h1 className="mb-2 text-center font-display text-3xl font-bold text-gold-400">SAGA</h1>
+        <p className="mb-8 text-center text-sm text-parchment-400">AI Dungeon Master</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="rounded bg-blood-900/50 p-3 text-sm text-red-300">
-              {error}
-            </div>
-          )}
+          {error && <div className="rounded bg-blood-900/50 p-3 text-sm text-red-300">{error}</div>}
 
           <div>
-            <label className="mb-1 block text-sm text-parchment-300">
-              Username
-            </label>
+            <label className="mb-1 block text-sm text-parchment-300">Username</label>
             <input
               type="text"
               value={username}
@@ -60,9 +50,7 @@ export default function LoginForm() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-parchment-300">
-              Password
-            </label>
+            <label className="mb-1 block text-sm text-parchment-300">Password</label>
             <input
               type="password"
               value={password}

@@ -27,17 +27,11 @@ export default function CompanionBar() {
             className="flex items-center gap-2 rounded-lg border border-parchment-700/20 bg-parchment-800/30 px-3 py-1"
           >
             <div>
-              <span className="text-sm font-semibold text-parchment-200">
-                {c.name}
-              </span>
+              <span className="text-sm font-semibold text-parchment-200">{c.name}</span>
               <span className="ml-2 text-xs text-parchment-500">{c.mood}</span>
             </div>
-            {/* Mini HP bar */}
             <div className="h-1.5 w-16 overflow-hidden rounded-full bg-parchment-800">
-              <div
-                className="h-full rounded-full bg-red-600"
-                style={{ width: `${hpPercent}%` }}
-              />
+              <div className="h-full rounded-full bg-red-600" style={{ width: `${hpPercent}%` }} />
             </div>
           </div>
         );

@@ -11,7 +11,6 @@ export default function CharacterSheet() {
     <div>
       <h3 className="mb-4 font-display text-xl text-gold-400">{char.name}</h3>
 
-      {/* HP Bar */}
       <div className="mb-4">
         <div className="mb-1 flex justify-between text-sm">
           <span className="text-parchment-300">HP</span>
@@ -27,19 +26,16 @@ export default function CharacterSheet() {
         </div>
       </div>
 
-      {/* Level & XP */}
       <div className="mb-4 flex justify-between text-sm">
         <span className="text-parchment-300">Level {char.level}</span>
         <span className="text-parchment-500">{char.xp} XP</span>
       </div>
 
-      {/* AC */}
       <div className="mb-4 text-sm">
         <span className="text-parchment-400">AC: </span>
         <span className="font-bold text-parchment-200">{char.ac}</span>
       </div>
 
-      {/* Abilities */}
       <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-parchment-500">
         Abilities
       </h4>
@@ -49,12 +45,8 @@ export default function CharacterSheet() {
             key={ability}
             className="rounded border border-parchment-700/20 px-2 py-1 text-center"
           >
-            <div className="text-xs uppercase text-parchment-500">
-              {ability.slice(0, 3)}
-            </div>
-            <div className="font-bold text-parchment-200">
-              {score as number}
-            </div>
+            <div className="text-xs uppercase text-parchment-500">{ability.slice(0, 3)}</div>
+            <div className="font-bold text-parchment-200">{score as number}</div>
             <div className="text-xs text-parchment-500">
               {Math.floor(((score as number) - 10) / 2) >= 0 ? "+" : ""}
               {Math.floor(((score as number) - 10) / 2)}
@@ -63,7 +55,6 @@ export default function CharacterSheet() {
         ))}
       </div>
 
-      {/* Skills */}
       {char.skills && Object.keys(char.skills).length > 0 && (
         <>
           <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-parchment-500">
@@ -80,7 +71,6 @@ export default function CharacterSheet() {
         </>
       )}
 
-      {/* Inventory */}
       <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-parchment-500">
         Inventory
       </h4>
@@ -89,9 +79,7 @@ export default function CharacterSheet() {
         {(char.inventory || []).map((item, i) => (
           <div key={i} className="text-sm text-parchment-300">
             {item.name}{" "}
-            {item.quantity > 1 && (
-              <span className="text-parchment-500">x{item.quantity}</span>
-            )}
+            {item.quantity > 1 && <span className="text-parchment-500">x{item.quantity}</span>}
           </div>
         ))}
         {(!char.inventory || char.inventory.length === 0) && (

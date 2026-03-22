@@ -5,10 +5,8 @@ import type { TurnResponse } from "../../types";
 function TurnBlock({ turn }: { turn: TurnResponse }) {
   return (
     <div className="mb-6">
-      {/* Dice rolls */}
       {turn.dice_rolls && <DiceRoller rolls={turn.dice_rolls} />}
 
-      {/* Narration */}
       <div className="prose prose-invert max-w-none font-serif text-parchment-200 leading-relaxed">
         {turn.narration.split("\n").map((paragraph, i) => (
           <p key={i} className="mb-3">
@@ -17,19 +15,16 @@ function TurnBlock({ turn }: { turn: TurnResponse }) {
         ))}
       </div>
 
-      {/* Companion actions */}
       {turn.companion_actions && (
         <div className="mt-3 space-y-1">
           {Object.entries(turn.companion_actions).map(([name, action]) => (
             <p key={name} className="text-sm italic text-parchment-400">
-              <span className="font-semibold text-parchment-300">{name}</span>{" "}
-              {action}
+              <span className="font-semibold text-parchment-300">{name}</span> {action}
             </p>
           ))}
         </div>
       )}
 
-      {/* Suggested actions */}
       {turn.suggested_actions && turn.suggested_actions.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {turn.suggested_actions.map((action, i) => (
@@ -43,7 +38,6 @@ function TurnBlock({ turn }: { turn: TurnResponse }) {
         </div>
       )}
 
-      {/* Scene mood indicator */}
       {turn.scene_mood && (
         <div className="mt-2 text-xs uppercase tracking-wider text-parchment-600">
           {turn.scene_mood}
@@ -61,12 +55,8 @@ export default function NarrativeStream() {
     <div>
       {turnHistory.length === 0 && !isProcessing && (
         <div className="py-12 text-center">
-          <p className="font-display text-xl text-gold-400">
-            Your adventure awaits...
-          </p>
-          <p className="mt-2 text-sm text-parchment-500">
-            Type an action below to begin
-          </p>
+          <p className="font-display text-xl text-gold-400">Your adventure awaits...</p>
+          <p className="mt-2 text-sm text-parchment-500">Type an action below to begin</p>
         </div>
       )}
 

@@ -17,9 +17,7 @@ export class GameWebSocket {
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const host = window.location.host;
-    this.ws = new WebSocket(
-      `${protocol}://${host}/api/ws/${this.campaignId}?token=${token}`,
-    );
+    this.ws = new WebSocket(`${protocol}://${host}/api/ws/${this.campaignId}?token=${token}`);
 
     this.ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -32,7 +30,6 @@ export class GameWebSocket {
     };
 
     this.ws.onclose = () => {
-      // Auto-reconnect after 3 seconds
       setTimeout(() => this.connect(), 3000);
     };
   }
