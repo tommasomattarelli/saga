@@ -16,7 +16,7 @@ from app.services.turn_service import process_turn
 router = APIRouter()
 
 
-@router.post("/", response_model=CampaignResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=CampaignResponse, status_code=status.HTTP_201_CREATED)
 async def create_campaign(
     body: CampaignCreate,
     user: User = Depends(get_current_user),
@@ -38,7 +38,7 @@ async def create_campaign(
     return campaign
 
 
-@router.get("/", response_model=list[CampaignResponse])
+@router.get("", response_model=list[CampaignResponse])
 async def list_campaigns(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

@@ -10,7 +10,7 @@ from app.models.template import Template
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("")
 async def list_templates(db: AsyncSession = Depends(get_db)) -> list[dict]:
     """List available campaign templates."""
     result = await db.execute(select(Template).order_by(Template.name))

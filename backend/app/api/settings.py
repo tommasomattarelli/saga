@@ -11,7 +11,7 @@ from app.security.encryption import encrypt_api_key
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("")
 async def get_settings(user: User = Depends(get_current_user)) -> dict:
     """Get current user settings."""
     return {
@@ -22,7 +22,7 @@ async def get_settings(user: User = Depends(get_current_user)) -> dict:
     }
 
 
-@router.patch("/")
+@router.patch("")
 async def update_settings(
     updates: dict,
     user: User = Depends(get_current_user),

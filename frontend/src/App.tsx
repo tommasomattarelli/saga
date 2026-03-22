@@ -4,6 +4,7 @@ import LoginForm from "./components/auth/login-form";
 import RegisterForm from "./components/auth/register-form";
 import GameView from "./components/game-view";
 import CampaignSelect from "./components/campaign-select";
+import NewCampaign from "./components/new-campaign";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -17,6 +18,14 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginForm />} />
         <Route path="/register" element={<RegisterForm />} />
+        <Route
+          path="/campaigns/new"
+          element={
+            <ProtectedRoute>
+              <NewCampaign />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/campaigns"
           element={

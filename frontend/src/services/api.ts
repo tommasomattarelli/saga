@@ -70,6 +70,19 @@ export const createCampaign = (data: {
 export const submitTurn = (campaignId: string, action: string) =>
   api.post<TurnResponse>(`/campaigns/${campaignId}/turn`, { action });
 
+// Templates
+export interface TemplateOption {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  author: string;
+  difficulty: number;
+  tags: string[];
+}
+
+export const getTemplates = () => api.get<TemplateOption[]>("/templates");
+
 // Saves
 export const getSaves = (campaignId: string) =>
   api.get<SavePoint[]>(`/saves/${campaignId}`);
