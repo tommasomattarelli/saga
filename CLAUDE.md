@@ -374,3 +374,8 @@ When modifying DM prompts:
 4. Keep prompts under 2,000 tokens for cacheability
 
 Template prompts live in `templates/*/template.yaml` and follow the Template SDK schema (`templates/schema.json`). Community-contributed templates are a prompt injection vector: lore seeds, NPC descriptions, and DM style directives are injected into the system prompt. All template text fields must pass through `ai/sanitizer.py` at load time and are wrapped in delimiters that the DM prompt treats as untrusted narrative content, never as system instructions.
+
+
+
+
+usare google stich per UI e DESIGN.md
