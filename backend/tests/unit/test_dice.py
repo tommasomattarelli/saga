@@ -45,6 +45,7 @@ class TestRollDice:
                 assert result.rolls[0] == 20
                 found_nat20 = True
                 break
+        assert found_nat20
         # Statistical: probability of not rolling a 20 in 1000 tries is negligible
 
 

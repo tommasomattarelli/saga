@@ -1,10 +1,12 @@
 import uuid
-import pytest
 from unittest.mock import MagicMock
-from app.services.turn_service import process_turn
-from app.models.campaign import Campaign
+
+import pytest
+
 from app.core.engine import ProcessedTurn
+from app.models.campaign import Campaign
 from app.schemas.campaign import TurnResponse
+from app.services.turn_service import process_turn
 
 
 @pytest.mark.asyncio

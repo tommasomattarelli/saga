@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 
-
 INJECTION_PATTERNS = [
     r"ignore\s+(previous|above|all)\s+(instructions|prompts)",
     r"you\s+are\s+now\s+",

@@ -1,10 +1,8 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from app.ai.providers.openai import OpenAIProvider
-from app.ai.providers.anthropic import AnthropicProvider
-from app.ai.providers.google import GoogleProvider
-from app.ai.providers.local import LocalProvider
 
 
 @pytest.mark.asyncio

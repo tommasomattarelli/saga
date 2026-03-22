@@ -1,46 +1,43 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import CompanionBar from "./companion-bar";
 import { useGameStore } from "../../stores/game-store";
 import { useUIStore } from "../../stores/ui-store";
 import "@testing-library/jest-dom";
 
 describe("CompanionBar Component", () => {
-  beforeEach(() => {
+  it("should render companions when visible and data exists", () => {
     useUIStore.setState({ showCompanionBar: true });
-    useGameStore.setState({ campaign: null });
-  });
-
-  it("should render companion info when present", () => {
     useGameStore.setState({
       campaign: {
         world_state: {
           companions: {
-            elara_key: { name: "Elara", hp: 15, max_hp: 20, mood: "Happy", loyalty: 10 },
+            c1: { name: "Bob", hp: 10, max_hp: 20, mood: "Happy", loyalty: 5 },
           },
         },
       } as any,
     });
 
     render(<CompanionBar />);
-    expect(screen.getByText("Elara")).toBeInTheDocument();
+
+    expect(screen.getByText("Bob")).toBeInTheDocument();
     expect(screen.getByText("Happy")).toBeInTheDocument();
   });
 
-  it("should render nothing if showCompanionBar is false", () => {
+  it("should return null if showCompanionBar is false", () => {
     useUIStore.setState({ showCompanionBar: false });
     const { container } = render(<CompanionBar />);
     expect(container.firstChild).toBeNull();
   });
 
-  it("should render an empty div if companions exists but is empty", () => {
+  it("should return null if no companions in world_state", () => {
+    useUIStore.setState({ showCompanionBar: true });
     useGameStore.setState({
       campaign: {
-        world_state: { companions: {} },
+        world_state: { companions: null },
       } as any,
     });
     const { container } = render(<CompanionBar />);
-    expect(container.firstChild).toBeInTheDocument();
-    expect(container.firstChild?.childNodes).toHaveLength(0);
+    expect(container.firstChild).toBeNull();
   });
 });

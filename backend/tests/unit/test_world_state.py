@@ -1,7 +1,4 @@
-import pytest
-
 from app.memory.world_state import (
-    ALLOWED_WORLD_STATE_KEYS,
     merge_world_state,
     migrate_world_state,
     validate_world_state,

@@ -27,11 +27,38 @@ describe("CharacterSheet Component", () => {
 
     render(<CharacterSheet />);
 
-    expect(screen.getByText("Grog")).toBeInTheDocument();
-    expect(screen.getByText("Level 5")).toBeInTheDocument();
+    expect(screen.getByText(/Grog/i)).toBeInTheDocument();
+    expect(screen.getByText(/Level 5/i)).toBeInTheDocument();
     expect(screen.getByText("45/50")).toBeInTheDocument();
-    expect(screen.getByText("AC:")).toBeInTheDocument();
-    expect(screen.getByText("16")).toBeInTheDocument();
+    expect(screen.getByText(/STR/i)).toBeInTheDocument();
+    expect(screen.getByText("18")).toBeInTheDocument();
+    expect(screen.getByText("+4")).toBeInTheDocument(); // 18 -> +4
+    expect(screen.getByText(/Athletics/i)).toBeInTheDocument();
+    expect(screen.getByText(/Axe/i)).toBeInTheDocument();
+  });
+
+  it("should render empty inventory correctly", () => {
+    const emptyChar = { ...mockChar, inventory: [], gold: 0 };
+    useGameStore.setState({ campaign: { character_data: emptyChar } as any });
+    render(<CharacterSheet />);
+    expect(screen.getByText("Empty")).toBeInTheDocument();
+    expect(screen.getByText("0 gold")).toBeInTheDocument();
+  });
+
+  it("should correctly handle negative ability modifiers", () => {
+    useGameStore.setState({
+      campaign: { character_data: { ...mockChar, abilities: { dexterity: 8 } } } as any,
+    });
+    render(<CharacterSheet />);
+    expect(screen.getByText(/DEX/i)).toBeInTheDocument();
+    expect(screen.getByText("8")).toBeInTheDocument();
+    expect(screen.getByText("-1")).toBeInTheDocument();
+  });
+
+  it("should show empty state if no character data", () => {
+    useGameStore.setState({ campaign: { character_data: null } as any });
+    render(<CharacterSheet />);
+    expect(screen.getByText("No character data")).toBeInTheDocument();
   });
 
   it("should show empty state if no campaign", () => {

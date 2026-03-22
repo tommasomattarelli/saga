@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime, timedelta
 
-import pytest
 from fastapi.testclient import TestClient
+from jose import jwt
 
 from app.api.auth import get_current_user
 from app.config import settings
@@ -13,7 +13,6 @@ from app.models.user import User
 client = TestClient(app)
 
 # Helper to generate token
-from jose import jwt
 
 
 def create_mock_jwt(user_id: str):
@@ -116,7 +115,6 @@ def test_login_invalid(mocker):
 
 
 def test_get_me(mocker):
-    mock_db = mocker.AsyncMock()
     user_id = str(uuid.uuid4())
     user_mock = User(
         id=uuid.UUID(user_id),

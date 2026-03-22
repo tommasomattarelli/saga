@@ -1,5 +1,3 @@
-import pytest
-
 from app.core.combat import Combatant, CombatState, attack_roll, damage_roll, roll_initiative
 
 

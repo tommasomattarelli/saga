@@ -1,13 +1,10 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from app.dependencies import get_db
 from app.main import app
+from app.models.template import Template
 
 client = TestClient(app)
-
-
-from app.models.template import Template
 
 
 def test_list_templates(mocker):

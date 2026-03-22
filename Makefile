@@ -22,13 +22,13 @@ format-frontend:
 
 test: test-backend test-frontend
 test-backend:
-	cd backend && uv run pytest
+	cd backend && uv run pytest --cov=app --cov-report=term-missing:skip-covered
 test-frontend:
-	cd frontend && npm run test -- --run
+	cd frontend && npm run test -- --run --coverage.enabled --coverage.reporter=text --coverage.include="src/**/*.{ts,tsx}"
 
 coverage: coverage-backend coverage-frontend
 coverage-backend:
-	cd backend && uv run pytest --cov=app --cov-report=term-missing
+	cd backend && uv run pytest --cov=app --cov-report=term-missing --cov-report=html
 coverage-frontend:
 	cd frontend && npm run test:coverage
 

@@ -1,17 +1,16 @@
-import pytest
 from app.exceptions import (
-    SagaException,
-    NotFoundError,
-    ValidationError,
-    UnauthorizedError,
     AIProviderError,
-    ForbiddenError,
     ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    SagaError,
+    UnauthorizedError,
+    ValidationError,
 )
 
 
 def test_exceptions():
-    exc = SagaException("Base error", 500)
+    exc = SagaError("Base error", 500)
     assert exc.status_code == 500
     assert exc.message == "Base error"
 
