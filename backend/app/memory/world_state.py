@@ -100,13 +100,17 @@ def validate_world_state(state: dict) -> dict:
 def merge_world_state(current: dict, updates: dict) -> dict:
     """Deep merge world state updates into current state."""
     updates = validate_world_state(updates)
-    result = copy.deepcopy(current)
-    for key, value in updates.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = merge_world_state(result[key], value)
-        else:
-            result[key] = value
-    return result
+
+    def _deep_merge(d1: dict, d2: dict) -> dict:
+        result = copy.deepcopy(d1)
+        for k, v in d2.items():
+            if k in result and isinstance(result[k], dict) and isinstance(v, dict):
+                result[k] = _deep_merge(result[k], v)
+            else:
+                result[k] = v
+        return result
+
+    return _deep_merge(current, updates)
 
 
 async def apply_world_updates(

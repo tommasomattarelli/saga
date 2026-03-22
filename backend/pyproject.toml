@@ -54,4 +54,9 @@ testpaths = ["tests"]
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
 
+[dependency-groups]
+dev = [
+    "pytest-mock>=3.15.1",
+]
+
 

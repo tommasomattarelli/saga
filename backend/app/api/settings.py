@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.get("")
 async def get_settings(user: User = Depends(get_current_user)) -> dict:
-
+    """Get current user settings."""
     return {
         "preferred_language": user.preferred_language,
         "has_openai_key": bool(user.openai_api_key_enc),
