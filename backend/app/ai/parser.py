@@ -12,8 +12,6 @@ import structlog
 logger = structlog.get_logger()
 
 
-
-
 class SceneMood(StrEnum):
     """Closed set of scene moods the DM may emit."""
 

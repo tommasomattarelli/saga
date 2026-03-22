@@ -51,6 +51,7 @@ async def test_route_other_call_type():
 @pytest.mark.asyncio
 async def test_router_env_var_override(monkeypatch):
     import os
+
     monkeypatch.setenv("SAGA_MODEL_DM_NARRATION_HIGH", "gpt-4o")
     monkeypatch.setenv("SAGA_MODEL_DM_NARRATION_HIGH_PROVIDER", "openai")
 

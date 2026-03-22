@@ -1,5 +1,3 @@
-
-
 import uuid
 
 from pgvector.sqlalchemy import Vector
@@ -11,7 +9,6 @@ from app.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class Turn(Base, UUIDMixin, TimestampMixin):
-
     __tablename__ = "turns"
 
     campaign_id: Mapped[uuid.UUID] = mapped_column(

@@ -12,7 +12,7 @@ vi.mock("../services/api", () => ({
 
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
-  const actual = await vi.importActual("react-router-dom") as any;
+  const actual = (await vi.importActual("react-router-dom")) as any;
   return {
     ...actual,
     useNavigate: () => mockNavigate,
@@ -34,13 +34,20 @@ describe("NewCampaign Component", () => {
         <BrowserRouter>
           <NewCampaign />
         </BrowserRouter>
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
   it("should render template picker in step 1", async () => {
     (getTemplates as any).mockResolvedValue({
       data: [
-        { id: "t1", name: "Classic Fantasy", description: "Standard D&D", tags: ["fantasy"], difficulty: 1, author: "System" },
+        {
+          id: "t1",
+          name: "Classic Fantasy",
+          description: "Standard D&D",
+          tags: ["fantasy"],
+          difficulty: 1,
+          author: "System",
+        },
       ],
     });
 
@@ -53,12 +60,19 @@ describe("NewCampaign Component", () => {
   it("should move to step 2 when template is selected", async () => {
     (getTemplates as any).mockResolvedValue({
       data: [
-        { id: "t1", name: "Classic Fantasy", description: "Standard D&D", tags: ["fantasy"], difficulty: 1, author: "System" },
+        {
+          id: "t1",
+          name: "Classic Fantasy",
+          description: "Standard D&D",
+          tags: ["fantasy"],
+          difficulty: 1,
+          author: "System",
+        },
       ],
     });
 
     renderComponent();
-    
+
     const templateBtn = await screen.findByText("Classic Fantasy");
     fireEvent.click(templateBtn);
 

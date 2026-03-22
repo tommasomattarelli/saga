@@ -16,10 +16,10 @@ describe("CompanionBar Component", () => {
       campaign: {
         world_state: {
           companions: {
-            "elara_key": { name: "Elara", hp: 15, max_hp: 20, mood: "Happy", loyalty: 10 }
-          }
-        }
-      } as any
+            elara_key: { name: "Elara", hp: 15, max_hp: 20, mood: "Happy", loyalty: 10 },
+          },
+        },
+      } as any,
     });
 
     render(<CompanionBar />);
@@ -36,8 +36,8 @@ describe("CompanionBar Component", () => {
   it("should render an empty div if companions exists but is empty", () => {
     useGameStore.setState({
       campaign: {
-        world_state: { companions: {} }
-      } as any
+        world_state: { companions: {} },
+      } as any,
     });
     const { container } = render(<CompanionBar />);
     expect(container.firstChild).toBeInTheDocument();

@@ -1,5 +1,3 @@
-
-
 NPC_BASE_PROMPT = """You are an NPC in a tabletop RPG. You have your own life, goals, and psychology.
 
 ## Your Identity

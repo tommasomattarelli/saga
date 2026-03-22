@@ -29,8 +29,7 @@ def test_get_characters(mocker, mock_user_dependency):
     campaign_id = str(uuid.uuid4())
 
     camp_mock = Campaign(
-        id=uuid.UUID(campaign_id),
-        character_data={"hp": 15, "max_hp": 20, "name": "Bord"}
+        id=uuid.UUID(campaign_id), character_data={"hp": 15, "max_hp": 20, "name": "Bord"}
     )
     camp_mock.created_at = datetime.utcnow()
 
@@ -58,8 +57,7 @@ def test_update_characters(mocker, mock_user_dependency):
     campaign_id = str(uuid.uuid4())
 
     camp_mock = Campaign(
-        id=uuid.UUID(campaign_id),
-        character_data={"hp": 15, "max_hp": 20, "name": "Bord"}
+        id=uuid.UUID(campaign_id), character_data={"hp": 15, "max_hp": 20, "name": "Bord"}
     )
     camp_mock.created_at = datetime.utcnow()
 
@@ -76,8 +74,7 @@ def test_update_characters(mocker, mock_user_dependency):
     app.dependency_overrides[get_db] = override_get_db
 
     response = client.patch(
-        f"/api/characters/{campaign_id}",
-        json={"character_data": {"hp": 12, "name": "Bord"}}
+        f"/api/characters/{campaign_id}", json={"character_data": {"hp": 12, "name": "Bord"}}
     )
     assert response.status_code == 200
     data = response.json()

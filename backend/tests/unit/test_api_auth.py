@@ -55,7 +55,7 @@ def test_register(mocker):
 
 def test_login(mocker):
     mock_db = mocker.AsyncMock()
-    
+
     # We need to test login, which involves fetching a User and verifying the password.
     # The password is hashed using Passlib (bcrypt). To mock it simply, we can patch verify_password.
     user_id = str(uuid.uuid4())
@@ -88,13 +88,13 @@ def test_login(mocker):
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
-    
+
     app.dependency_overrides.clear()
 
 
 def test_login_invalid(mocker):
     mock_db = mocker.AsyncMock()
-    
+
     class MockUserResult:
         def scalar_one_or_none(self):
             return None

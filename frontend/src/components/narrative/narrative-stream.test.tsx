@@ -28,8 +28,8 @@ describe("NarrativeStream Component", () => {
           world_updates: null,
           scene_mood: "dark",
           suggested_actions: ["Look around"],
-          model_used: "model-x"
-        }
+          model_used: "model-x",
+        },
       ],
     });
 

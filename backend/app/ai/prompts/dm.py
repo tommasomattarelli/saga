@@ -1,5 +1,3 @@
-
-
 import json
 
 from app.models.campaign import Campaign, DeathMode
@@ -51,19 +49,15 @@ DEATH_MODE_PROMPTS = {
 def build_dm_system_prompt(campaign: Campaign) -> str:
     parts = [BASE_DM_PROMPT]
 
-
     parts.append(DEATH_MODE_PROMPTS.get(campaign.death_mode, ""))
-
 
     if campaign.world_state:
         parts.append(
             f"\n## Current World State\n```json\n{json.dumps(campaign.world_state, indent=2)}\n```"
         )
 
-
     if campaign.quests:
         parts.append(f"\n## Active Quests\n```json\n{json.dumps(campaign.quests, indent=2)}\n```")
-
 
     if campaign.character_data:
         parts.append(

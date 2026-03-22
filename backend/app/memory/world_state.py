@@ -41,8 +41,6 @@ def _register_migration(from_version: int):
     return decorator
 
 
-
-
 @_register_migration(0)
 def _migrate_v0_to_v1(state: dict) -> dict:
     if "meta" not in state:
@@ -53,8 +51,6 @@ def _migrate_v0_to_v1(state: dict) -> dict:
     return state
 
 
-
-
 def migrate_world_state(state: dict) -> dict:
     """Apply pending schema migrations to a world state dict."""
     state = copy.deepcopy(state)
@@ -63,7 +59,7 @@ def migrate_world_state(state: dict) -> dict:
     current_version: int = state.get("meta", {}).get("schema_version", 0)
 
     if current_version == CURRENT_SCHEMA_VERSION:
-        return state   
+        return state
 
     while current_version < CURRENT_SCHEMA_VERSION:
         migration_fn = _MIGRATIONS.get(current_version)

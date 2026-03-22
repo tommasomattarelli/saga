@@ -22,7 +22,7 @@ def test_migrate_v0_to_v1():
 def test_migrate_up_to_date():
     v1_state = {
         "meta": {"schema_version": 1, "world_name": "Test"},
-        "locations": {"town": "visited"}
+        "locations": {"town": "visited"},
     }
     migrated = migrate_world_state(v1_state)
     assert migrated == v1_state
@@ -36,7 +36,7 @@ def test_validate_world_state():
         "meta": {},
         "locations": {},
         "invalid_key": "should be stripped",
-        "another_invalid": 123
+        "another_invalid": 123,
     }
     validated = validate_world_state(state)
     assert "meta" in validated
@@ -49,13 +49,13 @@ def test_merge_world_state():
     current = {
         "meta": {"schema_version": 1},
         "locations": {"town": {"visited": True, "status": "safe"}},
-        "factions": {"guards": 50}
+        "factions": {"guards": 50},
     }
 
     updates = {
         "locations": {"town": {"status": "under_attack"}, "forest": {"visited": False}},
         "factions": {"thieves": 10},
-        "invalid_key": "should be dropped"
+        "invalid_key": "should be dropped",
     }
 
     merged = merge_world_state(current, updates)

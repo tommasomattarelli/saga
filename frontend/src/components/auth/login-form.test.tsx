@@ -12,7 +12,7 @@ vi.mock("../../services/api", () => ({
 
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
-  const actual = await vi.importActual("react-router-dom") as any;
+  const actual = (await vi.importActual("react-router-dom")) as any;
   return {
     ...actual,
     useNavigate: () => mockNavigate,
@@ -35,7 +35,7 @@ describe("LoginForm Component", () => {
         <BrowserRouter>
           <LoginForm />
         </BrowserRouter>
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
   it("should render login form", () => {
@@ -46,11 +46,11 @@ describe("LoginForm Component", () => {
   });
 
   it("should call login and navigate on success", async () => {
-    (login as any).mockResolvedValue({ 
-      data: { access_token: "pk", refresh_token: "rk", token_type: "bearer" } 
+    (login as any).mockResolvedValue({
+      data: { access_token: "pk", refresh_token: "rk", token_type: "bearer" },
     });
     (getMe as any).mockResolvedValue({
-      data: { id: "1", username: "testuser" }
+      data: { id: "1", username: "testuser" },
     });
 
     renderComponent();
@@ -59,7 +59,9 @@ describe("LoginForm Component", () => {
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
     fireEvent.click(screen.getByRole("button", { name: /enter the realm/i }));
 
-    await waitFor(() => expect(login).toHaveBeenCalledWith("testuser", "password123"), { timeout: 2000 });
+    await waitFor(() => expect(login).toHaveBeenCalledWith("testuser", "password123"), {
+      timeout: 2000,
+    });
     await waitFor(() => expect(getMe).toHaveBeenCalled());
     expect(mockNavigate).toHaveBeenCalledWith("/campaigns");
   });

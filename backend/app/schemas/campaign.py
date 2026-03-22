@@ -1,5 +1,3 @@
-
-
 import uuid
 from datetime import datetime
 
@@ -9,7 +7,6 @@ from app.models.campaign import CampaignStatus, DeathMode
 
 
 class CampaignCreate(BaseModel):
-
     template_id: str
     name: str
     death_mode: DeathMode
@@ -17,7 +14,6 @@ class CampaignCreate(BaseModel):
 
 
 class CampaignResponse(BaseModel):
-
     id: uuid.UUID
     name: str
     template_id: str
@@ -34,12 +30,10 @@ class CampaignResponse(BaseModel):
 
 
 class TurnSubmit(BaseModel):
-
     action: str
 
 
 class TurnResponse(BaseModel):
-
     turn_number: int
     narration: str
     dice_rolls: dict | None = None

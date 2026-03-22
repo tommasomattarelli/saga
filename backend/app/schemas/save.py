@@ -1,5 +1,3 @@
-
-
 import uuid
 from datetime import datetime
 
@@ -7,12 +5,10 @@ from pydantic import BaseModel
 
 
 class SaveCreate(BaseModel):
-
     name: str
 
 
 class SaveResponse(BaseModel):
-
     id: uuid.UUID
     campaign_id: uuid.UUID
     name: str

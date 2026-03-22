@@ -10,7 +10,7 @@ def test_build_companion_prompt():
         "background": "Fallen knight",
         "loyalty": 8,
         "trust": 7,
-        "mood": "determined"
+        "mood": "determined",
     }
     prompt = build_companion_prompt(data)
     assert "Eldrin" in prompt
@@ -28,7 +28,7 @@ def test_build_npc_prompt():
         "motivation": "Make money",
         "fear": "Bandits",
         "secret": "Hides stolen goods",
-        "disposition": "hostile"
+        "disposition": "hostile",
     }
     prompt = build_npc_prompt(data)
     assert "Bob" in prompt
@@ -44,7 +44,7 @@ def test_build_world_sim_prompt():
     world_state = {
         "time": {"time_of_day": "evening"},
         "weather": "rainy and cold",
-        "factions": {"The Thieves Guild": {"power": 5}}
+        "factions": {"The Thieves Guild": {"power": 5}},
     }
     prompt = build_world_sim_prompt(world_state, turn_number=42)
     assert "evening" in prompt

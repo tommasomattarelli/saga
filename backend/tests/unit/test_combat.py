@@ -38,11 +38,14 @@ def test_roll_initiative(mocker):
     c3 = Combatant(name="Dragon")
 
     # Predictable rolls: 15, 5, 20
-    mocker.patch("app.core.combat.roll_dice", side_effect=[
-        mocker.Mock(total=15),
-        mocker.Mock(total=5),
-        mocker.Mock(total=20),
-    ])
+    mocker.patch(
+        "app.core.combat.roll_dice",
+        side_effect=[
+            mocker.Mock(total=15),
+            mocker.Mock(total=5),
+            mocker.Mock(total=20),
+        ],
+    )
 
     sorted_combatants = roll_initiative([c1, c2, c3])
 
@@ -56,26 +59,29 @@ def test_roll_initiative(mocker):
 
 
 def test_attack_roll(mocker):
-    mocker.patch("app.core.combat.roll_dice", return_value=mocker.Mock(
-        total=16, rolls=[12], natural_20=False, natural_1=False
-    ))
+    mocker.patch(
+        "app.core.combat.roll_dice",
+        return_value=mocker.Mock(total=16, rolls=[12], natural_20=False, natural_1=False),
+    )
     res = attack_roll(attacker_modifier=4, target_ac=15)
     assert res["hits"] is True
     assert res["critical"] is False
     assert res["fumble"] is False
 
     # Miss
-    mocker.patch("app.core.combat.roll_dice", return_value=mocker.Mock(
-        total=12, rolls=[8], natural_20=False, natural_1=False
-    ))
+    mocker.patch(
+        "app.core.combat.roll_dice",
+        return_value=mocker.Mock(total=12, rolls=[8], natural_20=False, natural_1=False),
+    )
     res2 = attack_roll(attacker_modifier=4, target_ac=15)
     assert res2["hits"] is False
 
 
 def test_attack_roll_critical(mocker):
-    mocker.patch("app.core.combat.roll_dice", return_value=mocker.Mock(
-        total=25, rolls=[20], natural_20=True, natural_1=False
-    ))
+    mocker.patch(
+        "app.core.combat.roll_dice",
+        return_value=mocker.Mock(total=25, rolls=[20], natural_20=True, natural_1=False),
+    )
     res = attack_roll(attacker_modifier=5, target_ac=30)  # Crit always hits
     assert res["hits"] is True
     assert res["critical"] is True

@@ -1,5 +1,3 @@
-
-
 import uuid
 from enum import StrEnum
 
@@ -12,7 +10,6 @@ from app.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class CampaignStatus(StrEnum):
-
     ACTIVE = "active"
     PAUSED = "paused"
     COMPLETED = "completed"
@@ -20,14 +17,12 @@ class CampaignStatus(StrEnum):
 
 
 class DeathMode(StrEnum):
-
     IRONMAN = "ironman"
     DESTINO = "destino"
     CRONISTA = "cronista"
 
 
 class Campaign(Base, UUIDMixin, TimestampMixin):
-
     __tablename__ = "campaigns"
 
     user_id: Mapped[uuid.UUID] = mapped_column(

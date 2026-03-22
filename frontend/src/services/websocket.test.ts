@@ -40,12 +40,12 @@ describe("GameWebSocket", () => {
     const gws = new GameWebSocket("camp123");
     const handler = vi.fn();
     gws.on("test_event", handler);
-    
+
     gws.connect();
     // Simulate incoming message
     const event = { data: JSON.stringify({ type: "test_event", data: "foo" }) };
     (globalThis.WebSocket as any).mock.results[0].value.onmessage(event);
-    
+
     expect(handler).toHaveBeenCalledWith({ type: "test_event", data: "foo" });
   });
 

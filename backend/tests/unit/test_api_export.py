@@ -43,11 +43,7 @@ def test_export_campaign(mocker, mock_user_dependency):
         def scalars(self):
             class MockAll:
                 def all(self):
-                    return [
-                        Turn(
-                            turn_number=1, player_action="Go", narration="You go."
-                        )
-                    ]
+                    return [Turn(turn_number=1, player_action="Go", narration="You go.")]
 
             return MockAll()
 

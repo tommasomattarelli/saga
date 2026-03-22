@@ -1,5 +1,3 @@
-
-
 WORLD_SIM_PROMPT = """You are a world simulation engine for a tabletop RPG. Your job is to advance the state of the world independently of the player's actions.
 
 ## Current World State

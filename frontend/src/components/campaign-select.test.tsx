@@ -19,7 +19,13 @@ describe("CampaignSelect Component", () => {
   it("should render list of campaigns", async () => {
     (getCampaigns as any).mockResolvedValue({
       data: [
-        { id: "1", name: "The Dragon Raid", status: "active", turn_number: 5, updated_at: "2024-01-01" },
+        {
+          id: "1",
+          name: "The Dragon Raid",
+          status: "active",
+          turn_number: 5,
+          updated_at: "2024-01-01",
+        },
       ],
     });
 
@@ -28,7 +34,7 @@ describe("CampaignSelect Component", () => {
         <BrowserRouter>
           <CampaignSelect />
         </BrowserRouter>
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
     expect(screen.getByText("Your Sagas")).toBeInTheDocument();
@@ -44,9 +50,11 @@ describe("CampaignSelect Component", () => {
         <BrowserRouter>
           <CampaignSelect />
         </BrowserRouter>
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
-    await waitFor(() => expect(screen.getByText("No campaigns yet. Start a new adventure!")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("No campaigns yet. Start a new adventure!")).toBeInTheDocument(),
+    );
   });
 });

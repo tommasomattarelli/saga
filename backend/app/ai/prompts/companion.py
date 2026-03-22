@@ -1,5 +1,3 @@
-
-
 COMPANION_BASE_PROMPT = """You are roleplaying as {name}, a companion character in a tabletop RPG.
 
 ## Your Personality

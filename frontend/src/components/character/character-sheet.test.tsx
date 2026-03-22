@@ -26,7 +26,7 @@ describe("CharacterSheet Component", () => {
     });
 
     render(<CharacterSheet />);
-    
+
     expect(screen.getByText("Grog")).toBeInTheDocument();
     expect(screen.getByText("Level 5")).toBeInTheDocument();
     expect(screen.getByText("45/50")).toBeInTheDocument();

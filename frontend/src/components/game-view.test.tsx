@@ -11,7 +11,7 @@ vi.mock("../services/api", () => ({
 }));
 
 vi.mock("react-router-dom", async () => {
-  const actual = await vi.importActual("react-router-dom") as any;
+  const actual = (await vi.importActual("react-router-dom")) as any;
   return {
     ...actual,
     useParams: () => ({ campaignId: "c123" }),
@@ -27,7 +27,7 @@ describe("GameView Component", () => {
     turn_number: 1,
     world_state: { location: "Mystic Cave" },
     character_data: { name: "Hero" },
-    quests: { active: [] }
+    quests: { active: [] },
   };
 
   beforeEach(() => {
@@ -44,7 +44,7 @@ describe("GameView Component", () => {
         <BrowserRouter>
           <GameView />
         </BrowserRouter>
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
   it("should show loading state initially", () => {
@@ -55,12 +55,15 @@ describe("GameView Component", () => {
 
   it("should render campaign info when loaded", async () => {
     (getCampaign as any).mockResolvedValue({ data: mockCampaign });
-    
+
     renderComponent();
 
-    await waitFor(() => {
-      expect(screen.getByText("Epic Quest")).toBeInTheDocument();
-      expect(screen.getByText(/Mystic Cave/)).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText("Epic Quest")).toBeInTheDocument();
+        expect(screen.getByText(/Mystic Cave/)).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
   });
 });

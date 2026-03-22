@@ -21,7 +21,7 @@ describe("Auth Store", () => {
   it("should store tokens and set isAuthenticated to true", () => {
     const { setTokens } = useAuthStore.getState();
     setTokens({ access_token: "access123", refresh_token: "refresh456", token_type: "bearer" });
-    
+
     const state = useAuthStore.getState();
     expect(state.accessToken).toBe("access123");
     expect(state.refreshToken).toBe("refresh456");
@@ -38,9 +38,9 @@ describe("Auth Store", () => {
   it("should logout correctly by clearing tokens", () => {
     const { setTokens, logout } = useAuthStore.getState();
     setTokens({ access_token: "access123", refresh_token: "refresh456", token_type: "bearer" });
-    
+
     logout();
-    
+
     const state = useAuthStore.getState();
     expect(state.accessToken).toBeNull();
     expect(state.refreshToken).toBeNull();

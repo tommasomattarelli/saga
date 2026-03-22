@@ -98,14 +98,14 @@ def test_create_save(mocker, mock_user_dependency):
 
     mock_db.execute.return_value = MockCampaignResult()
     mock_db.commit = mocker.AsyncMock()
-    
+
     async def mock_refresh(obj):
         obj.id = uuid.uuid4()
         obj.turn_number = 1
         obj.scene_summary = "Summary"
         obj.is_auto = False
         obj.created_at = datetime.now()
-        
+
     mock_db.refresh = mocker.AsyncMock(side_effect=mock_refresh)
 
     async def override_get_db():

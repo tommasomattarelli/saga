@@ -52,6 +52,7 @@ async def test_build_context(mocker):
                         turn_number=1,
                     )
                     return [turn_mock]
+
             return MockScalars()
 
     mock_db = mocker.Mock()
@@ -62,7 +63,7 @@ async def test_build_context(mocker):
         world_state={"time": {"time_of_day": "morning"}},
         death_mode=DeathMode.IRONMAN,
         quests={"active": [{"title": "Quest"}]},
-        character_data={"hp": 10}
+        character_data={"hp": 10},
     )
 
     ctx = await build_context(campaign, "I look around.", mock_db)

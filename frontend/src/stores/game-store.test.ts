@@ -20,16 +20,16 @@ const mockCampaign = {
     inventory: [],
     gold: 0,
     background: "none",
-    notes: ""
+    notes: "",
   },
   world_state: {
     location: "Start Town",
     companions: {},
-    factions: {}
+    factions: {},
   },
   quests: {},
   created_at: "2024-01-01",
-  updated_at: "2024-01-01"
+  updated_at: "2024-01-01",
 };
 
 const mockTurn = {
@@ -40,7 +40,7 @@ const mockTurn = {
   world_updates: null,
   scene_mood: "calm",
   suggested_actions: ["action 1"],
-  model_used: "test-model"
+  model_used: "test-model",
 };
 
 describe("Game Store", () => {
@@ -88,7 +88,9 @@ describe("Game Store", () => {
 
   it("should warn on invalid world state keys in dev", () => {
     useGameStore.getState().updateWorldState({ sidePanel: "inventory" } as any);
-    expect(warnSpy).toHaveBeenCalledWith("[game-store] WorldState leakage (UI keys found):", ["sidePanel"]);
+    expect(warnSpy).toHaveBeenCalledWith("[game-store] WorldState leakage (UI keys found):", [
+      "sidePanel",
+    ]);
   });
 
   it("should update character data", () => {

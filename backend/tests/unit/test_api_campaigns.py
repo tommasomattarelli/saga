@@ -46,7 +46,7 @@ def test_list_campaigns(mocker, mock_user_dependency):
                             world_state={},
                             quests={},
                             created_at=datetime.now(),
-                            updated_at=datetime.now()
+                            updated_at=datetime.now(),
                         )
                     ]
 
@@ -69,7 +69,7 @@ def test_list_campaigns(mocker, mock_user_dependency):
 
 def test_create_campaign(mocker, mock_user_dependency):
     mock_db = mocker.AsyncMock()
-    
+
     # Needs to find a template
     templ = Template(
         slug="fantasy",
@@ -81,8 +81,8 @@ def test_create_campaign(mocker, mock_user_dependency):
             "initial_system_prompt": "prompt",
             "initial_campaign_context": "context",
             "initial_world_state": {},
-            "encounters": {}
-        }
+            "encounters": {},
+        },
     )
 
     class MockTemplateResult:
@@ -112,7 +112,7 @@ def test_create_campaign(mocker, mock_user_dependency):
         "name": "My New Game",
         "template_id": "fantasy",
         "death_mode": "ironman",
-        "character_data": {"name": "Hero"}
+        "character_data": {"name": "Hero"},
     }
     response = client.post("/api/campaigns", json=create_data)
     if response.status_code != 201:
@@ -142,7 +142,7 @@ def test_get_campaign(mocker, mock_user_dependency):
         world_state={},
         quests={},
         created_at=datetime.now(),
-        updated_at=datetime.now()
+        updated_at=datetime.now(),
     )
 
     class MockCampaignResult:
@@ -179,7 +179,7 @@ def test_update_status(mocker, mock_user_dependency):
         world_state={},
         quests={},
         created_at=datetime.now(),
-        updated_at=datetime.now()
+        updated_at=datetime.now(),
     )
 
     class MockCampaignResult:
@@ -202,9 +202,6 @@ def test_update_status(mocker, mock_user_dependency):
     app.dependency_overrides.clear()
 
 
-
-
-
 def test_post_turn(mocker, mock_user_dependency):
     mock_db = mocker.AsyncMock()
     camp_id = str(uuid.uuid4())
@@ -221,7 +218,7 @@ def test_post_turn(mocker, mock_user_dependency):
         world_state={},
         quests={},
         created_at=datetime.now(),
-        updated_at=datetime.now()
+        updated_at=datetime.now(),
     )
 
     class MockCampaignResult:
@@ -236,6 +233,7 @@ def test_post_turn(mocker, mock_user_dependency):
     app.dependency_overrides[get_db] = override_get_db
 
     from app.models.turn import Turn
+
     fake_turn = Turn(
         id=uuid.uuid4(),
         campaign_id=camp.id,
@@ -243,7 +241,7 @@ def test_post_turn(mocker, mock_user_dependency):
         player_action="Walk forward",
         narration="You take a step.",
         model_used="gpt-4o",
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
     # Mock process_turn

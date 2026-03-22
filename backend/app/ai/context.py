@@ -29,7 +29,6 @@ async def build_context(
     """Build the full context for a DM AI call."""
     from app.ai.prompts.dm import build_dm_system_prompt
 
-
     result = await db.execute(
         select(Turn)
         .where(Turn.campaign_id == campaign.id)
@@ -38,18 +37,14 @@ async def build_context(
     )
     recent_turns = list(reversed(result.scalars().all()))
 
-
     messages = []
     for turn in recent_turns:
         messages.append({"role": "user", "content": turn.player_action})
         messages.append({"role": "assistant", "content": turn.narration})
 
-
     messages.append({"role": "user", "content": player_action})
 
-
     importance = score_importance(player_action, campaign)
-
 
     system_prompt = build_dm_system_prompt(campaign)
 
@@ -68,16 +63,13 @@ def score_importance(player_action: str, campaign: Campaign) -> int:
 
     action_lower = player_action.lower()
 
-
     high_keywords = ["attack", "fight", "confront", "betray", "confess", "reveal", "final"]
     if any(kw in action_lower for kw in high_keywords):
         score += 2
 
-
     low_keywords = ["look around", "rest", "wait", "inventory", "check"]
     if any(kw in action_lower for kw in low_keywords):
         score -= 2
-
 
     if campaign.world_state.get("in_combat"):
         score += 2

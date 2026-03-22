@@ -12,10 +12,10 @@ describe("UI Store", () => {
 
   it("should toggle side panel", () => {
     const { toggleSidePanel } = useUIStore.getState();
-    
+
     toggleSidePanel("character");
     expect(useUIStore.getState().sidePanel).toBe("character");
-    
+
     toggleSidePanel("character");
     expect(useUIStore.getState().sidePanel).toBe(null);
   });

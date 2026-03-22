@@ -1,5 +1,3 @@
-
-
 from dataclasses import dataclass, field
 
 from app.core.dice import DiceResult, roll_dice
