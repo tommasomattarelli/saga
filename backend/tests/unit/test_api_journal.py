@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -44,7 +44,7 @@ def test_get_journal(mocker, mock_user_dependency):
                         player_action="Walked",
                         narration="You walked.",
                         summary="Summary",
-                        created_at=datetime.now(timezone.utc),
+                        created_at=datetime.now(UTC),
                     )
                     return [turn_mock]
 

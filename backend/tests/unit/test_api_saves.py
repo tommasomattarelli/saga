@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -45,7 +45,7 @@ def test_list_saves(mocker, mock_user_dependency):
                         turn_number=1,
                         scene_summary="Summary",
                         is_auto=True,
-                        created_at=datetime.now(timezone.utc),
+                        created_at=datetime.now(UTC),
                     )
                     return [save_mock]
 
@@ -107,7 +107,7 @@ def test_create_save(mocker, mock_user_dependency):
         obj.turn_number = 1
         obj.scene_summary = "Summary"
         obj.is_auto = False
-        obj.created_at = datetime.now(timezone.utc)
+        obj.created_at = datetime.now(UTC)
 
     mock_db.refresh = mocker.AsyncMock(side_effect=mock_refresh)
 

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -46,8 +46,8 @@ def test_list_campaigns(mocker, mock_user_dependency):
                             character_data={},
                             world_state={},
                             quests={},
-                            created_at=datetime.now(timezone.utc),
-                            updated_at=datetime.now(timezone.utc),
+                            created_at=datetime.now(UTC),
+                            updated_at=datetime.now(UTC),
                         )
                     ]
 
@@ -96,8 +96,8 @@ def test_create_campaign(mocker, mock_user_dependency):
 
     async def mock_refresh(obj):
         obj.id = uuid.uuid4()
-        obj.created_at = datetime.now(timezone.utc)
-        obj.updated_at = datetime.now(timezone.utc)
+        obj.created_at = datetime.now(UTC)
+        obj.updated_at = datetime.now(UTC)
         if not hasattr(obj, "status") or obj.status is None:
             obj.status = CampaignStatus.ACTIVE
         if not hasattr(obj, "turn_number") or obj.turn_number is None:
@@ -142,8 +142,8 @@ def test_get_campaign(mocker, mock_user_dependency):
         character_data={},
         world_state={},
         quests={},
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
 
     class MockCampaignResult:
@@ -180,8 +180,8 @@ def test_update_status(mocker, mock_user_dependency):
         character_data={},
         world_state={},
         quests={},
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
 
     class MockCampaignResult:
@@ -220,8 +220,8 @@ def test_post_turn(mocker, mock_user_dependency):
         character_data={},
         world_state={},
         quests={},
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
 
     class MockCampaignResult:
@@ -244,7 +244,7 @@ def test_post_turn(mocker, mock_user_dependency):
         player_action="Walk forward",
         narration="You take a step.",
         model_used="gpt-4o",
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
     # Mock process_turn

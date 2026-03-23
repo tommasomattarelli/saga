@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from jose import jwt
@@ -18,7 +18,7 @@ client = TestClient(app)
 def create_mock_jwt(user_id: str):
     payload = {
         "sub": user_id,
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
+        "exp": datetime.now(UTC) + timedelta(minutes=15),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
@@ -65,7 +65,7 @@ def test_login(mocker):
         id=uuid.UUID(user_id),
         username="testuser",
         email="test@test.com",
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     user_mock.password_hash = "hashed_pw"
 
@@ -125,7 +125,7 @@ def test_get_me(mocker):
         username="testuser",
         email="test@test.com",
         preferred_language="en",
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
     async def override_get_current_user():

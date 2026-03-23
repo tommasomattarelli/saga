@@ -1,4 +1,3 @@
-import asyncio
 import os
 import uuid
 from collections.abc import AsyncIterator
@@ -40,7 +39,6 @@ app.dependencies.init_db = noop
 app.dependencies.init_redis = noop
 app.dependencies.close_db = noop
 app.dependencies.close_redis = noop
-
 
 
 @pytest.fixture(scope="session", autouse=True)

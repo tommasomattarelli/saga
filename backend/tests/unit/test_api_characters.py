@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -32,7 +32,7 @@ def test_get_characters(mocker, mock_user_dependency):
     camp_mock = Campaign(
         id=uuid.UUID(campaign_id), character_data={"hp": 15, "max_hp": 20, "name": "Bord"}
     )
-    camp_mock.created_at = datetime.now(timezone.utc)
+    camp_mock.created_at = datetime.now(UTC)
 
     class MockCampaignResult:
         def scalar_one_or_none(self):
@@ -61,7 +61,7 @@ def test_update_characters(mocker, mock_user_dependency):
     camp_mock = Campaign(
         id=uuid.UUID(campaign_id), character_data={"hp": 15, "max_hp": 20, "name": "Bord"}
     )
-    camp_mock.created_at = datetime.now(timezone.utc)
+    camp_mock.created_at = datetime.now(UTC)
 
     class MockCampaignResult:
         def scalar_one_or_none(self):
