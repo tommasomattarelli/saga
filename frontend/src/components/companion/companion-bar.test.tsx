@@ -26,14 +26,14 @@ describe("CompanionBar Component", () => {
     useGameStore.setState({
       campaign: createMockCampaign({
         companions: {
-          c1: { 
-            name: "Bob", 
-            hp: 10, 
-            max_hp: 20, 
-            mood: "Happy", 
+          c1: {
+            name: "Bob",
+            hp: 10,
+            max_hp: 20,
+            mood: "Happy",
             loyalty: 5,
             trust: 10,
-            personality: "Kind"
+            personality: "Kind",
           },
         },
       }),

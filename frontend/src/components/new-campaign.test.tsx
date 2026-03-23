@@ -95,7 +95,15 @@ describe("NewCampaign Component", () => {
   it("should go back from step 2 to step 1", async () => {
     vi.mocked(getTemplates).mockResolvedValue(
       createMockResponse<TemplateOption[]>([
-        { id: "t1", slug: "classic", name: "Classic Fantasy", description: "", difficulty: 1, author: "System", tags: [] },
+        {
+          id: "t1",
+          slug: "classic",
+          name: "Classic Fantasy",
+          description: "",
+          difficulty: 1,
+          author: "System",
+          tags: [],
+        },
       ]),
     );
     renderComponent();
@@ -112,7 +120,15 @@ describe("NewCampaign Component", () => {
   it("should call createCampaign on submit", async () => {
     vi.mocked(getTemplates).mockResolvedValue(
       createMockResponse<TemplateOption[]>([
-        { id: "t1", slug: "classic", name: "Classic Fantasy", description: "", difficulty: 1, author: "System", tags: [] },
+        {
+          id: "t1",
+          slug: "classic",
+          name: "Classic Fantasy",
+          description: "",
+          difficulty: 1,
+          author: "System",
+          tags: [],
+        },
       ]),
     );
     vi.mocked(createCampaign).mockResolvedValue(createMockResponse({ id: "c1" } as Campaign));
@@ -137,7 +153,15 @@ describe("NewCampaign Component", () => {
   it("should show error on failure", async () => {
     vi.mocked(getTemplates).mockResolvedValue(
       createMockResponse<TemplateOption[]>([
-        { id: "t1", slug: "classic", name: "Classic Fantasy", description: "", difficulty: 1, author: "System", tags: [] },
+        {
+          id: "t1",
+          slug: "classic",
+          name: "Classic Fantasy",
+          description: "",
+          difficulty: 1,
+          author: "System",
+          tags: [],
+        },
       ]),
     );
     vi.mocked(createCampaign).mockRejectedValue(new Error("API Error"));
