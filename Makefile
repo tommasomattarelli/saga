@@ -1,50 +1,76 @@
-.PHONY: help lint lint-backend lint-frontend format format-backend format-frontend test test-backend test-frontend test-all test-backend-all test-infra-up test-infra-down test-playtest coverage coverage-backend coverage-frontend check
+# Makefile for SAGA / Wyrd Project (PowerShell Compatible)
+
+.PHONY: help lint lint-backend lint-frontend format format-backend format-frontend \
+        test test-backend test-frontend test-all test-backend-all \
+        test-infra-up test-infra-down test-playtest coverage \
+        check clean
+
+# Default shell for Windows/PowerShell
+SHELL := powershell.exe
+.SHELLFLAGS := -Command
 
 help:
 	@echo "Saga Project Management Commands:"
-	@echo "  lint               Run linters for both backend and frontend"
-	@echo "  format             Run formatters for both backend and frontend"
-	@echo "  test               Run all unit tests"
-	@echo "  coverage           Generate coverage reports for both"
-	@echo "  check              Run lint, format (check only), and tests"
+	@echo "  make lint          Check code style and quality (Backend & Frontend)"
+	@echo "  make format        Auto-fix code style issues (Backend & Frontend)"
+	@echo "  make test          Run unit tests for both"
+	@echo "  make test-all      Run all tests (Unit + Integration + Playtest) with infra"
+	@echo "  make check         Full CI-like check (lint + test-all)"
+	@echo "  make test-infra-up Start test database/redis containers"
+
+# --- LINTING & FORMATTING ---
 
 lint: lint-backend lint-frontend
+
 lint-backend:
-	cd backend && uv run ruff check .
+	@echo "Linting backend..."
+	cd backend; uv run ruff check .
+
 lint-frontend:
-	cd frontend && npm run lint
+	@echo "Linting frontend..."
+	cd frontend; npm run lint
 
 format: format-backend format-frontend
+
 format-backend:
-	cd backend && uv run ruff format .
+	@echo "Formatting backend..."
+	cd backend; uv run ruff check --fix .; uv run ruff format .
+
 format-frontend:
-	cd frontend && npm run format
+	@echo "Formatting frontend..."
+	cd frontend; npm run format
 
-check: lint test-all
+# --- TESTING ---
 
-test-all: test-backend-all test-frontend
+test: test-backend test-frontend
 
-test-backend-all:
-	@echo "Running all backend tests (Unit + Integration)..."
-	$(MAKE) test-infra-up
-	-cd backend && TEST_DATABASE_URL=postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_test TEST_REDIS_URL=redis://localhost:6380/0 uv run pytest tests/unit tests/integration
-	$(MAKE) test-infra-down
+test-backend:
+	@echo "Running backend unit tests..."
+	cd backend; uv run pytest tests/unit
+
+test-frontend:
+	@echo "Running frontend unit tests..."
+	cd frontend; npm run test -- --run
 
 test-infra-up:
+	@echo "Starting test infrastructure..."
 	docker compose -f docker-compose.test.yml up -d --wait
 
 test-infra-down:
+	@echo "Stopping test infrastructure..."
 	docker compose -f docker-compose.test.yml down
 
-test-backend:
-	cd backend && uv run pytest tests/unit --cov=app --cov-report=term-missing:skip-covered
-test-frontend:
-	cd frontend && npm run test -- --run --coverage.enabled --coverage.reporter=text --coverage.include="src/**/*.{ts,tsx}"
+test-all:
+	@echo "Running full test suite (Unit + Integration + Playtest)..."
+	$(MAKE) test-infra-up; \
+	cd backend; $$env:TEST_DATABASE_URL='postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_test'; $$env:TEST_REDIS_URL='redis://localhost:6380/0'; uv run pytest tests/unit tests/integration tests/playtest; \
+	$(MAKE) test-infra-down
 
-coverage: coverage-backend coverage-frontend
-coverage-backend:
-	cd backend && uv run pytest --cov=app --cov-report=term-missing --cov-report=html
-coverage-frontend:
-	cd frontend && npm run test:coverage
+# Comprehensive CI Check
+check: format lint test-all
 
-check: lint test
+clean:
+	@echo "Cleaning up caches..."
+	if (Test-Path backend/__pycache__) { Remove-Item -Recurse -Force backend/__pycache__ }
+	if (Test-Path backend/.pytest_cache) { Remove-Item -Recurse -Force backend/.pytest_cache }
+	if (Test-Path backend/.ruff_cache) { Remove-Item -Recurse -Force backend/.ruff_cache }

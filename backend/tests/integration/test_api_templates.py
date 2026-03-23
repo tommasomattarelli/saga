@@ -8,12 +8,12 @@ async def test_list_templates_from_seed(client: AsyncClient):
     response = await client.get("/api/templates")
     assert response.status_code == 200
     templates = response.json()
-    
+
     # We expect at least the default templates (tutorial, survival - slug is last_light, etc)
     slugs = [t["slug"] for t in templates]
     assert "tutorial" in slugs
     assert "last_light" in slugs
-    
+
     # Check one in detail
     tutorial = next(t for t in templates if t["slug"] == "tutorial")
     assert tutorial["name"] == "The Awakening"
@@ -26,7 +26,7 @@ async def test_get_single_template_detail(client: AsyncClient):
     response = await client.get("/api/templates/last_light")
     assert response.status_code == 200
     template = response.json()
-    
+
     assert template["slug"] == "last_light"
     assert "content" in template
     # Template content top-level keys: world, opening, story_arcs

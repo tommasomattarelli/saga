@@ -1,18 +1,23 @@
 """Export integration tests — JSON schema and ownership guard."""
+
 import pytest
 from httpx import AsyncClient
+
 from app.models.turn import Turn
 
 
 @pytest.mark.asyncio
 async def test_export_empty_campaign(auth_client: AsyncClient, db_session):
     """Export of a campaign with no turns should return valid JSON with empty turns list."""
-    camp_resp = await auth_client.post("/api/campaigns", json={
-        "name": "Export Test",
-        "template_id": "tutorial",
-        "death_mode": "destino",
-        "character_data": {"name": "Tester", "hp": 10},
-    })
+    camp_resp = await auth_client.post(
+        "/api/campaigns",
+        json={
+            "name": "Export Test",
+            "template_id": "tutorial",
+            "death_mode": "destino",
+            "character_data": {"name": "Tester", "hp": 10},
+        },
+    )
     campaign_id = camp_resp.json()["id"]
 
     resp = await auth_client.get(f"/api/export/{campaign_id}")
@@ -36,24 +41,29 @@ async def test_export_empty_campaign(auth_client: AsyncClient, db_session):
 @pytest.mark.asyncio
 async def test_export_campaign_with_turns(auth_client: AsyncClient, db_session):
     """Export should include all turns with correct fields."""
-    camp_resp = await auth_client.post("/api/campaigns", json={
-        "name": "Story Export",
-        "template_id": "tutorial",
-        "death_mode": "destino",
-        "character_data": {},
-    })
+    camp_resp = await auth_client.post(
+        "/api/campaigns",
+        json={
+            "name": "Story Export",
+            "template_id": "tutorial",
+            "death_mode": "destino",
+            "character_data": {},
+        },
+    )
     campaign_id = camp_resp.json()["id"]
 
     # Insert turns directly
     for i in range(1, 4):
-        db_session.add(Turn(
-            campaign_id=campaign_id,
-            turn_number=i,
-            player_action=f"Action {i}",
-            narration=f"Narration {i}",
-            model_used="gpt-4o",
-            importance_score=5,
-        ))
+        db_session.add(
+            Turn(
+                campaign_id=campaign_id,
+                turn_number=i,
+                player_action=f"Action {i}",
+                narration=f"Narration {i}",
+                model_used="gpt-4o",
+                importance_score=5,
+            )
+        )
     await db_session.commit()
 
     resp = await auth_client.get(f"/api/export/{campaign_id}")
@@ -68,24 +78,32 @@ async def test_export_campaign_with_turns(auth_client: AsyncClient, db_session):
 
 
 @pytest.mark.asyncio
-async def test_export_forbidden_for_other_user(auth_client: AsyncClient, client: AsyncClient, db_session):
+async def test_export_forbidden_for_other_user(
+    auth_client: AsyncClient, client: AsyncClient, db_session
+):
     """Verify that a user cannot export another user's campaign."""
     import uuid
+
     from app.models.user import User
     from app.security.auth import create_access_token
 
     # User A creates campaign
-    camp_resp = await auth_client.post("/api/campaigns", json={
-        "name": "Private Camp",
-        "template_id": "tutorial",
-        "death_mode": "destino",
-        "character_data": {},
-    })
+    camp_resp = await auth_client.post(
+        "/api/campaigns",
+        json={
+            "name": "Private Camp",
+            "template_id": "tutorial",
+            "death_mode": "destino",
+            "character_data": {},
+        },
+    )
     campaign_id = camp_resp.json()["id"]
 
     # User B token
     user_b_id = uuid.uuid4()
-    user_b = User(id=user_b_id, username="exporter_b", email="export_b@test.dev", hashed_password="x")
+    user_b = User(
+        id=user_b_id, username="exporter_b", email="export_b@test.dev", hashed_password="x"
+    )
     db_session.add(user_b)
     await db_session.commit()
     token_b = create_access_token(user_b_id)

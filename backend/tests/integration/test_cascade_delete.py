@@ -4,13 +4,16 @@ These tests verify that missing `cascade='all, delete-orphan'` on SQLAlchemy
 relationships would cause orphaned rows. This is a REAL PRODUCTION BUG that
 was caught by these integration tests.
 """
-import pytest
+
 import uuid
+
+import pytest
 from sqlalchemy import select
-from app.models.user import User
+
 from app.models.campaign import Campaign
 from app.models.save import Save
 from app.models.turn import Turn
+from app.models.user import User
 
 
 def _make_user(prefix: str) -> User:

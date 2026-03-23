@@ -3,10 +3,11 @@
 Flow: Create Campaign -> Save -> Damage Character -> Load Save -> Verify full restoration.
 This tests the complete state machine of the save/load system against a real DB.
 """
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
-from app.models.campaign import Campaign
+
 from app.models.save import Save
 
 
@@ -14,12 +15,15 @@ from app.models.save import Save
 async def test_scenario_save_load_recovery(auth_client: AsyncClient, db_session):
     """Full recovery scenario: save, damage, load, verify restored state."""
     # 1. Start Campaign
-    resp = await auth_client.post("/api/campaigns", json={
-        "name": "Recovery Run",
-        "template_id": "tutorial",
-        "death_mode": "destino",
-        "character_data": {"name": "Aldric", "hp": 30, "max_hp": 30, "level": 5},
-    })
+    resp = await auth_client.post(
+        "/api/campaigns",
+        json={
+            "name": "Recovery Run",
+            "template_id": "tutorial",
+            "death_mode": "destino",
+            "character_data": {"name": "Aldric", "hp": 30, "max_hp": 30, "level": 5},
+        },
+    )
     assert resp.status_code == 201
     campaign_id = resp.json()["id"]
     assert resp.json()["character_data"]["hp"] == 30
@@ -54,12 +58,15 @@ async def test_scenario_save_load_recovery(auth_client: AsyncClient, db_session)
 @pytest.mark.asyncio
 async def test_scenario_multiple_save_slots(auth_client: AsyncClient, db_session):
     """Verify multiple save slots coexist and can be loaded independently."""
-    resp = await auth_client.post("/api/campaigns", json={
-        "name": "MultiSave Camp",
-        "template_id": "tutorial",
-        "death_mode": "destino",
-        "character_data": {"hp": 20},
-    })
+    resp = await auth_client.post(
+        "/api/campaigns",
+        json={
+            "name": "MultiSave Camp",
+            "template_id": "tutorial",
+            "death_mode": "destino",
+            "character_data": {"hp": 20},
+        },
+    )
     campaign_id = resp.json()["id"]
 
     # Save slot 1 — hp:20
@@ -68,7 +75,7 @@ async def test_scenario_multiple_save_slots(auth_client: AsyncClient, db_session
 
     # Damage, then save slot 2 — hp:8
     await auth_client.patch(f"/api/characters/{campaign_id}", json={"hp": 8})
-    save2 = await auth_client.post(f"/api/saves/{campaign_id}", json={"name": "Slot 2"})
+    await auth_client.post(f"/api/saves/{campaign_id}", json={"name": "Slot 2"})
 
     # List should show 2 saves
     list_resp = await auth_client.get(f"/api/saves/{campaign_id}")

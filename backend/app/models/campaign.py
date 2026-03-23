@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import uuid
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, Integer, String
@@ -7,6 +10,11 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.save import Save
+    from app.models.turn import Turn
+    from app.models.user import User
 
 
 class CampaignStatus(StrEnum):
@@ -46,6 +54,10 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
     quests: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="campaigns")  # noqa: F821
-    turns: Mapped[list["Turn"]] = relationship(back_populates="campaign", lazy="selectin", cascade="all, delete-orphan")  # noqa: F821
-    saves: Mapped[list["Save"]] = relationship(back_populates="campaign", lazy="selectin", cascade="all, delete-orphan")  # noqa: F821
+    user: Mapped[User] = relationship(back_populates="campaigns")
+    turns: Mapped[list[Turn]] = relationship(
+        back_populates="campaign", lazy="selectin", cascade="all, delete-orphan"
+    )
+    saves: Mapped[list[Save]] = relationship(
+        back_populates="campaign", lazy="selectin", cascade="all, delete-orphan"
+    )

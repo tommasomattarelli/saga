@@ -21,7 +21,9 @@ async def test_invalid_token_is_rejected(client: AsyncClient):
 async def test_expired_token_is_rejected(client: AsyncClient):
     """Verify that an expired JWT is rejected."""
     from datetime import UTC, datetime, timedelta
+
     from jose import jwt
+
     from app.config import settings
 
     expired_payload = {
@@ -29,7 +31,9 @@ async def test_expired_token_is_rejected(client: AsyncClient):
         "exp": datetime.now(UTC) - timedelta(hours=1),
         "type": "access",
     }
-    expired_token = jwt.encode(expired_payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    expired_token = jwt.encode(
+        expired_payload, settings.jwt_secret, algorithm=settings.jwt_algorithm
+    )
     client.headers["Authorization"] = f"Bearer {expired_token}"
     response = await client.get("/api/campaigns")
     assert response.status_code == 401
@@ -39,6 +43,7 @@ async def test_expired_token_is_rejected(client: AsyncClient):
 async def test_valid_token_with_nonexistent_user_is_rejected(client: AsyncClient):
     """Verify that a valid JWT for a deleted user returns 401."""
     import uuid
+
     from app.security.auth import create_access_token
 
     ghost_user_id = uuid.uuid4()

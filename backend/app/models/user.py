@@ -1,7 +1,14 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.campaign import Campaign
 
 
 class User(Base, UUIDMixin, TimestampMixin):
@@ -20,4 +27,6 @@ class User(Base, UUIDMixin, TimestampMixin):
     google_api_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    campaigns: Mapped[list["Campaign"]] = relationship(back_populates="user", lazy="selectin", cascade="all, delete-orphan")  # noqa: F821
+    campaigns: Mapped[list[Campaign]] = relationship(
+        back_populates="user", lazy="selectin", cascade="all, delete-orphan"
+    )

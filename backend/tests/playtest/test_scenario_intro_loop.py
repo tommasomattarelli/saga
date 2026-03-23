@@ -10,8 +10,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.campaign import Campaign, CampaignStatus
-from app.models.user import User
-from app.security.auth import create_access_token, hash_password
 
 
 @pytest.mark.asyncio
@@ -69,29 +67,46 @@ async def test_register_login_create_campaign(client: AsyncClient, db_session: A
 async def test_user_isolation(client: AsyncClient, db_session: AsyncSession):
     """Verify that User A cannot see User B's campaigns."""
     # Create User A
-    reg_a = await client.post("/api/auth/register", json={
-        "username": "user_a", "email": "a@saga.dev", "password": "pass-a-123",
-    })
+    reg_a = await client.post(
+        "/api/auth/register",
+        json={
+            "username": "user_a",
+            "email": "a@saga.dev",
+            "password": "pass-a-123",
+        },
+    )
     assert reg_a.status_code in (200, 201)
-    login_a = await client.post("/api/auth/login", json={"username": "user_a", "password": "pass-a-123"})
+    login_a = await client.post(
+        "/api/auth/login", json={"username": "user_a", "password": "pass-a-123"}
+    )
     token_a = login_a.json()["access_token"]
 
     # Create User B
-    reg_b = await client.post("/api/auth/register", json={
-        "username": "user_b", "email": "b@saga.dev", "password": "pass-b-123",
-    })
+    reg_b = await client.post(
+        "/api/auth/register",
+        json={
+            "username": "user_b",
+            "email": "b@saga.dev",
+            "password": "pass-b-123",
+        },
+    )
     assert reg_b.status_code in (200, 201)
-    login_b = await client.post("/api/auth/login", json={"username": "user_b", "password": "pass-b-123"})
+    login_b = await client.post(
+        "/api/auth/login", json={"username": "user_b", "password": "pass-b-123"}
+    )
     token_b = login_b.json()["access_token"]
 
     # User A creates a campaign
     client.headers["Authorization"] = f"Bearer {token_a}"
-    await client.post("/api/campaigns", json={
-        "name": "A's Secret Quest",
-        "template_id": "tutorial",
-        "death_mode": "ironman",
-        "character_data": {"name": "Solo"},
-    })
+    await client.post(
+        "/api/campaigns",
+        json={
+            "name": "A's Secret Quest",
+            "template_id": "tutorial",
+            "death_mode": "ironman",
+            "character_data": {"name": "Solo"},
+        },
+    )
 
     # User B should see 0 campaigns
     client.headers["Authorization"] = f"Bearer {token_b}"

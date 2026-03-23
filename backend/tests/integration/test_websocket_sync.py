@@ -1,18 +1,22 @@
 """WebSocket integration tests — handshake, auth rejection, and message contract."""
-import pytest
-from app.security.auth import create_access_token
+
 import uuid
+
+import pytest
 
 
 @pytest.mark.asyncio
 async def test_websocket_rejects_unauthenticated(client):
     """WebSocket should close with code 4001 if no valid token is provided."""
-    camp_resp = await client.post("/api/campaigns", json={
-        "name": "WS Camp",
-        "template_id": "tutorial",
-        "death_mode": "destino",
-        "character_data": {},
-    })
+    camp_resp = await client.post(
+        "/api/campaigns",
+        json={
+            "name": "WS Camp",
+            "template_id": "tutorial",
+            "death_mode": "destino",
+            "character_data": {},
+        },
+    )
     # Need a valid campaign but invalid token
     # NOTE: httpx AsyncClient doesn't support WebSocket natively.
     # We test via HTTP flow instead — verifying the WS endpoint exists and returns 403

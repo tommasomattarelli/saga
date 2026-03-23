@@ -1,6 +1,7 @@
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
+
 from app.models.campaign import Campaign
 
 
@@ -8,17 +9,16 @@ from app.models.campaign import Campaign
 async def test_get_and_update_character_in_campaign(auth_client: AsyncClient, db_session):
     """Verify that character data within a campaign can be retrieved and updated."""
     # 1. Create Campaign (which includes character_data)
-    char_data = {
-        "name": "Eldrin",
-        "char_class": "Wizard",
-        "stats": {"int": 18}
-    }
-    create_resp = await auth_client.post("/api/campaigns", json={
-        "name": "Character Test",
-        "template_id": "tutorial",
-        "death_mode": "destino",
-        "character_data": char_data
-    })
+    char_data = {"name": "Eldrin", "char_class": "Wizard", "stats": {"int": 18}}
+    create_resp = await auth_client.post(
+        "/api/campaigns",
+        json={
+            "name": "Character Test",
+            "template_id": "tutorial",
+            "death_mode": "destino",
+            "character_data": char_data,
+        },
+    )
     campaign_id = create_resp.json()["id"]
 
     # 2. Get Character via API
