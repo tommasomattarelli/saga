@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -28,6 +28,7 @@ def mock_user_dependency(mocker):
 
 def test_list_campaigns(mocker, mock_user_dependency):
     mock_db = mocker.AsyncMock()
+    mock_db.add = mocker.Mock()
 
     class MockResult:
         def scalars(self):
@@ -45,8 +46,8 @@ def test_list_campaigns(mocker, mock_user_dependency):
                             character_data={},
                             world_state={},
                             quests={},
-                            created_at=datetime.now(),
-                            updated_at=datetime.now(),
+                            created_at=datetime.now(timezone.utc),
+                            updated_at=datetime.now(timezone.utc),
                         )
                     ]
 
@@ -69,6 +70,7 @@ def test_list_campaigns(mocker, mock_user_dependency):
 
 def test_create_campaign(mocker, mock_user_dependency):
     mock_db = mocker.AsyncMock()
+    mock_db.add = mocker.Mock()
 
     # Needs to find a template
     templ = Template(
@@ -94,8 +96,8 @@ def test_create_campaign(mocker, mock_user_dependency):
 
     async def mock_refresh(obj):
         obj.id = uuid.uuid4()
-        obj.created_at = datetime.now()
-        obj.updated_at = datetime.now()
+        obj.created_at = datetime.now(timezone.utc)
+        obj.updated_at = datetime.now(timezone.utc)
         if not hasattr(obj, "status") or obj.status is None:
             obj.status = CampaignStatus.ACTIVE
         if not hasattr(obj, "turn_number") or obj.turn_number is None:
@@ -115,8 +117,6 @@ def test_create_campaign(mocker, mock_user_dependency):
         "character_data": {"name": "Hero"},
     }
     response = client.post("/api/campaigns", json=create_data)
-    if response.status_code != 201:
-        print(response.json())
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "My New Game"
@@ -128,6 +128,7 @@ def test_create_campaign(mocker, mock_user_dependency):
 
 def test_get_campaign(mocker, mock_user_dependency):
     mock_db = mocker.AsyncMock()
+    mock_db.add = mocker.Mock()
     camp_id = str(uuid.uuid4())
 
     camp = Campaign(
@@ -141,8 +142,8 @@ def test_get_campaign(mocker, mock_user_dependency):
         character_data={},
         world_state={},
         quests={},
-        created_at=datetime.now(),
-        updated_at=datetime.now(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
     class MockCampaignResult:
@@ -165,6 +166,7 @@ def test_get_campaign(mocker, mock_user_dependency):
 
 def test_update_status(mocker, mock_user_dependency):
     mock_db = mocker.AsyncMock()
+    mock_db.add = mocker.Mock()
     camp_id = str(uuid.uuid4())
 
     camp = Campaign(
@@ -178,8 +180,8 @@ def test_update_status(mocker, mock_user_dependency):
         character_data={},
         world_state={},
         quests={},
-        created_at=datetime.now(),
-        updated_at=datetime.now(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
     class MockCampaignResult:
@@ -204,6 +206,7 @@ def test_update_status(mocker, mock_user_dependency):
 
 def test_post_turn(mocker, mock_user_dependency):
     mock_db = mocker.AsyncMock()
+    mock_db.add = mocker.Mock()
     camp_id = str(uuid.uuid4())
 
     camp = Campaign(
@@ -217,8 +220,8 @@ def test_post_turn(mocker, mock_user_dependency):
         character_data={},
         world_state={},
         quests={},
-        created_at=datetime.now(),
-        updated_at=datetime.now(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
     class MockCampaignResult:
@@ -241,7 +244,7 @@ def test_post_turn(mocker, mock_user_dependency):
         player_action="Walk forward",
         narration="You take a step.",
         model_used="gpt-4o",
-        created_at=datetime.now(),
+        created_at=datetime.now(timezone.utc),
     )
 
     # Mock process_turn
@@ -251,6 +254,5 @@ def test_post_turn(mocker, mock_user_dependency):
     assert response.status_code == 200
     data = response.json()
     assert data["turn_number"] == 2
-    # player_action is not in TurnResponse schema anymore
 
     app.dependency_overrides.clear()

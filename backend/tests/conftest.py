@@ -42,10 +42,6 @@ app.dependencies.close_db = noop
 app.dependencies.close_redis = noop
 
 
-@pytest.fixture(scope="session")
-def event_loop_policy():
-    return asyncio.get_event_loop_policy()
-
 
 @pytest.fixture(scope="session", autouse=True)
 async def setup_database():

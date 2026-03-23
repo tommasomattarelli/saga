@@ -1,9 +1,8 @@
 # Makefile for SAGA / Wyrd Project (PowerShell Compatible)
 
 .PHONY: help lint lint-backend lint-frontend format format-backend format-frontend \
-        test test-backend test-frontend test-all test-backend-all \
-        test-infra-up test-infra-down test-playtest coverage \
-        check clean
+        test test-backend test-frontend test-all \
+        test-infra-up test-infra-down check clean
 
 # Default shell for Windows/PowerShell
 SHELL := powershell.exe
@@ -11,12 +10,11 @@ SHELL := powershell.exe
 
 help:
 	@echo "Saga Project Management Commands:"
-	@echo "  make lint          Check code style and quality (Backend & Frontend)"
-	@echo "  make format        Auto-fix code style issues (Backend & Frontend)"
-	@echo "  make test          Run unit tests for both"
-	@echo "  make test-all      Run all tests (Unit + Integration + Playtest) with infra"
-	@echo "  make check         Full CI-like check (lint + test-all)"
-	@echo "  make test-infra-up Start test database/redis containers"
+	@echo "  make lint          Check code style and quality"
+	@echo "  make format        Auto-fix code style issues"
+	@echo "  make test          Run unit tests"
+	@echo "  make test-all      Run all tests (Unit + Integration + Playtest)"
+	@echo "  make check         Full CI-like check"
 
 # --- LINTING & FORMATTING ---
 
@@ -62,9 +60,9 @@ test-infra-down:
 
 test-all:
 	@echo "Running full test suite (Unit + Integration + Playtest)..."
-	$(MAKE) test-infra-up; \
-	cd backend; $$env:TEST_DATABASE_URL='postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_test'; $$env:TEST_REDIS_URL='redis://localhost:6380/0'; uv run pytest tests/unit tests/integration tests/playtest; \
-	$(MAKE) test-infra-down
+	- & "$(MAKE)" test-infra-up
+	cd backend; $$env:TEST_DATABASE_URL='postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_test'; $$env:TEST_REDIS_URL='redis://localhost:6380/0'; uv run pytest tests/unit tests/integration tests/playtest
+	- & "$(MAKE)" test-infra-down
 
 # Comprehensive CI Check
 check: format lint test-all

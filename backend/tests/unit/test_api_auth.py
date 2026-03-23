@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 from jose import jwt
@@ -18,13 +18,15 @@ client = TestClient(app)
 def create_mock_jwt(user_id: str):
     payload = {
         "sub": user_id,
-        "exp": datetime.utcnow() + timedelta(minutes=15),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
 def test_register(mocker):
     mock_db = mocker.AsyncMock()
+    # Explicitly make sync methods non-async mocks to avoid coroutine warnings
+    mock_db.add = mocker.Mock()
 
     class MockUserExistsResult:
         def scalar_one_or_none(self):
@@ -54,6 +56,7 @@ def test_register(mocker):
 
 def test_login(mocker):
     mock_db = mocker.AsyncMock()
+    mock_db.add = mocker.Mock()
 
     # We need to test login, which involves fetching a User and verifying the password.
     # The password is hashed using Passlib (bcrypt). To mock it simply, we can patch verify_password.
@@ -62,7 +65,7 @@ def test_login(mocker):
         id=uuid.UUID(user_id),
         username="testuser",
         email="test@test.com",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     user_mock.password_hash = "hashed_pw"
 
@@ -93,6 +96,7 @@ def test_login(mocker):
 
 def test_login_invalid(mocker):
     mock_db = mocker.AsyncMock()
+    mock_db.add = mocker.Mock()
 
     class MockUserResult:
         def scalar_one_or_none(self):
@@ -121,7 +125,7 @@ def test_get_me(mocker):
         username="testuser",
         email="test@test.com",
         preferred_language="en",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
 
     async def override_get_current_user():

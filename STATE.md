@@ -35,7 +35,7 @@ The project is in a highly stable pre-refactoring phase. We have 101 tests (Unit
 - **`turn_service.py` (Service Bloat)**: Mixing I/O (embeddings, DB) with business logic (sanitization, game flow).
 
 #### 2. Test & Quality Debt
-- **Frontend Type Safety**: Too many `as any` in tests. Shared types between Python (Pydantic) and TS (Interfaces) are not synchronized.
+- [x] **Linting & Type Safety**: **ZERO** warnings (31 fixed) in Frontend; Resolved all Python warnings (utcnow, AsyncMock) in backend tests.
 - **AI Playtest Realism**: Playtest bots use fixed patterns; need randomized "chaos" input tests for LLM stability.
 - **Missing Cascades**: (Fixed during Phase 2) — Verified that deleting users/campaigns now cleans up orphaned records.
 

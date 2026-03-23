@@ -13,6 +13,8 @@ from app.services.turn_service import process_turn
 async def test_process_turn(mocker):
     # Mocking dependencies
     mock_db = mocker.AsyncMock()
+    # Explicitly mock sync methods
+    mock_db.add = mocker.Mock()
     mock_user = MagicMock()
     mock_user.id = uuid.uuid4()
 

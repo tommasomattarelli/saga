@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -27,6 +27,7 @@ def mock_user_dependency(mocker):
 
 def test_list_saves(mocker, mock_user_dependency):
     mock_db = mocker.AsyncMock()
+    mock_db.add = mocker.Mock()
     campaign_id = str(uuid.uuid4())
 
     class MockCampaignResult:
@@ -44,7 +45,7 @@ def test_list_saves(mocker, mock_user_dependency):
                         turn_number=1,
                         scene_summary="Summary",
                         is_auto=True,
-                        created_at=datetime.now(),
+                        created_at=datetime.now(timezone.utc),
                     )
                     return [save_mock]
 
@@ -68,6 +69,7 @@ def test_list_saves(mocker, mock_user_dependency):
 
 def test_create_save_not_found(mocker, mock_user_dependency):
     mock_db = mocker.AsyncMock()
+    mock_db.add = mocker.Mock()
     campaign_id = str(uuid.uuid4())
 
     class MockCampaignResult:
@@ -89,6 +91,7 @@ def test_create_save_not_found(mocker, mock_user_dependency):
 
 def test_create_save(mocker, mock_user_dependency):
     mock_db = mocker.AsyncMock()
+    mock_db.add = mocker.Mock()
     campaign_id = str(uuid.uuid4())
     camp_mock = Campaign(id=uuid.UUID(campaign_id), world_state={"time": "day"})
 
@@ -104,7 +107,7 @@ def test_create_save(mocker, mock_user_dependency):
         obj.turn_number = 1
         obj.scene_summary = "Summary"
         obj.is_auto = False
-        obj.created_at = datetime.now()
+        obj.created_at = datetime.now(timezone.utc)
 
     mock_db.refresh = mocker.AsyncMock(side_effect=mock_refresh)
 
@@ -113,12 +116,6 @@ def test_create_save(mocker, mock_user_dependency):
 
     app.dependency_overrides[get_db] = override_get_db
 
-    # Notice: we don't mock database ID generation, so it will be fake logic in the endpoint normally,
-    # but since SQLAlchemy handles ID logic in DB, the returned save might not have an ID yet in the test
-    # unless refresh populates it. But FastAPI Pydantic might complain if ID is missing.
-    # To fix this, we mock the Save creation. Wait, the endpoint does `save = Save(...)`, `db.add(save)`,
-    # it relies on UUIDMixin for ID (which generates on instance creation in Python!).
-    # So `id` will be present.
     response = client.post(f"/api/saves/{campaign_id}", json={"name": "My Save"})
     assert response.status_code == 201
     data = response.json()

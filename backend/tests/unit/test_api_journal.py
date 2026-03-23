@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -27,6 +27,7 @@ def mock_user_dependency(mocker):
 
 def test_get_journal(mocker, mock_user_dependency):
     mock_db = mocker.AsyncMock()
+    mock_db.add = mocker.Mock()
     campaign_id = str(uuid.uuid4())
 
     class MockCampaignResult:
@@ -43,7 +44,7 @@ def test_get_journal(mocker, mock_user_dependency):
                         player_action="Walked",
                         narration="You walked.",
                         summary="Summary",
-                        created_at=datetime.utcnow(),
+                        created_at=datetime.now(timezone.utc),
                     )
                     return [turn_mock]
 
@@ -68,6 +69,7 @@ def test_get_journal(mocker, mock_user_dependency):
 
 def test_get_journal_campaign_not_found(mocker, mock_user_dependency):
     mock_db = mocker.AsyncMock()
+    mock_db.add = mocker.Mock()
     campaign_id = str(uuid.uuid4())
 
     class MockCampaignResult:
