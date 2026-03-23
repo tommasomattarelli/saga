@@ -1,4 +1,4 @@
-.PHONY: help lint lint-backend lint-frontend format format-backend format-frontend test test-backend test-frontend coverage coverage-backend coverage-frontend check
+.PHONY: help lint lint-backend lint-frontend format format-backend format-frontend test test-backend test-frontend test-all test-backend-all test-infra-up test-infra-down test-playtest coverage coverage-backend coverage-frontend check
 
 help:
 	@echo "Saga Project Management Commands:"
@@ -20,9 +20,24 @@ format-backend:
 format-frontend:
 	cd frontend && npm run format
 
-test: test-backend test-frontend
+check: lint test-all
+
+test-all: test-backend-all test-frontend
+
+test-backend-all:
+	@echo "Running all backend tests (Unit + Integration)..."
+	$(MAKE) test-infra-up
+	-cd backend && TEST_DATABASE_URL=postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_test TEST_REDIS_URL=redis://localhost:6380/0 uv run pytest tests/unit tests/integration
+	$(MAKE) test-infra-down
+
+test-infra-up:
+	docker compose -f docker-compose.test.yml up -d --wait
+
+test-infra-down:
+	docker compose -f docker-compose.test.yml down
+
 test-backend:
-	cd backend && uv run pytest --cov=app --cov-report=term-missing:skip-covered
+	cd backend && uv run pytest tests/unit --cov=app --cov-report=term-missing:skip-covered
 test-frontend:
 	cd frontend && npm run test -- --run --coverage.enabled --coverage.reporter=text --coverage.include="src/**/*.{ts,tsx}"
 

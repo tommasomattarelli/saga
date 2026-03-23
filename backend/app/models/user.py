@@ -20,4 +20,4 @@ class User(Base, UUIDMixin, TimestampMixin):
     google_api_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    campaigns: Mapped[list["Campaign"]] = relationship(back_populates="user", lazy="selectin")  # noqa: F821
+    campaigns: Mapped[list["Campaign"]] = relationship(back_populates="user", lazy="selectin", cascade="all, delete-orphan")  # noqa: F821

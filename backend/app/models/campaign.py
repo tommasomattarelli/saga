@@ -47,5 +47,5 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="campaigns")  # noqa: F821
-    turns: Mapped[list["Turn"]] = relationship(back_populates="campaign", lazy="selectin")  # noqa: F821
-    saves: Mapped[list["Save"]] = relationship(back_populates="campaign", lazy="selectin")  # noqa: F821
+    turns: Mapped[list["Turn"]] = relationship(back_populates="campaign", lazy="selectin", cascade="all, delete-orphan")  # noqa: F821
+    saves: Mapped[list["Save"]] = relationship(back_populates="campaign", lazy="selectin", cascade="all, delete-orphan")  # noqa: F821
