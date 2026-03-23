@@ -2,8 +2,10 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import LoginForm from "./login-form";
 import { login, getMe } from "../../services/api";
+import type { TokenPair, User } from "../../types";
 
 vi.mock("../../services/api", () => ({
   login: vi.fn(),
@@ -12,7 +14,7 @@ vi.mock("../../services/api", () => ({
 
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
-  const actual = (await vi.importActual("react-router-dom")) as any;
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
   return {
     ...actual,
     useNavigate: () => mockNavigate,
@@ -46,12 +48,21 @@ describe("LoginForm Component", () => {
   });
 
   it("should call login and navigate on success", async () => {
-    (login as any).mockResolvedValue({
+    vi.mocked(login).mockResolvedValue({
       data: { access_token: "pk", refresh_token: "rk", token_type: "bearer" },
-    });
-    (getMe as any).mockResolvedValue({
-      data: { id: "1", username: "testuser" },
-    });
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      config: {} as InternalAxiosRequestConfig,
+    } as AxiosResponse<TokenPair>);
+
+    vi.mocked(getMe).mockResolvedValue({
+      data: { id: "1", username: "testuser", email: "test@test.com", preferred_language: "en" },
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      config: {} as InternalAxiosRequestConfig,
+    } as AxiosResponse<User>);
 
     renderComponent();
 
@@ -67,7 +78,7 @@ describe("LoginForm Component", () => {
   });
 
   it("should show error on login failure", async () => {
-    (login as any).mockRejectedValue(new Error("Auth failed"));
+    vi.mocked(login).mockRejectedValue(new Error("Auth failed"));
 
     renderComponent();
 

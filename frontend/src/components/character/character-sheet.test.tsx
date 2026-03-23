@@ -3,9 +3,10 @@ import { describe, it, expect } from "vitest";
 import CharacterSheet from "./character-sheet";
 import { useGameStore } from "../../stores/game-store";
 import "@testing-library/jest-dom";
+import type { Campaign, CharacterData } from "../../types";
 
 describe("CharacterSheet Component", () => {
-  const mockChar = {
+  const mockChar: CharacterData = {
     name: "Grog",
     level: 5,
     xp: 2500,
@@ -16,13 +17,27 @@ describe("CharacterSheet Component", () => {
     skills: { athletics: { level: 2, uses: 0, progress: 0 } },
     inventory: [{ name: "Axe", quantity: 1, type: "weapon" }],
     gold: 100,
+    background: "Noble",
+    notes: "Tough guy",
   };
+
+  const createMockCampaign = (charData: CharacterData | null): Campaign => ({
+    id: "c1",
+    name: "Test",
+    template_id: "t1",
+    status: "active",
+    death_mode: "destino",
+    turn_number: 1,
+    character_data: charData as CharacterData, // if null, we test fallback and it's fine for mock
+    world_state: {},
+    quests: {},
+    created_at: "now",
+    updated_at: "now",
+  });
 
   it("should render character basic info", () => {
     useGameStore.setState({
-      campaign: {
-        character_data: mockChar,
-      } as any,
+      campaign: createMockCampaign(mockChar),
     });
 
     render(<CharacterSheet />);
@@ -39,7 +54,7 @@ describe("CharacterSheet Component", () => {
 
   it("should render empty inventory correctly", () => {
     const emptyChar = { ...mockChar, inventory: [], gold: 0 };
-    useGameStore.setState({ campaign: { character_data: emptyChar } as any });
+    useGameStore.setState({ campaign: createMockCampaign(emptyChar) });
     render(<CharacterSheet />);
     expect(screen.getByText("Empty")).toBeInTheDocument();
     expect(screen.getByText("0 gold")).toBeInTheDocument();
@@ -47,7 +62,7 @@ describe("CharacterSheet Component", () => {
 
   it("should correctly handle negative ability modifiers", () => {
     useGameStore.setState({
-      campaign: { character_data: { ...mockChar, abilities: { dexterity: 8 } } } as any,
+      campaign: createMockCampaign({ ...mockChar, abilities: { dexterity: 8 } }),
     });
     render(<CharacterSheet />);
     expect(screen.getByText(/DEX/i)).toBeInTheDocument();
@@ -56,7 +71,8 @@ describe("CharacterSheet Component", () => {
   });
 
   it("should show empty state if no character data", () => {
-    useGameStore.setState({ campaign: { character_data: null } as any });
+    // We cast to any for a negative test of null data
+    useGameStore.setState({ campaign: createMockCampaign(null as unknown as CharacterData) });
     render(<CharacterSheet />);
     expect(screen.getByText("No character data")).toBeInTheDocument();
   });

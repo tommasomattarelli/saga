@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useGameStore } from "./game-store";
+import type { Campaign, TurnResponse, WorldState } from "../types";
 
-const mockCampaign = {
+const mockCampaign: Campaign = {
   id: "c1",
   name: "Test Campaign",
   template_id: "t1",
-  status: "active" as const,
-  death_mode: "cronista" as const,
+  status: "active",
+  death_mode: "cronista",
   turn_number: 1,
   character_data: {
     name: "Hero",
@@ -32,7 +33,7 @@ const mockCampaign = {
   updated_at: "2024-01-01",
 };
 
-const mockTurn = {
+const mockTurn: TurnResponse = {
   turn_number: 1,
   narration: "Turn 1 narration",
   dice_rolls: null,
@@ -87,7 +88,8 @@ describe("Game Store", () => {
   });
 
   it("should warn on invalid world state keys in dev", () => {
-    useGameStore.getState().updateWorldState({ sidePanel: "inventory" } as any);
+    // We intentionally pass an object that satisfies WorldState but has unallowed keys for the store check
+    useGameStore.getState().updateWorldState({ sidePanel: "inventory" } as unknown as WorldState);
     expect(warnSpy).toHaveBeenCalledWith("[game-store] WorldState leakage (UI keys found):", [
       "sidePanel",
     ]);

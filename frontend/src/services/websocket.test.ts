@@ -3,7 +3,7 @@ import { GameWebSocket } from "./websocket";
 import { useAuthStore } from "../stores/auth-store";
 
 describe("GameWebSocket", () => {
-  let mockWS: any;
+  let mockWS: { send: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn>; readyState: number; onmessage?: (e: { data: string }) => void };
   const originalWebSocket = globalThis.WebSocket;
 
   beforeEach(() => {
@@ -13,9 +13,11 @@ describe("GameWebSocket", () => {
       close: vi.fn(),
       readyState: 1, // Open
     };
-    const MockWSClass = vi.fn(() => mockWS);
-    (MockWSClass as any).OPEN = 1;
-    globalThis.WebSocket = MockWSClass as any;
+    
+    // We need to satisfy the WebSocket constructor signature
+    const MockWSClass = vi.fn().mockImplementation(() => mockWS);
+    (MockWSClass as unknown as { OPEN: number }).OPEN = 1;
+    globalThis.WebSocket = MockWSClass as unknown as typeof WebSocket;
   });
 
   afterEach(() => {
@@ -23,10 +25,9 @@ describe("GameWebSocket", () => {
   });
 
   it("should connect with token in URL", () => {
-    const gws = new GameWebSocket("camp123");
-    gws.connect();
-    expect(globalThis.WebSocket).toHaveBeenCalledWith(expect.stringContaining("camp123"));
-    expect(globalThis.WebSocket).toHaveBeenCalledWith(expect.stringContaining("token=valid-token"));
+    new GameWebSocket("camp123").connect();
+    expect(globalThis.WebSocket).toHaveBeenCalledWith(expect.stringContaining("camp123"), undefined);
+    expect(globalThis.WebSocket).toHaveBeenCalledWith(expect.stringContaining("token=valid-token"), undefined);
   });
 
   it("should send message if socket is open", () => {
@@ -42,9 +43,13 @@ describe("GameWebSocket", () => {
     gws.on("test_event", handler);
 
     gws.connect();
+    
     // Simulate incoming message
+    const wsInstance = vi.mocked(globalThis.WebSocket).mock.results[0].value as typeof mockWS;
     const event = { data: JSON.stringify({ type: "test_event", data: "foo" }) };
-    (globalThis.WebSocket as any).mock.results[0].value.onmessage(event);
+    if (wsInstance.onmessage) {
+      wsInstance.onmessage(event);
+    }
 
     expect(handler).toHaveBeenCalledWith({ type: "test_event", data: "foo" });
   });
