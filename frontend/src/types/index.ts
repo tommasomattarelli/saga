@@ -32,9 +32,12 @@ export interface CharacterData {
   abilities: Record<string, number>;
   skills: Record<string, SkillData>;
   inventory: InventoryItem[];
+  equipped: EquippedItems;
   gold: number;
   background: string;
   notes: string;
+  reputation: Record<string, number>;
+  active_quests: string[];
 }
 
 export interface SkillData {
@@ -50,6 +53,14 @@ export interface InventoryItem {
   type: string;
 }
 
+export interface EquippedItems {
+  weapon?: string;
+  armor?: string;
+  shield?: string;
+  accessory?: string;
+  [slot: string]: string | undefined;
+}
+
 export interface Quest {
   name: string;
   description: string;
@@ -58,7 +69,15 @@ export interface Quest {
 }
 
 export interface WorldState {
-  time?: { hour: number; time_of_day: string };
+  meta?: { schema_version: number; world_name: string; current_season: string };
+  clock?: {
+    total_minutes: number;
+    current_hour: number;
+    current_day: number;
+    current_season: string;
+    time_of_day: string;
+  };
+  time_of_day?: string;
   weather?: string;
   location?: string;
   companions?: Record<string, CompanionData>;
@@ -83,6 +102,25 @@ export interface FactionData {
   active_plan?: string;
 }
 
+export type DiceOutcome =
+  | "critical_failure"
+  | "hard_failure"
+  | "soft_failure"
+  | "partial_success"
+  | "full_success"
+  | "critical_success";
+
+export interface DiceRollResult {
+  expression: string;
+  rolls: number[];
+  modifier: number;
+  total: number;
+  dc: number;
+  success: boolean;
+  outcome: DiceOutcome;
+  is_critical: boolean;
+}
+
 export interface TurnResponse {
   turn_number: number;
   narration: string;
@@ -92,14 +130,10 @@ export interface TurnResponse {
   scene_mood: string | null;
   suggested_actions: string[] | null;
   model_used: string;
-}
-
-export interface DiceRollResult {
-  expression: string;
-  rolls: number[];
-  total: number;
-  dc: number;
-  success: boolean;
+  invoke_npcs: string[];
+  time_passed_minutes: number;
+  ambient_detail: string | null;
+  requires_player_action: boolean;
 }
 
 export interface SavePoint {

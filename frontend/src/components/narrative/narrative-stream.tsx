@@ -1,19 +1,35 @@
+import { type RefObject } from "react";
 import { useGameStore } from "../../stores/game-store";
 import DiceRoller from "./dice-roller";
 import type { TurnResponse } from "../../types";
+import type { GameWebSocket } from "../../services/websocket";
 
-function TurnBlock({ turn }: { turn: TurnResponse }) {
+interface NarrativeStreamProps {
+  wsRef: RefObject<GameWebSocket | null>;
+}
+
+function TurnBlock({
+  turn,
+  onSuggestedAction,
+}: {
+  turn: TurnResponse;
+  onSuggestedAction?: (action: string) => void;
+}) {
   return (
-    <div className="mb-6">
+    <div className="mb-6" data-mood={turn.scene_mood || "neutral"}>
       {turn.dice_rolls && <DiceRoller rolls={turn.dice_rolls} />}
 
-      <div className="prose prose-invert max-w-none font-serif text-parchment-200 leading-relaxed">
+      <div className="prose prose-invert max-w-none font-serif leading-relaxed mood-text">
         {turn.narration.split("\n").map((paragraph, i) => (
           <p key={i} className="mb-3">
             {paragraph}
           </p>
         ))}
       </div>
+
+      {turn.ambient_detail && (
+        <p className="mt-2 text-sm italic text-parchment-500">{turn.ambient_detail}</p>
+      )}
 
       {turn.companion_actions && (
         <div className="mt-3 space-y-1">
@@ -30,6 +46,7 @@ function TurnBlock({ turn }: { turn: TurnResponse }) {
           {turn.suggested_actions.map((action, i) => (
             <button
               key={i}
+              onClick={() => onSuggestedAction?.(action)}
               className="rounded-full border border-parchment-600/30 bg-parchment-800/50 px-3 py-1 text-sm text-parchment-300 transition hover:border-gold-500/50 hover:text-gold-400"
             >
               {action}
@@ -38,18 +55,23 @@ function TurnBlock({ turn }: { turn: TurnResponse }) {
         </div>
       )}
 
-      {turn.scene_mood && (
-        <div className="mt-2 text-xs uppercase tracking-wider text-parchment-600">
-          {turn.scene_mood}
+      {turn.scene_mood && turn.scene_mood !== "neutral" && (
+        <div className="mood-accent mt-2 text-xs uppercase tracking-wider">
+          {turn.scene_mood.replace("_", " ")}
         </div>
       )}
     </div>
   );
 }
 
-export default function NarrativeStream() {
+export default function NarrativeStream({ wsRef }: NarrativeStreamProps) {
   const turnHistory = useGameStore((s) => s.turnHistory);
   const isProcessing = useGameStore((s) => s.isProcessing);
+  const streaming = useGameStore((s) => s.streaming);
+
+  const handleSuggestedAction = (action: string) => {
+    wsRef.current?.send({ action });
+  };
 
   return (
     <div>
@@ -61,10 +83,26 @@ export default function NarrativeStream() {
       )}
 
       {turnHistory.map((turn, i) => (
-        <TurnBlock key={i} turn={turn} />
+        <TurnBlock key={i} turn={turn} onSuggestedAction={handleSuggestedAction} />
       ))}
 
-      {isProcessing && (
+      {/* Live streaming narration */}
+      {streaming.isStreaming && streaming.currentNarration && (
+        <div className="mb-6">
+          {streaming.pendingDice && (
+            <DiceRoller rolls={streaming.pendingDice} />
+          )}
+          <div className="prose prose-invert max-w-none font-serif leading-relaxed mood-text">
+            {streaming.currentNarration.split("\n").map((paragraph, i) => (
+              <p key={i} className="mb-3">
+                {paragraph}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {isProcessing && !streaming.currentNarration && (
         <div className="flex items-center gap-2 py-4 text-parchment-400">
           <span className="text-sm">The DM considers your action</span>
           <span className="flex gap-1">

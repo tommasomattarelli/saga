@@ -89,14 +89,26 @@ async def process_game_turn(
 
     parsed = parse_dm_response(raw_response)
 
+    # Handle character creation
+    if parsed.character_generation and isinstance(parsed.character_generation, dict):
+        campaign.character_data = parsed.character_generation
+        await db.flush()
+        logger.info("character_generated", name=parsed.character_generation.get("name"))
+
     # Execute dice rolls and re-prompt
     dice_results = None
     dice_narration = ""
     if parsed.dice_required:
         dice_results = {}
         for roll_request in parsed.dice_required:
+            # Read modifier from character_data if available
+            effective_modifier = roll_request.modifier
+            if campaign.character_data and roll_request.name in (campaign.character_data.get("abilities") or {}):
+                ability_score = campaign.character_data["abilities"][roll_request.name]
+                effective_modifier = (ability_score - 10) // 2
+
             check_result = ability_check(
-                modifier=roll_request.modifier,
+                modifier=effective_modifier,
                 dc=roll_request.dc,
                 advantage=roll_request.advantage,
                 disadvantage=roll_request.disadvantage,

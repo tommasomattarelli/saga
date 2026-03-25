@@ -51,6 +51,7 @@ class DMResponse(BaseModel):
     suggested_actions: list[str] | None = None
     ambient_detail: str | None = None
     scene_image_prompt: str | None = None
+    character_generation: dict | None = None
 
     @field_validator("scene_mood", mode="before")
     @classmethod

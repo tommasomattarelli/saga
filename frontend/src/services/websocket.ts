@@ -6,6 +6,8 @@ export class GameWebSocket {
   private ws: WebSocket | null = null;
   private handlers: Map<string, MessageHandler[]> = new Map();
   private campaignId: string;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private intentionalClose = false;
 
   constructor(campaignId: string) {
     this.campaignId = campaignId;
@@ -15,6 +17,7 @@ export class GameWebSocket {
     const token = useAuthStore.getState().accessToken;
     if (!token) return;
 
+    this.intentionalClose = false;
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const host = window.location.host;
     this.ws = new WebSocket(`${protocol}://${host}/api/ws/${this.campaignId}?token=${token}`);
@@ -30,7 +33,9 @@ export class GameWebSocket {
     };
 
     this.ws.onclose = () => {
-      setTimeout(() => this.connect(), 3000);
+      if (!this.intentionalClose) {
+        this.reconnectTimer = setTimeout(() => this.connect(), 3000);
+      }
     };
   }
 
@@ -51,6 +56,11 @@ export class GameWebSocket {
   }
 
   disconnect(): void {
+    this.intentionalClose = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.ws?.close();
     this.ws = null;
   }

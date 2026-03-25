@@ -11,6 +11,7 @@ export default function CharacterSheet() {
     <div>
       <h3 className="mb-4 font-display text-xl text-gold-400">{char.name}</h3>
 
+      {/* HP Bar */}
       <div className="mb-4">
         <div className="mb-1 flex justify-between text-sm">
           <span className="text-parchment-300">HP</span>
@@ -31,11 +32,18 @@ export default function CharacterSheet() {
         <span className="text-parchment-500">{char.xp} XP</span>
       </div>
 
-      <div className="mb-4 text-sm">
-        <span className="text-parchment-400">AC: </span>
-        <span className="font-bold text-parchment-200">{char.ac}</span>
+      <div className="mb-4 flex gap-4 text-sm">
+        <span>
+          <span className="text-parchment-400">AC: </span>
+          <span className="font-bold text-parchment-200">{char.ac}</span>
+        </span>
+        <span>
+          <span className="text-parchment-400">Gold: </span>
+          <span className="font-bold text-gold-400">{char.gold}</span>
+        </span>
       </div>
 
+      {/* Abilities */}
       <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-parchment-500">
         Abilities
       </h4>
@@ -55,6 +63,7 @@ export default function CharacterSheet() {
         ))}
       </div>
 
+      {/* Skills */}
       {char.skills && Object.keys(char.skills).length > 0 && (
         <>
           <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-parchment-500">
@@ -71,11 +80,31 @@ export default function CharacterSheet() {
         </>
       )}
 
+      {/* Equipped */}
+      {char.equipped && Object.keys(char.equipped).length > 0 && (
+        <>
+          <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-parchment-500">
+            Equipped
+          </h4>
+          <div className="mb-4 space-y-1">
+            {Object.entries(char.equipped).map(
+              ([slot, item]) =>
+                item && (
+                  <div key={slot} className="flex justify-between text-sm">
+                    <span className="capitalize text-parchment-400">{slot}</span>
+                    <span className="text-parchment-200">{item}</span>
+                  </div>
+                ),
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Inventory */}
       <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-parchment-500">
         Inventory
       </h4>
-      <div className="space-y-1">
-        <div className="text-sm text-gold-400">{char.gold} gold</div>
+      <div className="mb-4 space-y-1">
         {(char.inventory || []).map((item, i) => (
           <div key={i} className="text-sm text-parchment-300">
             {item.name}{" "}
@@ -86,6 +115,40 @@ export default function CharacterSheet() {
           <p className="text-xs text-parchment-600">Empty</p>
         )}
       </div>
+
+      {/* Reputation */}
+      {char.reputation && Object.keys(char.reputation).length > 0 && (
+        <>
+          <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-parchment-500">
+            Reputation
+          </h4>
+          <div className="mb-4 space-y-1">
+            {Object.entries(char.reputation).map(([faction, score]) => (
+              <div key={faction} className="flex justify-between text-sm">
+                <span className="text-parchment-300">{faction}</span>
+                <span
+                  className={
+                    (score as number) >= 0 ? "text-green-400" : "text-red-400"
+                  }
+                >
+                  {(score as number) >= 0 ? "+" : ""}
+                  {score as number}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Background */}
+      {char.background && (
+        <div className="mt-4 border-t border-parchment-700/20 pt-3">
+          <h4 className="mb-1 text-sm font-semibold uppercase tracking-wider text-parchment-500">
+            Background
+          </h4>
+          <p className="text-sm text-parchment-400">{char.background}</p>
+        </div>
+      )}
     </div>
   );
 }
