@@ -9,12 +9,13 @@
 ## Stato attuale — Cosa c'è già
 
 ### ✅ Completato
-- Docker Compose full stack (frontend, backend, PostgreSQL + pgvector, Redis)
+- Docker Compose full stack (frontend, backend, PostgreSQL + pgvector)
 - Auth JWT completo (register, login, refresh, bcrypt)
 - DB models: User, Campaign, Turn, SavePoint, Template, PlayerStats
 - SQLAlchemy 2.0 async + Alembic migrations + World State schema versioning
 - La maggior parte delle API REST
-- Sicurezza base: JWT httpOnly, CORS, rate limiting, cascade delete, no tracking
+- Sicurezza base: JWT httpOnly, CORS, cascade delete, no tracking
+- In-memory `asyncio.Lock()` per campaign ID (race condition prevention — Redis rinviato a v2)
 - i18n framework (react-i18next, stringhe esternalizzate, direttiva lingua DM)
 - Input sanitizer base (prompt injection detection, length limit)
 - WebSocket per streaming narrazione
@@ -79,33 +80,49 @@ class WorldUpdate(BaseModel):
     description: str              # descrizione leggibile dell'update
 
 class DMResponse(BaseModel):
-    narration: str                # testo narrativo principale
+    # ORDINE CAMPI CRITICO per streaming (narration-first, Approccio A)
+    narration: str                # 1° — streammato subito al frontend
+    invoke_npcs: list[str] = []   # 2° — trigger Actor-Director appena arriva
     dice_required: Optional[DiceRequest] = None
-    companion_actions: list[CompanionAction] = []
-    world_updates: list[WorldUpdate] = []
     scene_mood: str = "neutral"   # enum vincolato
+    time_passed_minutes: int = 5  # tempo narrativo: 0=dialogo, 5-15=esplora, 60=viaggio, 480=riposo
+    companion_actions: list[CompanionAction] = []
+    world_updates: list[WorldUpdate] = []  # ultimi, i più pesanti
     suggested_actions: list[str] = []  # max 4 suggerimenti
     ambient_detail: Optional[str] = None
     scene_image_prompt: Optional[str] = None  # per v2
+    # NOTA: requires_player_action NON è un campo DM — derivato dal backend
 ```
 
 **A1.2 — Aggiornare il system prompt del DM**
 
 Nel file dei prompt (`backend/app/ai/prompts/dm.py`), aggiungere le istruzioni di formato output. Il DM DEVE rispondere SOLO con JSON valido seguendo lo schema. Includere:
-- Lo schema come esempio nel prompt
+- Lo schema come esempio nel prompt, con **`narration` come primo campo** (critico per streaming Approccio A)
+- L'ordine campi esatto: narration → invoke_npcs → dice_required → scene_mood → time_passed_minutes → companion_actions → world_updates → suggested_actions → ambient_detail
 - L'enum completo di `scene_mood`: `calm_exploration`, `tense_anticipation`, `combat_fury`, `stealth_danger`, `social_intrigue`, `melancholic_reflection`, `triumphant_victory`, `dread_horror`, `wonder_discovery`, `mourning_loss`, `neutral`
 - Regole su quando popolare `dice_required` vs lasciarlo null
 - Regole su quando generare `companion_actions`
+- Regole su `invoke_npcs`: il DM decide chi parla in questa scena (trigger per Actor-Director)
+- Valori guida per `time_passed_minutes`: dialogo 1-5 min, esplorazione stanza 10-30 min, viaggio locale 30-60 min, viaggio tra zone 120-480 min, riposo breve 60 min, riposo lungo 480 min
 
-**A1.3 — Aggiornare il Response Parser**
+**A1.3 — Healing Parser + Response Parser**
 
 `backend/app/ai/parser.py` — deve:
+- **Healing pipeline** (prima della validazione): strip markdown fences (` ```json ... ``` `) → `json-repair` library → Pydantic validation → retry solo se ancora invalido. Riduce retry costosi del ~70%.
 - Parsare il JSON dalla risposta LLM
 - Validare contro il Pydantic model
 - Se `scene_mood` non è nell'enum → fallback a `"neutral"`
 - Se campi mancanti → default values
-- Se JSON malformato → retry (già implementato, verificare che funzioni col nuovo schema)
+- Se JSON malformato dopo healing → retry (max 3)
 - Loggare warning per campi inattesi
+
+**A1.3b — Content Policy Handler**
+
+Nel provider layer (`backend/app/ai/providers/`):
+- Intercettare specificamente errori `content_policy_violation` (HTTP 400 con flag moderazione)
+- Ritornare messaggio leggibile al player: "The DM refuses to narrate this scene as described. Try rephrasing your action."
+- Distinguere nel log tra "errore tecnico" e "blocco policy"
+- Non trattare come errore generico / crash silenzioso
 
 **A1.4 — Aggiornare il frontend per consumare il nuovo formato**
 
@@ -117,8 +134,10 @@ Il `NarrativeStream` deve:
 - Applicare `scene_mood` come classe CSS al container (per ora solo colore di sfondo/bordo, i suoni vengono dopo)
 
 **Criteri di completamento A1:**
-- [ ] Schema Pydantic definito e testato
-- [ ] System prompt aggiornato con istruzioni formato
+- [ ] Schema Pydantic definito con `invoke_npcs` e `time_passed_minutes`, testato
+- [ ] System prompt aggiornato con istruzioni formato e ordine campi per streaming
+- [ ] Healing Parser con `json-repair` integrato e testato
+- [ ] Content Policy Handler implementato nel provider layer
 - [ ] Parser aggiornato e testato con 10+ risposte reali
 - [ ] Frontend renderizza tutti i campi del nuovo formato
 - [ ] `scene_mood` cambia almeno il colore del bordo/sfondo del narrative panel
@@ -203,6 +222,29 @@ Nel system prompt, aggiungere regole chiare:
 - In combattimento: attacchi sempre con tiro, danni con formula
 - Interazioni sociali: check Charisma vs disposition NPC
 
+**A2.5 — Time Engine / GameClock**
+
+Aggiungere al World State lo schema `GameClock`:
+
+```python
+class GameClock(BaseModel):
+    total_minutes: int = 0          # accumulato da ogni turno
+    current_hour: int = 8           # derivato: total_minutes // 60 % 24
+    current_day: int = 1            # derivato: total_minutes // 1440
+    current_season: str = "spring"  # derivato dai giorni
+    time_of_day: str = "morning"    # "dawn|morning|afternoon|evening|night|midnight"
+```
+
+Il World State Updater legge `time_passed_minutes` dal DMResponse e aggiorna il clock dopo ogni turno. `current_hour`, `time_of_day`, `current_day` vengono ricalcolati automaticamente.
+
+Il clock alimenta: descrizioni ambientali nel prompt, schedule NPC, ciclo giorno/notte nel World Panel, e il World Simulator in v2.
+
+**A2.6 — requires_player_action (backend-derived)**
+
+Non è un campo DM. Booleano calcolato dal backend:
+- `True` se `world_state.combat_state.active` o `dm_response.dice_required is not None`
+- `False` altrimenti → pulsante "Continua" abilitato, azione implicita `"wait"` se premuto senza input
+
 **Criteri di completamento A2:**
 - [ ] Dice Engine implementato con tutti i 6 livelli di outcome
 - [ ] Vantaggio/svantaggio funzionante
@@ -211,6 +253,8 @@ Nel system prompt, aggiungere regole chiare:
 - [ ] Animazione dadi funzionante nel frontend con suono
 - [ ] Il DM chiede tiri solo quando appropriato (testare 20+ turni)
 - [ ] Unit test per distribuzione probabilistica dei risultati
+- [ ] GameClock implementato e aggiornato da `time_passed_minutes` dopo ogni turno
+- [ ] `requires_player_action` derivato dal backend, pulsante Continua funzionante
 
 ---
 
@@ -344,6 +388,49 @@ Un singolo file `public/sounds/dice-roll.mp3`. Triggerato dall'evento `dice:roll
 
 ---
 
+### B0. Semantic Resolver
+
+**Perché prima di B1:** Il Context Assembler e l'Actor-Director dipendono da questo componente per risolvere riferimenti impliciti ("lei", "la città di fianco") e caricare il contesto corretto.
+
+**Task:**
+
+**B0.1 — Implementare il Semantic Resolver**
+
+`backend/app/ai/semantic_resolver.py`:
+- Mini-call a budget model (~200ms, trascurabile) prima del Context Assembler
+- Riceve: testo del player + contesto sessione (companion attivi, location recenti, NPC recenti)
+- Output:
+  ```python
+  class ResolverOutput(BaseModel):
+      target_locations: list[str] = []    # location esplicite e risolte
+      target_npcs: list[str] = []         # NPC espliciti e pronominali risolti
+      time_estimate_minutes: int = 5      # stima tempo narrativo
+  ```
+- Risolve: "vado con lei" → `target_npcs: ["Grenda"]` (unica companion femminile attiva)
+- Risolve: "la città di fianco" → `target_locations: ["Neverwinter"]` (con contesto geografico)
+
+**B0.2 — Integrare nel Turn Pipeline**
+
+Pipeline aggiornato:
+```
+Sanitizer → [Semantic Resolver] → Context Assembler → DM call
+```
+
+Il Context Assembler usa l'output come guida primaria:
+```
+Carica = NPC(location corrente) + NPC(risolti da Resolver) + Companion(attivi)
+```
+
+Le regole fisse (location corrente, companion) sono il minimum guaranteed. Il Resolver aggiunge tutto il resto.
+
+**Criteri di completamento B0:**
+- [ ] Semantic Resolver implementato e testato con 10+ frasi ambigue
+- [ ] Integrato nel turn pipeline prima del Context Assembler
+- [ ] Context Assembler usa output del Resolver per il contextual loading
+- [ ] Latenza < 300ms per la call
+
+---
+
 ### B1. World State Object Completo
 
 **Task:**
@@ -364,6 +451,28 @@ class WorldState(BaseModel):
 
 Ogni sezione è un Pydantic model separato.
 
+**B1.1b — GameClock e WorldSimulatorState nel World State**
+
+Aggiungere al World State schema:
+
+```python
+class GameClock(BaseModel):
+    total_minutes: int = 0
+    current_hour: int = 8           # derivato
+    current_day: int = 1            # derivato
+    current_season: str = "spring"  # derivato
+    time_of_day: str = "morning"    # "dawn|morning|afternoon|evening|night|midnight"
+
+class WorldSimulatorState(BaseModel):
+    enabled: bool = False                    # toggle utente, logica in v2
+    last_simulated_turn: int = 0
+    pending_world_events: list[dict] = []
+    scheduled_npc_actions: list[dict] = []
+```
+
+Il `GameClock` è alimentato da `time_passed_minutes` del DMResponse (vedere A2.5).
+Il `WorldSimulatorState` è solo schema — la logica viene in v2.
+
 **B1.2 — World State Updater**
 
 `backend/app/memory/updater.py`:
@@ -376,7 +485,7 @@ Dopo ogni turno, prende i `world_updates` dalla DMResponse e li applica al world
 - `inventory_change` → aggiorna `player.character_sheet.inventory`
 - `reputation_change` → aggiorna `player.reputation`
 - `companion_loyalty` → aggiorna `companions[name].loyalty`
-- `time_advance` → aggiorna `world.time`
+- `time_advance` → aggiorna `world.clock` via `time_passed_minutes` (GameClock)
 - `event_log_entry` → append a `narrative.event_log`
 
 Ogni update è atomico e validato. Se un update è invalido (NPC non esiste, HP sotto 0), viene loggato e skippato.
@@ -392,9 +501,9 @@ Non tutto il world state va nel prompt. Il Context Assembler seleziona:
 Implementare come un set di funzioni `load_context_for_scene(world_state, scene_type) -> dict` che ritorna solo le sezioni rilevanti.
 
 **Criteri di completamento B1:**
-- [ ] World State schema completo con tutti i sotto-modelli Pydantic
-- [ ] World State Updater applica tutti i tipi di update
-- [ ] Contextual loading funzionante per almeno 3 scene type
+- [ ] World State schema completo con tutti i sotto-modelli Pydantic (inclusi GameClock e WorldSimulatorState)
+- [ ] World State Updater applica tutti i tipi di update (incluso `time_advance` via GameClock)
+- [ ] Contextual loading funzionante, guidato dal Semantic Resolver (B0)
 - [ ] World state persiste correttamente tra turni nel DB
 - [ ] Test: 30 turni consecutivi senza corruzione del world state
 
@@ -423,12 +532,28 @@ Implementare come un set di funzioni `load_context_for_scene(world_state, scene_
 }
 ```
 
-**B2.2 — NPC nel prompt DM**
+**B2.2 — NPC nel prompt DM + Actor-Director Pattern**
 
 Quando il player interagisce con un NPC:
-- Il Context Assembler carica il profilo completo
-- Il DM riceve istruzioni: "This NPC has disposition [X] toward the player. They are [traits]. They want [goals]. They fear [fears]. Play them accordingly."
+- Il Context Assembler carica il profilo completo (guidato dal Semantic Resolver)
+- Il DM riceve istruzioni: "This NPC has disposition [X] toward the player. They are [traits]. They want [goals]. They fear [fears]. List NPCs who should speak in `invoke_npcs`."
 - Dopo l'interazione, il DM genera un `world_update` con disposition change e memory entry
+
+**Pattern Actor-Director:**
+Il DM è il Regista, gli NPC sono Attori indipendenti.
+
+Flusso:
+1. DM risponde con `invoke_npcs: ["Grenda", "Re Aldric"]`
+2. Backend lancia chiamate NPC in parallelo (`asyncio.gather`, budget model)
+3. Frontend inizia a streammare la `narration` del DM
+4. Mentre il player legge (~2-3 sec), gli NPC generano
+5. Dialoghi NPC arrivano via WebSocket (`npc:dialogue:start/chunk/end`)
+6. I dialoghi NPC NON tornano mai al DM — vanno a schermo direttamente
+7. Il turno finisce dopo i dialoghi NPC
+
+Prompt per ogni NPC (budget model): nome, ruolo, tratti, disposition, ultima interazione (da `memory_facts`), azione del player. Istruzione: "Rispondi in 1-2 frasi, in character."
+
+File da modificare: `backend/app/api/websocket.py`, `backend/app/services/turn_service.py`, `backend/app/ai/prompts/npc.py`
 
 **B2.3 — Companion Schema (estensione di NPC)**
 
@@ -464,44 +589,78 @@ Sopra l'input bar:
 - [ ] NPC profile schema implementato
 - [ ] Almeno 3 NPC generati con il primo template
 - [ ] NPC disposition cambia in base alle azioni del player
+- [ ] Actor-Director: NPC invocati via `invoke_npcs` rispondono con call LLM indipendente
+- [ ] Eventi WebSocket `npc:dialogue:start/chunk/end` funzionanti
+- [ ] Ogni NPC ha voce distinta (verificare con 3+ NPC diversi nella stessa scena)
 - [ ] 1 companion funzionante con loyalty e dialogo
 - [ ] Companion reazioni appaiono nella narrazione
 - [ ] Companion bar nel frontend
 
 ---
 
-### B3. Memory Compression — Primo Livello
+### B3. Memoria — Architettura a 3 Pilastri
 
 **Task:**
 
-**B3.1 — Implementare Tier 1 e 2**
+**B3.1 — Pilastro 2: Active Window (compressione)**
 
 `backend/app/memory/compression.py`:
 
-- **Immediate (Tier 1):** Ultimi 8 turni salvati verbatim. Caricati integralmente nel prompt.
-- **Recent (Tier 2):** Turni 9-40 compressi. Ogni 5-8 turni, un budget model (GPT-4o-mini) genera un riassunto di 2-3 frasi. I riassunti sostituiscono i turni verbatim.
+- **Active Window:** Ultimi 5-8 turni salvati verbatim (~2000 token). Caricati integralmente nel prompt.
+- **Turni oltre la finestra:** compressi. Ogni 5-8 turni, un budget model genera un riassunto di 2-3 frasi.
+- Trigger: dopo ogni turno, se turni non compressi > 8, comprimi il batch più vecchio.
 
-**B3.2 — Trigger di compressione**
+**B3.2 — Pilastro 3: Tabella `memory_facts` + Fact Extractor**
 
-Dopo ogni turno, se il numero di turni non compressi supera la soglia (8):
-1. Prendi i turni 9-16 (o qualunque batch sia il più vecchio non compresso)
-2. Invia al budget model: "Summarize these game turns in 2-3 sentences, focusing on: key decisions, consequences, NPC interactions, items gained/lost"
-3. Salva il summary nel campo `summary` del Turn model
-4. Il Context Assembler carica: turni 1-8 verbatim + summary dei turni precedenti
+Creare modello SQLAlchemy `backend/app/models/memory_fact.py`:
+
+```python
+class MemoryFact(Base):
+    __tablename__ = "memory_facts"
+    id: uuid
+    campaign_id: uuid              # FK → campaigns
+    turn_number: int
+    entity_name: str               # "Grenda", "Neverwinter", "DragonHunt"
+    entity_type: str               # "npc", "location", "quest", "item", "event", "secret"
+    content: str                   # fatto atomico in linguaggio naturale
+    embedding: vector(1536)        # pgvector
+    search_vector: tsvector        # per full-text search ibrido
+    created_at: timestamp
+```
+
+Creare Alembic migration per la nuova tabella.
+
+**Fact Extractor** (`backend/app/memory/fact_extractor.py`):
+- Dopo ogni turno: `asyncio.create_task(extract_facts(turn))` — non bloccante
+- Budget model estrae 1-5 fatti atomici strutturati
+- Formato: `"NomeEntità:tipo:stato — dettaglio con turno"`
+- Ogni fatto = una riga nel DB = un embedding
+
+Esempi di fatti atomici:
+```
+"Grenda:relazione:ostile — ha scoperto il furto della borsa al turno 23"
+"Neverwinter:luogo:visitato — prima visita turno 3, torre bruciata scoperta"
+"DragonHunt:quest:accettata — ricompensa 500 oro promessa dal Re al turno 15"
+```
 
 **B3.3 — Token Budget Check**
 
 Prima di inviare il prompt al LLM:
-- Calcola token approssimati (1 token ≈ 4 caratteri per inglese)
-- Se supera il budget (~12,000 token input), comprimi più aggressivamente i turni recenti
+- Token budget totale: ~12,500-15,500 token input
+  - Pilastro 1 (Core State + Recap): ~1500 token fissi
+  - Pilastro 2 (Active Window): ~2000 token
+  - Pilastro 3 (Fatti Atomici): ~500 token
+  - Resto: system prompt, character context, scene context, player action
+- Se supera il budget, comprimi più aggressivamente i turni recenti
 - Log warning se il prompt è troppo grande anche dopo compressione
 
 **Criteri di completamento B3:**
-- [ ] Compressione Tier 1 (verbatim) + Tier 2 (summary) funzionante
-- [ ] Compressione trigger automatico ogni 8 turni
+- [ ] Active Window (5-8 turni verbatim) + compressione turni vecchi funzionante
+- [ ] Tabella `memory_facts` creata con migration Alembic
+- [ ] Fact Extractor estrae fatti atomici dopo ogni turno (asincrono)
 - [ ] Token budget check prima di ogni prompt
 - [ ] Test: campagna di 50 turni senza context overflow
-- [ ] Summary leggibili e accurati (verificare manualmente 5+ summary)
+- [ ] Fatti atomici leggibili e accurati (verificare manualmente 10+ fatti)
 
 ---
 
@@ -901,19 +1060,23 @@ Dopo ogni chiamata API:
 
 ---
 
-### D1. pgvector Semantic Search
+### D1. pgvector Hybrid Search — Pilastro 3
 
-- Implementare embedding per ogni turno (campo `embedding` già nel model)
+- Implementare embedding per ogni fatto atomico in `memory_facts` (non per turno — granularità fine)
 - Usare Voyage AI API o bge-small locale
-- Query semantica nel Context Assembler: "Find past events similar to current scene"
-- Top-5 risultati aggiunti alla sezione Memory Context del prompt
+- **Hybrid Search** nel Context Assembler: 70% similarità semantica (`embedding <=>`) + 30% keyword match (`tsvector ts_rank`)
+- Filtri metadata per restringere il perimetro: `entity_name` (NPC attivi in scena), `entity_type` (location corrente, quest sempre rilevanti)
+- Il Semantic Resolver (B0) produce gli input per le query (`target_npcs`, `target_locations`)
+- Top-5 fatti atomici iniettati nella sezione Memory Context del prompt (~500 token)
+- File: `backend/app/memory/semantic.py` (aggiornare con hybrid search)
 
-### D2. Recap System
+### D2. Recap System — Ruolo Duale
 
-- Generazione automatica ogni 25 turni
-- Budget model genera 500-800 parole di recap narrativo
-- Recap salvato e mostrato nel JournalView
-- Recap iniettato nel prompt per rinforzare memoria
+- **Ruolo 1 — System Prompt (critico):** Il recap più recente viene iniettato nel system prompt del DM come "bussola permanente" a ogni turno. Non opzionale — è il modo in cui il DM mantiene il quadro generale. Token budget: ~600-700 token, non va mai rimosso per fare spazio.
+- **Ruolo 2 — JournalView (UI):** Il recap è visibile al player come sommario narrativo dell'avventura.
+- Trigger: ogni 25 turni, budget model legge ultimi 25 turni + recap precedente → nuovo recap cumulativo 500-800 parole
+- Recap vecchio archiviato (per JournalView), nuovo sostituisce quello nel system prompt
+- È il secondo elemento più importante del prompt dopo le rules del DM
 
 ### D3. API Keys UI + Cost Dashboard
 
@@ -964,17 +1127,22 @@ Se devi tagliare, questa è la v1 **minima giocabile** (MVP):
 
 | Must Have | Nice to Have | Can Wait |
 |-----------|-------------|----------|
-| DM Output strutturato | pgvector semantic search | Achievements |
-| Dice Engine meccanico | Recap system | Responsive mobile |
-| Character Sheet base | AI Router multi-provider (1 provider ok) | Cost dashboard |
-| Scene Mood CSS | Timeline forking | Terzo template |
-| World State Updater | Manual save browser | CI/CD pipeline |
-| NPC base (disposition) | Companion bar UI | GDPR export/import |
-| 1 Companion funzionante | Combat tracker UI | PWA |
-| Memory compression Tier 1+2 | Second template | |
-| Death mode selection + Cronista | Ironman death saves | |
-| Auto-save | Destino fate interventions | |
-| 1 Template (tutorial) | Documentazione completa | |
+| DM Output strutturato (con `invoke_npcs`, `time_passed_minutes`) | pgvector hybrid search (Pilastro 3) | Achievements |
+| Healing Parser (`json-repair`) | Recap system (ruolo duale) | Responsive mobile |
+| Content Policy Handler | AI Router multi-provider (1 provider ok) | Cost dashboard |
+| Dice Engine meccanico | Timeline forking | Terzo template |
+| Character Sheet base | Manual save browser | CI/CD pipeline |
+| Scene Mood CSS | Combat tracker UI | GDPR export/import |
+| GameClock / Time Engine | Second template | PWA |
+| Semantic Resolver | Companion bar UI | World Simulator logica (v2) |
+| World State Updater | Documentazione completa | |
+| NPC base (disposition) | Ironman death saves | |
+| Actor-Director pattern | Destino fate interventions | |
+| 1 Companion funzionante | | |
+| Memory: Active Window + Fact Extractor + `memory_facts` | | |
+| Death mode selection + Cronista | | |
+| Auto-save | | |
+| 1 Template (tutorial) | | |
 | Combat base | | |
 
 Con il MVP tagliato, puoi lanciare in **6-8 settimane** e iterare con feedback della community.
