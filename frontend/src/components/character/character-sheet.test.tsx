@@ -16,9 +16,12 @@ describe("CharacterSheet Component", () => {
     abilities: { strength: 18, dexterity: 12 },
     skills: { athletics: { level: 2, uses: 0, progress: 0 } },
     inventory: [{ name: "Axe", quantity: 1, type: "weapon" }],
+    equipped: {},
     gold: 100,
     background: "Noble",
     notes: "Tough guy",
+    reputation: {},
+    active_quests: [],
   };
 
   const createMockCampaign = (charData: CharacterData | null): Campaign => ({
@@ -57,7 +60,7 @@ describe("CharacterSheet Component", () => {
     useGameStore.setState({ campaign: createMockCampaign(emptyChar) });
     render(<CharacterSheet />);
     expect(screen.getByText("Empty")).toBeInTheDocument();
-    expect(screen.getByText("0 gold")).toBeInTheDocument();
+    expect(screen.getByText("0")).toBeInTheDocument();
   });
 
   it("should correctly handle negative ability modifiers", () => {

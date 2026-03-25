@@ -33,11 +33,9 @@ describe("GameWebSocket", () => {
     new GameWebSocket("camp123").connect();
     expect(globalThis.WebSocket).toHaveBeenCalledWith(
       expect.stringContaining("camp123"),
-      undefined,
     );
     expect(globalThis.WebSocket).toHaveBeenCalledWith(
       expect.stringContaining("token=valid-token"),
-      undefined,
     );
   });
 

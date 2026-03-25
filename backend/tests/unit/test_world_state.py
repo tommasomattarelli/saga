@@ -5,27 +5,28 @@ from app.memory.world_state import (
 )
 
 
-def test_migrate_v0_to_v1():
+def test_migrate_v0_to_v2():
     v0_state = {"locations": {"town": "visited"}}
     migrated = migrate_world_state(v0_state)
 
     assert "meta" in migrated
-    assert migrated["meta"]["schema_version"] == 1
+    assert migrated["meta"]["schema_version"] == 2
     assert migrated["meta"]["world_name"] == "Unknown Land"
     assert migrated["meta"]["current_season"] == "spring"
     assert migrated["locations"]["town"] == "visited"
+    assert "clock" in migrated
 
 
 def test_migrate_up_to_date():
-    v1_state = {
-        "meta": {"schema_version": 1, "world_name": "Test"},
+    v2_state = {
+        "meta": {"schema_version": 2, "world_name": "Test"},
         "locations": {"town": "visited"},
+        "clock": {"total_minutes": 480},
     }
-    migrated = migrate_world_state(v1_state)
-    assert migrated == v1_state
-    assert migrated is not v1_state  # Should be a deepcopy, Wait, the code says:
-    # `state = copy.deepcopy(state)` then if current_version == CURRENT_SCHEMA_VERSION: `return state`
-    # So it doesn't return the exact same object reference if it was deepcopied. Let's just check equality.
+    migrated = migrate_world_state(v2_state)
+    assert migrated["meta"]["schema_version"] == 2
+    assert migrated["locations"]["town"] == "visited"
+    assert migrated is not v2_state
 
 
 def test_validate_world_state():

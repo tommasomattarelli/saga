@@ -19,9 +19,12 @@ const mockCampaign: Campaign = {
     abilities: { str: 10 },
     skills: {},
     inventory: [],
+    equipped: {},
     gold: 0,
     background: "none",
     notes: "",
+    reputation: {},
+    active_quests: [],
   },
   world_state: {
     location: "Start Town",
@@ -42,6 +45,10 @@ const mockTurn: TurnResponse = {
   scene_mood: "calm",
   suggested_actions: ["action 1"],
   model_used: "test-model",
+  invoke_npcs: [],
+  time_passed_minutes: 5,
+  ambient_detail: null,
+  requires_player_action: true,
 };
 
 describe("Game Store", () => {

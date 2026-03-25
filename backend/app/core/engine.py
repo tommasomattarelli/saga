@@ -103,7 +103,9 @@ async def process_game_turn(
         for roll_request in parsed.dice_required:
             # Read modifier from character_data if available
             effective_modifier = roll_request.modifier
-            if campaign.character_data and roll_request.name in (campaign.character_data.get("abilities") or {}):
+            if campaign.character_data and roll_request.name in (
+                campaign.character_data.get("abilities") or {}
+            ):
                 ability_score = campaign.character_data["abilities"][roll_request.name]
                 effective_modifier = (ability_score - 10) // 2
 
