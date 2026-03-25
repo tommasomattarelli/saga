@@ -26,6 +26,10 @@ def _make_mock_game_turn():
     mock.suggested_actions = ["Attack again", "Retreat", "Use ability"]
     mock.model_used = "gpt-4o"
     mock.importance_score = 7
+    mock.invoke_npcs = []
+    mock.time_passed_minutes = 5
+    mock.ambient_detail = None
+    mock.requires_player_action = True
     return mock
 
 

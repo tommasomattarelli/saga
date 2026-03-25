@@ -89,13 +89,13 @@
 - [ ] Context Assembler costruisce il prompt DM (usa output Semantic Resolver come guida primaria + regole fisse come fallback)
 - [ ] Dice Engine tira dadi se necessario pre-prompt
 - [ ] AI Engine invia prompt al LLM via Router, streaming risposta
-- [ ] **Healing Parser**: strip markdown fences → `json-repair` → Pydantic validation → retry solo se ancora invalido (riduce retry del ~70%)
+- [x] **Healing Parser**: strip markdown fences → `json-repair` → Pydantic validation → retry solo se ancora invalido (riduce retry del ~70%)
 - [ ] Response Parser estrae JSON strutturato dalla risposta DM
-- [ ] **Content Policy Handler**: intercetta `content_policy_violation` (HTTP 400) nel provider layer e ritorna messaggio leggibile al player ("The DM refuses to narrate this scene as described. Try rephrasing your action.") con distinzione nel log tra errore tecnico e blocco policy
-- [ ] Se il DM richiede un tiro di dado, il Dice Engine tira e ri-prompta per la narrazione
-- [ ] **`requires_player_action`** — booleano derivato dal backend (non dal DM): `True` se combat attivo o dice_required presente, `False` altrimenti (pulsante "Continua" abilitato, azione implicita `"wait"`)
+- [x] **Content Policy Handler**: intercetta `content_policy_violation` (HTTP 400) nel provider layer e ritorna messaggio leggibile al player ("The DM refuses to narrate this scene as described. Try rephrasing your action.") con distinzione nel log tra errore tecnico e blocco policy
+- [x] Se il DM richiede un tiro di dado, il Dice Engine tira e ri-prompta per la narrazione
+- [x] **`requires_player_action`** — booleano derivato dal backend (non dal DM): `True` se combat attivo o dice_required presente, `False` altrimenti (pulsante "Continua" abilitato, azione implicita `"wait"`)
 - [ ] Se `invoke_npcs` presente → lancia chiamate NPC in parallelo (Actor-Director, vedere sez. 6)
-- [ ] World State Updater applica i world_updates + aggiorna GameClock con `time_passed_minutes`
+- [x] World State Updater applica i world_updates + aggiorna GameClock con `time_passed_minutes`
 - [ ] **Fact Extractor** (asincrono, non bloccante) estrae 1-5 fatti atomici dal turno → INSERT in `memory_facts`
 - [ ] Memory Manager comprime turni vecchi se necessario
 - [ ] Auto-save del world state
@@ -103,15 +103,15 @@
 - [ ] World Simulator esegue eventi off-screen (asincrono, logica in v2, schema in v1)
 
 ### 4.2 Dice Engine
-- [ ] Meccanica d20 base: d20 + stat modifier + bonus vs DC
-- [ ] Risultati graduali: Natural 1 / Hard Fail / Soft Fail / Partial / Full / Nat 20
-- [ ] Vantaggio e svantaggio (2d20 take high/low)
-- [ ] Il DM decide quando tirare (trivial → auto success, impossible → auto fail)
-- [ ] Roll calcolato server-side, animazione client-side
-- [ ] Dadi mostrati al player con risultato trasparente
+- [x] Meccanica d20 base: d20 + stat modifier + bonus vs DC
+- [x] Risultati graduali: Natural 1 / Hard Fail / Soft Fail / Partial / Full / Nat 20
+- [x] Vantaggio e svantaggio (2d20 take high/low)
+- [x] Il DM decide quando tirare (trivial → auto success, impossible → auto fail)
+- [x] Roll calcolato server-side, animazione client-side
+- [x] Dadi mostrati al player con risultato trasparente
 
 ### 4.3 DM Output Strutturato
-- [ ] Risposta DM in JSON con campi (in quest'ordine per streaming, vedere sez. 4.4):
+- [x] Risposta DM in JSON con campi (in quest'ordine per streaming, vedere sez. 4.4):
   1. `narration: str` — primo, streammato subito
   2. `invoke_npcs: list[str] = []` — secondo, così le call NPC Actor-Director partono appena arriva
   3. `dice_required: Optional[DiceRequest]`
@@ -122,20 +122,20 @@
   8. `suggested_actions: list[str]`
   9. `ambient_detail: Optional[str]`
   10. `scene_image_prompt: Optional[str]` — per v2
-- [ ] Campo `scene_mood` come enum vincolato (calm_exploration, tense_anticipation, combat_fury, ecc.)
-- [ ] Fallback a `neutral` se mood non valido o mancante
-- [ ] **Nota:** `requires_player_action` NON è un campo DM — è derivato deterministicamente dal backend (combat attivo o dice_required presente)
-- [ ] Healing Parser (`json-repair`) prima della validazione Pydantic per ridurre retry
-- [ ] Retry automatico (max 3) se JSON ancora malformato dopo healing
+- [x] Campo `scene_mood` come enum vincolato (calm_exploration, tense_anticipation, combat_fury, ecc.)
+- [x] Fallback a `neutral` se mood non valido o mancante
+- [x] **Nota:** `requires_player_action` NON è un campo DM — è derivato deterministicamente dal backend (combat attivo o dice_required presente)
+- [x] Healing Parser (`json-repair`) prima della validazione Pydantic per ridurre retry
+- [x] Retry automatico (max 3) se JSON ancora malformato dopo healing
 - [ ] Consistency checker per contraddizioni con world state
 
 ### 4.4 Streaming & WebSocket — Approccio A (Narration-First)
 - [ ] **Approccio A:** Il system prompt istruisce il DM a mettere `narration` come primo campo JSON. Un streaming JSON parser (backend: `jsonstream`; frontend: `oboe.js` o parser custom) inizia a estrarre e renderizzare il valore di `narration` non appena individua `"narration": "` nello stream, senza aspettare il JSON completo. Gli altri campi (`world_updates`, `invoke_npcs`, ecc.) vengono parsati solo a JSON completo.
-- [ ] WebSocket per streaming narrazione DM in tempo reale
-- [ ] Eventi DM: `dm:narration:start`, `dm:narration:chunk`, `dm:narration:end`
+- [x] WebSocket per streaming narrazione DM in tempo reale
+- [x] Eventi DM: `dm:narration:start`, `dm:narration:chunk`, `dm:narration:end`
 - [ ] Eventi NPC (Actor-Director): `npc:dialogue:start`, `npc:dialogue:chunk`, `npc:dialogue:end`
-- [ ] Evento `dice:roll` per animazione dadi
-- [ ] Evento `companion:action` per reazioni companion
+- [x] Evento `dice:roll` per animazione dadi
+- [x] Evento `companion:action` per reazioni companion
 - [ ] Evento `save:auto` per notifica auto-save
 - [ ] TTFT target: < 500ms (testo che inizia ad apparire)
 - [ ] Zero costo extra streaming (una sola call LLM), provider agnostico (non dipende da Tool Calling nativo)
@@ -145,10 +145,10 @@
 ## 5. PERSONAGGIO
 
 ### 5.1 Creazione Personaggio
-- [ ] Creazione narrativa: il player descrive il concept, il DM genera la scheda
-- [ ] DM genera: nome, backstory, attributi, HP, abilità, inventario iniziale
-- [ ] Player può richiedere aggiustamenti via conversazione
-- [ ] DM integra backstory nel lore del mondo
+- [x] Creazione narrativa: il player descrive il concept, il DM genera la scheda
+- [x] DM genera: nome, backstory, attributi, HP, abilità, inventario iniziale
+- [x] Player può richiedere aggiustamenti via conversazione
+- [x] DM integra backstory nel lore del mondo
 - [ ] Selezione death mode: Ironman / Destino / Cronista
 
 ### 5.2 Attributi Core
@@ -261,10 +261,10 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 
 ### 9.1 World State Object
 - [ ] JSON strutturato con sezioni: meta, player, companions, world, narrative, npcs
-- [ ] Aggiornato dopo ogni turno
-- [ ] Schema versioning con migration pipeline (v1→v2→v3)
+- [x] Aggiornato dopo ogni turno
+- [x] Schema versioning con migration pipeline (v1→v2→v3)
 - [ ] Caricamento selettivo basato su rilevanza (Contextual Loading guidato dal Semantic Resolver)
-- [ ] **GameClock** nel world state:
+- [x] **GameClock** nel world state:
   ```
   GameClock: total_minutes, current_hour, current_day, current_season, time_of_day
   ```
@@ -388,9 +388,9 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 - [ ] **Companion Bar (sopra input):** portrait companion con indicatore mood
 
 ### 12.2 Componenti UI Chiave
-- [ ] **NarrativeStream:** typewriter effect, rich text, dadi embedded, dialoghi companion
-- [ ] **DiceRoller:** animazione d20 spin, color-coded (rosso fail, verde success, oro crit), suono
-- [ ] **CharacterSheet:** attributi, abilità, inventario, quest log, relazioni
+- [x] **NarrativeStream:** typewriter effect, rich text, dadi embedded, dialoghi companion
+- [x] **DiceRoller:** animazione d20 spin, color-coded (rosso fail, verde success, oro crit), suono
+- [x] **CharacterSheet:** attributi, abilità, inventario, quest log, relazioni
 - [ ] **CompanionPanel:** ritratto, personalità, loyalty bar, storia conversazioni, quest personale
 - [ ] **CombatTracker:** ordine iniziativa, HP bar, indicatore turno
 - [ ] **ActionSuggester:** bottoni contestuali basati sulla scena
@@ -407,7 +407,7 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 - [ ] PWA installabile
 
 ### 12.4 Suoni
-- [ ] Suono tiro dadi
+- [x] Suono tiro dadi
 - [ ] Suoni ambientali legati a `scene_mood` (taverna, foresta, combattimento, pioggia)
 - [ ] Suoni UI feedback (turno inviato, save completato)
 
@@ -426,7 +426,7 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 - [ ] **PlayerStats:** user_id, total_turns, total_campaigns, total_play_time_minutes, total_dice_rolled, total_critical_successes, total_critical_failures, total_companions_recruited, total_companion_deaths, total_player_deaths
 
 ### 13.3 World State — Schemi Aggiuntivi (JSONB)
-- [ ] **GameClock:** total_minutes, current_hour (derivato), current_day (derivato), current_season (derivato), time_of_day ("dawn" | "morning" | "afternoon" | "evening" | "night" | "midnight")
+- [x] **GameClock:** total_minutes, current_hour (derivato), current_day (derivato), current_season (derivato), time_of_day ("dawn" | "morning" | "afternoon" | "evening" | "night" | "midnight")
 - [ ] **WorldSimulatorState:** enabled (default false), last_simulated_turn, pending_world_events (list[dict]), scheduled_npc_actions (list[dict]) — schema in v1, logica in v2
 
 ### 13.2 Migrazioni
@@ -467,7 +467,7 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 - [ ] JWT httpOnly cookies, no cookie terze parti
 - [ ] CORS configurato
 - [ ] Rate limiting in-memory (`asyncio.Lock` per campaign ID) — Redis in v2 SaaS
-- [ ] **Content Policy Handler:** intercetta `content_policy_violation` nel provider layer, distingue errore tecnico da blocco policy nel log, ritorna messaggio leggibile al player
+- [x] **Content Policy Handler:** intercetta `content_policy_violation` nel provider layer, distingue errore tecnico da blocco policy nel log, ritorna messaggio leggibile al player
 - [ ] Configurazione MaturityLevel nel system prompt DM:
   - **Standard:** Violenza fantasy OK, romanticismo implicito, atti sessuali → fade to black
   - **Mature:** Violenza più esplicita, romanticismo diretto non pornografico (provider-dependent)

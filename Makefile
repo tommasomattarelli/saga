@@ -44,7 +44,7 @@ test: test-backend test-frontend
 
 test-backend:
 	@echo "Running backend unit tests..."
-	cd backend; uv run pytest tests/unit
+	cd backend; uv run python -m pytest tests/unit
 
 test-frontend:
 	@echo "Running frontend unit tests..."
@@ -61,7 +61,7 @@ test-infra-down:
 test-all:
 	@echo "Running full test suite (Unit + Integration + Playtest)..."
 	- & "$(MAKE)" test-infra-up
-	cd backend; $$env:TEST_DATABASE_URL='postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_test'; $$env:TEST_REDIS_URL='redis://localhost:6380/0'; uv run pytest tests/unit tests/integration tests/playtest
+	cd backend; $$env:TEST_DATABASE_URL='postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_test'; $$env:TEST_REDIS_URL='redis://localhost:6380/0'; uv run python -m pytest tests/unit tests/integration tests/playtest
 	- & "$(MAKE)" test-infra-down
 
 # Comprehensive CI Check

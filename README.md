@@ -6,7 +6,11 @@ An open-source, AI-powered single-player tabletop RPG with an expert AI Dungeon 
 
 - **Multi-provider AI**: Intelligent routing between OpenAI, Anthropic, Google Gemini — budget models for background tasks, premium models for narrative peaks
 - **Semantic memory**: The DM remembers your story through pgvector embeddings, recalling thematically relevant events even hundreds of turns later
-- **Living world**: Factions plot, NPCs act, weather changes, rumors spread — all independently of the player
+- **Living world**: Factions plot, NPCs act, weather changes, rumors spread — all independently of the player. GameClock tracks in-game time (minutes, hours, days, seasons) and advances every turn
+- **Structured DM output**: Pydantic-validated JSON schema with JSON healing (`json-repair`) for robust parsing. Content policy violations are caught per-provider and returned as readable messages
+- **6-level dice outcomes**: natural 1 (critical failure) → hard failure → soft failure → partial success → full success → natural 20 (critical success). Dice are rolled server-side; frontend shows click-to-reveal animation
+- **Narrative character creation**: No separate form — the DM guides character creation through conversation on first play
+- **Scene moods**: 11 mood states mapped to CSS custom properties for smooth UI transitions
 - **Classless progression**: No classes. Your character improves the skills they actually use
 - **Companion AI**: Companions with loyalty, trust, moods, and their own opinions — they may disagree with you
 - **Three death modes**: Ironman (permadeath), Destino (death with narrative cost), Cronista (story mode)
