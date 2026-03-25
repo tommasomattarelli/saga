@@ -319,14 +319,3 @@ I seguenti file di test sono stati aggiornati per allinearsi ai nuovi tipi e pro
 - **`backend/pyproject.toml`**: `ruff` non installato da `uv sync` di default (era in optional-extras). Fix: spostato in `[dependency-groups]`.
 
 ---
-
-## Note tecniche
-
-### Perché `patch("app.ai.providers.base.get_provider")` e non `patch("app.core.engine.get_provider")`
-`get_provider` viene importato dentro `process_game_turn()` come import locale, non a livello di modulo. `patch("app.core.engine.get_provider")` solleva `AttributeError` perché l'attributo non esiste nel namespace del modulo `engine`. Il patch deve avvenire nel modulo dove l'oggetto è definito: `app.ai.providers.base`.
-
-### Perché `uv run python -m pytest` invece di `uv run pytest`
-Su Windows, `uv run <script>` cerca il binario negli script del venv tramite canonicalizzazione del path. Su alcuni setup Windows questo fallisce. `python -m pytest` bypassa il meccanismo degli entry point e funziona sempre.
-
-### Perché la content policy di Anthropic usa `not response.content`
-Anthropic non usa un `finish_reason` dedicato per i blocchi policy — restituisce un `stop_reason="end_turn"` con lista `content` vuota. La combinazione `stop_reason == "end_turn" and not content` è il segnale affidabile.

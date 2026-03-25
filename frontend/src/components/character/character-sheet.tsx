@@ -126,11 +126,7 @@ export default function CharacterSheet() {
             {Object.entries(char.reputation).map(([faction, score]) => (
               <div key={faction} className="flex justify-between text-sm">
                 <span className="text-parchment-300">{faction}</span>
-                <span
-                  className={
-                    (score as number) >= 0 ? "text-green-400" : "text-red-400"
-                  }
-                >
+                <span className={(score as number) >= 0 ? "text-green-400" : "text-red-400"}>
                   {(score as number) >= 0 ? "+" : ""}
                   {score as number}
                 </span>

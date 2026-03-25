@@ -89,9 +89,7 @@ export default function NarrativeStream({ wsRef }: NarrativeStreamProps) {
       {/* Live streaming narration */}
       {streaming.isStreaming && streaming.currentNarration && (
         <div className="mb-6">
-          {streaming.pendingDice && (
-            <DiceRoller rolls={streaming.pendingDice} />
-          )}
+          {streaming.pendingDice && <DiceRoller rolls={streaming.pendingDice} />}
           <div className="prose prose-invert max-w-none font-serif leading-relaxed mood-text">
             {streaming.currentNarration.split("\n").map((paragraph, i) => (
               <p key={i} className="mb-3">

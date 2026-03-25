@@ -85,16 +85,12 @@ export default function GameView() {
       const state = useGameStore.getState();
       addTurn({
         turn_number: turnData.turn_number as number,
-        narration:
-          state.streaming.currentNarration || (turnData.narration as string) || "",
+        narration: state.streaming.currentNarration || (turnData.narration as string) || "",
         dice_rolls:
-          (turnData.dice_rolls as Record<string, DiceRollResult>) ||
-          state.streaming.pendingDice,
-        companion_actions:
-          (turnData.companion_actions as Record<string, string>) || null,
+          (turnData.dice_rolls as Record<string, DiceRollResult>) || state.streaming.pendingDice,
+        companion_actions: (turnData.companion_actions as Record<string, string>) || null,
         world_updates: (turnData.world_updates as Record<string, unknown>) || null,
-        scene_mood:
-          (turnData.scene_mood as string) || state.streaming.currentMood,
+        scene_mood: (turnData.scene_mood as string) || state.streaming.currentMood,
         suggested_actions: (turnData.suggested_actions as string[]) || null,
         model_used: (turnData.model_used as string) || "",
         invoke_npcs: (turnData.invoke_npcs as string[]) || [],

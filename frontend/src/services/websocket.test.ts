@@ -31,12 +31,8 @@ describe("GameWebSocket", () => {
 
   it("should connect with token in URL", () => {
     new GameWebSocket("camp123").connect();
-    expect(globalThis.WebSocket).toHaveBeenCalledWith(
-      expect.stringContaining("camp123"),
-    );
-    expect(globalThis.WebSocket).toHaveBeenCalledWith(
-      expect.stringContaining("token=valid-token"),
-    );
+    expect(globalThis.WebSocket).toHaveBeenCalledWith(expect.stringContaining("camp123"));
+    expect(globalThis.WebSocket).toHaveBeenCalledWith(expect.stringContaining("token=valid-token"));
   });
 
   it("should send message if socket is open", () => {

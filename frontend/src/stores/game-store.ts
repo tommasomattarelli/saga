@@ -1,11 +1,5 @@
 import { create } from "zustand";
-import type {
-  Campaign,
-  TurnResponse,
-  WorldState,
-  CharacterData,
-  DiceRollResult,
-} from "../types";
+import type { Campaign, TurnResponse, WorldState, CharacterData, DiceRollResult } from "../types";
 
 const ALLOWED_WORLD_STATE_KEYS = new Set([
   "meta",
@@ -92,8 +86,7 @@ export const useGameStore = create<GameState>()((set) => ({
         },
       };
     }),
-  setStreaming: (updates) =>
-    set((state) => ({ streaming: { ...state.streaming, ...updates } })),
+  setStreaming: (updates) => set((state) => ({ streaming: { ...state.streaming, ...updates } })),
   appendNarration: (chunk) =>
     set((state) => ({
       streaming: {

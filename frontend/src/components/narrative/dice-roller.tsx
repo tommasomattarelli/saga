@@ -102,13 +102,17 @@ function SingleDice({ name, result }: { name: string; result: DiceRollResult }) 
             [{result.rolls.join(", ")}]
             {result.modifier !== 0 && (
               <>{result.modifier > 0 ? `+${result.modifier}` : result.modifier}</>
-            )}
-            {" "}vs DC {result.dc}
+            )}{" "}
+            vs DC {result.dc}
           </span>
           <span
             className={`text-sm font-bold ${result.success ? "text-green-400" : "text-red-400"}`}
           >
-            {result.outcome ? OUTCOME_LABELS[result.outcome] : result.success ? "SUCCESS" : "FAILURE"}
+            {result.outcome
+              ? OUTCOME_LABELS[result.outcome]
+              : result.success
+                ? "SUCCESS"
+                : "FAILURE"}
           </span>
         </>
       )}
