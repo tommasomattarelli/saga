@@ -1,0 +1,984 @@
+# SAGA v1 — Roadmap Dettagliata Next Steps
+
+**Stato attuale:** Alpha narrativa (~25% della v1 completato)
+**Obiettivo:** Da chatbot narrativo → gioco RPG completo self-hostabile
+**Timeline stimata:** 10-14 settimane full-time (20-28 part-time)
+
+---
+
+## Stato attuale — Cosa c'è già
+
+### ✅ Completato
+- Docker Compose full stack (frontend, backend, PostgreSQL + pgvector, Redis)
+- Auth JWT completo (register, login, refresh, bcrypt)
+- DB models: User, Campaign, Turn, SavePoint, Template, PlayerStats
+- SQLAlchemy 2.0 async + Alembic migrations + World State schema versioning
+- La maggior parte delle API REST
+- Sicurezza base: JWT httpOnly, CORS, rate limiting, cascade delete, no tracking
+- i18n framework (react-i18next, stringhe esternalizzate, direttiva lingua DM)
+- Input sanitizer base (prompt injection detection, length limit)
+- WebSocket per streaming narrazione
+- Frontend: Narrative Panel, Character Panel (sidebar), ActionSuggester, JournalView
+- Desktop layout con pannelli
+- Testing framework: unit, integration, playtest bot, frontend (Vitest/RTL/Playwright)
+- Configurazione modelli via env
+- README.md
+- Retry automatico su JSON malformato
+
+### ⚠️ Parziale / Da fixare
+- Dice Engine: tira sempre, va condizionato alla decisione del DM
+- Context Assembler: esiste ma va ristrutturato per il nuovo output format
+- Response Parser: esiste ma va aggiornato per il JSON strutturato completo
+
+### ❌ Non iniziato
+- Tutto il game system (character, NPC, companion, combat, death, world gen)
+- Multi-provider AI Router con scoring
+- Memory compression e semantic search
+- Save system (auto-save, manual, forking)
+- Template system
+- La maggior parte dei componenti UI game-specific
+- Documentazione tecnica
+- CI/CD
+
+---
+
+## FASE A — "Da chatbot a gioco" (2-3 settimane)
+
+> **Obiettivo:** Dopo questa fase, un playtester dice "sto giocando un RPG", non "sto chattando con un AI".
+
+---
+
+### A1. DM Output Strutturato
+
+**Perché prima:** È il prerequisito di tutto. Senza output strutturato, non puoi separare narrazione da meccaniche, non puoi triggerare dadi dal server, non puoi aggiornare il world state automaticamente.
+
+**Task:**
+
+**A1.1 — Definire lo schema JSON di risposta DM**
+
+Crea il file `backend/app/ai/schemas/dm_response.py` con un Pydantic model:
+
+```python
+class DiceRequest(BaseModel):
+    check: str                    # "persuasion", "stealth", "attack", ecc.
+    dc: int                       # difficulty class
+    stat: str                     # "CHA", "DEX", "STR", ecc.
+    advantage: bool = False
+    disadvantage: bool = False
+    reason: str                   # "The guard is suspicious"
+
+class CompanionAction(BaseModel):
+    name: str
+    action: str                   # "whispers", "attacks", "warns", ecc.
+    dialogue: Optional[str] = None
+
+class WorldUpdate(BaseModel):
+    type: str                     # "npc_disposition", "faction_event", "quest_update", ecc.
+    target: str                   # nome NPC, fazione, quest
+    change: Any                   # valore numerico, stringa, ecc.
+    description: str              # descrizione leggibile dell'update
+
+class DMResponse(BaseModel):
+    narration: str                # testo narrativo principale
+    dice_required: Optional[DiceRequest] = None
+    companion_actions: list[CompanionAction] = []
+    world_updates: list[WorldUpdate] = []
+    scene_mood: str = "neutral"   # enum vincolato
+    suggested_actions: list[str] = []  # max 4 suggerimenti
+    ambient_detail: Optional[str] = None
+    scene_image_prompt: Optional[str] = None  # per v2
+```
+
+**A1.2 — Aggiornare il system prompt del DM**
+
+Nel file dei prompt (`backend/app/ai/prompts/dm.py`), aggiungere le istruzioni di formato output. Il DM DEVE rispondere SOLO con JSON valido seguendo lo schema. Includere:
+- Lo schema come esempio nel prompt
+- L'enum completo di `scene_mood`: `calm_exploration`, `tense_anticipation`, `combat_fury`, `stealth_danger`, `social_intrigue`, `melancholic_reflection`, `triumphant_victory`, `dread_horror`, `wonder_discovery`, `mourning_loss`, `neutral`
+- Regole su quando popolare `dice_required` vs lasciarlo null
+- Regole su quando generare `companion_actions`
+
+**A1.3 — Aggiornare il Response Parser**
+
+`backend/app/ai/parser.py` — deve:
+- Parsare il JSON dalla risposta LLM
+- Validare contro il Pydantic model
+- Se `scene_mood` non è nell'enum → fallback a `"neutral"`
+- Se campi mancanti → default values
+- Se JSON malformato → retry (già implementato, verificare che funzioni col nuovo schema)
+- Loggare warning per campi inattesi
+
+**A1.4 — Aggiornare il frontend per consumare il nuovo formato**
+
+Il `NarrativeStream` deve:
+- Renderizzare `narration` come testo principale
+- Mostrare `companion_actions` come bolle di dialogo separate
+- Mostrare `suggested_actions` come quick-action buttons
+- Mostrare `ambient_detail` come testo in corsivo/secondario
+- Applicare `scene_mood` come classe CSS al container (per ora solo colore di sfondo/bordo, i suoni vengono dopo)
+
+**Criteri di completamento A1:**
+- [ ] Schema Pydantic definito e testato
+- [ ] System prompt aggiornato con istruzioni formato
+- [ ] Parser aggiornato e testato con 10+ risposte reali
+- [ ] Frontend renderizza tutti i campi del nuovo formato
+- [ ] `scene_mood` cambia almeno il colore del bordo/sfondo del narrative panel
+- [ ] `suggested_actions` appaiono come bottoni cliccabili
+
+---
+
+### A2. Dice Engine Meccanico
+
+**Perché ora:** Trasforma l'esperienza da "leggo una storia" a "gioco un gioco". Il momento in cui il dado rotola e il risultato è incerto è il core del TTRPG.
+
+**Task:**
+
+**A2.1 — Implementare il Dice Engine server-side**
+
+`backend/app/core/dice.py`:
+
+```python
+import random
+
+class DiceResult:
+    roll: int           # valore grezzo del d20
+    modifier: int       # stat modifier + bonus
+    total: int          # roll + modifier
+    dc: int             # target DC
+    outcome: str        # "critical_failure" | "hard_failure" | "soft_failure" | "partial_success" | "full_success" | "critical_success"
+    is_critical: bool   # nat 1 o nat 20
+    advantage_rolls: Optional[list[int]] = None  # se advantage/disadvantage, entrambi i tiri
+
+def roll_d20(stat_modifier: int, dc: int, advantage: bool = False, disadvantage: bool = False) -> DiceResult:
+    # Tira 1d20 (o 2d20 per advantage/disadvantage)
+    # Calcola outcome basato sulla tabella:
+    #   Natural 1 → critical_failure (indipendentemente dal totale)
+    #   Natural 20 → critical_success (indipendentemente dal totale)
+    #   Total 2-5 sotto DC → hard_failure
+    #   Total 1-4 sotto DC → soft_failure
+    #   Total = DC o DC+1-3 → partial_success
+    #   Total DC+4 o più → full_success
+```
+
+Nota: i range esatti vanno calibrati durante il playtest. La tabella nel GDD usa range assoluti (2-5, 6-9, ecc.), ma è meglio usare range relativi alla DC per rendere il sistema scalabile.
+
+**A2.2 — Integrare il Dice Engine nel Turn Pipeline**
+
+Modificare `backend/app/core/engine.py`:
+
+```
+FLUSSO AGGIORNATO:
+1. Player invia azione
+2. Sanitizer valida
+3. Context Assembler costruisce prompt
+4. AI Engine chiama LLM → riceve DMResponse
+5. SE dice_required != null:
+   a. Calcola stat_modifier dal character sheet
+   b. Chiama roll_d20(modifier, dc, advantage, disadvantage)
+   c. Invia DiceResult al client via WebSocket (evento dice:roll)
+   d. Costruisci un follow-up prompt:
+      "The player attempted [check]. They rolled [roll] + [modifier] = [total] vs DC [dc].
+       Outcome: [outcome]. Narrate the result."
+   e. AI Engine chiama LLM di nuovo → riceve narrazione del risultato
+   f. Append narrazione risultato alla risposta
+6. World State Updater applica world_updates
+7. Persisti turno
+```
+
+**A2.3 — Animazione dadi nel frontend**
+
+`frontend/src/components/DiceRoller.tsx`:
+- Componente che riceve l'evento WebSocket `dice:roll`
+- Animazione: dado 3D semplificato (può essere anche 2D con rotazione CSS) che si ferma sul numero
+- Color coding: rosso per failure, verde per success, oro per critical
+- Suono: un singolo file audio di dado che rotola (trovare un sound effect libero)
+- Mostra: "[Persuasion Check] 🎲 14 + 3 = 17 vs DC 15 → Success!"
+- L'animazione dura ~1.5 secondi, poi la narrazione del risultato inizia a streamare
+
+**A2.4 — Condizionare il DM su quando chiedere tiri**
+
+Nel system prompt, aggiungere regole chiare:
+- Azioni triviali (camminare, parlare, raccogliere oggetti) → `dice_required: null`, successo automatico narrato
+- Azioni impossibili (saltare sulla luna) → `dice_required: null`, fallimento narrato con spiegazione
+- Azioni con esito incerto E posta in gioco → `dice_required` con check/DC/stat appropriati
+- In combattimento: attacchi sempre con tiro, danni con formula
+- Interazioni sociali: check Charisma vs disposition NPC
+
+**Criteri di completamento A2:**
+- [ ] Dice Engine implementato con tutti i 6 livelli di outcome
+- [ ] Vantaggio/svantaggio funzionante
+- [ ] Turn pipeline aggiornato con flusso dice → re-prompt
+- [ ] Evento WebSocket `dice:roll` inviato e ricevuto
+- [ ] Animazione dadi funzionante nel frontend con suono
+- [ ] Il DM chiede tiri solo quando appropriato (testare 20+ turni)
+- [ ] Unit test per distribuzione probabilistica dei risultati
+
+---
+
+### A3. Character Sheet Base
+
+**Perché ora:** Senza stats, i dadi non hanno significato. Un tiro di dado senza modifier è solo random — con gli attributi diventa *il mio personaggio è bravo in questo*.
+
+**Task:**
+
+**A3.1 — Definire lo schema Character Sheet**
+
+Nel World State Object, sezione `player.character_sheet`:
+
+```json
+{
+  "name": "Kael Shadowmend",
+  "backstory": "A scarred elven alchemist...",
+  "attributes": {
+    "STR": 10, "DEX": 14, "CON": 12,
+    "INT": 16, "WIS": 13, "CHA": 8
+  },
+  "modifiers": {
+    "STR": 0, "DEX": 2, "CON": 1,
+    "INT": 3, "WIS": 1, "CHA": -1
+  },
+  "hp": { "current": 24, "max": 24 },
+  "level": 1,
+  "xp": 0,
+  "skills": [],
+  "inventory": [
+    { "name": "Alchemist's Kit", "quantity": 1, "description": "..." },
+    { "name": "Health Potion", "quantity": 2, "effect": "Restore 2d4+2 HP" }
+  ],
+  "equipped": {
+    "weapon": "Dagger",
+    "armor": "Leather Armor"
+  },
+  "active_quests": [],
+  "reputation": {}
+}
+```
+
+Formula modifier: `floor((attribute - 10) / 2)` (standard D&D).
+
+**A3.2 — Flusso di creazione narrativa**
+
+Quando il player crea una campagna, i primi turni sono dedicati alla creazione del personaggio:
+
+1. DM chiede: "Describe your character concept — who are they, where do they come from, what drives them?"
+2. Player risponde con descrizione libera
+3. DM genera il character sheet completo (JSON nel campo `character_generation` della risposta)
+4. Backend parseggia e salva nel world state
+5. DM presenta la scheda al player in modo narrativo: "You are Kael Shadowmend, an elven alchemist with a keen mind (INT 16) but awkward manner (CHA 8)..."
+6. Player può chiedere aggiustamenti: "Can I be stronger?" → DM ribilancia
+7. Player conferma → creazione completata, avventura inizia
+
+Per la v1, questo flusso può essere semi-guidato: il DM fa domande specifiche se il player dà risposte vaghe.
+
+**A3.3 — Aggiornare il Context Assembler**
+
+Il character sheet deve essere SEMPRE incluso nel prompt DM, nella sezione "Character Context". Il DM deve sapere gli stats per assegnare DC appropriati e scegliere quale stat usare per i check.
+
+**A3.4 — Aggiornare il CharacterSheet nel frontend**
+
+Il pannello sinistro che già esiste deve mostrare:
+- Nome e backstory (collapsibile)
+- 6 attributi con modifier (es. "STR 10 (+0)")
+- HP bar con current/max
+- Inventario come lista
+- Quest attive (per ora vuote, verranno dopo)
+- Aggiornamento in tempo reale quando il world state cambia
+
+**A3.5 — Collegare Character Sheet al Dice Engine**
+
+Quando il DM richiede `dice_required: {check: "persuasion", stat: "CHA", dc: 15}`:
+- Il backend legge `world_state.player.character_sheet.modifiers.CHA` = -1
+- Chiama `roll_d20(stat_modifier=-1, dc=15)`
+- Il player vede: "🎲 Persuasion Check: 12 + (-1) = 11 vs DC 15 → Soft Failure"
+
+**Criteri di completamento A3:**
+- [ ] Schema character sheet definito nel world state
+- [ ] Flusso creazione personaggio funzionante (almeno 2 turni di dialogo)
+- [ ] DM genera stats dal concept del player
+- [ ] Character sheet nel frontend con tutti i campi
+- [ ] Stats collegati ai dice rolls
+- [ ] HP visibile e aggiornabile
+- [ ] Inventario base funzionante
+
+---
+
+### A4. Scene Mood + Feedback Visivo
+
+**Perché ora:** Costa poco, impatto percettivo enorme. Trasforma un'interfaccia monotona in un'esperienza atmosferica.
+
+**Task:**
+
+**A4.1 — Mappare scene_mood a stili CSS**
+
+```css
+/* Variabili CSS per mood */
+[data-mood="calm_exploration"]    { --mood-bg: #1a2f1a; --mood-accent: #4a7c59; }
+[data-mood="tense_anticipation"]  { --mood-bg: #2a1f1f; --mood-accent: #8b6914; }
+[data-mood="combat_fury"]         { --mood-bg: #3a1010; --mood-accent: #cc3333; }
+[data-mood="stealth_danger"]      { --mood-bg: #0f0f1a; --mood-accent: #4a4a6a; }
+[data-mood="social_intrigue"]     { --mood-bg: #2a1f10; --mood-accent: #c4943a; }
+[data-mood="melancholic_reflection"] { --mood-bg: #15182a; --mood-accent: #5a6a8a; }
+[data-mood="triumphant_victory"]  { --mood-bg: #2a2a10; --mood-accent: #d4a030; }
+[data-mood="dread_horror"]        { --mood-bg: #0a0a10; --mood-accent: #6a3a6a; }
+[data-mood="wonder_discovery"]    { --mood-bg: #10202a; --mood-accent: #40a0c0; }
+[data-mood="mourning_loss"]       { --mood-bg: #151515; --mood-accent: #606060; }
+[data-mood="neutral"]             { --mood-bg: #1a1a2e; --mood-accent: #4a4a7a; }
+```
+
+Applicare come attributo `data-mood` sul narrative panel container. La transizione tra mood deve essere smooth (CSS transition 1-2 secondi).
+
+**A4.2 — Suono dadi**
+
+Un singolo file `public/sounds/dice-roll.mp3`. Triggerato dall'evento `dice:roll`. Volume controllabile dall'utente (toggle on/off nel settings per ora, slider nella v2).
+
+**Criteri di completamento A4:**
+- [ ] 11 mood mappati a stili CSS
+- [ ] Transizione smooth tra mood
+- [ ] Suono dadi funzionante
+- [ ] Toggle suono on/off
+
+---
+
+## FASE B — "World che vive" (3-4 settimane)
+
+> **Obiettivo:** Il mondo ha persistenza, NPC ricordano, la memoria non esplode dopo 50 turni.
+
+---
+
+### B1. World State Object Completo
+
+**Task:**
+
+**B1.1 — Implementare lo schema World State completo**
+
+`backend/app/memory/world_state.py`:
+
+```python
+class WorldState(BaseModel):
+    meta: Meta                    # schema_version, campaign_id, template, turn_count, in_game_date
+    player: PlayerState           # character_sheet, reputation, active_quests, completed_quests, relationships, death_mode, destino_lives
+    companions: list[Companion]   # name, sheet, loyalty, personal_quest_stage, opinions, memory
+    world: WorldInfo              # factions, regions, global_events, time
+    narrative: NarrativeState     # event_log, active_threads, foreshadowing
+    npcs: NPCRegistry            # active_npcs, npc_full_profiles
+```
+
+Ogni sezione è un Pydantic model separato.
+
+**B1.2 — World State Updater**
+
+`backend/app/memory/updater.py`:
+
+Dopo ogni turno, prende i `world_updates` dalla DMResponse e li applica al world state:
+- `npc_disposition` → aggiorna `npcs.active_npcs[name].disposition`
+- `faction_event` → aggiorna `world.factions[name]`
+- `quest_update` → aggiorna `player.active_quests`
+- `hp_change` → aggiorna `player.character_sheet.hp.current`
+- `inventory_change` → aggiorna `player.character_sheet.inventory`
+- `reputation_change` → aggiorna `player.reputation`
+- `companion_loyalty` → aggiorna `companions[name].loyalty`
+- `time_advance` → aggiorna `world.time`
+- `event_log_entry` → append a `narrative.event_log`
+
+Ogni update è atomico e validato. Se un update è invalido (NPC non esiste, HP sotto 0), viene loggato e skippato.
+
+**B1.3 — Contextual Loading nel Context Assembler**
+
+Non tutto il world state va nel prompt. Il Context Assembler seleziona:
+- Player in una location → carica region data + NPC locali
+- Player parla con NPC → carica profilo completo NPC + storia interazioni
+- Combattimento → carica stats nemici + companion combat preferences
+- Decisione politica → carica fazioni rilevanti
+
+Implementare come un set di funzioni `load_context_for_scene(world_state, scene_type) -> dict` che ritorna solo le sezioni rilevanti.
+
+**Criteri di completamento B1:**
+- [ ] World State schema completo con tutti i sotto-modelli Pydantic
+- [ ] World State Updater applica tutti i tipi di update
+- [ ] Contextual loading funzionante per almeno 3 scene type
+- [ ] World state persiste correttamente tra turni nel DB
+- [ ] Test: 30 turni consecutivi senza corruzione del world state
+
+---
+
+### B2. NPC Base + Companion Base
+
+**Task:**
+
+**B2.1 — NPC Profile Schema**
+
+```json
+{
+  "name": "Grenda Ironveil",
+  "role": "Blacksmith",
+  "location": "Ironforge Market",
+  "personality": {
+    "traits": ["cautious", "loyal", "sardonic"],
+    "values": ["family", "craftsmanship"],
+    "fears": ["the guard captain"],
+    "secrets": ["smuggles weapons to the resistance"]
+  },
+  "disposition_toward_player": 0,
+  "goals": ["keep forge running", "protect resistance"],
+  "memory": []
+}
+```
+
+**B2.2 — NPC nel prompt DM**
+
+Quando il player interagisce con un NPC:
+- Il Context Assembler carica il profilo completo
+- Il DM riceve istruzioni: "This NPC has disposition [X] toward the player. They are [traits]. They want [goals]. They fear [fears]. Play them accordingly."
+- Dopo l'interazione, il DM genera un `world_update` con disposition change e memory entry
+
+**B2.3 — Companion Schema (estensione di NPC)**
+
+```json
+{
+  "...tutto di NPC, più:",
+  "loyalty": 60,
+  "personal_quest_stage": "dormant",
+  "opinions": { "other_companion_name": "respect" },
+  "combat_style": "aggressive",
+  "backstory_hooks": ["lost brother in war", "owes debt to thieves guild"]
+}
+```
+
+**B2.4 — Companion nel prompt DM**
+
+I companion sempre presenti nel character context del prompt:
+- Il DM sa che i companion sono lì e li fa reagire
+- Le reazioni appaiono come `companion_actions` nella DMResponse
+- Il frontend le mostra come bolle di dialogo separate
+
+Per la v1, iniziare con **1 companion** per template che funziona bene, piuttosto che 3 mediocri.
+
+**B2.5 — Companion Bar nel frontend**
+
+Sopra l'input bar:
+- Portrait del companion (placeholder image per ora, un'icona)
+- Nome
+- Indicatore loyalty (barra colorata: verde > 60, giallo 30-60, rosso < 30)
+- Click → apre pannello con dettagli
+
+**Criteri di completamento B2:**
+- [ ] NPC profile schema implementato
+- [ ] Almeno 3 NPC generati con il primo template
+- [ ] NPC disposition cambia in base alle azioni del player
+- [ ] 1 companion funzionante con loyalty e dialogo
+- [ ] Companion reazioni appaiono nella narrazione
+- [ ] Companion bar nel frontend
+
+---
+
+### B3. Memory Compression — Primo Livello
+
+**Task:**
+
+**B3.1 — Implementare Tier 1 e 2**
+
+`backend/app/memory/compression.py`:
+
+- **Immediate (Tier 1):** Ultimi 8 turni salvati verbatim. Caricati integralmente nel prompt.
+- **Recent (Tier 2):** Turni 9-40 compressi. Ogni 5-8 turni, un budget model (GPT-4o-mini) genera un riassunto di 2-3 frasi. I riassunti sostituiscono i turni verbatim.
+
+**B3.2 — Trigger di compressione**
+
+Dopo ogni turno, se il numero di turni non compressi supera la soglia (8):
+1. Prendi i turni 9-16 (o qualunque batch sia il più vecchio non compresso)
+2. Invia al budget model: "Summarize these game turns in 2-3 sentences, focusing on: key decisions, consequences, NPC interactions, items gained/lost"
+3. Salva il summary nel campo `summary` del Turn model
+4. Il Context Assembler carica: turni 1-8 verbatim + summary dei turni precedenti
+
+**B3.3 — Token Budget Check**
+
+Prima di inviare il prompt al LLM:
+- Calcola token approssimati (1 token ≈ 4 caratteri per inglese)
+- Se supera il budget (~12,000 token input), comprimi più aggressivamente i turni recenti
+- Log warning se il prompt è troppo grande anche dopo compressione
+
+**Criteri di completamento B3:**
+- [ ] Compressione Tier 1 (verbatim) + Tier 2 (summary) funzionante
+- [ ] Compressione trigger automatico ogni 8 turni
+- [ ] Token budget check prima di ogni prompt
+- [ ] Test: campagna di 50 turni senza context overflow
+- [ ] Summary leggibili e accurati (verificare manualmente 5+ summary)
+
+---
+
+### B4. Template System Base
+
+**Task:**
+
+**B4.1 — Definire formato template**
+
+`templates/the-awakening/template.json`:
+
+```json
+{
+  "metadata": {
+    "name": "The Awakening",
+    "slug": "the-awakening",
+    "genre": "fantasy",
+    "description": "A guided introductory adventure...",
+    "author": "SAGA Team",
+    "version": "1.0.0",
+    "estimated_duration": "30-45 minutes",
+    "difficulty": "beginner"
+  },
+  "dm_style": "classic",
+  "world_skeleton": {
+    "regions": [...],
+    "factions": [...],
+    "core_conflict": "...",
+    "npc_archetypes": [...],
+    "starting_location": "...",
+    "opening_scene": "..."
+  },
+  "lore_seeds": {
+    "creation_myth": "...",
+    "historical_events": [...],
+    "cultural_notes": [...]
+  },
+  "starting_conditions": {
+    "player_location": "...",
+    "initial_npcs": [...],
+    "initial_companion": {...},
+    "opening_narration": "..."
+  }
+}
+```
+
+**B4.2 — Template Loader**
+
+`backend/app/templates/loader.py`:
+- Carica template da directory `templates/`
+- Valida struttura base (campi obbligatori presenti)
+- Sanitizza tutti i campi testo (anti-prompt-injection)
+- Ritorna template pronto per la generazione del mondo
+
+**B4.3 — World Generation dal Template**
+
+Quando il player crea una campagna:
+1. Seleziona template
+2. Il backend carica il template
+3. Chiama il LLM con il world_skeleton + lore_seeds: "Generate a unique world based on this template. Create specific names, NPCs, locations, and details."
+4. Il LLM ritorna un world state iniziale popolato
+5. Il world state viene salvato nel DB
+6. La campagna inizia con `opening_narration`
+
+**B4.4 — Creare "The Awakening" template**
+
+Il tutorial template deve insegnare al player:
+- Come descrivere azioni (turno 1-3)
+- Come funzionano i tiri di dado (turno 4-6)
+- Come funziona il combattimento base (turno 7-10)
+- Come interagire con un NPC (turno 11-13)
+- Come reclutare un companion (turno 14-16)
+- Un mini-boss finale (turno 17-20)
+
+Completabile in 20-25 turni.
+
+**Criteri di completamento B4:**
+- [ ] Formato template definito e documentato
+- [ ] Template loader con validazione e sanitizzazione
+- [ ] World generation dal template funzionante
+- [ ] "The Awakening" template completo e playtestato
+- [ ] Un player può completare il tutorial in 30-45 minuti
+
+---
+
+## FASE C — "Differenziatori" (3-4 settimane)
+
+> **Obiettivo:** Le feature che rendono SAGA unico rispetto a ogni competitor.
+
+---
+
+### C1. Death System
+
+**Task:**
+
+**C1.1 — Selezione death mode alla creazione**
+
+Dopo la creazione del personaggio, il DM chiede: "How do you want to face death in this world?"
+- Ironman: "Every breath is precious. Death is real and final."
+- Destino: "Fate watches over you... but at a price. Three chances, each costlier than the last."
+- Cronista: "You are the storyteller. You cannot die, but you can still lose."
+
+La scelta viene salvata in `world_state.player.death_mode`.
+
+**C1.2 — Implementare Ironman**
+
+Nel turn pipeline, dopo il combat resolution:
+- Se `hp.current <= 0`:
+  - Inizia death saving throws (3 turni speciali)
+  - 3 successi (d20 ≥ 10) → stabilizzato, 1 HP
+  - 3 fallimenti → morto
+  - Nat 20 → stabilizzato immediatamente con 1 HP
+  - Nat 1 → conta come 2 fallimenti
+- Se morto: DM narra scena di morte + epilogo, campaign status → COMPLETED con tag "death"
+
+**C1.3 — Implementare Destino**
+
+Come Ironman, ma quando il player muore e ha `destino_lives_remaining > 0`:
+- Decrementa il contatore
+- Il DM riceve istruzione: "The player just died but has a fate intervention. Narrate a miraculous survival with a [TIER] cost."
+- Tier determinato dal numero di intervento (1°=Minor, 2°=Major, 3°=Severe)
+- Il DM sceglie il costo specifico dalla lista del tier appropriato
+- Il costo viene applicato al world state (perdita oggetto, -attributo, companion morte, ecc.)
+- Il DM narra l'intervento come momento narrativo, non meccanico
+
+**C1.4 — Implementare Cronista**
+
+Nel turn pipeline:
+- Se `hp.current <= 0`: impostare `hp.current = 1`
+- Il DM riceve istruzione: "The player would have died but is in Cronista mode. Narrate a dramatic near-death moment, then describe the consequences (capture, retreat, equipment loss) — never death."
+- Companion a 0 HP → unconscious, non morti. Recuperano dopo combattimento.
+
+**C1.5 — Iniettare death mode nel system prompt**
+
+Il DM deve sempre sapere il death mode attivo. Le regole cambiano il suo comportamento:
+- Ironman: "Never pull punches. Minimal warnings. No behind-the-scenes mercy."
+- Destino: "Subtle warnings allowed. Track remaining interventions ([X] left). Increase tension as interventions diminish."
+- Cronista: "Focus on narrative consequences. Combat is challenging but defeat means setback, not termination."
+
+**Criteri di completamento C1:**
+- [ ] Selezione death mode funzionante
+- [ ] Ironman: death saving throws + game over funzionante
+- [ ] Destino: fate intervention con costi escalanti funzionante
+- [ ] Cronista: near-death narrative + no actual death funzionante
+- [ ] DM si comporta diversamente in base al death mode
+- [ ] Test: morire in ogni modalità e verificare il comportamento
+
+---
+
+### C2. Save System
+
+**Task:**
+
+**C2.1 — Auto-Save**
+
+Dopo ogni turno (post world-state-update):
+- Cerca SavePoint con `campaign_id` e `is_auto=True`
+- Se esiste: aggiorna `world_state`, `turn_number`, `scene_summary`
+- Se non esiste: creane uno nuovo
+- Solo 1 auto-save per campagna alla volta
+
+**C2.2 — Manual Save**
+
+Endpoint `POST /api/campaigns/:id/saves`:
+- Accetta `label` dal player
+- Genera `scene_summary` automaticamente (ultimi 2-3 turni riassunti, o ultimo `narration`)
+- Crea SavePoint con snapshot completo del world_state
+- Non permesso durante il combattimento (check `world_state.narrative.in_combat`)
+
+**C2.3 — Save Browser nel frontend**
+
+Componente `SaveBrowser.tsx`:
+- Lista tutti i manual saves + indicazione auto-save
+- Per ogni save: label, turno #, data in-game, scene summary, timestamp reale
+- Click su save → mostra preview (summary + HP + quest attive + companion presenti)
+- Bottone "Load" → conferma "This will create a new timeline fork. Continue?"
+
+**C2.4 — Timeline Forking**
+
+Endpoint `POST /api/campaigns/:id/saves/:save_id/load`:
+1. Carica il SavePoint
+2. Crea nuova Campaign con:
+   - `world_state` copiato dal save
+   - `parent_save_id` = save_id
+   - `name` = original name + " (Fork from turn X)"
+   - `turn_count` = save's turn_number
+3. Ritorna la nuova campagna
+4. Il frontend naviga alla nuova campagna
+
+**C2.5 — Visualizzazione fork nel frontend**
+
+Nella lista campagne, mostrare:
+- Campagne root (senza parent_save_id) come nodi principali
+- Campagne forked come sotto-nodi con indicazione "Forked at turn X"
+- Icona o linea che collega fork al punto di branch
+
+**Criteri di completamento C2:**
+- [ ] Auto-save dopo ogni turno
+- [ ] Resume da auto-save al login
+- [ ] Manual save con label e preview
+- [ ] Timeline forking funzionante
+- [ ] Save browser nel frontend
+- [ ] Fork visibili nella lista campagne
+- [ ] Test: creare 3 fork dalla stessa campagna
+
+---
+
+### C3. Combat System
+
+**Task:**
+
+**C3.1 — Iniziativa**
+
+Quando il DM dichiara inizio combattimento:
+- Il DM include `combat_start: true` nella risposta (aggiungere campo allo schema)
+- Il backend tira iniziativa per tutti: d20 + DEX modifier per il player, d20 + DEX per ogni nemico e companion
+- Ordina dal più alto al più basso
+- Salva ordine in `world_state.narrative.combat_state`
+- Invia l'ordine al frontend
+
+**C3.2 — Combat State nel World State**
+
+```json
+"combat_state": {
+  "active": true,
+  "round": 1,
+  "initiative_order": [
+    { "name": "Player", "initiative": 18, "type": "player" },
+    { "name": "Kira", "initiative": 15, "type": "companion" },
+    { "name": "Goblin Scout", "initiative": 12, "type": "enemy", "hp": 15, "max_hp": 15 },
+    { "name": "Goblin Warrior", "initiative": 8, "type": "enemy", "hp": 22, "max_hp": 22 }
+  ],
+  "current_turn_index": 0
+}
+```
+
+**C3.3 — Player Combat Turn**
+
+Quando è il turno del player:
+- Il player scrive l'azione (free text)
+- Il DM riceve il combat state + azione
+- Il DM risponde con: narrazione + dice_required (attacco/abilità) + world_updates (danni)
+- Il turno avanza al prossimo nell'ordine di iniziativa
+
+**C3.4 — NPC/Companion Combat Turns**
+
+Quando è il turno di un NPC o companion:
+- Il DM genera autonomamente l'azione basata sulla personalità/tipo
+- Tiri di dado calcolati server-side
+- Narrazione + risultati inviati al player
+- Il turno avanza automaticamente
+
+Per la v1, tutti i turni nemici + companion possono essere batched in una singola chiamata LLM per ridurre latenza:
+"It's the enemies' turn. Goblin Scout (HP 15) attacks the player. Goblin Warrior (HP 22) attacks Kira. Narrate their actions and specify dice rolls needed."
+
+**C3.5 — Combat Tracker nel frontend**
+
+`frontend/src/components/CombatTracker.tsx`:
+- Overlay che appare quando `combat_state.active = true`
+- Mostra ordine iniziativa come lista verticale
+- Evidenzia chi sta agendo ora
+- HP bar per ogni partecipante
+- Si aggiorna in tempo reale via WebSocket
+
+**C3.6 — Fine combattimento**
+
+Quando tutti i nemici sono a 0 HP (o fuggiti/arresi):
+- Il DM imposta `combat_end: true` nella risposta
+- Il backend resetta `combat_state.active = false`
+- Il Combat Tracker scompare
+- Il DM narra il aftermath (loot, conseguenze, companion reazioni)
+
+**Criteri di completamento C3:**
+- [ ] Iniziativa funzionante per player + nemici + companion
+- [ ] Combat state nel world state
+- [ ] Player combat turn con dadi e narrazione
+- [ ] Enemy AI: almeno 3 comportamenti diversi (carica, hit-and-run, ranged)
+- [ ] Companion agisce autonomamente in combattimento
+- [ ] Combat tracker nel frontend
+- [ ] Fine combattimento con aftermath narrato
+- [ ] Test: combattimento 3v3 funzionante end-to-end
+
+---
+
+### C4. AI Router Multi-Provider
+
+**Task:**
+
+**C4.1 — Configurazione provider**
+
+`backend/app/ai/model_config.yaml`:
+
+```yaml
+providers:
+  openai:
+    api_key_env: OPENAI_API_KEY
+    models:
+      budget: gpt-4o-mini
+      mid: gpt-4o
+      premium: gpt-5.2
+  anthropic:
+    api_key_env: ANTHROPIC_API_KEY
+    models:
+      budget: null  # non ha budget model
+      mid: claude-sonnet-4-6
+      premium: claude-opus-4-6
+  google:
+    api_key_env: GOOGLE_API_KEY
+    models:
+      budget: gemini-2.0-flash
+      mid: gemini-2.5-pro
+      premium: gemini-3.1-pro
+  local:
+    base_url_env: LOCAL_AI_URL  # http://localhost:11434/v1 per Ollama
+    models:
+      budget: local-default
+      mid: local-default
+      premium: local-default
+
+module_defaults:
+  dm_narration: mid
+  companion_dialogue: mid
+  npc_interaction: budget
+  world_simulation: budget
+  memory_compression: budget
+  recap_generation: budget
+  combat_adjudication: mid
+  embedding: voyage-3-lite  # o locale
+
+importance_scoring:
+  base:
+    dm_narration: 3
+    companion_dialogue: 2
+    npc_interaction: 1
+    world_simulation: 0
+    memory_compression: 0
+    combat_adjudication: 3
+  modifiers:
+    active_combat: +2
+    companion_personal_quest: +2
+    plot_critical_npc: +1
+    boss_encounter: +3
+    first_session: +1
+```
+
+**C4.2 — Router Logic**
+
+`backend/app/ai/router.py`:
+
+```python
+def select_model(module: str, scene_context: dict, user_config: dict) -> tuple[str, str]:
+    """Returns (provider, model_name)"""
+    # 1. Calcola importance score
+    base = config.importance_scoring.base[module]
+    modifiers = sum(v for k, v in config.importance_scoring.modifiers.items() if scene_context.get(k))
+    score = base + modifiers
+
+    # 2. Mappa score a tier
+    tier = "budget" if score <= 2 else "mid" if score <= 5 else "premium"
+
+    # 3. Seleziona provider disponibile
+    # Ordine preferenza: provider preferito dell'utente → fallback chain
+    # Se l'utente ha configurato solo OpenAI, usa sempre OpenAI
+
+    # 4. Override: se l'utente ha solo un provider locale, tutto va lì
+
+    return (provider, model_name)
+```
+
+**C4.3 — Fallback chain**
+
+Se una chiamata API fallisce:
+1. Retry 1 volta con lo stesso provider
+2. Se fallisce ancora: prova il prossimo provider disponibile nello stesso tier
+3. Se nessun provider nello stesso tier: downgrade al tier sotto
+4. Se tutto fallisce: ritorna errore al player con messaggio chiaro
+
+**C4.4 — Cost Tracking**
+
+Dopo ogni chiamata API:
+- Calcola costo approssimato: `(input_tokens * input_price + output_tokens * output_price)`
+- Salva nel campo `ai_cost` del Turn model
+- Aggiorna running total nella sessione
+
+**Criteri di completamento C4:**
+- [ ] model_config.yaml con almeno 3 provider configurati
+- [ ] Router seleziona modello basato su score
+- [ ] Fallback funzionante (testare con provider finto che fallisce)
+- [ ] Cost tracking per ogni chiamata
+- [ ] L'utente può configurare provider diversi via env
+
+---
+
+## FASE D — "Polish per il lancio" (2-3 settimane)
+
+> **Obiettivo:** Il progetto è pronto per essere pubblicato su GitHub e usato da early adopters.
+
+---
+
+### D1. pgvector Semantic Search
+
+- Implementare embedding per ogni turno (campo `embedding` già nel model)
+- Usare Voyage AI API o bge-small locale
+- Query semantica nel Context Assembler: "Find past events similar to current scene"
+- Top-5 risultati aggiunti alla sezione Memory Context del prompt
+
+### D2. Recap System
+
+- Generazione automatica ogni 25 turni
+- Budget model genera 500-800 parole di recap narrativo
+- Recap salvato e mostrato nel JournalView
+- Recap iniettato nel prompt per rinforzare memoria
+
+### D3. API Keys UI + Cost Dashboard
+
+- Settings panel con form per API keys (3 provider + local URL)
+- Crittografia AES-256 al salvataggio
+- Test connection per ogni provider
+- Dashboard costi: costo per turno, sessione, mese, breakdown per modulo
+
+### D4. Secondo e terzo template
+
+- **The Shattered Crowns:** Political fantasy, almeno 5 NPC chiave, 2 fazioni
+- **The Last Light:** Dark fantasy survival, risorse scarse, tono cupo
+- Playtestare entrambi per 30+ turni
+
+### D5. Documentazione
+
+- `INSTALL.md`: guida passo-passo Docker, requisiti, troubleshooting comuni
+- `ARCHITECTURE.md`: diagrammi, flusso dati, decisioni architetturali
+- `CONTRIBUTING.md`: come contribuire (code, template, traduzioni), PR guidelines
+- `TEMPLATE_SDK.md`: come creare un template custom, schema reference
+- `API.md`: tutti gli endpoint, request/response examples
+- `TROUBLESHOOTING.md`: problemi comuni con soluzioni
+
+### D6. CI/CD
+
+- GitHub Actions workflow: lint (ruff/eslint), test (pytest/vitest), build Docker
+- Pre-commit hooks per formatting
+- Automatic changelog da conventional commits
+
+### D7. Responsive & Mobile
+
+- Tablet: sidebar come overlay
+- Mobile: navigazione a tab
+- Input bar fixed in bottom
+- PWA manifest + service worker base
+
+### D8. Achievement System
+
+- Model già nel DB, implementare trigger
+- Achievements base: primo crit, primo companion, prima morte, 100 turni, campagna completata
+- UI nel profilo player
+
+---
+
+## Priorità se hai poco tempo
+
+Se devi tagliare, questa è la v1 **minima giocabile** (MVP):
+
+| Must Have | Nice to Have | Can Wait |
+|-----------|-------------|----------|
+| DM Output strutturato | pgvector semantic search | Achievements |
+| Dice Engine meccanico | Recap system | Responsive mobile |
+| Character Sheet base | AI Router multi-provider (1 provider ok) | Cost dashboard |
+| Scene Mood CSS | Timeline forking | Terzo template |
+| World State Updater | Manual save browser | CI/CD pipeline |
+| NPC base (disposition) | Companion bar UI | GDPR export/import |
+| 1 Companion funzionante | Combat tracker UI | PWA |
+| Memory compression Tier 1+2 | Second template | |
+| Death mode selection + Cronista | Ironman death saves | |
+| Auto-save | Destino fate interventions | |
+| 1 Template (tutorial) | Documentazione completa | |
+| Combat base | | |
+
+Con il MVP tagliato, puoi lanciare in **6-8 settimane** e iterare con feedback della community.
+
+---
+
+*Ultimo aggiornamento: Marzo 2026*
