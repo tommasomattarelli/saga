@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 import anthropic
 import structlog
 
+from app.ai.exceptions import ContentPolicyError
 from app.ai.providers.base import AIProvider
 from app.config import settings
 
@@ -33,6 +34,10 @@ class AnthropicProvider(AIProvider):
             temperature=temperature,
             max_tokens=max_tokens,
         )
+
+        if response.stop_reason == "end_turn" and not response.content:
+            raise ContentPolicyError("anthropic", "Empty response — possible policy block")
+
         return response.content[0].text
 
     async def stream(

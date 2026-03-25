@@ -22,15 +22,7 @@ async def process_turn(
     user: User,
     db: AsyncSession,
 ) -> TurnResponse:
-    """Process a player turn end-to-end.
-
-    1. Sanitize input
-    2. Run game engine
-    3. Store turn
-    4. Auto-save
-    5. Compress old turns
-    6. Return response
-    """
+    """Process a player turn end-to-end."""
     action = sanitize_player_input(raw_action)
     if detect_injection(action):
         logger.warning("prompt_injection_detected", user_id=str(user.id))
@@ -90,4 +82,8 @@ async def process_turn(
         scene_mood=processed.scene_mood,
         suggested_actions=processed.suggested_actions,
         model_used=processed.model_used,
+        invoke_npcs=processed.invoke_npcs,
+        time_passed_minutes=processed.time_passed_minutes,
+        ambient_detail=processed.ambient_detail,
+        requires_player_action=processed.requires_player_action,
     )

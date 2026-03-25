@@ -1,6 +1,16 @@
 import random
 import re
 from dataclasses import dataclass
+from enum import StrEnum
+
+
+class DiceOutcome(StrEnum):
+    CRITICAL_FAILURE = "critical_failure"
+    HARD_FAILURE = "hard_failure"
+    SOFT_FAILURE = "soft_failure"
+    PARTIAL_SUCCESS = "partial_success"
+    FULL_SUCCESS = "full_success"
+    CRITICAL_SUCCESS = "critical_success"
 
 
 @dataclass
@@ -42,7 +52,7 @@ def roll_dice(expression: str) -> DiceResult:
     )
 
 
-def roll_with_advantage(sides: int = 20, modifier: int = 20) -> DiceResult:
+def roll_with_advantage(sides: int = 20, modifier: int = 0) -> DiceResult:
     r1 = random.randint(1, sides)
     r2 = random.randint(1, sides)
     best = max(r1, r2)
@@ -70,10 +80,27 @@ def roll_with_disadvantage(sides: int = 20, modifier: int = 0) -> DiceResult:
     )
 
 
+def _determine_outcome(result: DiceResult, dc: int) -> tuple[DiceOutcome, bool]:
+    """Determine 6-level outcome and criticality from a d20 check."""
+    if result.natural_1:
+        return DiceOutcome.CRITICAL_FAILURE, True
+    if result.natural_20:
+        return DiceOutcome.CRITICAL_SUCCESS, True
+
+    diff = result.total - dc
+    if diff <= -5:
+        return DiceOutcome.HARD_FAILURE, False
+    if diff < 0:
+        return DiceOutcome.SOFT_FAILURE, False
+    if diff < 4:
+        return DiceOutcome.PARTIAL_SUCCESS, False
+    return DiceOutcome.FULL_SUCCESS, False
+
+
 def ability_check(
     modifier: int, dc: int, advantage: bool = False, disadvantage: bool = False
 ) -> dict:
-    """Perform a d20 ability check against a DC."""
+    """Perform a d20 ability check against a DC with 6-level outcome."""
     if advantage and not disadvantage:
         result = roll_with_advantage(modifier=modifier)
     elif disadvantage and not advantage:
@@ -81,10 +108,14 @@ def ability_check(
     else:
         result = roll_dice(f"1d20+{modifier}" if modifier >= 0 else f"1d20{modifier}")
 
+    outcome, is_critical = _determine_outcome(result, dc)
+
     return {
         "roll": result,
         "dc": dc,
         "success": result.total >= dc,
         "critical_success": result.natural_20,
         "critical_failure": result.natural_1,
+        "outcome": outcome.value,
+        "is_critical": is_critical,
     }

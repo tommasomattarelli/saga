@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 import structlog
 from google import genai
 
+from app.ai.exceptions import ContentPolicyError
 from app.ai.providers.base import AIProvider
 from app.config import settings
 
@@ -26,7 +27,6 @@ class GoogleProvider(AIProvider):
         max_tokens: int = 2000,
     ) -> str:
         """Generate a response via Gemini API."""
-        # Convert message format
         contents = []
         for msg in messages:
             role = "user" if msg["role"] == "user" else "model"
@@ -41,6 +41,13 @@ class GoogleProvider(AIProvider):
                 "max_output_tokens": max_tokens,
             },
         )
+
+        if hasattr(response, "candidates") and response.candidates:
+            candidate = response.candidates[0]
+            finish_reason = getattr(candidate, "finish_reason", None)
+            if finish_reason and str(finish_reason) == "SAFETY":
+                raise ContentPolicyError("google", "Response blocked by safety filter")
+
         return response.text or ""
 
     async def stream(

@@ -42,5 +42,9 @@ class TurnResponse(BaseModel):
     scene_mood: str | None = None
     suggested_actions: list[str] | None = None
     model_used: str
+    invoke_npcs: list[str] = []
+    time_passed_minutes: int = 5
+    ambient_detail: str | None = None
+    requires_player_action: bool = True
 
     model_config = {"from_attributes": True}

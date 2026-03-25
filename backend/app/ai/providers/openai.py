@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 import openai
 import structlog
 
+from app.ai.exceptions import ContentPolicyError
 from app.ai.providers.base import AIProvider
 from app.config import settings
 
@@ -34,7 +35,12 @@ class OpenAIProvider(AIProvider):
             temperature=temperature,
             max_tokens=max_tokens,
         )
-        return response.choices[0].message.content or ""
+
+        choice = response.choices[0]
+        if choice.finish_reason == "content_filter":
+            raise ContentPolicyError("openai", "Response blocked by content filter")
+
+        return choice.message.content or ""
 
     async def stream(
         self,
@@ -55,6 +61,9 @@ class OpenAIProvider(AIProvider):
             stream=True,
         )
         async for chunk in stream:
-            delta = chunk.choices[0].delta.content
+            choice = chunk.choices[0]
+            if choice.finish_reason == "content_filter":
+                raise ContentPolicyError("openai", "Stream blocked by content filter")
+            delta = choice.delta.content
             if delta:
                 yield delta

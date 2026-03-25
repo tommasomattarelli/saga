@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import copy
+from collections.abc import Callable
 
 import structlog
+from pydantic import BaseModel, computed_field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.campaign import Campaign
@@ -12,24 +14,63 @@ from app.models.campaign import Campaign
 logger = structlog.get_logger()
 
 
+class GameClock(BaseModel):
+    total_minutes: int = 0
+
+    @computed_field
+    @property
+    def current_hour(self) -> int:
+        return (self.total_minutes // 60) % 24
+
+    @computed_field
+    @property
+    def current_day(self) -> int:
+        return (self.total_minutes // (60 * 24)) + 1
+
+    @computed_field
+    @property
+    def current_season(self) -> str:
+        day = self.current_day
+        cycle = (day - 1) % 120
+        if cycle < 30:
+            return "spring"
+        if cycle < 60:
+            return "summer"
+        if cycle < 90:
+            return "autumn"
+        return "winter"
+
+    @computed_field
+    @property
+    def time_of_day(self) -> str:
+        h = self.current_hour
+        if 6 <= h < 12:
+            return "morning"
+        if 12 <= h < 17:
+            return "afternoon"
+        if 17 <= h < 21:
+            return "evening"
+        return "night"
+
+
 ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
     {
-        "meta",  # schema_version, world_name, current_season
-        "locations",  # location state (visited, discovered, status)
-        "factions",  # faction disposition scores
-        "npcs",  # per-NPC state (alive/dead, mood, known info)
-        "companions",  # companion HP, loyalty, trust, mood
-        "time_of_day",  # "morning" | "afternoon" | "evening" | "night"
-        "weather",  # current weather string
-        "global_flags",  # arbitrary boolean flags set by story arcs
+        "meta",
+        "locations",
+        "factions",
+        "npcs",
+        "companions",
+        "time_of_day",
+        "weather",
+        "global_flags",
+        "clock",
     }
 )
 
 
-CURRENT_SCHEMA_VERSION: int = 1
+CURRENT_SCHEMA_VERSION: int = 2
 
-# Map from source version → migration function
-_MIGRATIONS: dict[int, Callable[[dict], dict]] = {}  # noqa: F821  populated below
+_MIGRATIONS: dict[int, Callable[[dict], dict]] = {}
 
 
 def _register_migration(from_version: int):
@@ -51,11 +92,20 @@ def _migrate_v0_to_v1(state: dict) -> dict:
     return state
 
 
+@_register_migration(1)
+def _migrate_v1_to_v2(state: dict) -> dict:
+    if "clock" not in state:
+        state["clock"] = {
+            "total_minutes": 480,  # start at 8:00 AM
+        }
+    state["meta"]["schema_version"] = 2
+    return state
+
+
 def migrate_world_state(state: dict) -> dict:
     """Apply pending schema migrations to a world state dict."""
     state = copy.deepcopy(state)
 
-    # Detect version — campaigns without meta/schema_version are treated as v0
     current_version: int = state.get("meta", {}).get("schema_version", 0)
 
     if current_version == CURRENT_SCHEMA_VERSION:
@@ -107,6 +157,18 @@ def merge_world_state(current: dict, updates: dict) -> dict:
         return result
 
     return _deep_merge(current, updates)
+
+
+def advance_game_clock(world_state: dict, minutes: int) -> dict:
+    """Advance the game clock by the given minutes and sync derived fields."""
+    state = copy.deepcopy(world_state)
+    clock_data = state.get("clock", {"total_minutes": 480})
+    clock = GameClock(total_minutes=clock_data["total_minutes"] + minutes)
+    state["clock"] = clock.model_dump()
+    state["time_of_day"] = clock.time_of_day
+    if "meta" in state:
+        state["meta"]["current_season"] = clock.current_season
+    return state
 
 
 async def apply_world_updates(
