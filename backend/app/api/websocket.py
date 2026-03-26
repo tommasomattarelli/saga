@@ -6,11 +6,16 @@ import uuid
 
 import structlog
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
-from app.core.engine import process_game_turn
+from app.ai.embeddings import generate_embedding
+from app.ai.sanitizer import detect_injection, sanitize_player_input
+from app.core.engine import process_game_turn_streaming
 from app.dependencies import get_db_context
+from app.memory.compressor import compress_turn_to_summary
 from app.models.campaign import Campaign, CampaignStatus
+from app.models.save import Save
+from app.models.turn import Turn
 from app.security.auth import decode_token
 
 logger = structlog.get_logger()
@@ -24,7 +29,6 @@ async def game_ws(
     token: str,
 ) -> None:
     """WebSocket endpoint for real-time game interaction."""
-    # Authenticate
     try:
         payload = decode_token(token)
         user_id = uuid.UUID(payload["sub"])
@@ -57,7 +61,6 @@ async def game_ws(
                 await websocket.close(code=4003, reason="Campaign not active")
                 return
 
-            # Main turn loop
             while True:
                 data = await websocket.receive_json()
                 action = data.get("action", "").strip()
@@ -66,13 +69,41 @@ async def game_ws(
                     await websocket.send_json({"type": "error", "message": "No action provided"})
                     continue
 
+                action = sanitize_player_input(action)
+                if detect_injection(action):
+                    log.warning("prompt_injection_detected")
+                    action = "[The player looks around cautiously]"
+
                 campaign.turn_number += 1
                 turn_number = campaign.turn_number
 
                 await websocket.send_json({"type": "turn_start", "turn_number": turn_number})
 
+                turn_result = None
                 try:
-                    processed = await process_game_turn(campaign, action, db)
+                    async for event in process_game_turn_streaming(campaign, action, db):
+                        if event.type == "narration_chunk":
+                            await websocket.send_json(
+                                {"type": "dm:narration:chunk", "chunk": event.data}
+                            )
+                        elif event.type == "dice_roll":
+                            await websocket.send_json(
+                                {"type": "dice:roll", **(event.data if isinstance(event.data, dict) else {})}
+                            )
+                        elif event.type == "dice_narration_chunk":
+                            await websocket.send_json(
+                                {"type": "dice:narration:chunk", "chunk": event.data}
+                            )
+                        elif event.type == "scene_mood":
+                            await websocket.send_json(
+                                {"type": "scene_mood", "mood": event.data}
+                            )
+                        elif event.type == "turn_result":
+                            turn_result = event.data
+                        elif event.type == "error":
+                            await websocket.send_json(
+                                {"type": "error", "message": event.data}
+                            )
                 except Exception as exc:
                     log.exception("turn_processing_error", error=str(exc))
                     await websocket.send_json(
@@ -81,33 +112,64 @@ async def game_ws(
                     campaign.turn_number -= 1
                     continue
 
-                # Stream narration (single chunk for now; replace with real streaming later)
-                await websocket.send_json({"type": "narration", "text": processed.narration})
+                if turn_result is None:
+                    campaign.turn_number -= 1
+                    continue
 
-                if processed.dice_rolls:
-                    await websocket.send_json(
-                        {"type": "dice_rolls", "rolls": processed.dice_rolls}
+                # Persist turn to DB
+                summary = await compress_turn_to_summary(
+                    turn_result["narration"], action
+                )
+                embedding = await generate_embedding(summary)
+                turn = Turn(
+                    campaign_id=campaign.id,
+                    turn_number=turn_number,
+                    player_action=action,
+                    narration=turn_result["narration"],
+                    dice_rolls=turn_result["dice_rolls"],
+                    companion_actions=turn_result["companion_actions"],
+                    world_updates=turn_result["world_updates"],
+                    scene_mood=turn_result["scene_mood"],
+                    suggested_actions=turn_result["suggested_actions"],
+                    model_used=turn_result["model_used"],
+                    importance_score=turn_result["importance_score"],
+                    summary=summary,
+                    embedding=embedding,
+                )
+                db.add(turn)
+
+                await db.execute(
+                    delete(Save).where(
+                        Save.campaign_id == campaign.id, Save.is_auto == True  # noqa: E712
                     )
-
-                if processed.companion_actions:
-                    await websocket.send_json(
-                        {"type": "companions", "actions": processed.companion_actions}
+                )
+                db.add(
+                    Save(
+                        campaign_id=campaign.id,
+                        name="Auto-save",
+                        turn_number=turn_number,
+                        scene_summary=summary,
+                        is_auto=True,
+                        campaign_snapshot={
+                            "character_data": campaign.character_data,
+                            "world_state": campaign.world_state,
+                            "quests": campaign.quests,
+                            "turn_number": turn_number,
+                        },
                     )
-
-                await websocket.send_json(
-                    {"type": "scene_mood", "mood": processed.scene_mood or "neutral"}
                 )
 
-                if processed.suggested_actions:
-                    await websocket.send_json(
-                        {"type": "suggestions", "actions": processed.suggested_actions}
-                    )
-
-                await websocket.send_json({"type": "turn_complete", "turn_number": turn_number})
+                await websocket.send_json(
+                    {
+                        "type": "turn_complete",
+                        "turn_number": turn_number,
+                        **turn_result,
+                    }
+                )
 
                 await db.commit()
 
-                log.info("turn_completed", turn=turn_number, model=processed.model_used)
+                log.info("turn_completed", turn=turn_number, model=turn_result["model_used"])
 
     except WebSocketDisconnect:
         log.info("ws_disconnected")

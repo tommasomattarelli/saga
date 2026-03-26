@@ -1,0 +1,32 @@
+# Virtual environment — never copy into image
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Test artifacts
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Secrets — never leak into image
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+*.egg-info/
+dist/
+build/

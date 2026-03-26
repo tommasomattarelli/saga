@@ -1,0 +1,23 @@
+# Dependencies — rebuilt inside image
+node_modules/
+
+# Build output — rebuilt inside image
+dist/
+
+# Test artifacts
+coverage/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Secrets
+.env
+.env.*
+!.env.example

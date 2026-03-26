@@ -41,10 +41,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    environment:
+      - UV_LINK_MODE=copy
     volumes:
       - ./backend:/app
+      - backend_venv:/app/.venv
       - ./templates:/templates
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uv run --no-dev uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
     build:
@@ -63,3 +66,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  backend_venv:
