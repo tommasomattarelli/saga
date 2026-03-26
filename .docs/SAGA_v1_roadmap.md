@@ -9,37 +9,46 @@
 ## Stato attuale — Cosa c'è già
 
 ### ✅ Completato
-- Docker Compose full stack (frontend, backend, PostgreSQL + pgvector)
+- Docker Compose full stack (frontend, backend, PostgreSQL + pgvector) — ora con `.dockerignore`, build <25s
 - Auth JWT completo (register, login, refresh, bcrypt)
 - DB models: User, Campaign, Turn, SavePoint, Template, PlayerStats
-- SQLAlchemy 2.0 async + Alembic migrations + World State schema versioning
+- SQLAlchemy 2.0 async + Alembic migrations + World State schema versioning (v0→v1→v2)
 - La maggior parte delle API REST
 - Sicurezza base: JWT httpOnly, CORS, cascade delete, no tracking
 - In-memory `asyncio.Lock()` per campaign ID (race condition prevention — Redis rinviato a v2)
 - i18n framework (react-i18next, stringhe esternalizzate, direttiva lingua DM)
 - Input sanitizer base (prompt injection detection, length limit)
-- WebSocket per streaming narrazione
+- **WebSocket per streaming narrazione token-by-token** (`NarrationExtractor` state machine, `process_game_turn_streaming()`)
+- **Turn persistence via WebSocket** — turni salvati nel DB con summary + embedding + auto-save
 - Frontend: Narrative Panel, Character Panel (sidebar), ActionSuggester, JournalView
 - Desktop layout con pannelli
-- Testing framework: unit, integration, playtest bot, frontend (Vitest/RTL/Playwright)
+- Testing framework: unit, integration, playtest bot, frontend (Vitest/RTL/Playwright) — **159 unit tests passing**
 - Configurazione modelli via env
-- README.md
+- README.md aggiornato
 - Retry automatico su JSON malformato
+- **DMResponse Pydantic schema** — 11 `scene_mood`, `invoke_npcs`, `time_passed_minutes`, `character_generation`
+- **Healing Parser** — strip fences → `json-repair` → Pydantic validation → fallback
+- **Content Policy Handler** — per-provider detection (OpenAI/Anthropic/Google)
+- **Dice Engine 6 livelli** — critical_failure → critical_success, advantage/disadvantage, re-prompt
+- **GameClock** — Pydantic computed fields, advance ogni turno, migrazione world state v2
+- **Character creation mode** — DM guida creazione, genera stats via `character_generation`
+- **Scene moods CSS** — 11 mood, CSS custom properties, transizioni 1.5s
+- **Vite proxy WebSocket** — `ws: true` nella proxy config per forward WebSocket upgrade
 
-### ⚠️ Parziale / Da fixare
-- Dice Engine: tira sempre, va condizionato alla decisione del DM
-- Context Assembler: esiste ma va ristrutturato per il nuovo output format
-- Response Parser: esiste ma va aggiornato per il JSON strutturato completo
+### ⚠️ Parziale / Da rifinire in playtest
+- Character creation: implementata ma da rifinire con 10+ sessioni reali
+- HP e inventario nel frontend: campi presenti, ma aggiornamento in-game da validare
+- Il DM chiede tiri solo quando appropriato: da testare con 20+ turni
 
 ### ❌ Non iniziato
-- Tutto il game system (character, NPC, companion, combat, death, world gen)
-- Multi-provider AI Router con scoring
-- Memory compression e semantic search
-- Save system (auto-save, manual, forking)
-- Template system
-- La maggior parte dei componenti UI game-specific
-- Documentazione tecnica
+- NPC Actor-Director (invoke_npcs popolato ma nessuna call parallela)
+- Memory compression e semantic search (Fact Extractor, hybrid search pgvector)
+- Semantic Resolver (riferimenti impliciti "lei", "la città di fianco")
+- Combat Tracker UI
+- Death modes (Ironman / Destino / Cronista)
+- World generation procedurale
 - CI/CD
+- Toggle suono on/off
 
 ---
 
@@ -134,14 +143,14 @@ Il `NarrativeStream` deve:
 - Applicare `scene_mood` come classe CSS al container (per ora solo colore di sfondo/bordo, i suoni vengono dopo)
 
 **Criteri di completamento A1:**
-- [ ] Schema Pydantic definito con `invoke_npcs` e `time_passed_minutes`, testato
-- [ ] System prompt aggiornato con istruzioni formato e ordine campi per streaming
-- [ ] Healing Parser con `json-repair` integrato e testato
-- [ ] Content Policy Handler implementato nel provider layer
-- [ ] Parser aggiornato e testato con 10+ risposte reali
-- [ ] Frontend renderizza tutti i campi del nuovo formato
-- [ ] `scene_mood` cambia almeno il colore del bordo/sfondo del narrative panel
-- [ ] `suggested_actions` appaiono come bottoni cliccabili
+- [x] Schema Pydantic definito con `invoke_npcs` e `time_passed_minutes`, testato
+- [x] System prompt aggiornato con istruzioni formato e ordine campi per streaming
+- [x] Healing Parser con `json-repair` integrato e testato
+- [x] Content Policy Handler implementato nel provider layer
+- [x] Parser aggiornato e testato con 10+ risposte reali
+- [x] Frontend renderizza tutti i campi del nuovo formato
+- [x] `scene_mood` cambia almeno il colore del bordo/sfondo del narrative panel
+- [x] `suggested_actions` appaiono come bottoni cliccabili
 
 ---
 
@@ -246,15 +255,15 @@ Non è un campo DM. Booleano calcolato dal backend:
 - `False` altrimenti → pulsante "Continua" abilitato, azione implicita `"wait"` se premuto senza input
 
 **Criteri di completamento A2:**
-- [ ] Dice Engine implementato con tutti i 6 livelli di outcome
-- [ ] Vantaggio/svantaggio funzionante
-- [ ] Turn pipeline aggiornato con flusso dice → re-prompt
-- [ ] Evento WebSocket `dice:roll` inviato e ricevuto
-- [ ] Animazione dadi funzionante nel frontend con suono
-- [ ] Il DM chiede tiri solo quando appropriato (testare 20+ turni)
-- [ ] Unit test per distribuzione probabilistica dei risultati
-- [ ] GameClock implementato e aggiornato da `time_passed_minutes` dopo ogni turno
-- [ ] `requires_player_action` derivato dal backend, pulsante Continua funzionante
+- [x] Dice Engine implementato con tutti i 6 livelli di outcome
+- [x] Vantaggio/svantaggio funzionante
+- [x] Turn pipeline aggiornato con flusso dice → re-prompt
+- [x] Evento WebSocket `dice:roll` inviato e ricevuto
+- [x] Animazione dadi funzionante nel frontend con suono
+- [ ] Il DM chiede tiri solo quando appropriato (testare 20+ turni) — da verificare in playtest
+- [x] Unit test per distribuzione probabilistica dei risultati
+- [x] GameClock implementato e aggiornato da `time_passed_minutes` dopo ogni turno
+- [x] `requires_player_action` derivato dal backend, pulsante Continua funzionante
 
 ---
 
@@ -335,13 +344,13 @@ Quando il DM richiede `dice_required: {check: "persuasion", stat: "CHA", dc: 15}
 - Il player vede: "🎲 Persuasion Check: 12 + (-1) = 11 vs DC 15 → Soft Failure"
 
 **Criteri di completamento A3:**
-- [ ] Schema character sheet definito nel world state
-- [ ] Flusso creazione personaggio funzionante (almeno 2 turni di dialogo)
-- [ ] DM genera stats dal concept del player
-- [ ] Character sheet nel frontend con tutti i campi
-- [ ] Stats collegati ai dice rolls
-- [ ] HP visibile e aggiornabile
-- [ ] Inventario base funzionante
+- [x] Schema character sheet definito nel world state
+- [x] Flusso creazione personaggio funzionante (almeno 2 turni di dialogo)
+- [x] DM genera stats dal concept del player
+- [x] Character sheet nel frontend con tutti i campi
+- [x] Stats collegati ai dice rolls
+- [ ] HP visibile e aggiornabile — da rifinire in playtest
+- [ ] Inventario base funzionante — da rifinire in playtest
 
 ---
 
@@ -375,10 +384,10 @@ Applicare come attributo `data-mood` sul narrative panel container. La transizio
 Un singolo file `public/sounds/dice-roll.mp3`. Triggerato dall'evento `dice:roll`. Volume controllabile dall'utente (toggle on/off nel settings per ora, slider nella v2).
 
 **Criteri di completamento A4:**
-- [ ] 11 mood mappati a stili CSS
-- [ ] Transizione smooth tra mood
-- [ ] Suono dadi funzionante
-- [ ] Toggle suono on/off
+- [x] 11 mood mappati a stili CSS
+- [x] Transizione smooth tra mood
+- [x] Suono dadi funzionante
+- [ ] Toggle suono on/off — non implementato
 
 ---
 

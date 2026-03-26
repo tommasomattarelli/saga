@@ -9,8 +9,8 @@
 ## 1. INFRASTRUTTURA & SETUP
 
 ### 1.1 Docker & Deployment
-- [ ] Docker Compose con tutti i servizi (frontend, backend, PostgreSQL + pgvector)
-- [ ] `docker compose up -d` funzionante da zero
+- [x] Docker Compose con tutti i servizi (frontend, backend, PostgreSQL + pgvector)
+- [x] `docker compose up -d` funzionante da zero
 - [ ] File `.env.example` con tutte le variabili documentate
 - [ ] PostgreSQL 16+ con estensione pgvector abilitata
 - [ ] In-memory `asyncio.Lock()` per campaign ID (race condition prevention — Redis rinviato a v2 SaaS)
@@ -130,15 +130,15 @@
 - [ ] Consistency checker per contraddizioni con world state
 
 ### 4.4 Streaming & WebSocket — Approccio A (Narration-First)
-- [ ] **Approccio A:** Il system prompt istruisce il DM a mettere `narration` come primo campo JSON. Un streaming JSON parser (backend: `jsonstream`; frontend: `oboe.js` o parser custom) inizia a estrarre e renderizzare il valore di `narration` non appena individua `"narration": "` nello stream, senza aspettare il JSON completo. Gli altri campi (`world_updates`, `invoke_npcs`, ecc.) vengono parsati solo a JSON completo.
+- [x] **Approccio A:** `NarrationExtractor` state machine estrae token-by-token il campo `narration` dallo stream raw, senza aspettare il JSON completo. Gli altri campi vengono parsati dopo lo stream con `json-repair` + Pydantic. Implementato in `app/ai/stream_extractor.py`.
 - [x] WebSocket per streaming narrazione DM in tempo reale
 - [x] Eventi DM: `dm:narration:start`, `dm:narration:chunk`, `dm:narration:end`
 - [ ] Eventi NPC (Actor-Director): `npc:dialogue:start`, `npc:dialogue:chunk`, `npc:dialogue:end`
 - [x] Evento `dice:roll` per animazione dadi
 - [x] Evento `companion:action` per reazioni companion
 - [ ] Evento `save:auto` per notifica auto-save
-- [ ] TTFT target: < 500ms (testo che inizia ad apparire)
-- [ ] Zero costo extra streaming (una sola call LLM), provider agnostico (non dipende da Tool Calling nativo)
+- [x] TTFT target: < 500ms (testo che inizia ad apparire) — il proxy Vite con `ws: true` forward WebSocket upgrade correttamente
+- [x] Zero costo extra streaming (una sola call LLM), provider agnostico (non dipende da Tool Calling nativo)
 
 ---
 

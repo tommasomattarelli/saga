@@ -1,9 +1,9 @@
 # FASE 1 — Piano A: "Da Chatbot a Gioco"
 
 > Tutte le modifiche apportate nella Fase A del progetto SAGA/Wyrd.
-> Commit: `7cfd0c4` · `d6dd5a2` · `63c7ee0` + fix post-commit
+> Commit: `7cfd0c4` · `d6dd5a2` · `63c7ee0` + fix post-commit + sessione 2026-03-26
 > Data: 2026-03-25 / 2026-03-26
-> Test: 101 → 171 passing (169 + 2 fix playtest)
+> Test: 101 → 174 passing (159 unit + 15 stream extractor)
 
 ---
 
@@ -313,9 +313,100 @@ I seguenti file di test sono stati aggiornati per allinearsi ai nuovi tipi e pro
 
 ## Fixed
 
-### Post-commit fixes
+### Post-commit fixes (sessione 1)
 
 - **`backend/tests/playtest/test_scenario_combat.py`**: `_make_mock_game_turn()` non includeva i 4 campi nuovi (`invoke_npcs`, `time_passed_minutes`, `ambient_detail`, `requires_player_action`). Pydantic rifiutava il `MagicMock` per `ambient_detail` che non è `str | None`. Fix: aggiunti valori espliciti al mock.
 - **`backend/pyproject.toml`**: `ruff` non installato da `uv sync` di default (era in optional-extras). Fix: spostato in `[dependency-groups]`.
+
+---
+
+## Sessione 2 (2026-03-26) — Docker, WebSocket, Streaming
+
+### Added
+
+#### `backend/app/ai/stream_extractor.py` (nuovo)
+State machine `NarrationExtractor` per estrarre il testo della narrazione da uno stream JSON token-by-token.
+
+- Stato `DETECTING`: accumula chunk finché non trova `"narration"` seguito da `:` e `"`.
+- Stato `IN_NARRATION`: yield i token come testo pulito. Gestisce escape `\"`, `\n`, `\t`, `\\`. Transizione a `DONE` quando trova la chiusura `"` non escaped.
+- Stato `DONE`: non emette nulla.
+- Fallback: se il primo carattere non è `{`, tratta tutto come testo plain (per re-prompt dadi).
+- **15 test** in `tests/unit/test_stream_extractor.py` — tutti passano.
+
+#### `backend/app/core/engine.py` — `process_game_turn_streaming()` (nuovo)
+Async generator che processa un turno emettendo `StreamEvent` in real-time.
+
+- `StreamEvent` dataclass: `type: Literal["narration_chunk","dice_roll","dice_narration_chunk","scene_mood","turn_result","error"]`, `data: str | dict`.
+- **Flusso**:
+  1. `build_context` + `route_ai_call` (invariato).
+  2. `provider.stream()` → ogni chunk passa per `NarrationExtractor.feed()` → yield `narration_chunk` solo con testo narrativo pulito.
+  3. Dopo stream completo: `parse_dm_response(full_response)` su buffer accumulato.
+  4. Yield `scene_mood`.
+  5. Se `parsed.dice_required`: roll → yield `dice_roll` → `provider.stream()` re-prompt → yield `dice_narration_chunk`.
+  6. `advance_game_clock`, `apply_world_updates`, `db.flush()`.
+  7. Yield `turn_result` con il `ProcessedTurn` completo come dict.
+- `ContentPolicyError` gestita: yield `error` event e return.
+- `process_game_turn()` (non-streaming) rimane invariato come fallback.
+
+#### `backend/.dockerignore` (nuovo)
+Esclude `.venv/`, `__pycache__/`, `*.pyc`, `tests/`, `.pytest_cache/`, `.mypy_cache/`, `*.egg-info/`, `.env*`.
+**Effetto**: build context backend 210 MB → **14 KB**.
+
+#### `frontend/.dockerignore` (nuovo)
+Esclude `node_modules/`, `dist/`, `coverage/`, test files, `.env*`.
+**Effetto**: build context frontend 226 MB → **3 KB**.
+
+### Changed
+
+#### `backend/app/api/websocket.py` — riscritta pipeline turno
+- Rimosso: `process_game_turn` (non-streaming).
+- Aggiunto: loop su `process_game_turn_streaming()` con dispatch per tipo evento:
+  - `narration_chunk` → `{"type": "dm:narration:chunk", "chunk": ...}`
+  - `dice_roll` → `{"type": "dice:roll", "name": ..., ...}`
+  - `dice_narration_chunk` → `{"type": "dice:narration:chunk", "chunk": ...}`
+  - `scene_mood` → `{"type": "scene_mood", "mood": ...}`
+  - `turn_result` → salva in variabile per persist + send `turn_complete`
+- **Turn persistence** (aggiunta rispetto alla versione precedente): crea `Turn` + `Save` auto nel DB con `summary` + `embedding` — i turni ora vengono salvati anche via WebSocket (prima erano salvati solo via REST). Questo risolve il "DM senza memoria" — `build_context` caricava i turni dal DB che era sempre vuoto.
+- `sanitize_player_input` + `detect_injection` aggiunti nel WebSocket handler (prima assenti).
+
+#### `backend/app/core/engine.py` — imports aggiornati
+- Aggiunti: `AsyncIterator`, `Literal` (typing), `NarrationExtractor`.
+
+#### `backend/Dockerfile` — riscritta
+Prima: `uv pip install --system -e ".[dev]"` → installava dal gruppo optional-extras ormai vuoto, non installava nulla.
+Dopo:
+```dockerfile
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
+...
+CMD ["uv", "run", "uvicorn", ...]
+```
+- `--frozen`: usa il lockfile esatto per build riproducibili.
+- `--no-dev`: esclude ruff/mypy/pytest dall'immagine di produzione.
+- `uv run uvicorn` invece di `uvicorn` diretto: uvicorn è nel `.venv`, non nel PATH.
+
+#### `frontend/Dockerfile`
+`npm install` → `npm ci --legacy-peer-deps`.
+- `npm ci` usa il lockfile esatto (riproducibile).
+- `--legacy-peer-deps`: necessario per il peer conflict `@eslint/js@10` vs `eslint@9` che npm 10 rifiuta strictamente.
+
+#### `docker-compose.yml`
+- `volumes`: aggiunto `backend_venv:/app/.venv` — named volume che preserva il `.venv` costruito nell'immagine quando `./backend:/app` sovrascrive la directory. Senza questo, il venv spariva al mount.
+- `command`: `uvicorn ...` → `uv run --no-dev uvicorn ...` — evita che `uv run` sincronizzi le dev deps (ruff, mypy) a ogni restart.
+- `environment`: aggiunto `UV_LINK_MODE=copy` — sopprime il warning "Failed to hardlink files" quando cache e venv sono su filesystem diversi (volume Docker).
+- `volumes` top-level: aggiunto `backend_venv:`.
+
+#### `frontend/vite.config.ts`
+Aggiunto `ws: true` alla proxy config `/api`.
+```typescript
+"/api": { target: "http://backend:8000", changeOrigin: true, ws: true }
+```
+**Causa del bug**: senza `ws: true`, Vite non forwardava le WebSocket upgrade request. Il browser apriva `ws://localhost:3000/api/ws/...`, Vite non sapeva cosa farne → connessione falliva silenziosamente → ogni azione spariva nel vuoto.
+
+### Note tecniche
+
+**Perché il DM "dimenticava" tutto**: `build_context()` carica i turni precedenti dal DB per costruire la `messages` list. Il WebSocket handler chiamava `process_game_turn` ma non creava mai il record `Turn` nel DB. Ogni turno partiva quindi senza storia. La fix aggiunge la persist logic identica a `turn_service.py` direttamente nel WebSocket handler.
+
+**Perché `ws: true` era mancante**: La proxy Vite per HTTP funzionava già (le API REST rispondevano). I WebSocket usano un'upgrade HTTP→WS che va gestita separatamente. Senza `ws: true`, il proxy HTTP ignora le upgrade request e la connessione WebSocket viene rifiutata con 426 o rimane in pending.
 
 ---

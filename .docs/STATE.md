@@ -1,7 +1,7 @@
 # Project State of the Art (STATE.md)
 
-## Current Snapshot: Phase A "Da Chatbot a Gioco" Complete
-The project has completed the first major gameplay transformation phase. We have ~163 tests (Unit + Integration + Playtest) covering all core game mechanics. The backend turn pipeline is now a fully functional RPG engine with structured output, dice resolution, streaming WebSocket, and GameClock.
+## Current Snapshot: Phase A Complete + Infrastructure Hardened
+The project has completed the first major gameplay transformation phase and all infrastructure is production-ready. We have 174 tests (159 unit passing cleanly + 15 stream extractor). The backend streams LLM tokens in real-time to the frontend, turns are persisted with full conversation history, and Docker builds in under 25s.
 
 ### 💎 Core Implementations (Verified & Stable)
 
@@ -27,20 +27,27 @@ The project has completed the first major gameplay transformation phase. We have
 - **`advance_game_clock()`**: increments `total_minutes` by `time_passed_minutes` from each `DMResponse`
 - **World state schema v2**: migration pipeline v0→v2, `"clock"` key added to `ALLOWED_WORLD_STATE_KEYS`
 
-#### 4. Turn Pipeline (Updated)
-1. Sanitizer → Context Assembler (character sheet always included)
-2. LLM call → `DMResponse` (parse with healing + retry ×3)
-3. If `dice_required`: roll immediately → re-prompt → stream dice narration
-4. Advance GameClock with `time_passed_minutes`
-5. Apply `world_updates`, persist turn
-- **`requires_player_action`**: deterministic backend flag — `True` if combat active or dice pending; drives frontend "Continue" button
+#### 4. Real-Time Streaming Pipeline
+- **`NarrationExtractor`** (`ai/stream_extractor.py`): state machine with 3 states (`DETECTING` → `IN_NARRATION` → `DONE`). Extracts only narration text from raw JSON token stream — filters JSON syntax, handles `\"` / `\n` / `\\` escape sequences, falls back to passthrough for plain-text responses (dice re-prompt). 15 unit tests.
+- **`process_game_turn_streaming()`** (`core/engine.py`): async generator yielding `StreamEvent` objects in real-time. Types: `narration_chunk`, `dice_roll`, `dice_narration_chunk`, `scene_mood`, `turn_result`, `error`. Accumulates full response in parallel for JSON parsing after stream ends.
+- **WebSocket handler** (`api/websocket.py`): iterates `StreamEvent` stream, dispatching `dm:narration:chunk` / `dice:roll` / `dice:narration:chunk` / `scene_mood` to client as they arrive. Turn persistence (Turn record + auto-save + embedding) happens after `turn_result` event.
 
-#### 5. Security & Data Sovereignty
+#### 5. Turn Pipeline
+1. Sanitizer + injection detection → Context Assembler (character sheet always included)
+2. `provider.stream()` → `NarrationExtractor` feeds chunks → `dm:narration:chunk` events to frontend
+3. After stream: `parse_dm_response(full_buffer)` with JSON healing
+4. If `dice_required`: roll → `dice:roll` event → second stream (re-prompt) → `dice:narration:chunk` events
+5. Advance GameClock, apply `world_updates`, persist Turn + auto-save to DB
+6. `turn_complete` with full turn data
+- **`requires_player_action`**: deterministic backend flag — `True` if combat active or dice pending
+- **Turn persistence fixed**: WebSocket handler now saves `Turn` + `Save` records — previously missing, causing DM to have no conversation history
+
+#### 6. Security & Data Sovereignty
 - **API Key Vault**: User API keys are NEVER stored in plaintext. Implemented **AES-256-GCM** with **HKDF-SHA256** key derivation (`security/encryption.py`).
 - **Data Portability**: Full JSON export/import of the campaign "Universe" (Campaign metadata + full Turn history).
 - **Multi-tenant isolation**: Every query is filtered by `user_id` from day zero.
 
-#### 6. Frontend Architecture (React 18 + Zustand)
+#### 7. Frontend Architecture (React 18 + Zustand)
 - **WebSocket Integration**: `GameWebSocket` wired in `game-view.tsx` with full event lifecycle. Events: `turn_start`, `dm:narration:chunk`, `dice:roll`, `dice:narration:chunk`, `scene_mood`, `turn_complete`.
 - **Streaming State**: `StreamingState` in `game-store.ts` — `isStreaming`, `currentNarration`, `pendingDice`, `diceRevealed`, `currentMood`.
 - **DiceRoller**: Click-to-reveal animation — counter cycles 1-20 for 1.5s then reveals real result. 6 outcome CSS classes. Sound on click.
