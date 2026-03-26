@@ -84,6 +84,48 @@ def _get_config_for_call(call_type: AICallType, tier: str = "default") -> ModelC
     return model_config
 
 
+_NPC_VERBOSITY_MAP: dict[str, int] = {
+    "null": 0,
+    "minimal": 1,
+    "low": 2,
+    "medium": 3,
+    "high": 5,
+    "unlimited": 999,
+}
+
+
+@dataclass
+class GameplayConfig:
+    """Runtime gameplay settings loaded from model_config.yaml."""
+
+    context_window_turns: int = 8
+    npc_verbosity: str = "medium"
+    compression_enabled: bool = True
+    fact_extraction_enabled: bool = True
+
+    @property
+    def max_npc_calls(self) -> int:
+        return _NPC_VERBOSITY_MAP.get(self.npc_verbosity, 3)
+
+
+def get_gameplay_config() -> GameplayConfig:
+    """Read the gameplay section from model_config.yaml with env overrides."""
+    config = _load_config()
+    gp = config.get("gameplay", {})
+
+    ctx_turns = int(os.getenv("SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS", gp.get("context_window_turns", 8)))
+    verbosity = os.getenv("SAGA_GAMEPLAY_NPC_VERBOSITY", gp.get("npc_verbosity", "medium"))
+    compression = os.getenv("SAGA_GAMEPLAY_COMPRESSION_ENABLED", str(gp.get("compression_enabled", True)))
+    fact_ext = os.getenv("SAGA_GAMEPLAY_FACT_EXTRACTION_ENABLED", str(gp.get("fact_extraction_enabled", True)))
+
+    return GameplayConfig(
+        context_window_turns=ctx_turns,
+        npc_verbosity=verbosity,
+        compression_enabled=compression.lower() not in ("false", "0", "no"),
+        fact_extraction_enabled=fact_ext.lower() not in ("false", "0", "no"),
+    )
+
+
 async def route_ai_call(call_type: AICallType, context: GameContext) -> ModelConfig:  # noqa: F821
     """Select the appropriate model based on call type and context importance."""
     if call_type == AICallType.DM_NARRATION:

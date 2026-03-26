@@ -64,11 +64,12 @@ ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
         "weather",
         "global_flags",
         "clock",
+        "narrative",
     }
 )
 
 
-CURRENT_SCHEMA_VERSION: int = 2
+CURRENT_SCHEMA_VERSION: int = 3
 
 _MIGRATIONS: dict[int, Callable[[dict], dict]] = {}
 
@@ -99,6 +100,15 @@ def _migrate_v1_to_v2(state: dict) -> dict:
             "total_minutes": 480,  # start at 8:00 AM
         }
     state["meta"]["schema_version"] = 2
+    return state
+
+
+@_register_migration(2)
+def _migrate_v2_to_v3(state: dict) -> dict:
+    state.setdefault("npcs", {})
+    state.setdefault("companions", {})
+    state.setdefault("narrative", {"event_log": []})
+    state["meta"]["schema_version"] = 3
     return state
 
 

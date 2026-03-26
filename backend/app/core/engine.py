@@ -9,10 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.context import build_context
 from app.ai.exceptions import ContentPolicyError
+from app.ai.npc_director import NPCDialogue, format_npc_dialogues_for_turn, invoke_npcs_parallel
 from app.ai.parser import parse_dm_response
 from app.ai.router import AICallType, route_ai_call
+from app.ai.semantic_resolver import resolve_player_action
 from app.ai.stream_extractor import NarrationExtractor
 from app.core.dice import ability_check
+from app.memory.updater import apply_typed_updates
 from app.memory.world_state import advance_game_clock, apply_world_updates, migrate_world_state
 from app.models.campaign import Campaign
 
@@ -200,6 +203,7 @@ class StreamEvent:
         "dice_roll",
         "dice_narration_chunk",
         "scene_mood",
+        "npc_dialogue",
         "turn_result",
         "error",
     ]
@@ -216,6 +220,14 @@ async def process_game_turn_streaming(
     Yields StreamEvents as the LLM generates tokens. The full response is
     accumulated in parallel for JSON parsing after the stream completes.
     """
+    # Semantic Resolver: resolve implicit references before context assembly
+    resolver_output = await resolve_player_action(player_action, campaign, db)
+    logger.debug(
+        "semantic_resolver",
+        target_npcs=resolver_output.target_npcs,
+        target_locations=resolver_output.target_locations,
+    )
+
     context = await build_context(campaign, player_action, db)
     model_config = await route_ai_call(AICallType.DM_NARRATION, context)
 
@@ -328,15 +340,60 @@ async def process_game_turn_streaming(
     if dice_narration:
         full_narration += dice_narration
 
+    # NPC Actor-Director: invoke NPCs in parallel
+    npc_dialogues: list[NPCDialogue] = []
+    if parsed.invoke_npcs:
+        npc_dialogues = await invoke_npcs_parallel(
+            parsed.invoke_npcs, campaign, player_action, parsed.narration,
+        )
+        for npc_d in npc_dialogues:
+            yield StreamEvent(
+                type="npc_dialogue",
+                data={
+                    "npc_name": npc_d.npc_name,
+                    "dialogue": npc_d.dialogue,
+                    "action": npc_d.action,
+                },
+            )
+
+        # Append NPC dialogues to narration for turn record
+        npc_text = format_npc_dialogues_for_turn(npc_dialogues)
+        if npc_text:
+            full_narration += npc_text
+
+        # Apply NPC disposition changes
+        disposition_updates = [
+            {"key": "npc_disposition", "target": d.npc_name, "change": d.disposition_change}
+            for d in npc_dialogues
+            if d.disposition_change != 0
+        ]
+        if disposition_updates:
+            new_state, new_char = apply_typed_updates(
+                campaign.world_state or {}, campaign.character_data or {}, disposition_updates
+            )
+            campaign.world_state = new_state
+            campaign.character_data = new_char
+            await db.flush()
+
     # Advance GameClock
     current_state = migrate_world_state(campaign.world_state)
     updated_state = advance_game_clock(current_state, parsed.time_passed_minutes)
     campaign.world_state = updated_state
     await db.flush()
 
-    # Apply world updates
+    # Apply world updates (typed handler with generic fallback)
     if parsed.world_updates:
-        await apply_world_updates(campaign, parsed.world_updates, db)
+        if isinstance(parsed.world_updates, dict):
+            # Legacy format: generic merge
+            await apply_world_updates(campaign, parsed.world_updates, db)
+        elif isinstance(parsed.world_updates, list):
+            # New format: typed updates
+            new_state, new_char = apply_typed_updates(
+                campaign.world_state or {}, campaign.character_data or {}, parsed.world_updates
+            )
+            campaign.world_state = new_state
+            campaign.character_data = new_char
+            await db.flush()
 
     in_combat = campaign.world_state.get("in_combat", False)
     requires_player_action = bool(in_combat or parsed.dice_required)
@@ -356,5 +413,9 @@ async def process_game_turn_streaming(
             "time_passed_minutes": parsed.time_passed_minutes,
             "ambient_detail": parsed.ambient_detail,
             "requires_player_action": requires_player_action,
+            "npc_dialogues": [
+                {"npc_name": d.npc_name, "dialogue": d.dialogue, "action": d.action}
+                for d in npc_dialogues
+            ],
         },
     )

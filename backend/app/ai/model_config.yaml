@@ -78,3 +78,14 @@ embedding:
     provider: openai
     model: text-embedding-3-small
     dimensions: 1536
+
+# ---------------------------------------------------------------------------
+# Gameplay Settings — runtime behavior configuration
+# Override via env: SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS, etc.
+# ---------------------------------------------------------------------------
+gameplay:
+  context_window_turns: 8          # how many recent turns to include verbatim in the DM prompt
+  npc_verbosity: "medium"          # controls max parallel NPC Actor-Director calls per turn
+                                   #   null=0  minimal=1  low=2  medium=3  high=5  unlimited=999
+  compression_enabled: true        # compress old turns beyond the active window via budget LLM
+  fact_extraction_enabled: true    # extract atomic facts from each turn in the background

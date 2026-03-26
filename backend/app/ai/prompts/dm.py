@@ -110,7 +110,7 @@ def is_creation_mode(campaign: Campaign) -> bool:
     return not campaign.character_data or not campaign.character_data.get("name")
 
 
-def build_dm_system_prompt(campaign: Campaign) -> str:
+def build_dm_system_prompt(campaign: Campaign, summary_context: str = "") -> str:
     parts = [BASE_DM_PROMPT]
 
     parts.append(DEATH_MODE_PROMPTS.get(campaign.death_mode, ""))
@@ -122,6 +122,10 @@ def build_dm_system_prompt(campaign: Campaign) -> str:
         parts.append(
             f"\n## Player Character\n```json\n{json.dumps(campaign.character_data, indent=2)}\n```"
         )
+
+    # Recap / compressed history — permanent compass for the DM
+    if summary_context:
+        parts.append(f"\n## Story So Far (Previous Events)\n{summary_context}")
 
     if campaign.world_state:
         parts.append(

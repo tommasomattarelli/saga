@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 
 import structlog
@@ -12,7 +13,8 @@ from app.ai.embeddings import generate_embedding
 from app.ai.sanitizer import detect_injection, sanitize_player_input
 from app.core.engine import process_game_turn_streaming
 from app.dependencies import get_db_context
-from app.memory.compressor import compress_turn_to_summary
+from app.memory.compressor import compress_turn_to_summary, ensure_compression
+from app.memory.fact_extractor import extract_and_store_facts
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.save import Save
 from app.models.turn import Turn
@@ -80,6 +82,7 @@ async def game_ws(
                 await websocket.send_json({"type": "turn_start", "turn_number": turn_number})
 
                 turn_result = None
+                npc_dialogues_for_facts: list[str] = []
                 try:
                     async for event in process_game_turn_streaming(campaign, action, db):
                         if event.type == "narration_chunk":
@@ -98,6 +101,13 @@ async def game_ws(
                             await websocket.send_json(
                                 {"type": "scene_mood", "mood": event.data}
                             )
+                        elif event.type == "npc_dialogue":
+                            npc_data = event.data if isinstance(event.data, dict) else {}
+                            await websocket.send_json({"type": "npc:dialogue", **npc_data})
+                            # Collect for fact extraction
+                            npc_name = npc_data.get("npc_name", "NPC")
+                            dialogue = npc_data.get("dialogue", "")
+                            npc_dialogues_for_facts.append(f"{npc_name}: {dialogue}")
                         elif event.type == "turn_result":
                             turn_result = event.data
                         elif event.type == "error":
@@ -117,15 +127,14 @@ async def game_ws(
                     continue
 
                 # Persist turn to DB
-                summary = await compress_turn_to_summary(
-                    turn_result["narration"], action
-                )
+                narration = turn_result["narration"]
+                summary = await compress_turn_to_summary(narration, action)
                 embedding = await generate_embedding(summary)
                 turn = Turn(
                     campaign_id=campaign.id,
                     turn_number=turn_number,
                     player_action=action,
-                    narration=turn_result["narration"],
+                    narration=narration,
                     dice_rolls=turn_result["dice_rolls"],
                     companion_actions=turn_result["companion_actions"],
                     world_updates=turn_result["world_updates"],
@@ -171,6 +180,20 @@ async def game_ws(
 
                 log.info("turn_completed", turn=turn_number, model=turn_result["model_used"])
 
+                # Background tasks (fire-and-forget, after commit)
+                asyncio.create_task(
+                    extract_and_store_facts(
+                        campaign_id=campaign.id,
+                        turn_number=turn_number,
+                        player_action=action,
+                        narration=narration,
+                        npc_dialogues=npc_dialogues_for_facts or None,
+                    )
+                )
+                asyncio.create_task(
+                    _background_compression(campaign.id, turn_number)
+                )
+
     except WebSocketDisconnect:
         log.info("ws_disconnected")
     except Exception as exc:
@@ -179,3 +202,13 @@ async def game_ws(
             await websocket.close(code=1011, reason="Internal server error")
         except Exception:
             pass
+
+
+async def _background_compression(campaign_id: uuid.UUID, current_turn: int) -> None:
+    """Compress old turns in the background after the main transaction commits."""
+    try:
+        async with get_db_context() as db:
+            await ensure_compression(str(campaign_id), current_turn, db)
+            await db.commit()
+    except Exception:
+        logger.exception("background_compression_failed", campaign_id=str(campaign_id))

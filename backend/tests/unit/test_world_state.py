@@ -10,7 +10,7 @@ def test_migrate_v0_to_v2():
     migrated = migrate_world_state(v0_state)
 
     assert "meta" in migrated
-    assert migrated["meta"]["schema_version"] == 2
+    assert migrated["meta"]["schema_version"] == 3
     assert migrated["meta"]["world_name"] == "Unknown Land"
     assert migrated["meta"]["current_season"] == "spring"
     assert migrated["locations"]["town"] == "visited"
@@ -18,15 +18,18 @@ def test_migrate_v0_to_v2():
 
 
 def test_migrate_up_to_date():
-    v2_state = {
-        "meta": {"schema_version": 2, "world_name": "Test"},
+    v3_state = {
+        "meta": {"schema_version": 3, "world_name": "Test"},
         "locations": {"town": "visited"},
         "clock": {"total_minutes": 480},
+        "npcs": {},
+        "companions": {},
+        "narrative": {"event_log": []},
     }
-    migrated = migrate_world_state(v2_state)
-    assert migrated["meta"]["schema_version"] == 2
+    migrated = migrate_world_state(v3_state)
+    assert migrated["meta"]["schema_version"] == 3
     assert migrated["locations"]["town"] == "visited"
-    assert migrated is not v2_state
+    assert migrated is not v3_state
 
 
 def test_validate_world_state():

@@ -25,19 +25,19 @@ def test_build_npc_prompt():
         "name": "Bob",
         "role": "Innkeeper",
         "location": "The Prancing Pony",
-        "motivation": "Make money",
-        "fear": "Bandits",
-        "secret": "Hides stolen goods",
-        "disposition": "hostile",
+        "goals": ["Make money"],
+        "personality": {"traits": ["grumpy"], "fears": ["Bandits"], "secrets": ["Hides stolen goods"]},
+        "disposition_toward_player": -50,
     }
-    prompt = build_npc_prompt(data)
+    prompt = build_npc_prompt(data, player_action="I enter the inn", dm_narration="You push open the door.")
     assert "Bob" in prompt
     assert "Innkeeper" in prompt
     assert "The Prancing Pony" in prompt
     assert "Make money" in prompt
     assert "Bandits" in prompt
     assert "Hides stolen goods" in prompt
-    assert "hostile" in prompt
+    assert "-50" in prompt
+    assert "I enter the inn" in prompt
 
 
 def test_build_world_sim_prompt():
