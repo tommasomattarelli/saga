@@ -55,7 +55,7 @@
 - [ ] Provider locale via API OpenAI-compatible (Ollama, KoboldCpp, vLLM)
 
 ### 3.2 AI Router (`ai/router.py`)
-- [ ] Selezione automatica del modello in base al tipo di modulo (DM, NPC, companion, world sim)
+- [x] Selezione automatica del modello in base al tipo di modulo (DM, NPC, companion, world sim) — `AICallType` enum + `route_ai_call()` + `GameplayConfig`
 - [ ] Sistema di punteggio importanza scena (base + modificatori narrativi)
 - [ ] Score 0-2 → budget model, 3-5 → mid-tier, 6+ → premium
 - [ ] Fallback chain se provider non disponibile
@@ -80,13 +80,13 @@
 ### 4.1 Turn Pipeline (`core/engine.py`)
 - [ ] Player invia azione (testo libero)
 - [ ] Sanitizer valida l'input
-- [ ] **Semantic Resolver** (`ai/semantic_resolver.py`) — mini-call a budget model (~200ms) che estrae dal testo del player:
+- [x] **Semantic Resolver** (`ai/semantic_resolver.py`) — mini-call a budget model (~200ms) che estrae dal testo del player:
   - Location esplicite e implicite ("la città di fianco" → risolta con contesto sessione)
   - NPC espliciti e pronominali ("lei" → "Grenda" perché unica companion femminile attiva)
   - Stima tempo narrativo dell'azione (in minuti)
   - Output: `{ target_locations: [], target_npcs: [], time_estimate_minutes: int }`
   - Riceve il contesto sessione (companion attivi, location recenti) per risolvere riferimenti impliciti
-- [ ] Context Assembler costruisce il prompt DM (usa output Semantic Resolver come guida primaria + regole fisse come fallback)
+- [ ] Context Assembler costruisce il prompt DM (usa output Semantic Resolver come guida primaria + regole fisse come fallback) — resolver pronto, loading selettivo in Phase D
 - [ ] Dice Engine tira dadi se necessario pre-prompt
 - [ ] AI Engine invia prompt al LLM via Router, streaming risposta
 - [x] **Healing Parser**: strip markdown fences → `json-repair` → Pydantic validation → retry solo se ancora invalido (riduce retry del ~70%)
@@ -94,10 +94,10 @@
 - [x] **Content Policy Handler**: intercetta `content_policy_violation` (HTTP 400) nel provider layer e ritorna messaggio leggibile al player ("The DM refuses to narrate this scene as described. Try rephrasing your action.") con distinzione nel log tra errore tecnico e blocco policy
 - [x] Se il DM richiede un tiro di dado, il Dice Engine tira e ri-prompta per la narrazione
 - [x] **`requires_player_action`** — booleano derivato dal backend (non dal DM): `True` se combat attivo o dice_required presente, `False` altrimenti (pulsante "Continua" abilitato, azione implicita `"wait"`)
-- [ ] Se `invoke_npcs` presente → lancia chiamate NPC in parallelo (Actor-Director, vedere sez. 6)
+- [x] Se `invoke_npcs` presente → lancia chiamate NPC in parallelo (Actor-Director, vedere sez. 6)
 - [x] World State Updater applica i world_updates + aggiorna GameClock con `time_passed_minutes`
-- [ ] **Fact Extractor** (asincrono, non bloccante) estrae 1-5 fatti atomici dal turno → INSERT in `memory_facts`
-- [ ] Memory Manager comprime turni vecchi se necessario
+- [x] **Fact Extractor** (asincrono, non bloccante) estrae 1-5 fatti atomici dal turno → INSERT in `memory_facts`
+- [x] Memory Manager comprime turni vecchi se necessario (`ensure_compression` in `memory/compressor.py`)
 - [ ] Auto-save del world state
 - [ ] Turno persistito nel DB con delta e costo AI
 - [ ] World Simulator esegue eventi off-screen (asincrono, logica in v2, schema in v1)
@@ -133,7 +133,7 @@
 - [x] **Approccio A:** `NarrationExtractor` state machine estrae token-by-token il campo `narration` dallo stream raw, senza aspettare il JSON completo. Gli altri campi vengono parsati dopo lo stream con `json-repair` + Pydantic. Implementato in `app/ai/stream_extractor.py`.
 - [x] WebSocket per streaming narrazione DM in tempo reale
 - [x] Eventi DM: `dm:narration:start`, `dm:narration:chunk`, `dm:narration:end`
-- [ ] Eventi NPC (Actor-Director): `npc:dialogue:start`, `npc:dialogue:chunk`, `npc:dialogue:end`
+- [x] Eventi NPC (Actor-Director): `npc:dialogue` (singolo evento per NPC, non chunked — NPC producono 1-2 frasi)
 - [x] Evento `dice:roll` per animazione dadi
 - [x] Evento `companion:action` per reazioni companion
 - [ ] Evento `save:auto` per notifica auto-save
@@ -189,21 +189,21 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 **Vantaggi:** Ogni NPC ha voce distinta e imprevedibile. Il DM si sorprende delle risposte NPC → gameplay emergente autentico. Latenza percepita zero. Costo minimo (budget model, 1-2 frasi output).
 
 ### 6.1 NPC Psychology Model
-- [ ] Profilo NPC strutturato: nome, ruolo, tratti, valori, paure, segreti
-- [ ] Disposition system: valore numerico verso il player con modificatori
-- [ ] Goal system: ogni NPC ha obiettivi che possono allinearsi o confliggere col player
+- [x] Profilo NPC strutturato: nome, ruolo, tratti, valori, paure, segreti (`NPCProfile` Pydantic in `memory/schemas.py`)
+- [x] Disposition system: valore numerico verso il player con modificatori (clamped -100 to +100, aggiornato via `npc_disposition` handler)
+- [x] Goal system: ogni NPC ha obiettivi che possono allinearsi o confliggere col player (`goals: list[str]` in NPCProfile)
 - [ ] Schedule system: NPC hanno routine (mattina → forge, sera → taverna) — alimentato dal GameClock (sez. 9.1)
 - [ ] Memory per NPC: ricordano interazioni passate col player (via `memory_facts` filtrate per `entity_name`)
 - [ ] Comportamento emergente basato su tutti i fattori sopra
-- [ ] NPC invocati dal DM via `invoke_npcs` → chiamata LLM indipendente (Actor-Director)
+- [x] NPC invocati dal DM via `invoke_npcs` → chiamata LLM indipendente (Actor-Director, `npc_director.py`)
 
 ### 6.2 Companion System
-- [ ] Tutto quello di NPC, più:
+- [x] Tutto quello di NPC, più (`CompanionProfile` extends `NPCProfile`):
 - [ ] Backstory completa con conflitti irrisolti
 - [ ] Personal quest arc che si svela in base a fiducia ed eventi
-- [ ] Opinioni su altri companion (alleanze, rivalità)
-- [ ] Preferenze di combattimento e personalità tattica
-- [ ] Loyalty meter che influenza obbedienza a ordini pericolosi
+- [x] Opinioni su altri companion (alleanze, rivalità) — `opinions: dict[str, str]` in CompanionProfile
+- [x] Preferenze di combattimento e personalità tattica — `combat_style` in CompanionProfile
+- [x] Loyalty meter che influenza obbedienza a ordini pericolosi — `loyalty` (0-100) in CompanionProfile, updated via `companion_loyalty` handler
 - [ ] Reazioni emotive alle decisioni del player (approvazione/disapprovazione)
 - [ ] Companion possono litigare, condividere storie, reagire all'ambiente
 - [ ] Companion possono lasciare il party se loyalty troppo bassa
@@ -260,7 +260,7 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 ## 9. MEMORIA & PERSISTENZA — Architettura a 3 Pilastri
 
 ### 9.1 World State Object
-- [ ] JSON strutturato con sezioni: meta, player, companions, world, narrative, npcs
+- [x] JSON strutturato con sezioni: meta, player, companions, world, narrative, npcs (schema v3, migration v0→v3)
 - [x] Aggiornato dopo ogni turno
 - [x] Schema versioning con migration pipeline (v1→v2→v3)
 - [ ] Caricamento selettivo basato su rilevanza (Contextual Loading guidato dal Semantic Resolver)
@@ -287,20 +287,20 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 **Pilastro 2 — Active Window (conversazione recente, ~2000 token)**
 - [ ] Ultimi 5-8 turni verbatim (testo esatto input player + narrazione DM)
 - [ ] Dà al DM il flow immediato della conversazione
-- [ ] Turni che escono dalla finestra vengono compressi (summary 2-3 frasi via budget model)
+- [x] Turni che escono dalla finestra vengono compressi (summary 2-3 frasi via budget model, batch di 5)
 
 **Pilastro 3 — Fatti Atomici / RAG (dettagli puntuali dal passato, ~500 token)**
 - [ ] Recupera dettagli specifici persi 20+ sessioni fa (nomi, segreti, promesse)
-- [ ] Granularità: singolo fatto atomico strutturato (tabella `memory_facts`, vedere sez. 13)
+- [x] Granularità: singolo fatto atomico strutturato (tabella `memory_facts`, vedere sez. 13)
 - [ ] Top 3-5 fatti iniettati nel prompt per turno via Hybrid Search
 - [ ] Embedding model: Voyage AI API o locale (bge-small)
 
 ### 9.3 Fact Extractor (Background, Post-Turno)
-- [ ] Dopo ogni turno, `asyncio.create_task` (non bloccante, player non aspetta)
-- [ ] Budget model estrae 1-5 fatti atomici strutturati dal testo del turno
-- [ ] Formato: `"NomeEntità:tipo:stato — dettaglio con riferimento turno"`
-- [ ] Ogni fatto = una riga in `memory_facts` = un embedding
-- [ ] File: `backend/app/memory/fact_extractor.py`
+- [x] Dopo ogni turno, `asyncio.create_task` (non bloccante, player non aspetta)
+- [x] Budget model estrae 1-5 fatti atomici strutturati dal testo del turno
+- [x] Formato: `"NomeEntità:tipo:stato — dettaglio con riferimento turno"`
+- [x] Ogni fatto = una riga in `memory_facts` = un embedding
+- [x] File: `backend/app/memory/fact_extractor.py`
 
 ### 9.4 Semantic Memory — Hybrid Search (pgvector + tsvector)
 - [ ] Query ibrida: 70% similarità semantica (embedding `<=>`) + 30% keyword match (tsvector `ts_rank`)
