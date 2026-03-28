@@ -143,9 +143,17 @@ export default function GameView() {
 
   const deathOverlayMessage = deathEvent
     ? deathEvent.mode === "cronista"
-      ? { title: "Near Death!", sub: "You survive by a thread — your story is not over yet.", color: "text-yellow-400" }
+      ? {
+          title: "Near Death!",
+          sub: "You survive by a thread — your story is not over yet.",
+          color: "text-yellow-400",
+        }
       : deathEvent.mode === "destino"
-        ? { title: "Fate Intervenes!", sub: deathEvent.cost_hint || "Destiny has a price.", color: "text-purple-400" }
+        ? {
+            title: "Fate Intervenes!",
+            sub: deathEvent.cost_hint || "Destiny has a price.",
+            color: "text-purple-400",
+          }
         : { title: "You Have Fallen", sub: "Your journey ends here.", color: "text-red-500" }
     : null;
 

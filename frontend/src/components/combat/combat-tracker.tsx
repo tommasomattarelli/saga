@@ -79,18 +79,12 @@ export default function CombatTracker({ combatState }: CombatTrackerProps) {
               borderLeft: isCurrent ? "2px solid #cc3333" : "2px solid transparent",
             }}
           >
-            <span style={{ width: "14px", fontSize: "10px", color: "#888" }}>
-              {c.initiative}
-            </span>
+            <span style={{ width: "14px", fontSize: "10px", color: "#888" }}>{c.initiative}</span>
             <span
               style={{
                 flex: 1,
                 color:
-                  c.type === "player"
-                    ? "#8bc4ff"
-                    : c.type === "companion"
-                      ? "#8bff8b"
-                      : "#ff8b8b",
+                  c.type === "player" ? "#8bc4ff" : c.type === "companion" ? "#8bff8b" : "#ff8b8b",
                 textDecoration: isDead ? "line-through" : "none",
               }}
             >

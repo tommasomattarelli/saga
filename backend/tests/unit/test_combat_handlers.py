@@ -90,7 +90,9 @@ class TestCombatStart:
         state = _base_state()
         updates = [{"key": "combat_start", "target": "", "change": {"enemies": []}}]
         new_state, _ = apply_typed_updates(state, _char(), updates)
-        player = next(c for c in new_state["combat_state"]["initiative_order"] if c["type"] == "player")
+        player = next(
+            c for c in new_state["combat_state"]["initiative_order"] if c["type"] == "player"
+        )
         assert player is not None
 
 
@@ -105,7 +107,9 @@ class TestCombatEnd:
 
     def test_initiative_order_cleared(self):
         state = _base_state()
-        state["combat_state"]["initiative_order"] = [{"name": "Goblin", "hp": 1, "max_hp": 7, "initiative": 12, "type": "enemy"}]
+        state["combat_state"]["initiative_order"] = [
+            {"name": "Goblin", "hp": 1, "max_hp": 7, "initiative": 12, "type": "enemy"}
+        ]
         updates = [{"key": "combat_end", "target": "", "change": {}}]
         new_state, _ = apply_typed_updates(state, _char(), updates)
         assert new_state["combat_state"]["initiative_order"] == []
@@ -136,14 +140,18 @@ class TestCombatDamage:
         state = self._active_state()
         updates = [{"key": "combat_damage", "target": "Goblin", "change": -3}]
         new_state, _ = apply_typed_updates(state, _char(), updates)
-        goblin = next(c for c in new_state["combat_state"]["initiative_order"] if c["name"] == "Goblin")
+        goblin = next(
+            c for c in new_state["combat_state"]["initiative_order"] if c["name"] == "Goblin"
+        )
         assert goblin["hp"] == 4
 
     def test_enemy_hp_does_not_go_below_zero(self):
         state = self._active_state()
         updates = [{"key": "combat_damage", "target": "Goblin", "change": -99}]
         new_state, _ = apply_typed_updates(state, _char(), updates)
-        goblin = next(c for c in new_state["combat_state"]["initiative_order"] if c["name"] == "Goblin")
+        goblin = next(
+            c for c in new_state["combat_state"]["initiative_order"] if c["name"] == "Goblin"
+        )
         assert goblin["hp"] == 0
 
     def test_player_takes_damage_reflected_in_char_data(self):
@@ -152,7 +160,9 @@ class TestCombatDamage:
         updates = [{"key": "combat_damage", "target": "Hero", "change": -4}]
         new_state, new_char = apply_typed_updates(state, char, updates)
         assert new_char["hp"]["current"] == 6
-        player = next(c for c in new_state["combat_state"]["initiative_order"] if c["name"] == "Hero")
+        player = next(
+            c for c in new_state["combat_state"]["initiative_order"] if c["name"] == "Hero"
+        )
         assert player["hp"] == 6
 
     def test_healing_increases_hp(self):

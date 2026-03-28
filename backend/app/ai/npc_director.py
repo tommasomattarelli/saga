@@ -129,7 +129,7 @@ def format_npc_dialogues_for_turn(dialogues: list[NPCDialogue]) -> str:
 
     parts = []
     for d in dialogues:
-        line = f"**{d.npc_name}:** \"{d.dialogue}\""
+        line = f'**{d.npc_name}:** "{d.dialogue}"'
         if d.action:
             line += f" *({d.action})*"
         parts.append(line)

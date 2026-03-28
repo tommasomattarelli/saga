@@ -51,7 +51,9 @@ async def compress_turns_batch_llm(turns: list[Turn]) -> str | None:
     try:
         raw = await provider.generate(
             system_prompt="You are a concise narrative summarizer for an RPG game.",
-            messages=[{"role": "user", "content": COMPRESSION_PROMPT.format(turns_text=turns_text)}],
+            messages=[
+                {"role": "user", "content": COMPRESSION_PROMPT.format(turns_text=turns_text)}
+            ],
             model=model_config.model,
             temperature=0.3,
             max_tokens=300,
@@ -108,7 +110,9 @@ async def ensure_compression(
             if summary:
                 turn.summary = summary
             else:
-                turn.summary = await compress_turn_to_summary(turn.narration or "", turn.player_action or "")
+                turn.summary = await compress_turn_to_summary(
+                    turn.narration or "", turn.player_action or ""
+                )
 
     await db.flush()
     logger.info("turns_compressed", campaign_id=campaign_id, count=len(uncompressed))

@@ -72,12 +72,16 @@ class TestInventory:
 class TestCompanionLoyalty:
     def test_increase_loyalty(self):
         state = {"companions": {"Lyra": {"loyalty": 50}}}
-        new_state, _ = apply_typed_updates(state, {}, [{"key": "companion_loyalty", "target": "Lyra", "change": 10}])
+        new_state, _ = apply_typed_updates(
+            state, {}, [{"key": "companion_loyalty", "target": "Lyra", "change": 10}]
+        )
         assert new_state["companions"]["Lyra"]["loyalty"] == 60
 
     def test_clamp_loyalty(self):
         state = {"companions": {"Lyra": {"loyalty": 95}}}
-        new_state, _ = apply_typed_updates(state, {}, [{"key": "companion_loyalty", "target": "Lyra", "change": 20}])
+        new_state, _ = apply_typed_updates(
+            state, {}, [{"key": "companion_loyalty", "target": "Lyra", "change": 20}]
+        )
         assert new_state["companions"]["Lyra"]["loyalty"] == 100
 
 
@@ -85,7 +89,16 @@ class TestQuestUpdate:
     def test_add_quest(self):
         char = {"active_quests": []}
         _, new_char = apply_typed_updates(
-            {}, char, [{"key": "quest_update", "target": "DragonHunt", "change": "active", "description": "Slay the dragon"}]
+            {},
+            char,
+            [
+                {
+                    "key": "quest_update",
+                    "target": "DragonHunt",
+                    "change": "active",
+                    "description": "Slay the dragon",
+                }
+            ],
         )
         assert len(new_char["active_quests"]) == 1
         assert new_char["active_quests"][0]["name"] == "DragonHunt"

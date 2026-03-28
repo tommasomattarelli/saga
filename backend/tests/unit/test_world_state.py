@@ -45,7 +45,12 @@ def test_migrate_up_to_date():
         "npcs": {},
         "companions": {},
         "narrative": {"event_log": []},
-        "combat_state": {"active": False, "round": 0, "initiative_order": [], "current_turn_index": 0},
+        "combat_state": {
+            "active": False,
+            "round": 0,
+            "initiative_order": [],
+            "current_turn_index": 0,
+        },
         "destino_lives": 3,
     }
     migrated = migrate_world_state(v4_state)

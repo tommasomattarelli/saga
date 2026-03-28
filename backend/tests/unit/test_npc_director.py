@@ -49,7 +49,9 @@ class TestInvokeSingleNPC:
         ):
             from app.ai.router import ModelConfig
 
-            mock_route.return_value = ModelConfig(provider="openai", model="gpt-4o-mini", temperature=0.7, max_tokens=300)
+            mock_route.return_value = ModelConfig(
+                provider="openai", model="gpt-4o-mini", temperature=0.7, max_tokens=300
+            )
 
             result = await invoke_single_npc(
                 npc_name="Grenda",
@@ -73,7 +75,9 @@ class TestInvokeSingleNPC:
         ):
             from app.ai.router import ModelConfig
 
-            mock_route.return_value = ModelConfig(provider="openai", model="gpt-4o-mini", temperature=0.7, max_tokens=300)
+            mock_route.return_value = ModelConfig(
+                provider="openai", model="gpt-4o-mini", temperature=0.7, max_tokens=300
+            )
 
             result = await invoke_single_npc(
                 npc_name="Grenda",

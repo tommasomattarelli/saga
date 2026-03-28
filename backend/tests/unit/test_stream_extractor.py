@@ -11,7 +11,7 @@ class TestNarrationExtractor:
 
     def test_chunked_json(self):
         ext = NarrationExtractor()
-        chunks = ['{"narr', 'ation": "Hello', ' world', '.", "mood": "calm"}']
+        chunks = ['{"narr', 'ation": "Hello', " world", '.", "mood": "calm"}']
         output = ""
         for chunk in chunks:
             output += ext.feed(chunk)

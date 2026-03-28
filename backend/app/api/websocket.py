@@ -91,16 +91,17 @@ async def game_ws(
                             )
                         elif event.type == "dice_roll":
                             await websocket.send_json(
-                                {"type": "dice:roll", **(event.data if isinstance(event.data, dict) else {})}
+                                {
+                                    "type": "dice:roll",
+                                    **(event.data if isinstance(event.data, dict) else {}),
+                                }
                             )
                         elif event.type == "dice_narration_chunk":
                             await websocket.send_json(
                                 {"type": "dice:narration:chunk", "chunk": event.data}
                             )
                         elif event.type == "scene_mood":
-                            await websocket.send_json(
-                                {"type": "scene_mood", "mood": event.data}
-                            )
+                            await websocket.send_json({"type": "scene_mood", "mood": event.data})
                         elif event.type == "npc_dialogue":
                             npc_data = event.data if isinstance(event.data, dict) else {}
                             await websocket.send_json({"type": "npc:dialogue", **npc_data})
@@ -109,20 +110,24 @@ async def game_ws(
                             npc_dialogues_for_facts.append(f"{npc_name}: {dialogue}")
                         elif event.type == "combat_start":
                             await websocket.send_json(
-                                {"type": "combat:start", **(event.data if isinstance(event.data, dict) else {})}
+                                {
+                                    "type": "combat:start",
+                                    **(event.data if isinstance(event.data, dict) else {}),
+                                }
                             )
                         elif event.type == "combat_end":
                             await websocket.send_json({"type": "combat:end"})
                         elif event.type == "death_event":
                             await websocket.send_json(
-                                {"type": "death:event", **(event.data if isinstance(event.data, dict) else {})}
+                                {
+                                    "type": "death:event",
+                                    **(event.data if isinstance(event.data, dict) else {}),
+                                }
                             )
                         elif event.type == "turn_result":
                             turn_result = event.data
                         elif event.type == "error":
-                            await websocket.send_json(
-                                {"type": "error", "message": event.data}
-                            )
+                            await websocket.send_json({"type": "error", "message": event.data})
                 except Exception as exc:
                     log.exception("turn_processing_error", error=str(exc))
                     await websocket.send_json(
@@ -158,7 +163,8 @@ async def game_ws(
 
                 await db.execute(
                     delete(Save).where(
-                        Save.campaign_id == campaign.id, Save.is_auto == True  # noqa: E712
+                        Save.campaign_id == campaign.id,
+                        Save.is_auto == True,  # noqa: E712
                     )
                 )
                 db.add(
@@ -199,9 +205,7 @@ async def game_ws(
                         npc_dialogues=npc_dialogues_for_facts or None,
                     )
                 )
-                asyncio.create_task(
-                    _background_compression(campaign.id, turn_number)
-                )
+                asyncio.create_task(_background_compression(campaign.id, turn_number))
 
     except WebSocketDisconnect:
         log.info("ws_disconnected")

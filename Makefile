@@ -1,4 +1,4 @@
-# Makefile for SAGA / Wyrd Project (PowerShell Compatible)
+# Makefile for SAGA 
 
 .PHONY: help lint lint-backend lint-frontend format format-backend format-frontend \
         test test-backend test-frontend test-all \

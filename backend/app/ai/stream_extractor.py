@@ -17,7 +17,6 @@ class _State(Enum):
 
 
 class NarrationExtractor:
-
     def __init__(self) -> None:
         self._buffer = ""
         self._state = _State.DETECTING

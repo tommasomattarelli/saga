@@ -301,9 +301,7 @@ async def process_game_turn_streaming(
             }
             dice_results[roll_request.name] = roll_dict
 
-            yield StreamEvent(
-                type="dice_roll", data={"name": roll_request.name, **roll_dict}
-            )
+            yield StreamEvent(type="dice_roll", data={"name": roll_request.name, **roll_dict})
 
             # Stream the dice re-prompt narration
             re_prompt_msg = DICE_RE_PROMPT_TEMPLATE.format(
@@ -336,9 +334,7 @@ async def process_game_turn_streaming(
                 dice_narration += "\n\n" + re_parsed.narration
             except ContentPolicyError:
                 dice_narration += "\n\n" + "The outcome unfolds..."
-                yield StreamEvent(
-                    type="dice_narration_chunk", data="\n\nThe outcome unfolds..."
-                )
+                yield StreamEvent(type="dice_narration_chunk", data="\n\nThe outcome unfolds...")
 
     full_narration = parsed.narration
     if dice_narration:
@@ -348,7 +344,10 @@ async def process_game_turn_streaming(
     npc_dialogues: list[NPCDialogue] = []
     if parsed.invoke_npcs:
         npc_dialogues = await invoke_npcs_parallel(
-            parsed.invoke_npcs, campaign, player_action, parsed.narration,
+            parsed.invoke_npcs,
+            campaign,
+            player_action,
+            parsed.narration,
         )
         for npc_d in npc_dialogues:
             yield StreamEvent(
@@ -456,7 +455,9 @@ async def process_game_turn_streaming(
                 "action": death_result.action,
                 "death_mode": death_result.death_mode,
                 "destino_lives_remaining": death_result.destino_lives_remaining,
-            } if death_result else None,
+            }
+            if death_result
+            else None,
             "npc_dialogues": [
                 {"npc_name": d.npc_name, "dialogue": d.dialogue, "action": d.action}
                 for d in npc_dialogues

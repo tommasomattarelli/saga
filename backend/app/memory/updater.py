@@ -128,13 +128,15 @@ def _handle_combat_start(state: dict, update: dict, char_data: dict) -> dict:
         dex_score = abilities.get("DEX", abilities.get("dexterity", 10))
         dex_mod = (dex_score - 10) // 2
     player_init = roll_dice("1d20").total + dex_mod
-    initiative_order.append({
-        "name": char_data.get("name", "Player"),
-        "initiative": player_init,
-        "hp": char_data.get("hp", {}).get("current", 10),
-        "max_hp": char_data.get("hp", {}).get("max", 10),
-        "type": "player",
-    })
+    initiative_order.append(
+        {
+            "name": char_data.get("name", "Player"),
+            "initiative": player_init,
+            "hp": char_data.get("hp", {}).get("current", 10),
+            "max_hp": char_data.get("hp", {}).get("max", 10),
+            "type": "player",
+        }
+    )
 
     # Enemy initiatives
     for enemy in enemies_data:
@@ -142,13 +144,15 @@ def _handle_combat_start(state: dict, update: dict, char_data: dict) -> dict:
         enemy_hp = enemy.get("hp", 10) if isinstance(enemy, dict) else 10
         enemy_max = enemy.get("max_hp", enemy_hp) if isinstance(enemy, dict) else enemy_hp
         enemy_init = roll_dice("1d20").total
-        initiative_order.append({
-            "name": enemy_name,
-            "initiative": enemy_init,
-            "hp": enemy_hp,
-            "max_hp": enemy_max,
-            "type": "enemy",
-        })
+        initiative_order.append(
+            {
+                "name": enemy_name,
+                "initiative": enemy_init,
+                "hp": enemy_hp,
+                "max_hp": enemy_max,
+                "type": "enemy",
+            }
+        )
 
     # Sort by initiative descending
     initiative_order.sort(key=lambda c: c["initiative"], reverse=True)
@@ -223,14 +227,21 @@ def apply_typed_updates(
             try:
                 state = handler(state, update, char_data)
             except Exception:
-                logger.warning("typed_update_handler_failed", update_type=update_type, update=update, exc_info=True)
+                logger.warning(
+                    "typed_update_handler_failed",
+                    update_type=update_type,
+                    update=update,
+                    exc_info=True,
+                )
         else:
             # Fallback: treat as generic world_state merge
             target = update.get("target", update.get("key", ""))
             value = update.get("value", update.get("change"))
             if target and value is not None:
                 state = merge_world_state(state, {target: value})
-                logger.debug("typed_update_generic_fallback", update_type=update_type, target=target)
+                logger.debug(
+                    "typed_update_generic_fallback", update_type=update_type, target=target
+                )
 
     return state, char_data
 

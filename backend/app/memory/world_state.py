@@ -116,12 +116,15 @@ def _migrate_v2_to_v3(state: dict) -> dict:
 
 @_register_migration(3)
 def _migrate_v3_to_v4(state: dict) -> dict:
-    state.setdefault("combat_state", {
-        "active": False,
-        "round": 0,
-        "initiative_order": [],
-        "current_turn_index": 0,
-    })
+    state.setdefault(
+        "combat_state",
+        {
+            "active": False,
+            "round": 0,
+            "initiative_order": [],
+            "current_turn_index": 0,
+        },
+    )
     state.setdefault("destino_lives", 3)
     state["meta"]["schema_version"] = 4
     return state

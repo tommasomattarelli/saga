@@ -26,10 +26,16 @@ def test_build_npc_prompt():
         "role": "Innkeeper",
         "location": "The Prancing Pony",
         "goals": ["Make money"],
-        "personality": {"traits": ["grumpy"], "fears": ["Bandits"], "secrets": ["Hides stolen goods"]},
+        "personality": {
+            "traits": ["grumpy"],
+            "fears": ["Bandits"],
+            "secrets": ["Hides stolen goods"],
+        },
         "disposition_toward_player": -50,
     }
-    prompt = build_npc_prompt(data, player_action="I enter the inn", dm_narration="You push open the door.")
+    prompt = build_npc_prompt(
+        data, player_action="I enter the inn", dm_narration="You push open the door."
+    )
     assert "Bob" in prompt
     assert "Innkeeper" in prompt
     assert "The Prancing Pony" in prompt

@@ -1,7 +1,6 @@
 """Tests for the death system — all 3 death modes."""
 
-import pytest
-from app.core.death import DeathCheckResult, check_player_death
+from app.core.death import check_player_death
 
 
 def _char(current: int, max_hp: int = 10) -> dict:

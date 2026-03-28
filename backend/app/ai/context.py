@@ -35,7 +35,9 @@ async def build_context(
     from app.ai.prompts.dm import build_dm_system_prompt
 
     config = get_gameplay_config()
-    window_size = max_history_turns if max_history_turns is not None else config.context_window_turns
+    window_size = (
+        max_history_turns if max_history_turns is not None else config.context_window_turns
+    )
 
     # Load verbatim turns for the Active Window
     result = await db.execute(

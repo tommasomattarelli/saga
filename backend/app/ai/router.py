@@ -113,10 +113,16 @@ def get_gameplay_config() -> GameplayConfig:
     config = _load_config()
     gp = config.get("gameplay", {})
 
-    ctx_turns = int(os.getenv("SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS", gp.get("context_window_turns", 8)))
+    ctx_turns = int(
+        os.getenv("SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS", gp.get("context_window_turns", 8))
+    )
     verbosity = os.getenv("SAGA_GAMEPLAY_NPC_VERBOSITY", gp.get("npc_verbosity", "medium"))
-    compression = os.getenv("SAGA_GAMEPLAY_COMPRESSION_ENABLED", str(gp.get("compression_enabled", True)))
-    fact_ext = os.getenv("SAGA_GAMEPLAY_FACT_EXTRACTION_ENABLED", str(gp.get("fact_extraction_enabled", True)))
+    compression = os.getenv(
+        "SAGA_GAMEPLAY_COMPRESSION_ENABLED", str(gp.get("compression_enabled", True))
+    )
+    fact_ext = os.getenv(
+        "SAGA_GAMEPLAY_FACT_EXTRACTION_ENABLED", str(gp.get("fact_extraction_enabled", True))
+    )
 
     return GameplayConfig(
         context_window_turns=ctx_turns,
