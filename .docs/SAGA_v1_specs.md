@@ -214,22 +214,23 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 ## 7. COMBATTIMENTO
 
 ### 7.1 Combat System
-- [ ] Turn-based con ordine di iniziativa (d20 + DEX modifier)
-- [ ] Player turn: 1 azione + 1 bonus action + movimento
-- [ ] Free-text input accettato ("mi lancio dal lampadario e calcio la guardia")
-- [ ] DM adjudica azioni creative con tiri e modificatori appropriati
-- [ ] Danno calcolato: arma/spell + stat modifier + roll
-- [ ] HP system con soglia 0 HP → death mode rules
+- [x] Turn-based con ordine di iniziativa (d20 + DEX modifier) — calcolato server-side al `combat_start`
+- [x] Free-text input accettato — DM adjudica via narrazione + typed world_updates
+- [x] Danno applicato via `combat_damage` world_update (numero negativo = danno, positivo = cura)
+- [x] HP system con soglia 0 HP → death mode rules (`check_player_death` in `core/death.py`)
+- [ ] Player turn: 1 azione + 1 bonus action + movimento — non enforced meccanicamente (DM gestisce)
 
 ### 7.2 Combat AI per Nemici
-- [ ] Comportamento AI basato sul tipo di creatura (undead → carica, goblin → hit-and-run)
-- [ ] Nemici possono fuggire, arrendersi, chiamare rinforzi, negoziare
-- [ ] Companion agiscono nei propri turni con AI tattica
+- [ ] Comportamento AI basato sul tipo di creatura — delegato al DM via narrazione libera (v1)
+- [ ] Nemici possono fuggire, arrendersi, chiamare rinforzi, negoziare — supportato via narrazione DM
+- [ ] Companion agiscono con AI tattica — narrati dal DM, call separata in v2
 
 ### 7.3 Combat Tracker
-- [ ] Ordine iniziativa visuale
-- [ ] HP bar per tutti i partecipanti
-- [ ] Indicatore di turno corrente
+- [x] Ordine iniziativa visuale — lista verticale con numero iniziativa
+- [x] HP bar per tutti i partecipanti — color-coded (verde/giallo/rosso per soglie 50%/25%)
+- [x] Indicatore di turno corrente — bordo rosso + sfondo evidenziato
+- [x] Morti mostrati a opacità ridotta con strikethrough
+- [x] Round counter nell'intestazione
 
 ---
 
@@ -260,9 +261,9 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 ## 9. MEMORIA & PERSISTENZA — Architettura a 3 Pilastri
 
 ### 9.1 World State Object
-- [x] JSON strutturato con sezioni: meta, player, companions, world, narrative, npcs (schema v3, migration v0→v3)
+- [x] JSON strutturato con sezioni: meta, player, companions, world, narrative, npcs, combat_state, destino_lives (schema v4, migration v0→v4)
 - [x] Aggiornato dopo ogni turno
-- [x] Schema versioning con migration pipeline (v1→v2→v3)
+- [x] Schema versioning con migration pipeline (v1→v2→v3→v4)
 - [ ] Caricamento selettivo basato su rilevanza (Contextual Loading guidato dal Semantic Resolver)
 - [x] **GameClock** nel world state:
   ```
@@ -332,48 +333,48 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 ## 10. DEATH SYSTEM
 
 ### 10.1 Ironman
-- [ ] 0 HP → dying state → death saving throws (3 success = stabilize, 3 fail = morte)
-- [ ] Morte = campagna terminata, DM narra epilogo
-- [ ] Companion morti permanentemente in combattimento
-- [ ] DM non riduce mai danno segretamente, no mercy rolls
+- [x] Morte permanente a 0 HP — `check_player_death()` ritorna `action="dead"`
+- [x] Morte = campagna terminata (`campaign.status = COMPLETED`), DM narra epilogo
+- [x] DM riceve istruzione "no mercy" via `DEATH_MODE_PROMPTS["ironman"]`
+- [ ] Death saving throws (3 turni, nat1/nat20 rules) — semplificato a morte diretta per v1, rinviato a v2
 
 ### 10.2 Destino
-- [ ] Come Ironman, ma 3 fate interventions disponibili
-- [ ] Ogni intervento ha un costo escalante:
-  - 1° (Minor): perdita oggetto / -1 attributo / debito narrativo
-  - 2° (Major): companion si sacrifica / -2 attributo / fazione distrutta
-  - 3° (Severe): due costi Major combinati
-- [ ] Costi permanenti e meccanicamente misurabili
-- [ ] A 0 interventi rimasti → morte permanente (come Ironman)
-- [ ] Conteggio in `world_state.player.destino_lives_remaining`
+- [x] 3 fate interventions disponibili (`destino_lives` top-level nel world_state v4)
+- [x] Costi escalanti per intervento:
+  - 1° (Minor): perdita oggetto / scar / debito
+  - 2° (Major): companion in pericolo / stat reduction / memoria persa
+  - 3° (Severe): companion morto / anima compromessa / mondo cambia irreversibilmente
+- [x] `destino_lives` decrementato nel world state dopo ogni intervento
+- [x] A 0 interventi rimasti → morte permanente (come Ironman)
+- [x] DM riceve `cost_hint` specifico per numero intervento nella `narrative_instruction`
+- [x] Frontend mostra overlay "Fate Intervenes!" viola con cost_hint
 
 ### 10.3 Cronista
-- [ ] Player non può morire: a 0 HP → ridotto a 1 HP
-- [ ] DM narra momento drammatico di quasi-morte
-- [ ] Sconfitta = cattura, ritirata, perdita equipaggiamento — mai morte
-- [ ] Companion non muoiono: a 0 HP → unconscious, recuperano dopo combattimento
-- [ ] Companion possono comunque lasciare il party per loyalty bassa
+- [x] Player non può morire: a 0 HP → `hp.current = 1` (modificato direttamente in `check_player_death`)
+- [x] DM narra momento drammatico di quasi-morte con conseguenze narrative
+- [x] Sconfitta = cattura, ritirata, perdita equipaggiamento — mai morte
+- [x] Frontend mostra overlay "Near Death!" giallo con pulsante Continue
+- [ ] Companion non muoiono: a 0 HP → unconscious — non enforced meccanicamente per v1
 
 ---
 
 ## 11. SAVE SYSTEM
 
 ### 11.1 Auto-Save
-- [ ] Dopo ogni turno, sovrascrive un singolo slot auto-save
+- [ ] Dopo ogni turno, sovrascrive un singolo slot auto-save — trigger post-turno mancante (Phase D)
 - [ ] Trasparente: il player non lo vede/gestisce
-- [ ] Al login, la campagna riprende dall'auto-save
+- [ ] Al login, la campagna riprende dall'auto-save — Phase D
 
 ### 11.2 Manual Save
-- [ ] Player può creare save nominati in qualsiasi momento (fuori dal combattimento)
-- [ ] Save browser con: label, turno, data in-game, scene summary, timestamp
-- [ ] Preview di un save: summary + stats chiave senza caricarlo
-- [ ] Illimitati nel self-hosted
+- [x] Endpoint `POST /api/campaigns/:id/saves` funzionante
+- [x] Blocco durante combattimento attivo (`combat_state.active` check in `saves.py`, HTTP 400)
+- [ ] Save browser nel frontend — Phase D
+- [ ] Preview di un save — Phase D
 
 ### 11.3 Timeline Forking
-- [ ] Caricare un save crea una nuova campagna (fork), non sovrascrive
-- [ ] Campagna originale resta intatta
-- [ ] Fork tracciato via `parent_save_id` nel Campaign model
-- [ ] Entrambe le timeline visibili nella lista campagne, collegate visivamente
+- [x] Endpoint `POST /api/campaigns/:id/saves/:save_id/load` funzionante (crea fork)
+- [x] Fork tracciato via `parent_save_id` nel Campaign model
+- [ ] UI forking nella lista campagne — Phase D
 
 ---
 
@@ -392,7 +393,7 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 - [x] **DiceRoller:** animazione d20 spin, color-coded (rosso fail, verde success, oro crit), suono
 - [x] **CharacterSheet:** attributi, abilità, inventario, quest log, relazioni
 - [ ] **CompanionPanel:** ritratto, personalità, loyalty bar, storia conversazioni, quest personale
-- [ ] **CombatTracker:** ordine iniziativa, HP bar, indicatore turno
+- [x] **CombatTracker:** ordine iniziativa, HP bar color-coded, indicatore turno corrente, round counter, morti con strikethrough (`combat-tracker.tsx`)
 - [ ] **ActionSuggester:** bottoni contestuali basati sulla scena
 - [ ] **JournalView:** log avventura cercabile, organizzato per sessione, con recap
 - [ ] **APIKeyConfig:** pannello gestione chiavi API + test connection
@@ -492,7 +493,8 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 
 ## 17. TESTING
 
-- [ ] Unit test: dice engine, world state, sanitizer, parser, combat, progression, encryption, save
+- [x] Unit test: dice engine, world state (v4), sanitizer, parser, combat handlers, death system — **230 unit tests passing**
+- [ ] Unit test: progression, encryption (Phase D)
 - [ ] Integration test: turn pipeline (con AI mockato), memory, auth, campaign CRUD, export
 - [ ] Playtest bot: gioca autonomamente per regression testing
 - [ ] Consistency checker: verifica integrità world state post-turno

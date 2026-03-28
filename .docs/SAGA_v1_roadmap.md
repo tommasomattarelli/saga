@@ -1,6 +1,6 @@
 # SAGA v1 — Roadmap Dettagliata Next Steps
 
-**Stato attuale:** Alpha narrativa (~25% della v1 completato)
+**Stato attuale:** Alpha giocabile (~45% della v1 completato) — Fase A+B+C complete
 **Obiettivo:** Da chatbot narrativo → gioco RPG completo self-hostabile
 **Timeline stimata:** 10-14 settimane full-time (20-28 part-time)
 
@@ -22,7 +22,7 @@
 - **Turn persistence via WebSocket** — turni salvati nel DB con summary + embedding + auto-save
 - Frontend: Narrative Panel, Character Panel (sidebar), ActionSuggester, JournalView
 - Desktop layout con pannelli
-- Testing framework: unit, integration, playtest bot, frontend (Vitest/RTL/Playwright) — **198 unit tests passing**
+- Testing framework: unit, integration, playtest bot, frontend (Vitest/RTL/Playwright) — **230 unit tests passing**
 - Configurazione modelli via env
 - README.md aggiornato
 - Retry automatico su JSON malformato
@@ -34,6 +34,13 @@
 - **Character creation mode** — DM guida creazione, genera stats via `character_generation`
 - **Scene moods CSS** — 11 mood, CSS custom properties, transizioni 1.5s
 - **Vite proxy WebSocket** — `ws: true` nella proxy config per forward WebSocket upgrade
+- **World State v4** — `combat_state` + `destino_lives`, migration pipeline v0→v4
+- **Typed World Updater v2** — 10 handler (+3 combat: combat_start, combat_damage, combat_end)
+- **Death System** — `core/death.py`, tutti e 3 i modi (Cronista/Destino/Ironman), integrato nel pipeline
+- **Combat System** — DM-driven via typed world_updates, `COMBAT_PROMPT` nel system prompt, WebSocket events
+- **CombatTracker UI** — overlay fisso con HP bar, ordine iniziativa, round counter
+- **Death overlays** — Near Death / Fate Intervenes / You Have Fallen con feedback contestuale
+- **Save guard** — blocco manual save durante combattimento attivo
 
 ### ⚠️ Parziale / Da rifinire in playtest
 - Character creation: implementata ma da rifinire con 10+ sessioni reali
@@ -43,13 +50,17 @@
 ### ❌ Non iniziato
 - Hybrid Search semantico (pgvector + tsvector query) — tabella e indici pronti, query in Phase D
 - Contextual Loading guidato dal Semantic Resolver — resolver pronto, loading selettivo in Phase D
-- Combat Tracker UI
-- Death modes (Ironman / Destino / Cronista)
 - World generation procedurale
 - CI/CD
 - Toggle suono on/off
 - Companion Bar nel frontend
 - Template System avanzato (B4 → Phase D)
+- Auto-save trigger post-turno (endpoint esiste, trigger mancante → Phase D)
+- Save Browser UI nel frontend (Phase D)
+- Timeline forking UI nella lista campagne (Phase D)
+- Death saving throws Ironman (3 turni, nat1/nat20 rules → v2)
+- Enemy AI comportamenti distinti (carica/hit-and-run/ranged → delegato al DM per v1)
+- Fix UX Phase B playtest (5 bug → Phase D, vedi `memory/project_playtest_bugs.md`)
 
 ---
 
@@ -811,12 +822,12 @@ Il DM deve sempre sapere il death mode attivo. Le regole cambiano il suo comport
 - Cronista: "Focus on narrative consequences. Combat is challenging but defeat means setback, not termination."
 
 **Criteri di completamento C1:**
-- [ ] Selezione death mode funzionante
-- [ ] Ironman: death saving throws + game over funzionante
-- [ ] Destino: fate intervention con costi escalanti funzionante
-- [ ] Cronista: near-death narrative + no actual death funzionante
-- [ ] DM si comporta diversamente in base al death mode
-- [ ] Test: morire in ogni modalità e verificare il comportamento
+- [x] Selezione death mode funzionante (dropdown nella create campaign form, già presente da Fase B)
+- [x] Ironman: morte permanente a 0 HP, DM narra epilogo, campaign status → COMPLETED (death saving throws → v2)
+- [x] Destino: fate intervention con costi escalanti (Minor/Major/Severe), contatore `destino_lives` decrementato
+- [x] Cronista: near-death narrative + HP reset a 1, no morte effettiva
+- [x] DM si comporta diversamente in base al death mode (`DEATH_MODE_PROMPTS` + `COMBAT_PROMPT` iniettati)
+- [x] Test: 16 unit test in `test_death_system.py`, tutti i modi coperti
 
 ---
 
@@ -868,13 +879,11 @@ Nella lista campagne, mostrare:
 - Icona o linea che collega fork al punto di branch
 
 **Criteri di completamento C2:**
-- [ ] Auto-save dopo ogni turno
-- [ ] Resume da auto-save al login
-- [ ] Manual save con label e preview
-- [ ] Timeline forking funzionante
-- [ ] Save browser nel frontend
-- [ ] Fork visibili nella lista campagne
-- [ ] Test: creare 3 fork dalla stessa campagna
+- [ ] Auto-save dopo ogni turno — trigger non implementato (Phase D)
+- [ ] Resume da auto-save al login — Phase D
+- [x] Manual save bloccato durante il combattimento (guard in `saves.py`)
+- [ ] Save browser nel frontend — Phase D
+- [ ] Timeline forking UI — Phase D (endpoint `POST /saves/:id/load` già esistente)
 
 ---
 
@@ -944,14 +953,14 @@ Quando tutti i nemici sono a 0 HP (o fuggiti/arresi):
 - Il DM narra il aftermath (loot, conseguenze, companion reazioni)
 
 **Criteri di completamento C3:**
-- [ ] Iniziativa funzionante per player + nemici + companion
-- [ ] Combat state nel world state
-- [ ] Player combat turn con dadi e narrazione
-- [ ] Enemy AI: almeno 3 comportamenti diversi (carica, hit-and-run, ranged)
-- [ ] Companion agisce autonomamente in combattimento
-- [ ] Combat tracker nel frontend
-- [ ] Fine combattimento con aftermath narrato
-- [ ] Test: combattimento 3v3 funzionante end-to-end
+- [x] Iniziativa funzionante per player + nemici (d20 + DEX modifier), ordine decrescente
+- [x] Combat state nel world state v4 (`combat_state` con active/round/initiative_order/current_turn_index)
+- [x] Player combat turn: DM riceve combat state, usa `combat_damage` world_update per i danni
+- [ ] Enemy AI comportamenti distinti — delegato al DM via narrazione libera per v1
+- [ ] Companion agisce autonomamente — turno companion narrato dal DM, non call LLM separata
+- [x] Combat Tracker nel frontend (`combat-tracker.tsx`, overlay fisso, HP bar color-coded)
+- [x] Fine combattimento: DM emette `combat_end` world_update, tracker scompare
+- [x] Test: 17 unit test in `test_combat_handlers.py`, tutti i handler coperti
 
 ---
 
