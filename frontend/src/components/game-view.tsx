@@ -141,8 +141,37 @@ export default function GameView() {
     );
   }
 
+  const deathOverlayMessage = deathEvent
+    ? deathEvent.mode === "cronista"
+      ? { title: "Near Death!", sub: "You survive by a thread — your story is not over yet.", color: "text-yellow-400" }
+      : deathEvent.mode === "destino"
+        ? { title: "Fate Intervenes!", sub: deathEvent.cost_hint || "Destiny has a price.", color: "text-purple-400" }
+        : { title: "You Have Fallen", sub: "Your journey ends here.", color: "text-red-500" }
+    : null;
+
   return (
     <div className="flex h-screen" data-mood={currentMood}>
+      {combatState?.active && <CombatTracker combatState={combatState} />}
+
+      {deathEvent && deathOverlayMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+          <div className="max-w-md rounded-lg border border-parchment-700/30 bg-parchment-900 p-8 text-center shadow-2xl">
+            <h2 className={`mb-3 font-display text-4xl font-bold ${deathOverlayMessage.color}`}>
+              {deathOverlayMessage.title}
+            </h2>
+            <p className="mb-6 text-parchment-300">{deathOverlayMessage.sub}</p>
+            {deathEvent.mode !== "ironman" && (
+              <button
+                onClick={() => setStreaming({ deathEvent: null })}
+                className="rounded bg-gold-600 px-6 py-2 text-sm font-semibold text-parchment-900 hover:bg-gold-500"
+              >
+                Continue
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="mood-container flex flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-parchment-700/20 bg-parchment-900/90 px-4 py-2">
           <div>

@@ -104,20 +104,22 @@ class TestMigrationV1ToV2:
             "locations": {},
         }
         migrated = migrate_world_state(v1_state)
-        assert migrated["meta"]["schema_version"] == 3
+        assert migrated["meta"]["schema_version"] == 4
         assert "clock" in migrated
         assert migrated["clock"]["total_minutes"] == 480
 
-    def test_v0_to_v3_full_migration(self):
+    def test_v0_to_v4_full_migration(self):
         v0_state = {"locations": {"town": "visited"}}
         migrated = migrate_world_state(v0_state)
-        assert migrated["meta"]["schema_version"] == 3
+        assert migrated["meta"]["schema_version"] == 4
         assert "clock" in migrated
         assert "npcs" in migrated
         assert "companions" in migrated
         assert "narrative" in migrated
+        assert "combat_state" in migrated
+        assert "destino_lives" in migrated
 
-    def test_v3_not_modified(self):
+    def test_v3_migrates_to_v4(self):
         v3_state = {
             "meta": {"schema_version": 3, "world_name": "Test"},
             "clock": {"total_minutes": 1000},
@@ -127,3 +129,4 @@ class TestMigrationV1ToV2:
         }
         migrated = migrate_world_state(v3_state)
         assert migrated["clock"]["total_minutes"] == 1000
+        assert migrated["meta"]["schema_version"] == 4

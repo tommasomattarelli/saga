@@ -5,19 +5,22 @@ from app.memory.world_state import (
 )
 
 
-def test_migrate_v0_to_v2():
+def test_migrate_v0_to_latest():
     v0_state = {"locations": {"town": "visited"}}
     migrated = migrate_world_state(v0_state)
 
     assert "meta" in migrated
-    assert migrated["meta"]["schema_version"] == 3
+    assert migrated["meta"]["schema_version"] == 4
     assert migrated["meta"]["world_name"] == "Unknown Land"
     assert migrated["meta"]["current_season"] == "spring"
     assert migrated["locations"]["town"] == "visited"
     assert "clock" in migrated
+    assert "combat_state" in migrated
+    assert migrated["combat_state"]["active"] is False
+    assert "destino_lives" in migrated
 
 
-def test_migrate_up_to_date():
+def test_migrate_v3_to_v4():
     v3_state = {
         "meta": {"schema_version": 3, "world_name": "Test"},
         "locations": {"town": "visited"},
@@ -27,9 +30,28 @@ def test_migrate_up_to_date():
         "narrative": {"event_log": []},
     }
     migrated = migrate_world_state(v3_state)
-    assert migrated["meta"]["schema_version"] == 3
+    assert migrated["meta"]["schema_version"] == 4
     assert migrated["locations"]["town"] == "visited"
+    assert migrated["combat_state"]["active"] is False
+    assert migrated["destino_lives"] == 3
     assert migrated is not v3_state
+
+
+def test_migrate_up_to_date():
+    v4_state = {
+        "meta": {"schema_version": 4, "world_name": "Test"},
+        "locations": {"town": "visited"},
+        "clock": {"total_minutes": 480},
+        "npcs": {},
+        "companions": {},
+        "narrative": {"event_log": []},
+        "combat_state": {"active": False, "round": 0, "initiative_order": [], "current_turn_index": 0},
+        "destino_lives": 3,
+    }
+    migrated = migrate_world_state(v4_state)
+    assert migrated["meta"]["schema_version"] == 4
+    assert migrated["locations"]["town"] == "visited"
+    assert migrated is not v4_state
 
 
 def test_validate_world_state():
