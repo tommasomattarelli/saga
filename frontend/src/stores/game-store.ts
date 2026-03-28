@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Campaign, TurnResponse, WorldState, CharacterData, DiceRollResult } from "../types";
+import type { Campaign, TurnResponse, WorldState, CharacterData, DiceRollResult, CombatState, DeathEvent } from "../types";
 
 const ALLOWED_WORLD_STATE_KEYS = new Set([
   "meta",
@@ -11,6 +11,8 @@ const ALLOWED_WORLD_STATE_KEYS = new Set([
   "weather",
   "global_flags",
   "clock",
+  "combat_state",
+  "destino_lives",
 ]);
 
 const __DEV__ =
@@ -23,6 +25,8 @@ interface StreamingState {
   pendingDice: Record<string, DiceRollResult> | null;
   diceRevealed: boolean;
   currentMood: string;
+  combatState: CombatState | null;
+  deathEvent: DeathEvent | null;
 }
 
 interface GameState {
@@ -49,6 +53,8 @@ const initialStreaming: StreamingState = {
   pendingDice: null,
   diceRevealed: false,
   currentMood: "neutral",
+  combatState: null,
+  deathEvent: null,
 };
 
 export const useGameStore = create<GameState>()((set) => ({

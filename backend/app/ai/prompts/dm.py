@@ -106,6 +106,24 @@ DEATH_MODE_PROMPTS = {
 }
 
 
+COMBAT_PROMPT = """
+## Combat Rules
+When combat begins, include a typed world_update to signal the start:
+  {"key": "combat_start", "target": "combat", "change": {"enemies": [{"name": "Goblin Scout", "hp": 15, "max_hp": 15}, {"name": "Goblin Warrior", "hp": 22, "max_hp": 22}]}}
+
+During combat:
+- Each player action represents one combat round.
+- Use dice_required for attack rolls, ability checks, and saving throws.
+- Track damage via typed world_updates: {"key": "combat_damage", "target": "Goblin Scout", "change": -8}
+- Track player damage too: {"key": "combat_damage", "target": "PlayerName", "change": -5}
+- When all enemies are defeated, flee, or surrender: {"key": "combat_end", "target": "combat", "change": "victory"}
+- Set scene_mood to "combat_fury" during combat.
+- Always provide suggested_actions with combat-relevant options (attack, defend, cast spell, flee, etc).
+
+When combat ends, narrate the aftermath: loot found, companion reactions, consequences of the fight.
+Enemies can flee, surrender, call reinforcements, or negotiate — combat doesn't always end in total annihilation."""
+
+
 def is_creation_mode(campaign: Campaign) -> bool:
     return not campaign.character_data or not campaign.character_data.get("name")
 
@@ -114,6 +132,7 @@ def build_dm_system_prompt(campaign: Campaign, summary_context: str = "") -> str
     parts = [BASE_DM_PROMPT]
 
     parts.append(DEATH_MODE_PROMPTS.get(campaign.death_mode, ""))
+    parts.append(COMBAT_PROMPT)
 
     if is_creation_mode(campaign):
         parts.append(CREATION_MODE_PROMPT)

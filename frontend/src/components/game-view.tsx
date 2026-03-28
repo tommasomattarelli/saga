@@ -9,7 +9,8 @@ import NarrativeStream from "./narrative/narrative-stream";
 import ActionInput from "./input/action-input";
 import CharacterSheet from "./character/character-sheet";
 import CompanionBar from "./companion/companion-bar";
-import type { DiceRollResult } from "../types";
+import CombatTracker from "./combat/combat-tracker";
+import type { CombatState, DeathEvent, DiceRollResult } from "../types";
 
 export default function GameView() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -24,6 +25,8 @@ export default function GameView() {
   const sidePanel = useUIStore((s) => s.sidePanel);
   const toggleSidePanel = useUIStore((s) => s.toggleSidePanel);
   const currentMood = useGameStore((s) => s.streaming.currentMood);
+  const combatState = useGameStore((s) => s.streaming.combatState);
+  const deathEvent = useGameStore((s) => s.streaming.deathEvent);
 
   const wsRef = useRef<GameWebSocket | null>(null);
 
@@ -75,6 +78,18 @@ export default function GameView() {
 
     ws.on("scene_mood", (data) => {
       setStreaming({ currentMood: (data.mood as string) || "neutral" });
+    });
+
+    ws.on("combat:start", (data) => {
+      setStreaming({ combatState: data as unknown as CombatState });
+    });
+
+    ws.on("combat:end", () => {
+      setStreaming({ combatState: null });
+    });
+
+    ws.on("death:event", (data) => {
+      setStreaming({ deathEvent: data as unknown as DeathEvent });
     });
 
     ws.on("turn_complete", (data) => {

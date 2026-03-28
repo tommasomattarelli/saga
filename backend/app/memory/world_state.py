@@ -65,11 +65,13 @@ ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
         "global_flags",
         "clock",
         "narrative",
+        "combat_state",
+        "destino_lives",
     }
 )
 
 
-CURRENT_SCHEMA_VERSION: int = 3
+CURRENT_SCHEMA_VERSION: int = 4
 
 _MIGRATIONS: dict[int, Callable[[dict], dict]] = {}
 
@@ -109,6 +111,19 @@ def _migrate_v2_to_v3(state: dict) -> dict:
     state.setdefault("companions", {})
     state.setdefault("narrative", {"event_log": []})
     state["meta"]["schema_version"] = 3
+    return state
+
+
+@_register_migration(3)
+def _migrate_v3_to_v4(state: dict) -> dict:
+    state.setdefault("combat_state", {
+        "active": False,
+        "round": 0,
+        "initiative_order": [],
+        "current_turn_index": 0,
+    })
+    state.setdefault("destino_lives", 3)
+    state["meta"]["schema_version"] = 4
     return state
 
 

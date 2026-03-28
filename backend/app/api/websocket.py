@@ -104,10 +104,19 @@ async def game_ws(
                         elif event.type == "npc_dialogue":
                             npc_data = event.data if isinstance(event.data, dict) else {}
                             await websocket.send_json({"type": "npc:dialogue", **npc_data})
-                            # Collect for fact extraction
                             npc_name = npc_data.get("npc_name", "NPC")
                             dialogue = npc_data.get("dialogue", "")
                             npc_dialogues_for_facts.append(f"{npc_name}: {dialogue}")
+                        elif event.type == "combat_start":
+                            await websocket.send_json(
+                                {"type": "combat:start", **(event.data if isinstance(event.data, dict) else {})}
+                            )
+                        elif event.type == "combat_end":
+                            await websocket.send_json({"type": "combat:end"})
+                        elif event.type == "death_event":
+                            await websocket.send_json(
+                                {"type": "death:event", **(event.data if isinstance(event.data, dict) else {})}
+                            )
                         elif event.type == "turn_result":
                             turn_result = event.data
                         elif event.type == "error":

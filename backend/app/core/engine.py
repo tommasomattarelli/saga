@@ -14,10 +14,11 @@ from app.ai.parser import parse_dm_response
 from app.ai.router import AICallType, route_ai_call
 from app.ai.semantic_resolver import resolve_player_action
 from app.ai.stream_extractor import NarrationExtractor
+from app.core.death import check_player_death
 from app.core.dice import ability_check
 from app.memory.updater import apply_typed_updates
 from app.memory.world_state import advance_game_clock, apply_world_updates, migrate_world_state
-from app.models.campaign import Campaign
+from app.models.campaign import Campaign, CampaignStatus
 
 logger = structlog.get_logger()
 
@@ -175,7 +176,7 @@ async def process_game_turn(
         await apply_world_updates(campaign, parsed.world_updates, db)
 
     # Determine if the player needs to act
-    in_combat = campaign.world_state.get("in_combat", False)
+    in_combat = (campaign.world_state or {}).get("combat_state", {}).get("active", False)
     requires_player_action = bool(in_combat or parsed.dice_required)
 
     return ProcessedTurn(
@@ -204,6 +205,9 @@ class StreamEvent:
         "dice_narration_chunk",
         "scene_mood",
         "npc_dialogue",
+        "combat_start",
+        "combat_end",
+        "death_event",
         "turn_result",
         "error",
     ]
@@ -395,7 +399,40 @@ async def process_game_turn_streaming(
             campaign.character_data = new_char
             await db.flush()
 
-    in_combat = campaign.world_state.get("in_combat", False)
+    # Combat state events
+    combat_state = (campaign.world_state or {}).get("combat_state", {})
+    if combat_state.get("active"):
+        yield StreamEvent(type="combat_start", data=combat_state)
+
+    # Death check — runs after all world updates (including combat_damage)
+    death_result = None
+    char_data = campaign.character_data or {}
+    if char_data.get("hp", {}).get("current", 1) <= 0:
+        death_result = check_player_death(
+            char_data, campaign.death_mode, campaign.world_state or {}
+        )
+        campaign.character_data = char_data  # cronista may have reset HP
+        if death_result.destino_lives_remaining is not None:
+            campaign.world_state["destino_lives"] = death_result.destino_lives_remaining
+        if death_result.is_dead:
+            campaign.status = CampaignStatus.COMPLETED
+        await db.flush()
+        yield StreamEvent(
+            type="death_event",
+            data={
+                "is_dead": death_result.is_dead,
+                "action": death_result.action,
+                "death_mode": death_result.death_mode,
+                "narrative_instruction": death_result.narrative_instruction,
+                "destino_lives_remaining": death_result.destino_lives_remaining,
+            },
+        )
+
+    if not combat_state.get("active") and combat_state.get("round", 0) == 0:
+        # Combat just ended (was active before, now reset)
+        pass  # combat_end is implicit in the updated combat_state
+
+    in_combat = combat_state.get("active", False)
     requires_player_action = bool(in_combat or parsed.dice_required)
 
     yield StreamEvent(
@@ -413,6 +450,13 @@ async def process_game_turn_streaming(
             "time_passed_minutes": parsed.time_passed_minutes,
             "ambient_detail": parsed.ambient_detail,
             "requires_player_action": requires_player_action,
+            "combat_state": combat_state if combat_state.get("active") else None,
+            "death_event": {
+                "is_dead": death_result.is_dead,
+                "action": death_result.action,
+                "death_mode": death_result.death_mode,
+                "destino_lives_remaining": death_result.destino_lives_remaining,
+            } if death_result else None,
             "npc_dialogues": [
                 {"npc_name": d.npc_name, "dialogue": d.dialogue, "action": d.action}
                 for d in npc_dialogues

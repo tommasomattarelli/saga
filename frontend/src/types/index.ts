@@ -68,6 +68,29 @@ export interface Quest {
   objectives: string[];
 }
 
+export interface CombatState {
+  active: boolean;
+  round: number;
+  initiative_order: CombatantInfo[];
+  current_turn_index: number;
+}
+
+export interface CombatantInfo {
+  name: string;
+  initiative: number;
+  hp: number;
+  max_hp: number;
+  type: "player" | "companion" | "enemy";
+}
+
+export interface DeathEvent {
+  is_dead: boolean;
+  action: "alive" | "near_death" | "fate_intervention" | "dead";
+  death_mode: DeathMode;
+  narrative_instruction: string;
+  destino_lives_remaining: number | null;
+}
+
 export interface WorldState {
   meta?: { schema_version: number; world_name: string; current_season: string };
   clock?: {
@@ -77,12 +100,13 @@ export interface WorldState {
     current_season: string;
     time_of_day: string;
   };
+  combat_state?: CombatState;
+  destino_lives?: number;
   time_of_day?: string;
   weather?: string;
   location?: string;
   companions?: Record<string, CompanionData>;
   factions?: Record<string, FactionData>;
-  in_combat?: boolean;
   [key: string]: unknown;
 }
 

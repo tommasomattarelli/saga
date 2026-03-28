@@ -111,6 +111,97 @@ def _handle_event_log(state: dict, update: dict, char_data: dict) -> dict:
     return state
 
 
+@_register_handler("combat_start")
+def _handle_combat_start(state: dict, update: dict, char_data: dict) -> dict:
+    """Initialize combat state when the DM signals combat begins."""
+    from app.core.dice import roll_dice
+
+    change = update.get("change", {})
+    enemies_data = change.get("enemies", []) if isinstance(change, dict) else []
+
+    initiative_order: list[dict] = []
+
+    # Player initiative
+    dex_mod = 0
+    abilities = char_data.get("abilities", {})
+    if "DEX" in abilities or "dexterity" in abilities:
+        dex_score = abilities.get("DEX", abilities.get("dexterity", 10))
+        dex_mod = (dex_score - 10) // 2
+    player_init = roll_dice("1d20").total + dex_mod
+    initiative_order.append({
+        "name": char_data.get("name", "Player"),
+        "initiative": player_init,
+        "hp": char_data.get("hp", {}).get("current", 10),
+        "max_hp": char_data.get("hp", {}).get("max", 10),
+        "type": "player",
+    })
+
+    # Enemy initiatives
+    for enemy in enemies_data:
+        enemy_name = enemy.get("name", "Enemy") if isinstance(enemy, dict) else str(enemy)
+        enemy_hp = enemy.get("hp", 10) if isinstance(enemy, dict) else 10
+        enemy_max = enemy.get("max_hp", enemy_hp) if isinstance(enemy, dict) else enemy_hp
+        enemy_init = roll_dice("1d20").total
+        initiative_order.append({
+            "name": enemy_name,
+            "initiative": enemy_init,
+            "hp": enemy_hp,
+            "max_hp": enemy_max,
+            "type": "enemy",
+        })
+
+    # Sort by initiative descending
+    initiative_order.sort(key=lambda c: c["initiative"], reverse=True)
+
+    state["combat_state"] = {
+        "active": True,
+        "round": 1,
+        "initiative_order": initiative_order,
+        "current_turn_index": 0,
+    }
+    return state
+
+
+@_register_handler("combat_end")
+def _handle_combat_end(state: dict, update: dict, char_data: dict) -> dict:
+    """Reset combat state when combat ends."""
+    state["combat_state"] = {
+        "active": False,
+        "round": 0,
+        "initiative_order": [],
+        "current_turn_index": 0,
+    }
+    return state
+
+
+@_register_handler("combat_damage")
+def _handle_combat_damage(state: dict, update: dict, char_data: dict) -> dict:
+    """Apply damage to a combatant. Negative change = damage, positive = healing."""
+    target = update.get("target", "")
+    change = int(update.get("change", 0))
+
+    combat = state.get("combat_state", {})
+    initiative_order = combat.get("initiative_order", [])
+
+    for combatant in initiative_order:
+        if combatant["name"].lower() == target.lower():
+            if combatant["type"] == "player":
+                # Update character_data HP (source of truth for player)
+                hp = char_data.get("hp", {})
+                current = hp.get("current", hp.get("max", 10))
+                max_hp = hp.get("max", 10)
+                hp["current"] = max(0, min(max_hp, current + change))
+                char_data["hp"] = hp
+                # Sync to combat tracker
+                combatant["hp"] = hp["current"]
+            else:
+                # Update enemy/companion HP in combat state
+                combatant["hp"] = max(0, combatant["hp"] + change)
+            break
+
+    return state
+
+
 def apply_typed_updates(
     world_state: dict,
     character_data: dict,
