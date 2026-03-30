@@ -1,6 +1,6 @@
 # Makefile for SAGA 
 
-.PHONY: help lint lint-backend lint-frontend format format-backend format-frontend \
+.PHONY: help lint lint-backend lint-frontend knip format format-backend format-frontend \
         test test-backend test-frontend test-all \
         test-infra-up test-infra-down check clean
 
@@ -11,6 +11,7 @@ SHELL := powershell.exe
 help:
 	@echo "Saga Project Management Commands:"
 	@echo "  make lint          Check code style and quality"
+	@echo "  make knip          Find unused code/deps in frontend"
 	@echo "  make format        Auto-fix code style issues"
 	@echo "  make test          Run unit tests"
 	@echo "  make test-all      Run all tests (Unit + Integration + Playtest)"
@@ -27,6 +28,10 @@ lint-backend:
 lint-frontend:
 	@echo "Linting frontend..."
 	cd frontend; npm run lint
+
+knip:
+	@echo "Checking for unused code and dependencies (frontend)..."
+	cd frontend; npm run knip
 
 format: format-backend format-frontend
 
