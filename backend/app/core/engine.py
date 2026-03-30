@@ -94,6 +94,13 @@ async def process_game_turn(
             requires_player_action=True,
         )
 
+    logger.info(
+        "ai_raw_response",
+        campaign_id=str(campaign.id),
+        turn_number=campaign.turn_number,
+        raw_length=len(raw_response),
+        raw_preview=raw_response[:500],
+    )
     parsed = parse_dm_response(raw_response)
 
     # Handle character creation
@@ -258,6 +265,13 @@ async def process_game_turn_streaming(
         yield StreamEvent(type="error", data=CONTENT_POLICY_NARRATION)
         return
 
+    logger.info(
+        "ai_raw_response",
+        campaign_id=str(campaign.id),
+        turn_number=campaign.turn_number,
+        raw_length=len(raw_response),
+        raw_preview=raw_response[:500],
+    )
     parsed = parse_dm_response(raw_response)
 
     # Handle character creation
@@ -384,19 +398,21 @@ async def process_game_turn_streaming(
     campaign.world_state = updated_state
     await db.flush()
 
-    # Apply world updates (typed handler with generic fallback)
+    # Apply world updates (typed array first, legacy dict fallback)
     if parsed.world_updates:
-        if isinstance(parsed.world_updates, dict):
-            # Legacy format: generic merge
-            await apply_world_updates(campaign, parsed.world_updates, db)
-        elif isinstance(parsed.world_updates, list):
-            # New format: typed updates
+        if isinstance(parsed.world_updates, list):
+            # Typed updates array (primary format)
+            logger.info("world_updates_applying", format="list", count=len(parsed.world_updates))
             new_state, new_char = apply_typed_updates(
                 campaign.world_state or {}, campaign.character_data or {}, parsed.world_updates
             )
             campaign.world_state = new_state
             campaign.character_data = new_char
             await db.flush()
+        elif isinstance(parsed.world_updates, dict):
+            # Legacy dict format: generic merge
+            logger.info("world_updates_applying", format="dict_legacy")
+            await apply_world_updates(campaign, parsed.world_updates, db)
 
     # Combat state events
     combat_state = (campaign.world_state or {}).get("combat_state", {})

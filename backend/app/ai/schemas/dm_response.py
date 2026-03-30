@@ -47,7 +47,7 @@ class DMResponse(BaseModel):
     # dialogue 1-5, exploration 10-30, travel 30-480, rest 60-480
     time_passed_minutes: int = 5
     companion_actions: dict[str, str] | None = None
-    world_updates: dict | None = None
+    world_updates: list[dict] | dict | None = None
     suggested_actions: list[str] | None = None
     ambient_detail: str | None = None
     scene_image_prompt: str | None = None
