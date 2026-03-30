@@ -174,6 +174,7 @@ Utile per debugging: filtrare solo i turni con `parsed_ok=false` e vedere cosa h
 - [ ] Location + stagione nell'header
 - [ ] WebSocket race condition fix
 - [ ] Prompt injection hardening + DM non parla per il player
+- [ ] refactor di engin.py, troppo longo. vedere se altro codice supera 300 350 righe
 
 ---
 

@@ -128,11 +128,16 @@ async def game_ws(
                             turn_result = event.data
                         elif event.type == "error":
                             await websocket.send_json({"type": "error", "message": event.data})
+                except WebSocketDisconnect:
+                    raise
                 except Exception as exc:
                     log.exception("turn_processing_error", error=str(exc))
-                    await websocket.send_json(
-                        {"type": "error", "message": "Turn processing failed"}
-                    )
+                    try:
+                        await websocket.send_json(
+                            {"type": "error", "message": "Turn processing failed"}
+                        )
+                    except Exception:
+                        pass
                     campaign.turn_number -= 1
                     continue
 
