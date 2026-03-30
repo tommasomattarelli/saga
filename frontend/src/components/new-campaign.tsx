@@ -8,31 +8,80 @@ import type { Campaign } from "../types";
 const DEATH_MODES = [
   {
     value: "cronista",
-    label: "📜 Cronista",
+    label: "Cronista",
     desc: "No permadeath. The story always continues.",
   },
   {
     value: "destino",
-    label: "⚔️ Destino",
+    label: "Destino",
     desc: "Death matters. Revive once per campaign.",
   },
   {
     value: "ironman",
-    label: "💀 Ironman",
+    label: "Ironman",
     desc: "Permadeath. One life, one story.",
   },
 ];
+
+const CLASS_PRESETS: Record<
+  string,
+  { label: string; abilities: Record<string, number>; baseHp: number; desc: string }
+> = {
+  warrior: {
+    label: "Warrior",
+    abilities: { strength: 16, constitution: 14, dexterity: 12, wisdom: 10, intelligence: 8, charisma: 10 },
+    baseHp: 22,
+    desc: "High STR & CON. Born for the front line.",
+  },
+  rogue: {
+    label: "Rogue",
+    abilities: { dexterity: 16, charisma: 14, intelligence: 12, constitution: 10, strength: 10, wisdom: 8 },
+    baseHp: 20,
+    desc: "High DEX & CHA. Stealth, deception, precision.",
+  },
+  mage: {
+    label: "Mage",
+    abilities: { intelligence: 16, wisdom: 14, charisma: 12, dexterity: 10, constitution: 8, strength: 10 },
+    baseHp: 19,
+    desc: "High INT & WIS. Arcane knowledge and power.",
+  },
+  ranger: {
+    label: "Ranger",
+    abilities: { dexterity: 16, wisdom: 14, constitution: 12, strength: 10, intelligence: 10, charisma: 8 },
+    baseHp: 21,
+    desc: "High DEX & WIS. Master of the wilds.",
+  },
+  cleric: {
+    label: "Cleric",
+    abilities: { wisdom: 16, constitution: 14, charisma: 12, strength: 10, dexterity: 10, intelligence: 8 },
+    baseHp: 22,
+    desc: "High WIS & CON. Divine healer and protector.",
+  },
+  bard: {
+    label: "Bard",
+    abilities: { charisma: 16, dexterity: 14, intelligence: 12, wisdom: 10, constitution: 10, strength: 8 },
+    baseHp: 20,
+    desc: "High CHA & DEX. Words are your weapon.",
+  },
+};
+
+function abilityMod(score: number): string {
+  const mod = Math.floor((score - 10) / 2);
+  return mod >= 0 ? `+${mod}` : `${mod}`;
+}
 
 export default function NewCampaign() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateOption | null>(null);
   const [form, setForm] = useState({
     campaignName: "",
     heroName: "",
     deathMode: "cronista",
+    archetype: "warrior",
+    background: "",
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -42,13 +91,32 @@ export default function NewCampaign() {
     queryFn: () => getTemplates().then((r) => r.data),
   });
 
+  const buildCharacterData = () => {
+    const preset = CLASS_PRESETS[form.archetype];
+    const maxHp = preset.baseHp;
+    return {
+      name: form.heroName || "The Stranger",
+      level: 1,
+      xp: 0,
+      hp: { current: maxHp, max: maxHp },
+      ac: 10,
+      abilities: { ...preset.abilities },
+      skills: {},
+      inventory: [],
+      gold: 10,
+      background: form.background || "adventurer",
+      archetype: form.archetype,
+      notes: "",
+    };
+  };
+
   const mutation = useMutation<Campaign, Error, void>({
     mutationFn: () =>
       createCampaign({
         template_id: selectedTemplate!.id,
-        name: form.campaignName || `${form.heroName}'s Adventure`,
+        name: form.campaignName || `${form.heroName || "The Stranger"}'s Adventure`,
         death_mode: form.deathMode,
-        character_data: form.heroName ? { name: form.heroName } : undefined,
+        character_data: buildCharacterData(),
       }).then((r) => r.data),
     onSuccess: (campaign) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
@@ -66,6 +134,8 @@ export default function NewCampaign() {
     return "Hardcore";
   };
 
+  const selectedPreset = CLASS_PRESETS[form.archetype];
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
       <div className="mb-8 flex items-center gap-4">
@@ -73,13 +143,13 @@ export default function NewCampaign() {
           onClick={() => navigate("/campaigns")}
           className="text-parchment-400 hover:text-parchment-200 text-sm"
         >
-          ← Back
+          &larr; Back
         </button>
         <h1 className="font-display text-3xl font-bold text-gold-400">New Saga</h1>
       </div>
 
       <div className="mb-8 flex gap-2">
-        {[1, 2].map((s) => (
+        {[1, 2, 3].map((s) => (
           <div
             key={s}
             className={`h-1.5 flex-1 rounded-full transition-colors ${
@@ -89,6 +159,7 @@ export default function NewCampaign() {
         ))}
       </div>
 
+      {/* Step 1: Template */}
       {step === 1 && (
         <div>
           <h2 className="mb-1 font-display text-xl text-parchment-200">Choose your world</h2>
@@ -126,7 +197,7 @@ export default function NewCampaign() {
                     <p className="mt-1 text-sm text-parchment-400">{t.description}</p>
                   </div>
                   <span className="shrink-0 text-xs text-parchment-500 mt-1">
-                    {difficultyLabel(t.difficulty)} · by {t.author}
+                    {difficultyLabel(t.difficulty)} &middot; by {t.author}
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
@@ -145,9 +216,10 @@ export default function NewCampaign() {
         </div>
       )}
 
+      {/* Step 2: Hero name + death mode */}
       {step === 2 && selectedTemplate && (
         <div>
-          <h2 className="mb-1 font-display text-xl text-parchment-200">Create your hero</h2>
+          <h2 className="mb-1 font-display text-xl text-parchment-200">Name your hero</h2>
           <p className="mb-6 text-sm text-parchment-500">
             Playing <span className="text-gold-400">{selectedTemplate.name}</span>
           </p>
@@ -198,6 +270,103 @@ export default function NewCampaign() {
               </div>
             </div>
 
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setStep(1)}
+                className="rounded-lg border border-parchment-700/30 px-4 py-2.5 text-sm text-parchment-400 hover:bg-parchment-800/40"
+              >
+                Back
+              </button>
+              <button
+                onClick={() => setStep(3)}
+                className="flex-1 rounded-lg border border-gold-500/30 bg-gold-900/20 py-2.5 text-sm font-medium text-gold-400 transition hover:bg-gold-900/40"
+              >
+                Next: Create Character &rarr;
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Character creation */}
+      {step === 3 && (
+        <div>
+          <h2 className="mb-1 font-display text-xl text-parchment-200">Create your character</h2>
+          <p className="mb-6 text-sm text-parchment-500">
+            Choose a class and see your stats. You can always change later in-game.
+          </p>
+
+          <div className="space-y-5">
+            {/* Class selection */}
+            <div>
+              <label className="mb-2 block text-sm text-parchment-300">Class</label>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(CLASS_PRESETS).map(([key, preset]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setForm({ ...form, archetype: key })}
+                    className={`rounded-lg border px-3 py-2.5 text-left transition-all ${
+                      form.archetype === key
+                        ? "border-gold-500 bg-parchment-800/60"
+                        : "border-parchment-700/30 bg-parchment-900/60 hover:border-gold-500/30"
+                    }`}
+                  >
+                    <span className="text-sm font-medium text-parchment-200">{preset.label}</span>
+                    <p className="text-xs text-parchment-500 mt-0.5">{preset.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Background */}
+            <div>
+              <label className="mb-1.5 block text-sm text-parchment-300">
+                Background <span className="text-parchment-600">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={form.background}
+                onChange={(e) => setForm({ ...form, background: e.target.value })}
+                placeholder="A wandering sellsword seeking redemption..."
+                className="w-full rounded-lg border border-parchment-700/30 bg-parchment-900 px-4 py-2.5 text-parchment-200 placeholder-parchment-600 focus:border-gold-500/60 focus:outline-none"
+              />
+            </div>
+
+            {/* Stats preview */}
+            <div className="rounded-lg border border-parchment-700/30 bg-parchment-900/60 p-4">
+              <h4 className="mb-3 text-sm font-semibold uppercase tracking-wider text-parchment-500">
+                Character Preview
+              </h4>
+              <div className="mb-3 flex items-center justify-between">
+                <span className="font-display text-lg text-gold-400">
+                  {form.heroName || "The Stranger"}
+                </span>
+                <span className="text-sm text-parchment-400">
+                  HP {selectedPreset.baseHp}/{selectedPreset.baseHp}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {Object.entries(selectedPreset.abilities).map(([ability, score]) => (
+                  <div
+                    key={ability}
+                    className="rounded border border-parchment-700/20 px-2 py-1.5 text-center"
+                  >
+                    <div className="text-xs uppercase text-parchment-500">
+                      {ability.slice(0, 3)}
+                    </div>
+                    <div className="font-bold text-parchment-200">{score}</div>
+                    <div className="text-xs text-parchment-500">{abilityMod(score)}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex gap-4 text-sm text-parchment-400">
+                <span>AC: 10</span>
+                <span>Gold: 10</span>
+                <span>Level: 1</span>
+              </div>
+            </div>
+
             {error && (
               <div className="rounded-lg border border-red-500/30 bg-red-900/20 p-3 text-sm text-red-400">
                 {error}
@@ -206,7 +375,7 @@ export default function NewCampaign() {
 
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => setStep(1)}
+                onClick={() => setStep(2)}
                 className="rounded-lg border border-parchment-700/30 px-4 py-2.5 text-sm text-parchment-400 hover:bg-parchment-800/40"
               >
                 Back
@@ -216,7 +385,7 @@ export default function NewCampaign() {
                 disabled={mutation.isPending}
                 className="flex-1 rounded-lg border border-gold-500/30 bg-gold-900/20 py-2.5 text-sm font-medium text-gold-400 transition hover:bg-gold-900/40 disabled:opacity-50"
               >
-                {mutation.isPending ? "Creating…" : "Begin the Saga →"}
+                {mutation.isPending ? "Creating..." : "Begin the Saga"}
               </button>
             </div>
           </div>

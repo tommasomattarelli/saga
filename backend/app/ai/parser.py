@@ -28,23 +28,21 @@ def _normalize_world_updates(response: DMResponse) -> DMResponse:
     wu = response.world_updates
     if wu is None:
         return response
-    if isinstance(wu, dict):
-        if "key" in wu:
-            # Single typed update → wrap in list
-            # Also extract any nested updates the DM may have embedded
-            updates: list[dict] = []
-            nested_keys = []
-            for k, v in wu.items():
-                if isinstance(v, dict) and "key" in v:
-                    updates.append(v)
-                    nested_keys.append(k)
-            clean_parent = {k: v for k, v in wu.items() if k not in nested_keys}
-            updates.insert(0, clean_parent)
-            response.world_updates = updates
-            logger.info(
-                "world_updates_normalized", original="dict_with_key", result_count=len(updates)
-            )
-        # else: legacy dict format — leave as dict, engine handles via merge
+    if isinstance(wu, dict) and "key" in wu:
+        # Single typed update → wrap in list
+        # Also extract any nested updates the DM may have embedded
+        updates: list[dict] = []
+        nested_keys = []
+        for k, v in wu.items():
+            if isinstance(v, dict) and "key" in v:
+                updates.append(v)
+                nested_keys.append(k)
+        clean_parent = {k: v for k, v in wu.items() if k not in nested_keys}
+        updates.insert(0, clean_parent)
+        response.world_updates = updates
+        logger.info(
+            "world_updates_normalized", original="dict_with_key", result_count=len(updates)
+        )
     return response
 
 

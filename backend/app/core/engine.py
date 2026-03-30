@@ -402,7 +402,8 @@ async def process_game_turn_streaming(
     if parsed.world_updates:
         if isinstance(parsed.world_updates, list):
             # Typed updates array (primary format)
-            logger.info("world_updates_applying", format="list", count=len(parsed.world_updates))
+            keys = [u.get("key", "?") for u in parsed.world_updates]
+            logger.info("world_updates_applying", format="list", count=len(keys), keys=keys)
             new_state, new_char = apply_typed_updates(
                 campaign.world_state or {}, campaign.character_data or {}, parsed.world_updates
             )
@@ -478,5 +479,7 @@ async def process_game_turn_streaming(
                 {"npc_name": d.npc_name, "dialogue": d.dialogue, "action": d.action}
                 for d in npc_dialogues
             ],
+            "character_data": campaign.character_data,
+            "world_state": campaign.world_state,
         },
     )

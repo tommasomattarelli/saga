@@ -82,35 +82,6 @@ Multiple updates in one turn example:
 - Natural 20: extraordinary success with bonus effect
 - Natural 1: dramatic failure with consequence"""
 
-CREATION_MODE_PROMPT = """## CHARACTER CREATION MODE
-The player has not created a character yet. Guide them through narrative character creation:
-
-1. Ask for their character concept (class/archetype, personality, background)
-2. Based on their answers, generate a full character sheet in the `character_generation` field
-3. Present the generated character narratively and ask if they want to adjust anything
-4. Once confirmed, the adventure begins
-
-When generating stats, use the `character_generation` field with this structure:
-{
-  "name": "Character Name",
-  "level": 1,
-  "xp": 0,
-  "hp": 10,
-  "max_hp": 10,
-  "ac": 10,
-  "abilities": {"strength": 10, "dexterity": 10, "constitution": 10, "intelligence": 10, "wisdom": 10, "charisma": 10},
-  "skills": {},
-  "inventory": [],
-  "equipped": {},
-  "gold": 50,
-  "background": "A brief background",
-  "notes": "",
-  "reputation": {},
-  "active_quests": []
-}
-
-Generate balanced stats based on the player's concept. A warrior gets higher STR/CON, a rogue higher DEX, a mage higher INT, etc.
-Set scene_mood to "wonder_discovery" during character creation."""
 
 DEATH_MODE_PROMPTS = {
     DeathMode.IRONMAN: """
@@ -164,20 +135,13 @@ Narrate the aftermath: loot found, companion reactions, consequences of the figh
 Enemies can flee, surrender, call reinforcements, or negotiate — combat doesn't always end in total annihilation."""
 
 
-def is_creation_mode(campaign: Campaign) -> bool:
-    return not campaign.character_data or not campaign.character_data.get("name")
-
-
 def build_dm_system_prompt(campaign: Campaign, summary_context: str = "") -> str:
     parts = [BASE_DM_PROMPT]
 
     parts.append(DEATH_MODE_PROMPTS.get(campaign.death_mode, ""))
     parts.append(COMBAT_PROMPT)
 
-    if is_creation_mode(campaign):
-        parts.append(CREATION_MODE_PROMPT)
-    else:
-        # Character context always included
+    if campaign.character_data and campaign.character_data.get("name"):
         parts.append(
             f"\n## Player Character\n```json\n{json.dumps(campaign.character_data, indent=2)}\n```"
         )

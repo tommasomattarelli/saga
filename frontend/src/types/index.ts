@@ -26,8 +26,8 @@ export interface CharacterData {
   name: string;
   level: number;
   xp: number;
-  hp: number;
-  max_hp: number;
+  hp: number | { current: number; max: number };
+  max_hp?: number;
   ac: number;
   abilities: Record<string, number>;
   skills: Record<string, SkillData>;

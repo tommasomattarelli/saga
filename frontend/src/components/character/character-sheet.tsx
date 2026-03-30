@@ -1,11 +1,21 @@
+import type { CharacterData } from "../../types";
 import { useGameStore } from "../../stores/game-store";
+
+function getHP(char: CharacterData): { current: number; max: number } {
+  if (typeof char.hp === "object" && char.hp !== null) {
+    return char.hp;
+  }
+  return { current: (char.hp as number) ?? 0, max: char.max_hp ?? (char.hp as number) ?? 0 };
+}
 
 export default function CharacterSheet() {
   const campaign = useGameStore((s) => s.campaign);
   if (!campaign) return null;
 
   const char = campaign.character_data;
-  if (!char) return <p className="text-parchment-500">No character data</p>;
+  if (!char || !char.name) return <p className="text-parchment-500">No character data</p>;
+
+  const hp = getHP(char);
 
   return (
     <div>
@@ -16,13 +26,13 @@ export default function CharacterSheet() {
         <div className="mb-1 flex justify-between text-sm">
           <span className="text-parchment-300">HP</span>
           <span className="text-parchment-400">
-            {char.hp}/{char.max_hp}
+            {hp.current}/{hp.max}
           </span>
         </div>
         <div className="h-3 overflow-hidden rounded-full bg-parchment-800">
           <div
             className="h-full rounded-full bg-red-600 transition-all"
-            style={{ width: `${(char.hp / char.max_hp) * 100}%` }}
+            style={{ width: `${hp.max > 0 ? (hp.current / hp.max) * 100 : 0}%` }}
           />
         </div>
       </div>

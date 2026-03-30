@@ -86,14 +86,21 @@ async def extract_and_store_facts(
 
         # Parse the facts
         cleaned = _strip_fences(raw)
+        if not cleaned.strip():
+            return
+
         try:
             data = json.loads(cleaned)
         except json.JSONDecodeError:
             from json_repair import repair_json
 
-            data = json.loads(repair_json(cleaned))
+            try:
+                data = json.loads(repair_json(cleaned))
+            except (json.JSONDecodeError, ValueError):
+                logger.warning("fact_extraction_unparseable", raw_preview=cleaned[:200])
+                return
 
-        facts = data.get("facts", [])
+        facts = data if isinstance(data, list) else data.get("facts", [])
         if not facts:
             return
 

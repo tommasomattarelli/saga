@@ -10,7 +10,7 @@ import ActionInput from "./input/action-input";
 import CharacterSheet from "./character/character-sheet";
 import CompanionBar from "./companion/companion-bar";
 import CombatTracker from "./combat/combat-tracker";
-import type { CombatState, DeathEvent, DiceRollResult } from "../types";
+import type { CharacterData, CombatState, DeathEvent, DiceRollResult, WorldState } from "../types";
 
 export default function GameView() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -22,11 +22,13 @@ export default function GameView() {
   const appendNarration = useGameStore((s) => s.appendNarration);
   const setPendingDice = useGameStore((s) => s.setPendingDice);
   const resetStreaming = useGameStore((s) => s.resetStreaming);
+  const updateWorldState = useGameStore((s) => s.updateWorldState);
+  const updateCharacter = useGameStore((s) => s.updateCharacter);
   const sidePanel = useUIStore((s) => s.sidePanel);
   const toggleSidePanel = useUIStore((s) => s.toggleSidePanel);
   const currentMood = useGameStore((s) => s.streaming.currentMood);
-  const combatState = useGameStore((s) => s.streaming.combatState);
   const deathEvent = useGameStore((s) => s.streaming.deathEvent);
+  const persistentCombat = campaign?.world_state?.combat_state;
 
   const wsRef = useRef<GameWebSocket | null>(null);
 
@@ -114,6 +116,12 @@ export default function GameView() {
         requires_player_action: (turnData.requires_player_action as boolean) ?? true,
       });
 
+      // Sync backend state into store so CharacterSheet, CombatTracker, etc. update
+      const worldState = turnData.world_state as WorldState | undefined;
+      const characterData = turnData.character_data as CharacterData | undefined;
+      if (worldState) updateWorldState(worldState);
+      if (characterData) updateCharacter(characterData);
+
       resetStreaming();
     });
 
@@ -131,6 +139,8 @@ export default function GameView() {
     appendNarration,
     setPendingDice,
     resetStreaming,
+    updateWorldState,
+    updateCharacter,
   ]);
 
   if (isLoading || !campaign) {
@@ -159,7 +169,7 @@ export default function GameView() {
 
   return (
     <div className="flex h-screen" data-mood={currentMood}>
-      {combatState?.active && <CombatTracker combatState={combatState} />}
+      {persistentCombat?.active && <CombatTracker combatState={persistentCombat} />}
 
       {deathEvent && deathOverlayMessage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
