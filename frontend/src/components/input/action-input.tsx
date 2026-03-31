@@ -9,13 +9,14 @@ interface ActionInputProps {
 
 export default function ActionInput({ wsRef }: ActionInputProps) {
   const [action, setAction] = useState("");
-  const { isProcessing, turnHistory } = useGameStore();
+  const { isProcessing, turnHistory, setPendingAction } = useGameStore();
 
   const lastTurn = turnHistory[turnHistory.length - 1];
   const showContinue = lastTurn && !lastTurn.requires_player_action;
 
   const sendAction = (text: string) => {
     if (isProcessing) return;
+    setPendingAction(text);
     wsRef.current?.send({ action: text });
     setAction("");
   };

@@ -11,7 +11,7 @@ from sqlalchemy import delete, select
 
 from app.ai.embeddings import generate_embedding
 from app.ai.sanitizer import detect_injection, sanitize_player_input
-from app.core.engine import process_game_turn_streaming
+from app.core.streaming import process_game_turn_streaming
 from app.dependencies import get_db_context
 from app.memory.compressor import compress_turn_to_summary, ensure_compression
 from app.memory.fact_extractor import extract_and_store_facts
@@ -193,6 +193,7 @@ async def game_ws(
                         {
                             "type": "turn_complete",
                             "turn_number": turn_number,
+                            "player_action": action,
                             **turn_result,
                         }
                     )

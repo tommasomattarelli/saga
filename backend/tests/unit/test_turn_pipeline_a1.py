@@ -6,7 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.ai.exceptions import ContentPolicyError
-from app.core.engine import CONTENT_POLICY_NARRATION, ProcessedTurn, process_game_turn
+from app.core.engine import CONTENT_POLICY_NARRATION, ProcessedTurn
+from app.core.turn import process_game_turn
 
 
 def _make_campaign(character_data=None, world_state=None):
@@ -28,8 +29,8 @@ def _make_campaign(character_data=None, world_state=None):
 
 @pytest.mark.asyncio
 @patch("app.ai.providers.base.get_provider")
-@patch("app.core.engine.route_ai_call")
-@patch("app.core.engine.build_context")
+@patch("app.core.turn.route_ai_call")
+@patch("app.core.turn.build_context")
 async def test_basic_turn_no_dice(mock_context, mock_route, mock_get_provider):
     dm_response = json.dumps(
         {
@@ -60,8 +61,8 @@ async def test_basic_turn_no_dice(mock_context, mock_route, mock_get_provider):
 
 @pytest.mark.asyncio
 @patch("app.ai.providers.base.get_provider")
-@patch("app.core.engine.route_ai_call")
-@patch("app.core.engine.build_context")
+@patch("app.core.turn.route_ai_call")
+@patch("app.core.turn.build_context")
 async def test_turn_with_dice_reprompt(mock_context, mock_route, mock_get_provider):
     dm_response = json.dumps(
         {
@@ -100,8 +101,8 @@ async def test_turn_with_dice_reprompt(mock_context, mock_route, mock_get_provid
 
 @pytest.mark.asyncio
 @patch("app.ai.providers.base.get_provider")
-@patch("app.core.engine.route_ai_call")
-@patch("app.core.engine.build_context")
+@patch("app.core.turn.route_ai_call")
+@patch("app.core.turn.build_context")
 async def test_content_policy_error_handled(mock_context, mock_route, mock_get_provider):
     mock_context.return_value = MagicMock(system_prompt="test", messages=[], importance_score=5)
     mock_route.return_value = MagicMock(provider="openai", model="gpt-4o", temperature=0.8)
@@ -120,8 +121,8 @@ async def test_content_policy_error_handled(mock_context, mock_route, mock_get_p
 
 @pytest.mark.asyncio
 @patch("app.ai.providers.base.get_provider")
-@patch("app.core.engine.route_ai_call")
-@patch("app.core.engine.build_context")
+@patch("app.core.turn.route_ai_call")
+@patch("app.core.turn.build_context")
 async def test_game_clock_advances(mock_context, mock_route, mock_get_provider):
     dm_response = json.dumps(
         {
@@ -146,8 +147,8 @@ async def test_game_clock_advances(mock_context, mock_route, mock_get_provider):
 
 @pytest.mark.asyncio
 @patch("app.ai.providers.base.get_provider")
-@patch("app.core.engine.route_ai_call")
-@patch("app.core.engine.build_context")
+@patch("app.core.turn.route_ai_call")
+@patch("app.core.turn.build_context")
 async def test_character_generation_saved(mock_context, mock_route, mock_get_provider):
     char_data = {
         "name": "Theron",
@@ -183,8 +184,8 @@ async def test_character_generation_saved(mock_context, mock_route, mock_get_pro
 
 @pytest.mark.asyncio
 @patch("app.ai.providers.base.get_provider")
-@patch("app.core.engine.route_ai_call")
-@patch("app.core.engine.build_context")
+@patch("app.core.turn.route_ai_call")
+@patch("app.core.turn.build_context")
 async def test_ability_modifier_from_character(mock_context, mock_route, mock_get_provider):
     """When dice check name matches an ability, modifier should come from character_data."""
     dm_response = json.dumps(

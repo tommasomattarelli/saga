@@ -147,6 +147,7 @@ export interface DiceRollResult {
 
 export interface TurnResponse {
   turn_number: number;
+  player_action?: string;
   narration: string;
   dice_rolls: Record<string, DiceRollResult> | null;
   companion_actions: Record<string, string> | null;

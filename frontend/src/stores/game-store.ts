@@ -35,6 +35,7 @@ interface StreamingState {
   currentMood: string;
   combatState: CombatState | null;
   deathEvent: DeathEvent | null;
+  pendingAction: string | null;
 }
 
 interface GameState {
@@ -43,7 +44,9 @@ interface GameState {
   isProcessing: boolean;
   streaming: StreamingState;
   setCampaign: (campaign: Campaign) => void;
+  setTurnHistory: (turns: TurnResponse[]) => void;
   addTurn: (turn: TurnResponse) => void;
+  setPendingAction: (action: string | null) => void;
   setProcessing: (processing: boolean) => void;
   updateWorldState: (updates: Partial<WorldState>) => void;
   updateCharacter: (updates: Partial<CharacterData>) => void;
@@ -63,6 +66,7 @@ const initialStreaming: StreamingState = {
   currentMood: "neutral",
   combatState: null,
   deathEvent: null,
+  pendingAction: null,
 };
 
 export const useGameStore = create<GameState>()((set) => ({
@@ -71,7 +75,10 @@ export const useGameStore = create<GameState>()((set) => ({
   isProcessing: false,
   streaming: { ...initialStreaming },
   setCampaign: (campaign) => set({ campaign }),
+  setTurnHistory: (turns) => set({ turnHistory: turns }),
   addTurn: (turn) => set((state) => ({ turnHistory: [...state.turnHistory, turn] })),
+  setPendingAction: (action) =>
+    set((state) => ({ streaming: { ...state.streaming, pendingAction: action } })),
   setProcessing: (processing) => set({ isProcessing: processing }),
   updateWorldState: (updates) =>
     set((state) => {

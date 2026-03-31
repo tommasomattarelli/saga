@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.embeddings import generate_embedding
 from app.ai.sanitizer import detect_injection, sanitize_player_input
-from app.core.engine import process_game_turn
+from app.core.turn import process_game_turn
 from app.memory.compressor import compress_turn_to_summary
 from app.models.campaign import Campaign
 from app.models.save import Save

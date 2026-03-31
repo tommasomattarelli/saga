@@ -166,6 +166,16 @@ def _handle_combat_start(state: dict, update: dict, char_data: dict) -> dict:
     return state
 
 
+@_register_handler("location")
+def _handle_location(state: dict, update: dict, char_data: dict) -> dict:
+    """Update the current location."""
+    new_location = update.get("change", update.get("target", ""))
+    if new_location:
+        state["location"] = str(new_location)
+        logger.info("location_updated", location=new_location)
+    return state
+
+
 @_register_handler("combat_end")
 def _handle_combat_end(state: dict, update: dict, char_data: dict) -> dict:
     """Reset combat state when combat ends."""
@@ -213,6 +223,12 @@ def _handle_combat_damage(state: dict, update: dict, char_data: dict) -> dict:
             matched["hp"] = max(0, matched["hp"] + change)
     else:
         logger.warning("combat_damage_target_not_found", target=target)
+
+    # Advance combat turn index
+    combat = state.get("combat_state", {})
+    combatants = combat.get("initiative_order", [])
+    if combatants:
+        combat["current_turn_index"] = (combat.get("current_turn_index", 0) + 1) % len(combatants)
 
     return state
 

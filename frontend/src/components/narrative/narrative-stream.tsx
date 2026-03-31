@@ -1,8 +1,18 @@
-import { type RefObject } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 import { useGameStore } from "../../stores/game-store";
 import DiceRoller from "./dice-roller";
 import type { TurnResponse } from "../../types";
 import type { GameWebSocket } from "../../services/websocket";
+
+function PlayerBubble({ action }: { action: string }) {
+  return (
+    <div className="mb-4 flex justify-end">
+      <div className="max-w-[80%] rounded-lg border border-gold-500/20 bg-gold-900/30 px-4 py-2">
+        <p className="text-sm font-serif text-gold-300">{action}</p>
+      </div>
+    </div>
+  );
+}
 
 interface NarrativeStreamProps {
   wsRef: RefObject<GameWebSocket | null>;
@@ -17,7 +27,7 @@ function TurnBlock({
 }) {
   return (
     <div className="mb-6" data-mood={turn.scene_mood || "neutral"}>
-      {turn.dice_rolls && <DiceRoller rolls={turn.dice_rolls} />}
+      {turn.player_action && <PlayerBubble action={turn.player_action} />}
 
       <div className="prose prose-invert max-w-none font-serif leading-relaxed mood-text">
         {turn.narration.split("\n").map((paragraph, i) => (
@@ -26,6 +36,8 @@ function TurnBlock({
           </p>
         ))}
       </div>
+
+      {turn.dice_rolls && <DiceRoller rolls={turn.dice_rolls} />}
 
       {turn.ambient_detail && (
         <p className="mt-2 text-sm italic text-parchment-500">{turn.ambient_detail}</p>
@@ -68,14 +80,19 @@ export default function NarrativeStream({ wsRef }: NarrativeStreamProps) {
   const turnHistory = useGameStore((s) => s.turnHistory);
   const isProcessing = useGameStore((s) => s.isProcessing);
   const streaming = useGameStore((s) => s.streaming);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const handleSuggestedAction = (action: string) => {
     wsRef.current?.send({ action });
   };
 
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [streaming.currentNarration, turnHistory.length]);
+
   return (
     <div>
-      {turnHistory.length === 0 && !isProcessing && (
+      {turnHistory.length === 0 && !isProcessing && !streaming.pendingAction && (
         <div className="py-12 text-center">
           <p className="font-display text-xl text-gold-400">Your adventure awaits...</p>
           <p className="mt-2 text-sm text-parchment-500">Type an action below to begin</p>
@@ -86,10 +103,12 @@ export default function NarrativeStream({ wsRef }: NarrativeStreamProps) {
         <TurnBlock key={i} turn={turn} onSuggestedAction={handleSuggestedAction} />
       ))}
 
+      {/* Pending player action bubble */}
+      {streaming.pendingAction && <PlayerBubble action={streaming.pendingAction} />}
+
       {/* Live streaming narration */}
       {streaming.isStreaming && streaming.currentNarration && (
         <div className="mb-6">
-          {streaming.pendingDice && <DiceRoller rolls={streaming.pendingDice} />}
           <div className="prose prose-invert max-w-none font-serif leading-relaxed mood-text">
             {streaming.currentNarration.split("\n").map((paragraph, i) => (
               <p key={i} className="mb-3">
@@ -97,6 +116,7 @@ export default function NarrativeStream({ wsRef }: NarrativeStreamProps) {
               </p>
             ))}
           </div>
+          {streaming.pendingDice && <DiceRoller rolls={streaming.pendingDice} />}
         </div>
       )}
 
@@ -110,6 +130,8 @@ export default function NarrativeStream({ wsRef }: NarrativeStreamProps) {
           </span>
         </div>
       )}
+
+      <div ref={bottomRef} />
     </div>
   );
 }

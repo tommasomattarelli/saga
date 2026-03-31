@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getCampaign } from "../services/api";
 import { GameWebSocket } from "../services/websocket";
@@ -10,11 +10,20 @@ import ActionInput from "./input/action-input";
 import CharacterSheet from "./character/character-sheet";
 import CompanionBar from "./companion/companion-bar";
 import CombatTracker from "./combat/combat-tracker";
-import type { CharacterData, CombatState, DeathEvent, DiceRollResult, WorldState } from "../types";
+import type {
+  CharacterData,
+  CombatState,
+  DeathEvent,
+  DiceRollResult,
+  TurnResponse,
+  WorldState,
+} from "../types";
 
 export default function GameView() {
   const { campaignId } = useParams<{ campaignId: string }>();
+  const navigate = useNavigate();
   const setCampaign = useGameStore((s) => s.setCampaign);
+  const setTurnHistory = useGameStore((s) => s.setTurnHistory);
   const campaign = useGameStore((s) => s.campaign);
   const addTurn = useGameStore((s) => s.addTurn);
   const setProcessing = useGameStore((s) => s.setProcessing);
@@ -40,61 +49,76 @@ export default function GameView() {
 
   useEffect(() => {
     if (campaignId) {
-      getCampaign(campaignId).then((r) => setCampaign(r.data));
+      getCampaign(campaignId).then((r) => {
+        setCampaign(r.data);
+        if (r.data.turns?.length) {
+          setTurnHistory(r.data.turns as TurnResponse[]);
+        }
+      });
     }
-  }, [campaignId, setCampaign]);
+  }, [campaignId, setCampaign, setTurnHistory]);
 
   // WebSocket lifecycle
+  const isMountedRef = useRef(true);
   useEffect(() => {
     if (!campaignId) return;
+    isMountedRef.current = true;
 
     const ws = new GameWebSocket(campaignId);
     wsRef.current = ws;
 
-    ws.on("turn_start", () => {
+    const guard = <T extends unknown[]>(fn: (...args: T) => void) =>
+      (...args: T) => { if (isMountedRef.current) fn(...args); };
+
+    ws.on("turn_start", guard(() => {
       setProcessing(true);
       resetStreaming();
-      setStreaming({ isStreaming: true });
-    });
+      setStreaming({ isStreaming: true, pendingAction: null });
+    }));
 
-    ws.on("narration", (data) => {
+    ws.on("narration", guard((data) => {
       appendNarration(data.text as string);
-    });
+    }));
 
-    ws.on("dm:narration:chunk", (data) => {
+    ws.on("dm:narration:chunk", guard((data) => {
       appendNarration(data.chunk as string);
-    });
+    }));
 
-    ws.on("dice_rolls", (data) => {
+    ws.on("dice_rolls", guard((data) => {
       setPendingDice(data.rolls as Record<string, DiceRollResult>);
-    });
+    }));
 
-    ws.on("dice:roll", (data) => {
+    ws.on("dice:roll", guard((data) => {
       const roll = data as unknown as Record<string, DiceRollResult>;
       setPendingDice(roll);
-    });
+    }));
 
-    ws.on("dice:narration:chunk", (data) => {
+    ws.on("dice:narration:chunk", guard((data) => {
       appendNarration(data.chunk as string);
-    });
+    }));
 
-    ws.on("scene_mood", (data) => {
+    ws.on("scene_mood", guard((data) => {
       setStreaming({ currentMood: (data.mood as string) || "neutral" });
-    });
+    }));
 
-    ws.on("combat:start", (data) => {
+    ws.on("combat:start", guard((data) => {
       setStreaming({ combatState: data as unknown as CombatState });
-    });
+    }));
 
-    ws.on("combat:end", () => {
+    ws.on("combat:end", guard(() => {
       setStreaming({ combatState: null });
-    });
+    }));
 
-    ws.on("death:event", (data) => {
+    ws.on("death:event", guard((data) => {
       setStreaming({ deathEvent: data as unknown as DeathEvent });
-    });
+    }));
 
-    ws.on("turn_complete", (data) => {
+    ws.on("error", guard(() => {
+      setProcessing(false);
+      setStreaming({ isStreaming: false });
+    }));
+
+    ws.on("turn_complete", guard((data) => {
       setProcessing(false);
       setStreaming({ isStreaming: false });
 
@@ -102,6 +126,7 @@ export default function GameView() {
       const state = useGameStore.getState();
       addTurn({
         turn_number: turnData.turn_number as number,
+        player_action: (turnData.player_action as string) || undefined,
         narration: state.streaming.currentNarration || (turnData.narration as string) || "",
         dice_rolls:
           (turnData.dice_rolls as Record<string, DiceRollResult>) || state.streaming.pendingDice,
@@ -123,11 +148,12 @@ export default function GameView() {
       if (characterData) updateCharacter(characterData);
 
       resetStreaming();
-    });
+    }));
 
     ws.connect();
 
     return () => {
+      isMountedRef.current = false;
       ws.disconnect();
       wsRef.current = null;
     };
@@ -192,19 +218,31 @@ export default function GameView() {
 
       <div className="mood-container flex flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-parchment-700/20 bg-parchment-900/90 px-4 py-2">
-          <div>
-            <h2 className="font-display text-lg text-gold-400">{campaign.name}</h2>
-            <span className="text-xs text-parchment-500">
-              Turn {campaign.turn_number} &mdash;{" "}
-              {campaign.world_state?.location || "Unknown location"}
-              {campaign.world_state?.clock && (
-                <>
-                  {" "}
-                  &mdash; Day {campaign.world_state.clock.current_day},{" "}
-                  {campaign.world_state.clock.time_of_day}
-                </>
-              )}
-            </span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/")}
+              className="rounded px-2 py-1 text-sm text-parchment-400 hover:bg-parchment-800 hover:text-parchment-200"
+              title="Back to campaigns"
+            >
+              &larr;
+            </button>
+            <div>
+              <h2 className="font-display text-lg text-gold-400">{campaign.name}</h2>
+              <span className="text-xs text-parchment-500">
+                Turn {campaign.turn_number} &mdash;{" "}
+                {campaign.world_state?.location || "Unknown location"}
+                {campaign.world_state?.clock && (
+                  <>
+                    {" "}
+                    &mdash; Day {campaign.world_state.clock.current_day},{" "}
+                    {campaign.world_state.clock.time_of_day}
+                  </>
+                )}
+                {campaign.world_state?.meta?.current_season && (
+                  <> &mdash; {campaign.world_state.meta.current_season}</>
+                )}
+              </span>
+            </div>
           </div>
           <div className="flex gap-2">
             <button
