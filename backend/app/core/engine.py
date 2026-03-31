@@ -70,6 +70,20 @@ async def process_game_turn(
     context = await build_context(campaign, player_action, db)
     model_config = await route_ai_call(AICallType.DM_NARRATION, context)
 
+    logger.info(
+        "ai_request",
+        campaign_id=str(campaign.id),
+        turn_number=campaign.turn_number,
+        provider=model_config.provider,
+        model=model_config.model,
+        temperature=model_config.temperature,
+        importance=context.importance_score,
+        system_prompt_length=len(context.system_prompt),
+        system_prompt_preview=context.system_prompt[:500],
+        messages_count=len(context.messages),
+        last_user_message=context.messages[-1]["content"][:200] if context.messages else "",
+    )
+
     from app.ai.providers.base import get_provider
 
     provider = get_provider(model_config.provider)
@@ -241,6 +255,20 @@ async def process_game_turn_streaming(
 
     context = await build_context(campaign, player_action, db)
     model_config = await route_ai_call(AICallType.DM_NARRATION, context)
+
+    logger.info(
+        "ai_request",
+        campaign_id=str(campaign.id),
+        turn_number=campaign.turn_number,
+        provider=model_config.provider,
+        model=model_config.model,
+        temperature=model_config.temperature,
+        importance=context.importance_score,
+        system_prompt_length=len(context.system_prompt),
+        system_prompt_preview=context.system_prompt[:500],
+        messages_count=len(context.messages),
+        last_user_message=context.messages[-1]["content"][:200] if context.messages else "",
+    )
 
     from app.ai.providers.base import get_provider
 

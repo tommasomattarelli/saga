@@ -39,6 +39,7 @@ SAGA/Wyrd is an AI-driven tabletop RPG engine designed to replicate the infinite
 9. **Naming**: snake_case for Python (all files/vars/funcs), camelCase for TS (vars/funcs) and PascalCase for Components/Types.
 10. **Commits**: Conventional Commits only (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`).
 11. **Workflow**: Always `test-infra-up` -> Write failing Integration Test -> Implementation -> Refactor.
+12. **NO GOD CLASSES** . no files with multiple logics, and files with 300+ liness
 
 ## File Locations
 - **Game Engine**: `backend/app/core/`

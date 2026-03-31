@@ -7,6 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, campaigns, characters, export, journal, saves, templates, websocket
 from app.api import settings as settings_api
 from app.dependencies import close_db, close_redis, init_db, init_redis
+from app.logging_setup import setup_logging
+
+setup_logging()
 
 
 @asynccontextmanager

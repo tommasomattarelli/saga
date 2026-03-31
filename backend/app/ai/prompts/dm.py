@@ -107,24 +107,26 @@ COMBAT_PROMPT = """
 
 ### Starting combat
 Emit combat_start ONCE when combat begins. Do NOT re-emit it on subsequent combat turns.
-Example — first combat turn with an attack on the player:
+For combat_damage target, ALWAYS use the EXACT name from the ## Player Character section (not "PlayerName" — use the actual name like "Aldric").
+Example — first combat turn (player character is named "Aldric"):
 "world_updates": [
   {"key": "combat_start", "target": "combat", "change": {"enemies": [{"name": "Goblin Scout", "hp": 15, "max_hp": 15}, {"name": "Goblin Warrior", "hp": 22, "max_hp": 22}]}},
-  {"key": "combat_damage", "target": "PlayerName", "change": -3}
+  {"key": "combat_damage", "target": "Aldric", "change": -3}
 ]
 
 ### During combat
 - Each player action represents one combat round.
 - Use dice_required for attack rolls, ability checks, and saving throws.
-- Track ALL damage via combat_damage updates. change must be a non-zero integer. Negative = damage, positive = healing. Never emit change: 0.
+- ALWAYS emit combat_damage for EVERY hit that lands — on the player AND on enemies. Never skip damage tracking.
+- change must be a non-zero integer. Negative = damage, positive = healing. Never emit change: 0.
 - Do NOT nest updates inside other updates. Each update is a separate object in the array.
 - Set scene_mood to "combat_fury" during combat.
 - Always provide suggested_actions with combat-relevant options.
 
-Example — mid-combat turn with damage to enemy and player:
+Example — mid-combat turn (player is "Aldric", enemy is "Goblin Scout"):
 "world_updates": [
   {"key": "combat_damage", "target": "Goblin Scout", "change": -8},
-  {"key": "combat_damage", "target": "PlayerName", "change": -5}
+  {"key": "combat_damage", "target": "Aldric", "change": -5}
 ]
 
 ### Ending combat

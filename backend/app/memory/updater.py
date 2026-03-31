@@ -187,21 +187,32 @@ def _handle_combat_damage(state: dict, update: dict, char_data: dict) -> dict:
     combat = state.get("combat_state", {})
     initiative_order = combat.get("initiative_order", [])
 
+    # Find combatant by exact name match first
+    matched = None
     for combatant in initiative_order:
         if combatant["name"].lower() == target.lower():
-            if combatant["type"] == "player":
-                # Update character_data HP (source of truth for player)
-                hp = char_data.get("hp", {})
-                current = hp.get("current", hp.get("max", 10))
-                max_hp = hp.get("max", 10)
-                hp["current"] = max(0, min(max_hp, current + change))
-                char_data["hp"] = hp
-                # Sync to combat tracker
-                combatant["hp"] = hp["current"]
-            else:
-                # Update enemy/companion HP in combat state
-                combatant["hp"] = max(0, combatant["hp"] + change)
+            matched = combatant
             break
+
+    # Fallback: if target is generic "player"/"playername", match by type
+    if matched is None and target.lower() in ("player", "playername"):
+        for combatant in initiative_order:
+            if combatant["type"] == "player":
+                matched = combatant
+                break
+
+    if matched is not None:
+        if matched["type"] == "player":
+            hp = char_data.get("hp", {})
+            current = hp.get("current", hp.get("max", 10))
+            max_hp = hp.get("max", 10)
+            hp["current"] = max(0, min(max_hp, current + change))
+            char_data["hp"] = hp
+            matched["hp"] = hp["current"]
+        else:
+            matched["hp"] = max(0, matched["hp"] + change)
+    else:
+        logger.warning("combat_damage_target_not_found", target=target)
 
     return state
 

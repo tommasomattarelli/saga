@@ -188,13 +188,16 @@ async def game_ws(
                     )
                 )
 
-                await websocket.send_json(
-                    {
-                        "type": "turn_complete",
-                        "turn_number": turn_number,
-                        **turn_result,
-                    }
-                )
+                try:
+                    await websocket.send_json(
+                        {
+                            "type": "turn_complete",
+                            "turn_number": turn_number,
+                            **turn_result,
+                        }
+                    )
+                except Exception:
+                    log.warning("ws_send_turn_complete_failed", turn=turn_number)
 
                 await db.commit()
 
