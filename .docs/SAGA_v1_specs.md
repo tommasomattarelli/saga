@@ -13,7 +13,7 @@
 - [x] `docker compose up -d` funzionante da zero
 - [ ] File `.env.example` con tutte le variabili documentate
 - [ ] PostgreSQL 16+ con estensione pgvector abilitata
-- [ ] In-memory `asyncio.Lock()` per campaign ID (race condition prevention — Redis rinviato a v2 SaaS)
+- [x] In-memory `asyncio.Lock()` per campaign ID (race condition prevention — Redis rinviato a v2 SaaS)
 - [ ] Script di primo avvio (creazione admin, migration DB)
 - [ ] Porte non standard nel docker-compose (es. `54320:5432`) per evitare conflitti con PostgreSQL locale
 
@@ -68,9 +68,9 @@
 - [ ] Character sheet cachato fino a modifica
 
 ### 3.4 Input Sanitizer (`ai/sanitizer.py`)
-- [ ] Rilevamento prompt injection (pattern matching + euristiche)
+- [x] Rilevamento prompt injection (pattern matching + euristiche) — `detect_injection()` in `ai/sanitizer.py`
 - [ ] Filtro profanità basato su maturity level della campagna
-- [ ] Limite lunghezza input (default: 2000 caratteri)
+- [x] Limite lunghezza input (default: 2000 caratteri)
 - [ ] Escape di caratteri che rompono il formato JSON
 
 ---
@@ -93,13 +93,16 @@
 - [ ] Response Parser estrae JSON strutturato dalla risposta DM
 - [x] **Content Policy Handler**: intercetta `content_policy_violation` (HTTP 400) nel provider layer e ritorna messaggio leggibile al player ("The DM refuses to narrate this scene as described. Try rephrasing your action.") con distinzione nel log tra errore tecnico e blocco policy
 - [x] Se il DM richiede un tiro di dado, il Dice Engine tira e ri-prompta per la narrazione
-- [x] **`requires_player_action`** — booleano derivato dal backend (non dal DM): `True` se combat attivo o dice_required presente, `False` altrimenti (pulsante "Continua" abilitato, azione implicita `"wait"`)
+- [x] **`requires_player_action`** — booleano derivato dal backend. Pulsante "Continue" abilitato se False.
+- [x] Chat history idratata da `campaign.turns` al mount del frontend (Sprint 2)
+- [x] User message bubbles nella chat (Sprint 2)
+- [x] Auto-scroll durante streaming narrazione (Sprint 2)
 - [x] Se `invoke_npcs` presente → lancia chiamate NPC in parallelo (Actor-Director, vedere sez. 6)
 - [x] World State Updater applica i world_updates + aggiorna GameClock con `time_passed_minutes`
 - [x] **Fact Extractor** (asincrono, non bloccante) estrae 1-5 fatti atomici dal turno → INSERT in `memory_facts`
 - [x] Memory Manager comprime turni vecchi se necessario (`ensure_compression` in `memory/compressor.py`)
-- [ ] Auto-save del world state
-- [ ] Turno persistito nel DB con delta e costo AI
+- [x] Auto-save del world state (sovrascrive singolo slot per campagna)
+- [x] Turno persistito nel DB con summary + embedding
 - [ ] World Simulator esegue eventi off-screen (asincrono, logica in v2, schema in v1)
 
 ### 4.2 Dice Engine
@@ -145,11 +148,10 @@
 ## 5. PERSONAGGIO
 
 ### 5.1 Creazione Personaggio
-- [x] Creazione narrativa: il player descrive il concept, il DM genera la scheda
-- [x] DM genera: nome, backstory, attributi, HP, abilità, inventario iniziale
-- [x] Player può richiedere aggiustamenti via conversazione
-- [x] DM integra backstory nel lore del mondo
-- [ ] Selezione death mode: Ironman / Destino / Cronista
+- [x] Creazione via form UI (Sprint 1): 3 step — template, nome/death mode, classe/stats. Nessuna call AI.
+- [x] 6 class presets (warrior/rogue/mage/ranger/cleric/bard) con stat predefinite
+- [x] HP calcolato da CON modifier
+- [x] Selezione death mode: Ironman / Destino / Cronista (step 2 del form)
 
 ### 5.2 Attributi Core
 - [ ] 6 attributi: STR, DEX, CON, INT, WIS, CHA
@@ -218,7 +220,9 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 - [x] Free-text input accettato — DM adjudica via narrazione + typed world_updates
 - [x] Danno applicato via `combat_damage` world_update (numero negativo = danno, positivo = cura)
 - [x] HP system con soglia 0 HP → death mode rules (`check_player_death` in `core/death.py`)
-- [ ] Player turn: 1 azione + 1 bonus action + movimento — non enforced meccanicamente (DM gestisce)
+- [x] HP nested format `{"current": N, "max": N}` ovunque (Sprint 1)
+- [x] combat_damage: fallback su target generico ("player"/"playername"), auto-advance turn index (Sprint 2)
+- [x] Player turn: free-text input, DM gestisce meccanicamente via narrazione
 
 ### 7.2 Combat AI per Nemici
 - [ ] Comportamento AI basato sul tipo di creatura — delegato al DM via narrazione libera (v1)
@@ -493,7 +497,7 @@ Il DM è il **Regista** (Director). Gli NPC sono **Attori** indipendenti con la 
 
 ## 17. TESTING
 
-- [x] Unit test: dice engine, world state (v4), sanitizer, parser, combat handlers, death system — **230 unit tests passing**
+- [x] Unit test: dice engine, world state (v4), sanitizer, parser, combat handlers, death system — **239 unit tests passing**
 - [ ] Unit test: progression, encryption (Phase D)
 - [ ] Integration test: turn pipeline (con AI mockato), memory, auth, campaign CRUD, export
 - [ ] Playtest bot: gioca autonomamente per regression testing

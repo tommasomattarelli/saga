@@ -1,6 +1,6 @@
 # SAGA v1 — Roadmap Dettagliata Next Steps
 
-**Stato attuale:** Alpha giocabile (~45% della v1 completato) — Fase A+B+C complete
+**Stato attuale:** Alpha giocabile (~65% della v1 completato) — Fase A+B+C+Sprint1+Sprint2 complete
 **Obiettivo:** Da chatbot narrativo → gioco RPG completo self-hostabile
 **Timeline stimata:** 10-14 settimane full-time (20-28 part-time)
 
@@ -12,55 +12,61 @@
 - Docker Compose full stack (frontend, backend, PostgreSQL + pgvector) — ora con `.dockerignore`, build <25s
 - Auth JWT completo (register, login, refresh, bcrypt)
 - DB models: User, Campaign, Turn, SavePoint, Template, PlayerStats
-- SQLAlchemy 2.0 async + Alembic migrations + World State schema versioning (v0→v1→v2→v3)
+- SQLAlchemy 2.0 async + Alembic migrations + World State schema versioning (v0→v4)
 - La maggior parte delle API REST
 - Sicurezza base: JWT httpOnly, CORS, cascade delete, no tracking
 - In-memory `asyncio.Lock()` per campaign ID (race condition prevention — Redis rinviato a v2)
 - i18n framework (react-i18next, stringhe esternalizzate, direttiva lingua DM)
-- Input sanitizer base (prompt injection detection, length limit)
-- **WebSocket per streaming narrazione token-by-token** (`NarrationExtractor` state machine, `process_game_turn_streaming()`)
+- Input sanitizer + prompt injection detection (`ai/sanitizer.py`, `detect_injection()`)
+- **WebSocket per streaming narrazione token-by-token** (`NarrationExtractor`, `process_game_turn_streaming()`)
 - **Turn persistence via WebSocket** — turni salvati nel DB con summary + embedding + auto-save
-- Frontend: Narrative Panel, Character Panel (sidebar), ActionSuggester, JournalView
-- Desktop layout con pannelli
-- Testing framework: unit, integration, playtest bot, frontend (Vitest/RTL/Playwright) — **230 unit tests passing**
-- Configurazione modelli via env
-- README.md aggiornato
-- Retry automatico su JSON malformato
+- Frontend: Narrative Panel, Character Panel (sidebar), ActionSuggester — **239 unit tests passing**
 - **DMResponse Pydantic schema** — 11 `scene_mood`, `invoke_npcs`, `time_passed_minutes`, `character_generation`
 - **Healing Parser** — strip fences → `json-repair` → Pydantic validation → fallback
 - **Content Policy Handler** — per-provider detection (OpenAI/Anthropic/Google)
 - **Dice Engine 6 livelli** — critical_failure → critical_success, advantage/disadvantage, re-prompt
-- **GameClock** — Pydantic computed fields, advance ogni turno, migrazione world state v2
-- **Character creation mode** — DM guida creazione, genera stats via `character_generation`
+- **GameClock** — Pydantic computed fields, advance ogni turno, migrazione world state v4
 - **Scene moods CSS** — 11 mood, CSS custom properties, transizioni 1.5s
-- **Vite proxy WebSocket** — `ws: true` nella proxy config per forward WebSocket upgrade
 - **World State v4** — `combat_state` + `destino_lives`, migration pipeline v0→v4
-- **Typed World Updater v2** — 10 handler (+3 combat: combat_start, combat_damage, combat_end)
-- **Death System** — `core/death.py`, tutti e 3 i modi (Cronista/Destino/Ironman), integrato nel pipeline
-- **Combat System** — DM-driven via typed world_updates, `COMBAT_PROMPT` nel system prompt, WebSocket events
-- **CombatTracker UI** — overlay fisso con HP bar, ordine iniziativa, round counter
-- **Death overlays** — Near Death / Fate Intervenes / You Have Fallen con feedback contestuale
+- **Typed World Updater** — 11 handler (combat_start, combat_damage, combat_end, location + 7 base)
+- **Death System** — `core/death.py`, tutti e 3 i modi (Cronista/Destino/Ironman)
+- **Combat System** — DM-driven via typed world_updates, `COMBAT_PROMPT`, WebSocket events
+- **CombatTracker UI** — overlay fisso, HP bar, ordine iniziativa, round counter, turn advance
+- **Death overlays** — Near Death / Fate Intervenes / You Have Fallen
 - **Save guard** — blocco manual save durante combattimento attivo
+- **Character creation UI** (Sprint 1) — form 3 step: template → nome → classe/stats, no AI call
+- **HP nested format** — `{"current": N, "max": N}` ovunque, `getHP()` helper nel frontend
+- **Chat history** — idratata da `campaign.turns` al mount (Sprint 2)
+- **User message bubbles** — `pendingAction` bubble + `player_action` nei turni storici (Sprint 2)
+- **Auto-scroll** — `bottomRef.scrollIntoView` su ogni chunk narrazione (Sprint 2)
+- **Dice sotto narrazione** — `DiceRoller` spostato dopo il testo (Sprint 2)
+- **WebSocket isMounted guard** — guard su tutti gli handler, cleanup corretto (Sprint 2)
+- **Error handler WS** — `ws.on("error")` resetta processing (Sprint 2)
+- **Back button** — `←` nell'header, naviga a `/` (Sprint 2)
+- **Season nell'header** — `meta.current_season` mostrato (Sprint 2)
+- **Location handler** — `_handle_location()` in updater.py con log (Sprint 2)
+- **Engine split** — `engine.py` (50), `turn.py` (177), `streaming.py` (294) — tutti <300 righe (Sprint 2)
+- **AI request logging** — provider, model, system_prompt_preview, messages_count
+- **File logging** — structlog dual output: console + `logs/saga.log` JSON rotante
 
 ### ⚠️ Parziale / Da rifinire in playtest
-- Character creation: implementata ma da rifinire con 10+ sessioni reali
-- HP e inventario nel frontend: campi presenti, ma aggiornamento in-game da validare
-- Il DM chiede tiri solo quando appropriato: da testare con 20+ turni
+- Il DM a volte non emette combat_damage spontaneamente — monitorare con log
+- Contextual Loading guidato dal Semantic Resolver — resolver pronto, loading selettivo in Phase E
+- Template System avanzato — templates funzionanti parzialmente, pieno sistema in Phase E
 
 ### ❌ Non iniziato
-- Hybrid Search semantico (pgvector + tsvector query) — tabella e indici pronti, query in Phase D
-- Contextual Loading guidato dal Semantic Resolver — resolver pronto, loading selettivo in Phase D
+- Hybrid Search semantico (pgvector + tsvector query) — tabella e indici pronti, query in Phase E
 - World generation procedurale
 - CI/CD
 - Toggle suono on/off
-- Companion Bar nel frontend
-- Template System avanzato (B4 → Phase D)
-- Auto-save trigger post-turno (endpoint esiste, trigger mancante → Phase D)
-- Save Browser UI nel frontend (Phase D)
-- Timeline forking UI nella lista campagne (Phase D)
+- Companion Bar nel frontend (solo icone placeholder)
+- Auto-save UI / resume al login
+- Save Browser UI nel frontend (Phase E)
+- Timeline forking UI nella lista campagne (Phase E)
 - Death saving throws Ironman (3 turni, nat1/nat20 rules → v2)
-- Enemy AI comportamenti distinti (carica/hit-and-run/ranged → delegato al DM per v1)
-- Fix UX Phase B playtest (5 bug → Phase D, vedi `memory/project_playtest_bugs.md`)
+- API Keys UI nel frontend (Phase E)
+- Cost Dashboard (Phase E)
+- **Phase D: Agentic DM** (tool-calling architecture — prossimo sprint)
 
 ---
 
@@ -1073,9 +1079,205 @@ Dopo ogni chiamata API:
 
 ---
 
-## FASE D — "Polish per il lancio" (2-3 settimane)
+## FASE D — "Agentic DM" (3-4 settimane)
+
+> **Obiettivo:** Sostituire il mega-prompt monolitico con un DM che chiama tool tipizzati. Elimina strutturalmente il 90% dei bug di formato JSON, rende ogni meccanica estensibile, e disaccoppia trasporto da logica (WebSocket → SSE).
+
+---
+
+### D0. Motivazione e principi
+
+**Problema attuale:** il DM deve emettere un blob JSON complesso in un'unica risposta. Ogni meccanica (combat, damage, location, inventory) richiede una regola nel prompt per spiegargli il formato esatto. I bug di Sprint 1 erano tutti causati da questo.
+
+**Soluzione:** il DM ragiona liberamente in narrazione, poi chiama tool con schema rigido. Il formato è garantito dall'SDK — non dal prompt.
+
+**Principi:**
+- Il DM rimane il punto unico di narrazione. I tool sono le sue "mani" sul mondo.
+- Ogni handler in `updater.py` corrisponde a un tool (1:1 mapping già verificato in Sprint 1/2).
+- Le regole narrative nel system prompt rimangono identiche — solo le regole di formato JSON spariscono.
+- SSE sostituisce WebSocket: il client POSTa l'azione, riceve uno stream di eventi server-sent.
+
+---
+
+### D1. Tool Schema — definire i tool del DM
+
+**File:** `backend/app/ai/tools/dm_tools.py`
+
+Definire come Pydantic models + OpenAI-compatible tool schema:
+
+```python
+# Ogni tool corrisponde a un handler esistente in updater.py
+tools = [
+    start_combat(enemies: list[EnemyDef]),          # → _handle_combat_start
+    apply_damage(target: str, amount: int),          # → _handle_combat_damage
+    end_combat(),                                    # → _handle_combat_end
+    move_to(location: str),                          # → _handle_location
+    update_hp(change: int),                          # → _handle_hp_change
+    add_item(name: str, description: str),           # → _handle_inventory (add)
+    remove_item(name: str),                          # → _handle_inventory (remove)
+    update_quest(name: str, status: str, desc: str), # → _handle_quest
+    change_npc_disposition(npc: str, delta: int),    # → _handle_npc_disposition
+    log_event(description: str),                     # → _handle_event_log
+    invoke_npc(name: str),                           # → existing invoke_npcs
+    request_dice(check: str, dc: int, stat: str),    # → existing dice_required
+]
+```
+
+**Note:**
+- I tool rimpiazzano `world_updates`, `invoke_npcs`, `dice_required` nel JSON monolitico.
+- `narration` rimane come output testuale normale (non tool) — streammato direttamente.
+
+---
+
+### D2. Agentic Loop — orchestratore
+
+**File:** `backend/app/core/agent.py`
+
+```python
+async def run_dm_agent(campaign, player_action, db) -> AsyncIterator[StreamEvent]:
+    """
+    Loop:
+    1. Call LLM with tools available
+    2. Stream narration tokens as they arrive
+    3. For each tool_call in response: execute immediately, feed result back
+    4. Repeat until LLM emits stop (no more tool calls)
+    5. Yield turn_result with accumulated state
+    """
+```
+
+**Considerazioni latenza:**
+- Gemini Flash: ~200ms per tool call — con 3-4 tool calls, latenza totale ~1s extra.
+- Tool calls avvengono in background mentre la narrazione streamma già al client.
+- Il client vede narrazione immediata, i tool vengono eseguiti mentre il player legge.
+
+---
+
+### D3. Migrazione trasporto: WebSocket → SSE
+
+**Motivazione:** il WebSocket è bidirezionale ma SAGA usa solo server→client per il bulk dei dati. Il client manda un singolo messaggio per turno (l'azione). SSE è più semplice, nessun handshake, auth via HTTP header normale.
+
+**Backend:** `backend/app/api/turns.py`
+```
+POST /api/campaigns/:id/turn   { "action": "..." }
+→ StreamingResponse con events:
+   data: {"type": "narration_chunk", "chunk": "..."}
+   data: {"type": "tool_called", "tool": "apply_damage", "args": {...}}
+   data: {"type": "turn_complete", ...}
+```
+
+**Frontend:** `frontend/src/services/turn-stream.ts`
+```typescript
+// Sostituisce GameWebSocket
+const response = await fetch(`/api/campaigns/${id}/turn`, { method: "POST", body, ... });
+const reader = response.body.getReader();
+// parse SSE events...
+```
+
+**Cosa si semplifica:**
+- Niente reconnect logic, niente race condition isMounted (già fixata ma diventa moot)
+- Auth via header Authorization normale
+- Backend: `game_ws()` in `websocket.py` diventa endpoint FastAPI standard con `StreamingResponse`
+
+---
+
+### D4. System prompt update
+
+Rimuovere dal DM prompt tutte le regole di formato JSON (`world_updates`, `dice_required`, ecc.) — diventano irrilevanti con i tool. Mantenere:
+- Regole narrative (don't speak for player, no code fences, prompt injection defense)
+- Regole di gameplay (combat_start una volta, tiri solo su azioni incerte)
+- Context sections (character, world state, storia)
+
+Il prompt si riduce di ~40% in token.
+
+---
+
+### D5. Test e validazione
+
+- Unit test per ogni tool (schema validation, handler integration)
+- Playtest: verifica che in 20+ turni il DM chiami i tool correttamente senza fallback su JSON manuale
+- Regression: tutti i 239 test esistenti devono passare (i handler in `updater.py` non cambiano)
+- Confronto latenza: turno medio con tool call vs turno monolitico attuale
+
+---
+
+### Criteri di completamento Fase D
+- [ ] Tool schema definito, ogni tool mappa a un handler esistente
+- [ ] Agentic loop implementato e testato
+- [ ] SSE endpoint funzionante, frontend migrato
+- [ ] DM non emette più `world_updates` JSON manuale — usa tool calls
+- [ ] Tutti i 239 test esistenti passano (handler invariati)
+- [ ] 20+ turni di playtest senza errori di formato
+- [ ] System prompt ridotto del 40%+ (regole formato rimosse)
+
+---
+
+## FASE E — "Polish per il lancio" (2-3 settimane)
 
 > **Obiettivo:** Il progetto è pronto per essere pubblicato su GitHub e usato da early adopters.
+
+---
+
+### E1. pgvector Hybrid Search — Pilastro 3
+
+*(ex D1)*
+
+- Implementare embedding per ogni fatto atomico in `memory_facts`
+- **Hybrid Search** nel Context Assembler: 70% similarità semantica (`embedding <=>`) + 30% keyword match (`tsvector ts_rank`)
+- Filtri metadata: `entity_name`, `entity_type`
+- Top-5 fatti atomici iniettati nella sezione Memory Context (~500 token)
+- File: `backend/app/memory/semantic.py`
+
+### E2. Recap System — Ruolo Duale
+
+*(ex D2)*
+
+- **Ruolo 1 — System Prompt (critico):** recap iniettato come bussola permanente ogni turno. ~600-700 token fissi.
+- **Ruolo 2 — JournalView (UI):** sommario narrativo visibile al player.
+- Trigger: ogni 25 turni, budget model → nuovo recap cumulativo 500-800 parole.
+
+### E3. API Keys UI + Cost Dashboard
+
+*(ex D3)*
+
+- Settings panel con form per API keys (3 provider + local URL)
+- Crittografia AES-256 al salvataggio
+- Test connection per ogni provider
+- Dashboard costi: costo per turno, sessione, mese, breakdown per modulo
+
+### E4. Secondo e terzo template
+
+*(ex D4)*
+
+- **The Shattered Crowns:** Political fantasy, 5 NPC chiave, 2 fazioni
+- **The Last Light:** Dark fantasy survival, risorse scarse
+- Playtestare entrambi per 30+ turni
+
+### E5. Documentazione
+
+*(ex D5)*
+
+- `INSTALL.md`, `CONTRIBUTING.md`, `TEMPLATE_SDK.md`, `API.md`, `TROUBLESHOOTING.md`
+
+### E6. CI/CD
+
+*(ex D6)*
+
+- GitHub Actions: lint, test, build Docker
+- Pre-commit hooks, automatic changelog
+
+### E7. Responsive & Mobile
+
+*(ex D7)*
+
+- Tablet: sidebar overlay. Mobile: navigazione a tab. PWA manifest.
+
+### E8. Achievement System
+
+*(ex D8)*
+
+- Trigger da model esistente. Achievements base. UI nel profilo.
+
+---
 
 ---
 
@@ -1168,4 +1370,4 @@ Con il MVP tagliato, puoi lanciare in **6-8 settimane** e iterare con feedback d
 
 ---
 
-*Ultimo aggiornamento: Marzo 2026*
+*Ultimo aggiornamento: 2026-03-31 — Phase A+B+C+Sprint1+Sprint2 complete, 239 test passano.*
