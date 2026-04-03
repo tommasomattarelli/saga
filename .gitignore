@@ -29,6 +29,7 @@ frontend/.vite/
 *.swp
 *.swo
 *~
+.claude
 
 # OS
 .DS_Store
