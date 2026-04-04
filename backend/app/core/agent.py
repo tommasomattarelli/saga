@@ -13,10 +13,14 @@ Special tools handled inline:
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
 import structlog
+
+_llm_io = logging.getLogger("llm_io")
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.context import build_context
@@ -95,6 +99,20 @@ class DmAgent:
         for step in range(settings.saga_max_agent_steps):
             step_text, step_tool_calls, stop = "", [], False
 
+            # Full tool schemas only on step 0; just names on subsequent steps
+            tools_log = tool_schemas if step == 0 else [t["function"]["name"] for t in tool_schemas]
+            _llm_io.info(json.dumps({
+                "direction": "input",
+                "campaign_id": str(campaign.id),
+                "turn": campaign.turn_number,
+                "step": step,
+                "provider": model_config.provider,
+                "model": model_config.model,
+                "system_prompt": context.system_prompt if step == 0 else "(same as step 0)",
+                "messages": messages,
+                "tools": tools_log,
+            }, ensure_ascii=False, indent=2) + "\n" + ("─" * 80))
+
             try:
                 async for chunk in self._provider.stream_with_tools(
                     system_prompt=context.system_prompt,
@@ -114,6 +132,18 @@ class DmAgent:
                 yield StreamEvent(type="narration_chunk", data=CONTENT_POLICY_NARRATION)
                 state.narration += CONTENT_POLICY_NARRATION
                 stop = True
+
+            _llm_io.info(json.dumps({
+                "direction": "output",
+                "campaign_id": str(campaign.id),
+                "turn": campaign.turn_number,
+                "step": step,
+                "text": step_text,
+                "tool_calls": [
+                    {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
+                    for tc in step_tool_calls
+                ],
+            }, ensure_ascii=False, indent=2) + "\n" + ("═" * 80))
 
             logger.info(
                 "agent_step",
@@ -182,12 +212,20 @@ class DmAgent:
                     self._provider.format_tool_result(tc.id, tc.name, result_str)
                 )
 
+            _llm_io.info(json.dumps({
+                "direction": "tool_results",
+                "campaign_id": str(campaign.id),
+                "turn": campaign.turn_number,
+                "step": step,
+                "results": tool_results,
+            }, ensure_ascii=False, indent=2) + "\n" + ("─" * 80))
+
             # Build assistant + tool result messages for next step
             assistant_tool_calls = [
                 {
                     "id": tc.id,
                     "type": "function",
-                    "function": {"name": tc.name, "arguments": str(tc.arguments)},
+                    "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)},
                 }
                 for tc in step_tool_calls
             ]

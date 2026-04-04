@@ -67,7 +67,14 @@ def _get_config_for_call(call_type: AICallType, tier: str = "default") -> ModelC
         "medium": settings.saga_global_model_medium.strip(),
         "low": settings.saga_global_model_low.strip(),
     }
-    global_model = global_model_by_tier.get(tier, "")
+    # "default" tier (background tasks) falls back to medium, then low, then high
+    global_model = global_model_by_tier.get(tier, "") or (
+        global_model_by_tier.get("medium", "")
+        or global_model_by_tier.get("low", "")
+        or global_model_by_tier.get("high", "")
+        if global_provider
+        else ""
+    )
     if global_model:
         model_config.model = global_model
 

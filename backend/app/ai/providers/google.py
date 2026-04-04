@@ -17,37 +17,44 @@ logger = structlog.get_logger()
 
 
 def _to_contents(messages: list[dict]) -> list[dict]:
+    import json as _json
+
     contents = []
     for msg in messages:
         role = "user" if msg["role"] == "user" else "model"
-        # Handle tool result messages (role=tool in OpenAI format)
-        if msg["role"] == "tool":
+
+        # Already in Google native format (function_response tool results from format_tool_result)
+        if msg.get("parts"):
+            contents.append({"role": role, "parts": msg["parts"]})
+
+        # OpenAI-format tool result: role=tool
+        elif msg["role"] == "tool":
             contents.append({
                 "role": "user",
                 "parts": [{"function_response": {"name": msg.get("name", ""), "response": {"result": msg["content"]}}}],
             })
+
+        # Assistant message with tool calls → model parts with function_call
         elif msg["role"] == "assistant" and msg.get("tool_calls"):
-            # Assistant message with tool calls → model parts with function_call
             parts = []
             if msg.get("content"):
                 parts.append({"text": msg["content"]})
             for tc in msg["tool_calls"]:
                 fn = tc.get("function", {})
-                args = fn.get("arguments", "{}")
+                args = fn.get("arguments", {})
                 if isinstance(args, str):
-                    import json as _json
                     try:
                         args = _json.loads(args)
                     except (ValueError, TypeError):
                         args = {}
                 parts.append({"function_call": {"name": fn.get("name", ""), "args": args}})
             contents.append({"role": "model", "parts": parts})
+
         else:
             content = msg.get("content", "")
-            if isinstance(content, str):
+            if isinstance(content, str) and content:
                 contents.append({"role": role, "parts": [{"text": content}]})
             elif isinstance(content, list):
-                # Anthropic-style tool result embedded in content list
                 parts = []
                 for block in content:
                     if block.get("type") == "tool_result":
@@ -141,12 +148,13 @@ class GoogleProvider(AIProvider):
         response = await self.client.aio.models.generate_content(
             model=model,
             contents=_to_contents(messages),
-            config={
-                "system_instruction": system_prompt,
-                "temperature": temperature,
-                "max_output_tokens": max_tokens,
-                "tools": google_tools,
-            },
+            config=genai_types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+                tools=google_tools,
+                automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(maximum_remote_calls=0),
+            ),
         )
         _check_safety(response)
 
@@ -182,12 +190,13 @@ class GoogleProvider(AIProvider):
         response = await self.client.aio.models.generate_content_stream(
             model=model,
             contents=_to_contents(messages),
-            config={
-                "system_instruction": system_prompt,
-                "temperature": temperature,
-                "max_output_tokens": max_tokens,
-                "tools": google_tools,
-            },
+            config=genai_types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+                tools=google_tools,
+                automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(maximum_remote_calls=0),
+            ),
         )
         async for chunk in response:
             if not chunk.candidates:

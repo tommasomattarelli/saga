@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import json
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 
 from app.ai.providers.schemas import AgentChunk, AgentResponse
+
+_llm_io = logging.getLogger("llm_io")
 
 
 class AIProvider(ABC):
@@ -65,6 +69,42 @@ class AIProvider(ABC):
         raise NotImplementedError(f"{self.__class__.__name__} does not support tool calling")
 
 
+async def logged_generate(
+    provider: AIProvider,
+    *,
+    caller: str,
+    system_prompt: str,
+    messages: list[dict],
+    model: str,
+    temperature: float = 0.8,
+    max_tokens: int = 2000,
+) -> str:
+    """Wrap provider.generate() with full I/O logging to llm_io.log."""
+    _llm_io.info(json.dumps({
+        "direction": "input",
+        "caller": caller,
+        "model": model,
+        "system_prompt": system_prompt,
+        "messages": messages,
+    }, ensure_ascii=False, indent=2) + "\n" + ("─" * 80))
+
+    result = await provider.generate(
+        system_prompt=system_prompt,
+        messages=messages,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+
+    _llm_io.info(json.dumps({
+        "direction": "output",
+        "caller": caller,
+        "text": result,
+    }, ensure_ascii=False, indent=2) + "\n" + ("═" * 80))
+
+    return result
+
+
 # Provider registry
 _providers: dict[str, AIProvider] = {}
 
@@ -95,6 +135,13 @@ def get_provider(name: str) -> AIProvider:
             _providers[name] = LocalProvider(
                 base_url="https://openrouter.ai/api/v1",
                 api_key=settings.openrouter_api_key,
+            )
+        elif name == "cohere":
+            from app.ai.providers.local import LocalProvider
+            from app.config import settings
+            _providers[name] = LocalProvider(
+                base_url="https://api.cohere.ai/compatibility/v1",
+                api_key=settings.cohere_api_key,
             )
         else:
             raise ValueError(f"Unknown AI provider: {name}")
