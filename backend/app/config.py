@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     saga_global_model_medium: str = ""  # standard model — normal gameplay
     saga_global_model_low: str = ""  # budget model  — background tasks, simple actions
 
+    local_model_url: str = "http://localhost:8080/v1"
+    openrouter_api_key: str = ""
+    saga_max_agent_steps: int = 5
+
     app_mode: str = "community"
     default_language: str = "en"
     telemetry_enabled: bool = False

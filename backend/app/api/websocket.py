@@ -11,7 +11,7 @@ from sqlalchemy import delete, select
 
 from app.ai.embeddings import generate_embedding
 from app.ai.sanitizer import detect_injection, sanitize_player_input
-from app.core.streaming import process_game_turn_streaming
+from app.core.agent import DmAgent
 from app.dependencies import get_db_context
 from app.memory.compressor import compress_turn_to_summary, ensure_compression
 from app.memory.fact_extractor import extract_and_store_facts
@@ -83,8 +83,11 @@ async def game_ws(
 
                 turn_result = None
                 npc_dialogues_for_facts: list[str] = []
+                dice_reveal_event = asyncio.Event()
+                agent = DmAgent(campaign, dice_reveal_event)
+
                 try:
-                    async for event in process_game_turn_streaming(campaign, action, db):
+                    async for event in agent.run(action, db):
                         if event.type == "narration_chunk":
                             await websocket.send_json(
                                 {"type": "dm:narration:chunk", "chunk": event.data}
@@ -96,10 +99,16 @@ async def game_ws(
                                     **(event.data if isinstance(event.data, dict) else {}),
                                 }
                             )
-                        elif event.type == "dice_narration_chunk":
-                            await websocket.send_json(
-                                {"type": "dice:narration:chunk", "chunk": event.data}
-                            )
+                        elif event.type == "await_player":
+                            # Loop is paused — tell client to reveal dice, then wait
+                            await websocket.send_json({"type": "await:dice_reveal"})
+                            # Drain incoming messages until client sends dice_revealed
+                            while True:
+                                client_msg = await websocket.receive_json()
+                                if client_msg.get("type") == "dice_revealed":
+                                    dice_reveal_event.set()
+                                    break
+                                # Ignore other messages during pause
                         elif event.type == "scene_mood":
                             await websocket.send_json({"type": "scene_mood", "mood": event.data})
                         elif event.type == "npc_dialogue":
@@ -108,15 +117,18 @@ async def game_ws(
                             npc_name = npc_data.get("npc_name", "NPC")
                             dialogue = npc_data.get("dialogue", "")
                             npc_dialogues_for_facts.append(f"{npc_name}: {dialogue}")
-                        elif event.type == "combat_start":
-                            await websocket.send_json(
-                                {
-                                    "type": "combat:start",
-                                    **(event.data if isinstance(event.data, dict) else {}),
-                                }
-                            )
-                        elif event.type == "combat_end":
-                            await websocket.send_json({"type": "combat:end"})
+                        elif event.type == "tool_executed":
+                            tool_data = event.data if isinstance(event.data, dict) else {}
+                            await websocket.send_json({"type": "tool:executed", **tool_data})
+                            # Forward combat tool events with legacy types for frontend compat
+                            tool_name = tool_data.get("tool", "")
+                            if tool_name == "start_combat":
+                                extra = tool_data.get("extra", {})
+                                await websocket.send_json(
+                                    {"type": "combat:start", **extra}
+                                )
+                            elif tool_name == "end_combat":
+                                await websocket.send_json({"type": "combat:end"})
                         elif event.type == "death_event":
                             await websocket.send_json(
                                 {
@@ -147,6 +159,10 @@ async def game_ws(
 
                 # Persist turn to DB
                 narration = turn_result["narration"]
+                # Update campaign world/character state from agent output
+                campaign.world_state = turn_result["world_state"]
+                campaign.character_data = turn_result["character_data"]
+
                 summary = await compress_turn_to_summary(narration, action)
                 embedding = await generate_embedding(summary)
                 turn = Turn(
@@ -154,11 +170,11 @@ async def game_ws(
                     turn_number=turn_number,
                     player_action=action,
                     narration=narration,
-                    dice_rolls=turn_result["dice_rolls"],
-                    companion_actions=turn_result["companion_actions"],
-                    world_updates=turn_result["world_updates"],
-                    scene_mood=turn_result["scene_mood"],
-                    suggested_actions=turn_result["suggested_actions"],
+                    dice_rolls=None,  # dice results embedded in tool_events
+                    companion_actions=None,
+                    world_updates={"tool_events": turn_result.get("tool_events", [])},
+                    scene_mood=turn_result.get("scene_mood"),
+                    suggested_actions=None,
                     model_used=turn_result["model_used"],
                     importance_score=turn_result["importance_score"],
                     summary=summary,

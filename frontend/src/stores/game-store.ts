@@ -23,6 +23,12 @@ const ALLOWED_WORLD_STATE_KEYS = new Set([
   "destino_lives",
 ]);
 
+// Module-level callback for dice reveal — set by game-view, called by DiceRoller
+let diceRevealCallback: (() => void) | null = null;
+export function setDiceRevealCallback(cb: (() => void) | null): void {
+  diceRevealCallback = cb;
+}
+
 const __DEV__ =
   typeof window !== "undefined" &&
   (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
@@ -32,6 +38,7 @@ interface StreamingState {
   currentNarration: string;
   pendingDice: Record<string, DiceRollResult> | null;
   diceRevealed: boolean;
+  diceAwaitingReveal: boolean;  // server paused, waiting for player to click
   currentMood: string;
   combatState: CombatState | null;
   deathEvent: DeathEvent | null;
@@ -63,6 +70,7 @@ const initialStreaming: StreamingState = {
   currentNarration: "",
   pendingDice: null,
   diceRevealed: false,
+  diceAwaitingReveal: false,
   currentMood: "neutral",
   combatState: null,
   deathEvent: null,
@@ -119,10 +127,12 @@ export const useGameStore = create<GameState>()((set) => ({
     set((state) => ({
       streaming: { ...state.streaming, pendingDice: dice, diceRevealed: false },
     })),
-  revealDice: () =>
+  revealDice: () => {
+    diceRevealCallback?.();
     set((state) => ({
-      streaming: { ...state.streaming, diceRevealed: true },
-    })),
+      streaming: { ...state.streaming, diceRevealed: true, diceAwaitingReveal: false },
+    }));
+  },
   resetStreaming: () => set({ streaming: { ...initialStreaming } }),
   reset: () =>
     set({

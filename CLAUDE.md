@@ -1,4 +1,4 @@
-# SAGA / Wyrd — Project Guide
+# SAGA — Project Guide
 
 ## Overview
 SAGA/Wyrd is an AI-driven tabletop RPG engine designed to replicate the infinite possibilities of D&D. An expert AI Dungeon Master (DM) maintains authority over the world, adjudicating player actions through complex narrative logic and dice-based mechanics.

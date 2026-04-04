@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getCampaign } from "../services/api";
 import { GameWebSocket } from "../services/websocket";
-import { useGameStore } from "../stores/game-store";
+import { useGameStore, setDiceRevealCallback } from "../stores/game-store";
 import { useUIStore } from "../stores/ui-store";
 import NarrativeStream from "./narrative/narrative-stream";
 import ActionInput from "./input/action-input";
@@ -91,10 +91,13 @@ export default function GameView() {
     ws.on("dice:roll", guard((data) => {
       const roll = data as unknown as Record<string, DiceRollResult>;
       setPendingDice(roll);
+      // Dice locked until server sends await:dice_reveal
+      setStreaming({ diceAwaitingReveal: true });
     }));
 
-    ws.on("dice:narration:chunk", guard((data) => {
-      appendNarration(data.chunk as string);
+    // Server paused — player must click to reveal dice
+    ws.on("await:dice_reveal", guard(() => {
+      setStreaming({ diceAwaitingReveal: true });
     }));
 
     ws.on("scene_mood", guard((data) => {
@@ -107,6 +110,20 @@ export default function GameView() {
 
     ws.on("combat:end", guard(() => {
       setStreaming({ combatState: null });
+    }));
+
+    // Visible tool execution events
+    ws.on("tool:executed", guard((data) => {
+      const toolData = data as Record<string, unknown>;
+      const toolName = toolData.tool as string;
+
+      if (toolName === "update_hp" || toolName === "apply_damage") {
+        // CharacterSheet and CombatTracker update automatically from turn_complete
+        // For immediate visual feedback, could trigger a flash here
+      }
+      if (toolName === "add_item" || toolName === "remove_item") {
+        // Could show a toast notification here in a future sprint
+      }
     }));
 
     ws.on("death:event", guard((data) => {
@@ -150,10 +167,16 @@ export default function GameView() {
       resetStreaming();
     }));
 
+    // Register dice reveal callback — sends dice_revealed to server when player clicks
+    setDiceRevealCallback(() => {
+      wsRef.current?.send({ type: "dice_revealed" });
+    });
+
     ws.connect();
 
     return () => {
       isMountedRef.current = false;
+      setDiceRevealCallback(null);
       ws.disconnect();
       wsRef.current = null;
     };
