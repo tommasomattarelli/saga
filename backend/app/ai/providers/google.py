@@ -29,10 +29,19 @@ def _to_contents(messages: list[dict]) -> list[dict]:
 
         # OpenAI-format tool result: role=tool
         elif msg["role"] == "tool":
-            contents.append({
-                "role": "user",
-                "parts": [{"function_response": {"name": msg.get("name", ""), "response": {"result": msg["content"]}}}],
-            })
+            contents.append(
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "function_response": {
+                                "name": msg.get("name", ""),
+                                "response": {"result": msg["content"]},
+                            }
+                        }
+                    ],
+                }
+            )
 
         # Assistant message with tool calls → model parts with function_call
         elif msg["role"] == "assistant" and msg.get("tool_calls"):
@@ -58,12 +67,14 @@ def _to_contents(messages: list[dict]) -> list[dict]:
                 parts = []
                 for block in content:
                     if block.get("type") == "tool_result":
-                        parts.append({
-                            "function_response": {
-                                "name": block.get("name", "tool"),
-                                "response": {"result": block.get("content", "")},
+                        parts.append(
+                            {
+                                "function_response": {
+                                    "name": block.get("name", "tool"),
+                                    "response": {"result": block.get("content", "")},
+                                }
                             }
-                        })
+                        )
                     elif isinstance(block, dict) and "text" in block:
                         parts.append({"text": block["text"]})
                 if parts:
@@ -144,7 +155,9 @@ class GoogleProvider(AIProvider):
         temperature: float = 0.8,
         max_tokens: int = 2000,
     ) -> AgentResponse:
-        google_tools = [genai_types.Tool(function_declarations=[_openai_tool_to_google(t) for t in tools])]
+        google_tools = [
+            genai_types.Tool(function_declarations=[_openai_tool_to_google(t) for t in tools])
+        ]
         response = await self.client.aio.models.generate_content(
             model=model,
             contents=_to_contents(messages),
@@ -153,7 +166,9 @@ class GoogleProvider(AIProvider):
                 temperature=temperature,
                 max_output_tokens=max_tokens,
                 tools=google_tools,
-                automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(maximum_remote_calls=0),
+                automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
+                    maximum_remote_calls=0
+                ),
             ),
         )
         _check_safety(response)
@@ -186,7 +201,9 @@ class GoogleProvider(AIProvider):
     ) -> AsyncIterator[AgentChunk]:
         # Gemini streaming with tools: accumulate and emit at end
         # (function_call parts don't stream incrementally)
-        google_tools = [genai_types.Tool(function_declarations=[_openai_tool_to_google(t) for t in tools])]
+        google_tools = [
+            genai_types.Tool(function_declarations=[_openai_tool_to_google(t) for t in tools])
+        ]
         response = await self.client.aio.models.generate_content_stream(
             model=model,
             contents=_to_contents(messages),
@@ -195,7 +212,9 @@ class GoogleProvider(AIProvider):
                 temperature=temperature,
                 max_output_tokens=max_tokens,
                 tools=google_tools,
-                automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(maximum_remote_calls=0),
+                automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
+                    maximum_remote_calls=0
+                ),
             ),
         )
         async for chunk in response:

@@ -73,7 +73,9 @@ class DmTool(BaseModel):
         def _clean_prop(v: dict) -> dict:
             cleaned = {kk: vv for kk, vv in v.items() if kk in ALLOWED}
             if "items" in cleaned and isinstance(cleaned["items"], dict):
-                cleaned["items"] = {kk: vv for kk, vv in cleaned["items"].items() if kk in ITEMS_ALLOWED}
+                cleaned["items"] = {
+                    kk: vv for kk, vv in cleaned["items"].items() if kk in ITEMS_ALLOWED
+                }
             return cleaned
 
         props = {k: _clean_prop(v) for k, v in props_raw.items()}
@@ -131,12 +133,14 @@ def execute_tool(name: str, arguments: dict, world_state: dict, char_data: dict)
 
 # ── Helper ───────────────────────────────────────────────────────────────────
 
+
 def _apply(world_state: dict, char_data: dict, update: dict) -> tuple[dict, dict]:
     new_state, new_char = apply_typed_updates(world_state, char_data, [update])
     return new_state, new_char
 
 
 # ── Combat tools (visible) ────────────────────────────────────────────────────
+
 
 @_register
 class StartCombat(DmTool):
@@ -198,7 +202,9 @@ class EndCombat(DmTool):
 
 @_register
 class ApplyDamage(DmTool):
-    target: str = Field(description="Exact name of the combatant to damage (must match initiative order)")
+    target: str = Field(
+        description="Exact name of the combatant to damage (must match initiative order)"
+    )
     amount: int = Field(description="Damage to deal (positive integer). Use negative for healing.")
 
     @classmethod
@@ -219,7 +225,9 @@ class ApplyDamage(DmTool):
 
     def execute(self, world_state: dict, char_data: dict) -> ToolResult:
         new_state, new_char = _apply(
-            world_state, char_data, {"key": "combat_damage", "target": self.target, "change": -self.amount}
+            world_state,
+            char_data,
+            {"key": "combat_damage", "target": self.target, "change": -self.amount},
         )
         # Find updated HP
         order = new_state.get("combat_state", {}).get("initiative_order", [])
@@ -236,9 +244,12 @@ class ApplyDamage(DmTool):
 
 # ── HP tool (visible) ─────────────────────────────────────────────────────────
 
+
 @_register
 class UpdateHp(DmTool):
-    change: int = Field(description="HP change for the player. Negative = damage, positive = healing.")
+    change: int = Field(
+        description="HP change for the player. Negative = damage, positive = healing."
+    )
     reason: str = Field(description="Brief reason (e.g. 'potion', 'trap', 'fall damage')")
 
     @classmethod
@@ -258,7 +269,9 @@ class UpdateHp(DmTool):
 
     def execute(self, world_state: dict, char_data: dict) -> ToolResult:
         old_hp = char_data.get("hp", {}).get("current", 0)
-        new_state, new_char = _apply(world_state, char_data, {"key": "hp_change", "change": self.change})
+        new_state, new_char = _apply(
+            world_state, char_data, {"key": "hp_change", "change": self.change}
+        )
         new_hp = new_char.get("hp", {}).get("current", 0)
         max_hp = new_char.get("hp", {}).get("max", new_hp)
         return ToolResult(
@@ -270,6 +283,7 @@ class UpdateHp(DmTool):
 
 
 # ── Inventory tools (visible) ─────────────────────────────────────────────────
+
 
 @_register
 class AddItem(DmTool):
@@ -293,7 +307,12 @@ class AddItem(DmTool):
         new_state, new_char = _apply(
             world_state,
             char_data,
-            {"key": "inventory_change", "target": self.name, "change": "add", "description": self.description},
+            {
+                "key": "inventory_change",
+                "target": self.name,
+                "change": "add",
+                "description": self.description,
+            },
         )
         return ToolResult(
             description=f"Added '{self.name}' to inventory.",
@@ -321,7 +340,9 @@ class RemoveItem(DmTool):
 
     def execute(self, world_state: dict, char_data: dict) -> ToolResult:
         new_state, new_char = _apply(
-            world_state, char_data, {"key": "inventory_change", "target": self.name, "change": "remove"}
+            world_state,
+            char_data,
+            {"key": "inventory_change", "target": self.name, "change": "remove"},
         )
         return ToolResult(
             description=f"Removed '{self.name}' from inventory.",
@@ -332,6 +353,7 @@ class RemoveItem(DmTool):
 
 
 # ── Silent world tools ────────────────────────────────────────────────────────
+
 
 @_register
 class MoveTo(DmTool):
@@ -374,7 +396,12 @@ class UpdateQuest(DmTool):
         new_state, new_char = _apply(
             world_state,
             char_data,
-            {"key": "quest_update", "target": self.name, "change": self.status, "description": self.description},
+            {
+                "key": "quest_update",
+                "target": self.name,
+                "change": self.status,
+                "description": self.description,
+            },
         )
         return ToolResult(
             description=f"Quest '{self.name}' → {self.status}",
@@ -386,7 +413,9 @@ class UpdateQuest(DmTool):
 @_register
 class ChangeNpcDisposition(DmTool):
     npc: str = Field(description="NPC name")
-    delta: int = Field(description="Disposition change: positive = friendlier, negative = more hostile. Range: -100 to 100.")
+    delta: int = Field(
+        description="Disposition change: positive = friendlier, negative = more hostile. Range: -100 to 100."
+    )
     reason: str = Field(default="", description="Brief reason for the change")
 
     @classmethod
@@ -399,7 +428,9 @@ class ChangeNpcDisposition(DmTool):
 
     def execute(self, world_state: dict, char_data: dict) -> ToolResult:
         new_state, new_char = _apply(
-            world_state, char_data, {"key": "npc_disposition", "target": self.npc, "change": self.delta}
+            world_state,
+            char_data,
+            {"key": "npc_disposition", "target": self.npc, "change": self.delta},
         )
         npcs = new_state.get("npcs", {})
         new_disp = npcs.get(self.npc, {}).get("disposition_toward_player", 0)
@@ -412,7 +443,9 @@ class ChangeNpcDisposition(DmTool):
 
 @_register
 class LogEvent(DmTool):
-    description: str = Field(description="A short, factual description of the event to record in the world history")
+    description: str = Field(
+        description="A short, factual description of the event to record in the world history"
+    )
 
     @classmethod
     def tool_name(cls) -> str:
@@ -504,6 +537,7 @@ class AdvanceTime(DmTool):
 
 # ── Special tools (handled by agent loop, not execute()) ─────────────────────
 
+
 @_register
 class RequestDice(DmTool):
     check: str = Field(description="Type of check (e.g. 'stealth', 'persuasion', 'attack')")
@@ -539,7 +573,9 @@ class RequestDice(DmTool):
 @_register
 class InvokeNpc(DmTool):
     name: str = Field(description="NPC name to speak")
-    context: str = Field(default="", description="Brief context for what this NPC should respond to")
+    context: str = Field(
+        default="", description="Brief context for what this NPC should respond to"
+    )
 
     @classmethod
     def tool_name(cls) -> str:

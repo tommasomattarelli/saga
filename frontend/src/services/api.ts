@@ -2,6 +2,11 @@ import axios from "axios";
 import { useAuthStore } from "../stores/auth-store";
 import type { Campaign, TokenPair, TurnResponse, User, SavePoint } from "../types";
 
+export type JournalTurn = Pick<
+  TurnResponse,
+  "turn_number" | "player_action" | "narration" | "dice_rolls" | "scene_mood"
+>;
+
 const api = axios.create({
   baseURL: "/api",
   headers: { "Content-Type": "application/json" },
@@ -82,6 +87,9 @@ export const loadSave = (campaignId: string, saveId: string) =>
 
 export const getJournal = (campaignId: string, limit = 50, offset = 0) =>
   api.get(`/journal/${campaignId}`, { params: { limit, offset } });
+
+export const getTurns = (campaignId: string) =>
+  api.get<JournalTurn[]>(`/journal/${campaignId}`, { params: { limit: 200, offset: 0 } });
 
 export const getSettings = () => api.get("/settings");
 

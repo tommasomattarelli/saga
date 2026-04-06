@@ -6,28 +6,23 @@
 
 ---
 
-## Setup
-
-```bash
-make test-infra-up          # PostgreSQL + Redis
-cd backend && uv run alembic upgrade head
-cd backend && uv run uvicorn app.main:app --reload
-cd frontend && npm run dev
-```
-
-Assicurati di avere una API key valida in `.env` (`GOOGLE_AI_API_KEY` o altra).
 
 ---
+
+
+
+
+
 
 ## 1. Turno base — narrazione streamma correttamente
 
 **Procedura**: Crea una campagna, scrivi un'azione qualsiasi (es. "I look around the room"), premi Act.
 
 **Atteso**:
-- Il testo della narrazione appare token by token in tempo reale
-- L'indicatore di processing (`DM considers...`) appare durante lo streaming
-- Al termine, `turn_complete` arriva e la narrazione si consolida
-- L'header mostra il turn counter aggiornato
+- Il testo della narrazione appare token by token in tempo reale  **SI**
+- L'indicatore di processing (`DM considers...`) appare durante lo streaming **si**
+- Al termine, `turn_complete` arriva e la narrazione si consolida   --> quando finisce la narrazzione, la pagina veiene 'ricaricata' solo il singolo messaggio, perche il messaggio che utente manda non appare visualizzabile mentre dm consider // non sembra chat message.
+- L'header mostra il turn counter aggiornato --> NO NON SI AGGIORNA (SI AGGIORNA AL REFRESH DELLA PAGINA)
 
 **Log da verificare**:
 ```bash
@@ -57,6 +52,17 @@ Atteso: `ai_request` mostra provider/model/importance. `ai_raw_response` per ogn
 - Finché non si clicca, il DM non continua (non arrivano nuovi chunk di narrazione)
 - Dopo il click, la narrazione riprende in pochi secondi
 
+
+
+
+
+{"step": 0, "text_len": 0, "tool_calls": ["request_dice"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-04T17:39:03.850918Z"}
+{"step": 0, "raw_length": 0, "raw_preview": "", "tool_calls": [{"name": "request_dice", "args": {"check": "lockpicking", "dc": 15, "stat": "dexterity", "reason": "Picking a lock"}}], "event": "ai_raw_response", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-04T17:39:03.851547Z"}
+
+
+questo nei log, ma nessuna grafica nel frontend. soft lock perche non va avanti --> tutto il dice reveal è da sistemare
+
+
 **Log**:
 ```bash
 grep "request_dice\|await_player" logs/saga.log | tail -5
@@ -85,6 +91,16 @@ grep "request_dice\|await_player" logs/saga.log | tail -5
 - Il DM chiama `end_combat` — CombatTracker sparisce
 - Arriva evento `combat:end`
 
+
+
+
+no non parte nemmeno il combattimento:
+
+2026-04-04T17:43:31.054861Z [info     ] ai_raw_response                [app.core.agent] raw_length=423 raw_preview="Ti avvicini al bandit, la tua mazza ferrata salda nella mano. Con un grido di sfida, scagli un colpo potente verso il suo petto.\n\nIl bandit, con un'agilità sorprendente, si scansa con un balzo, ma non riesce a evitare del tutto il tuo attacco. La mazza colpisce il suo braccio, facendogli emettere un" step=0 tool_calls=[]
+
+
+
+
 **Log**:
 ```bash
 grep "start_combat\|end_combat\|apply_damage" logs/saga.log | tail -10
@@ -100,6 +116,14 @@ grep "start_combat\|end_combat\|apply_damage" logs/saga.log | tail -10
 - Il DM chiama `move_to(location="Marketplace")`
 - L'header si aggiorna con la nuova location
 - **Log**: `grep "location_updated\|move_to" logs/saga.log | tail -3`
+
+
+
+
+da verificare perche non riesco a farlo aprtire. prima funzionava ora bo
+
+
+
 
 ---
 
@@ -117,6 +141,12 @@ grep "start_combat\|end_combat\|apply_damage" logs/saga.log | tail -10
 ```bash
 grep "invoke_npc\|npc_dialogue" logs/saga.log | tail -5
 ```
+
+
+da verificare ancora
+
+
+
 
 ---
 
@@ -136,6 +166,11 @@ grep "agent_step" logs/saga.log | tail -10
 # atteso: step=0 spesso è sufficiente, step=1 se c'erano tool calls
 ```
 
+
+da verificare
+
+
+
 ---
 
 ## 7. Item add/remove
@@ -147,6 +182,11 @@ grep "agent_step" logs/saga.log | tail -10
 - `remove_item(name="Health Potion")` → l'oggetto sparisce dall'inventario
 - Evento `tool:executed` arriva per entrambi
 
+quando funzionano i tool funziona
+
+
+
+
 ---
 
 ## 8. Scene mood
@@ -157,6 +197,11 @@ grep "agent_step" logs/saga.log | tail -10
 - Il `narrative panel` cambia colore di bordo/sfondo in base al mood
 - Il DM chiama `set_scene_mood` durante i turni
 - La transizione CSS è smooth (1.5s)
+
+si funziona quando partono i tool
+
+
+
 
 ---
 
@@ -170,6 +215,11 @@ grep "agent_step" logs/saga.log | tail -10
 - Le dice rolls storiche sono visibili ma non più rivelabili (già revealed)
 - Nessun messaggio "Your adventure awaits..." se ci sono turni
 
+NO. dopo il reload i messaggi non vengono mantnuti in memoria. penso siano salvati lato frotnend. invece dovrebbero essere salvati nel db. 
+
+
+
+
 ---
 
 ## 10. Messaggio utente nella chat (da Sprint 2)
@@ -182,6 +232,15 @@ grep "agent_step" logs/saga.log | tail -10
 - Dopo `turn_complete`, l'azione è parte del turno storico
 
 ---
+il messaggio dell utente quando viene mandato non ce (si vede solo dm considering etc etc)
+poi appare; mentre per i messaggi succesivi nella pagina non appaiono mai
+
+dovrebbe apparire subito, come se fosse una chat 
+
+
+
+
+
 
 ## 11. Auto-scroll (da Sprint 2)
 
@@ -190,12 +249,22 @@ grep "agent_step" logs/saga.log | tail -10
 **Atteso**: La chat scrolla automaticamente verso il basso durante lo streaming.
 
 ---
+NO NON CE AUTOSCROLL
+
+
+
+
+
 
 ## 12. Back button e navigazione (da Sprint 2)
 
 **Procedura**: Dalla game view, clicca `←` nell'header.
 
 **Atteso**: Naviga a `/` senza errori. WebSocket si chiude correttamente.
+
+funziona
+
+
 
 ---
 
@@ -209,12 +278,21 @@ grep "agent_step" logs/saga.log | tail -10
 - Nessun crash, nessun loop infinito
 
 ---
+si funziona
+
+
+
+
 
 ## 14. Death system (regressione)
 
 **Procedura**: Fai scendere HP a 0 (combattimento aggressivo in modalità Cronista).
 
 **Atteso**: Death overlay appare con il messaggio corretto. In Cronista: "Near Death". In Destino: "Fate Intervenes". In Ironman: "You Have Fallen" + campagna completata.
+
+da verificare ancora
+
+
 
 ---
 

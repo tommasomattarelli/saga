@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect } from "react";
 import { useGameStore } from "../../stores/game-store";
 import DiceRoller from "./dice-roller";
 import type { TurnResponse } from "../../types";
@@ -16,6 +16,7 @@ function PlayerBubble({ action }: { action: string }) {
 
 interface NarrativeStreamProps {
   wsRef: RefObject<GameWebSocket | null>;
+  scrollRef?: RefObject<HTMLDivElement | null>;
 }
 
 function TurnBlock({
@@ -76,19 +77,19 @@ function TurnBlock({
   );
 }
 
-export default function NarrativeStream({ wsRef }: NarrativeStreamProps) {
+export default function NarrativeStream({ wsRef, scrollRef }: NarrativeStreamProps) {
   const turnHistory = useGameStore((s) => s.turnHistory);
   const isProcessing = useGameStore((s) => s.isProcessing);
   const streaming = useGameStore((s) => s.streaming);
-  const bottomRef = useRef<HTMLDivElement>(null);
 
   const handleSuggestedAction = (action: string) => {
     wsRef.current?.send({ action });
   };
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [streaming.currentNarration, turnHistory.length]);
+    const el = scrollRef?.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [streaming.currentNarration, turnHistory.length, scrollRef]);
 
   return (
     <div>
@@ -131,7 +132,7 @@ export default function NarrativeStream({ wsRef }: NarrativeStreamProps) {
         </div>
       )}
 
-      <div ref={bottomRef} />
+      <div />
     </div>
   );
 }

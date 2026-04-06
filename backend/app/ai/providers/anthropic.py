@@ -133,7 +133,9 @@ class AnthropicProvider(AIProvider):
                     for block in final.content:
                         if block.type == "tool_use":
                             yield ToolCallChunk(
-                                tool_call=ToolCall(id=block.id, name=block.name, arguments=block.input)
+                                tool_call=ToolCall(
+                                    id=block.id, name=block.name, arguments=block.input
+                                )
                             )
 
     def format_tool_result(self, tool_call_id: str, tool_name: str, result: str) -> dict:

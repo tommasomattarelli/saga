@@ -31,14 +31,14 @@ class StreamEvent:
     """An event yielded during the agentic turn loop."""
 
     type: Literal[
-        "narration_chunk",   # DM narration text token
-        "dice_roll",         # Dice roll result (player must reveal)
-        "await_player",      # Loop paused — waiting for player interaction
-        "scene_mood",        # Scene mood changed
-        "npc_dialogue",      # NPC spoke
-        "tool_executed",     # Visible tool was executed (HP change, item, etc.)
-        "death_event",       # Player death or near-death
-        "turn_result",       # Final turn result with full state
+        "narration_chunk",  # DM narration text token
+        "dice_roll",  # Dice roll result (player must reveal)
+        "await_player",  # Loop paused — waiting for player interaction
+        "scene_mood",  # Scene mood changed
+        "npc_dialogue",  # NPC spoke
+        "tool_executed",  # Visible tool was executed (HP change, item, etc.)
+        "death_event",  # Player death or near-death
+        "turn_result",  # Final turn result with full state
         "error",
     ]
     data: str | dict

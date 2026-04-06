@@ -100,7 +100,9 @@ async def game_ws(
                                 }
                             )
                         elif event.type == "await_player":
-                            # Loop is paused — tell client to reveal dice, then wait
+                            # Clear BEFORE the blocking loop so agent.wait() blocks
+                            # correctly when the generator is advanced after this handler.
+                            dice_reveal_event.clear()
                             await websocket.send_json({"type": "await:dice_reveal"})
                             # Drain incoming messages until client sends dice_revealed
                             while True:
@@ -124,9 +126,7 @@ async def game_ws(
                             tool_name = tool_data.get("tool", "")
                             if tool_name == "start_combat":
                                 extra = tool_data.get("extra", {})
-                                await websocket.send_json(
-                                    {"type": "combat:start", **extra}
-                                )
+                                await websocket.send_json({"type": "combat:start", **extra})
                             elif tool_name == "end_combat":
                                 await websocket.send_json({"type": "combat:end"})
                         elif event.type == "death_event":

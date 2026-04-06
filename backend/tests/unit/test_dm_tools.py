@@ -1,8 +1,7 @@
 """Unit tests for DM tool definitions and execution."""
 
-import pytest
-
 from app.ai.tools.dm_tools import (
+    VISIBLE_TOOLS,
     AddItem,
     ApplyDamage,
     ChangeNpcDisposition,
@@ -10,18 +9,16 @@ from app.ai.tools.dm_tools import (
     LogEvent,
     MoveTo,
     RemoveItem,
-    RequestDice,
     SetSceneMood,
     StartCombat,
     UpdateHp,
     UpdateQuest,
-    VISIBLE_TOOLS,
     execute_tool,
     get_tool_schemas,
 )
 
-
 # ── Schema generation ─────────────────────────────────────────────────────────
+
 
 def test_get_tool_schemas_returns_all():
     schemas = get_tool_schemas()
@@ -50,6 +47,7 @@ def test_visible_tools_set():
 
 
 # ── Combat tools ──────────────────────────────────────────────────────────────
+
 
 def test_start_combat_initializes_state():
     enemies = [{"name": "Goblin", "hp": 10, "max_hp": 10}]
@@ -88,6 +86,7 @@ def test_apply_damage_reduces_hp():
 
 # ── HP tool ───────────────────────────────────────────────────────────────────
 
+
 def test_update_hp_heals_player():
     cd = {"hp": {"current": 5, "max": 20}}
     result = UpdateHp(change=8, reason="potion").execute({}, cd)
@@ -108,6 +107,7 @@ def test_update_hp_clamps_to_zero():
 
 # ── Inventory tools ───────────────────────────────────────────────────────────
 
+
 def test_add_item_appends_to_inventory():
     cd = {"inventory": []}
     result = AddItem(name="Torch", description="A wooden torch").execute({}, cd)
@@ -123,6 +123,7 @@ def test_remove_item_removes_from_inventory():
 
 # ── World tools ───────────────────────────────────────────────────────────────
 
+
 def test_move_to_updates_location():
     result = MoveTo(location="Ironforge Market").execute({}, {})
     assert result.world_state.get("location") == "Ironforge Market"
@@ -130,7 +131,9 @@ def test_move_to_updates_location():
 
 def test_update_quest_adds_active_quest():
     cd = {}
-    result = UpdateQuest(name="Dragon Hunt", status="active", description="Find the dragon").execute({}, cd)
+    result = UpdateQuest(
+        name="Dragon Hunt", status="active", description="Find the dragon"
+    ).execute({}, cd)
     quests = result.char_data.get("active_quests", [])
     assert any(q["name"] == "Dragon Hunt" for q in quests)
 
@@ -166,6 +169,7 @@ def test_set_scene_mood_invalid_falls_back_to_neutral():
 
 
 # ── execute_tool helper ───────────────────────────────────────────────────────
+
 
 def test_execute_tool_valid():
     result = execute_tool("move_to", {"location": "Tavern"}, {}, {})

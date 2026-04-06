@@ -80,13 +80,21 @@ async def logged_generate(
     max_tokens: int = 2000,
 ) -> str:
     """Wrap provider.generate() with full I/O logging to llm_io.log."""
-    _llm_io.info(json.dumps({
-        "direction": "input",
-        "caller": caller,
-        "model": model,
-        "system_prompt": system_prompt,
-        "messages": messages,
-    }, ensure_ascii=False, indent=2) + "\n" + ("─" * 80))
+    _llm_io.info(
+        json.dumps(
+            {
+                "direction": "input",
+                "caller": caller,
+                "model": model,
+                "system_prompt": system_prompt,
+                "messages": messages,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n"
+        + ("─" * 80)
+    )
 
     result = await provider.generate(
         system_prompt=system_prompt,
@@ -96,11 +104,19 @@ async def logged_generate(
         max_tokens=max_tokens,
     )
 
-    _llm_io.info(json.dumps({
-        "direction": "output",
-        "caller": caller,
-        "text": result,
-    }, ensure_ascii=False, indent=2) + "\n" + ("═" * 80))
+    _llm_io.info(
+        json.dumps(
+            {
+                "direction": "output",
+                "caller": caller,
+                "text": result,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n"
+        + ("═" * 80)
+    )
 
     return result
 
@@ -118,20 +134,25 @@ def get_provider(name: str) -> AIProvider:
     if name not in _providers:
         if name == "openai":
             from app.ai.providers.openai import OpenAIProvider
+
             _providers[name] = OpenAIProvider()
         elif name == "anthropic":
             from app.ai.providers.anthropic import AnthropicProvider
+
             _providers[name] = AnthropicProvider()
         elif name == "google":
             from app.ai.providers.google import GoogleProvider
+
             _providers[name] = GoogleProvider()
         elif name == "local":
             from app.ai.providers.local import LocalProvider
             from app.config import settings
+
             _providers[name] = LocalProvider(base_url=settings.local_model_url)
         elif name == "openrouter":
             from app.ai.providers.local import LocalProvider
             from app.config import settings
+
             _providers[name] = LocalProvider(
                 base_url="https://openrouter.ai/api/v1",
                 api_key=settings.openrouter_api_key,
@@ -139,6 +160,7 @@ def get_provider(name: str) -> AIProvider:
         elif name == "cohere":
             from app.ai.providers.local import LocalProvider
             from app.config import settings
+
             _providers[name] = LocalProvider(
                 base_url="https://api.cohere.ai/compatibility/v1",
                 api_key=settings.cohere_api_key,

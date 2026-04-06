@@ -86,6 +86,7 @@ class DmAgent:
         )
 
         from app.ai.providers.base import get_provider
+
         self._provider = get_provider(model_config.provider)
 
         state = _AgentState(
@@ -100,18 +101,30 @@ class DmAgent:
             step_text, step_tool_calls, stop = "", [], False
 
             # Full tool schemas only on step 0; just names on subsequent steps
-            tools_log = tool_schemas if step == 0 else [t["function"]["name"] for t in tool_schemas]
-            _llm_io.info(json.dumps({
-                "direction": "input",
-                "campaign_id": str(campaign.id),
-                "turn": campaign.turn_number,
-                "step": step,
-                "provider": model_config.provider,
-                "model": model_config.model,
-                "system_prompt": context.system_prompt if step == 0 else "(same as step 0)",
-                "messages": messages,
-                "tools": tools_log,
-            }, ensure_ascii=False, indent=2) + "\n" + ("─" * 80))
+            tools_log = (
+                tool_schemas if step == 0 else [t["function"]["name"] for t in tool_schemas]
+            )
+            _llm_io.info(
+                json.dumps(
+                    {
+                        "direction": "input",
+                        "campaign_id": str(campaign.id),
+                        "turn": campaign.turn_number,
+                        "step": step,
+                        "provider": model_config.provider,
+                        "model": model_config.model,
+                        "system_prompt": context.system_prompt
+                        if step == 0
+                        else "(same as step 0)",
+                        "messages": messages,
+                        "tools": tools_log,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                + "\n"
+                + ("─" * 80)
+            )
 
             try:
                 async for chunk in self._provider.stream_with_tools(
@@ -133,17 +146,25 @@ class DmAgent:
                 state.narration += CONTENT_POLICY_NARRATION
                 stop = True
 
-            _llm_io.info(json.dumps({
-                "direction": "output",
-                "campaign_id": str(campaign.id),
-                "turn": campaign.turn_number,
-                "step": step,
-                "text": step_text,
-                "tool_calls": [
-                    {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
-                    for tc in step_tool_calls
-                ],
-            }, ensure_ascii=False, indent=2) + "\n" + ("═" * 80))
+            _llm_io.info(
+                json.dumps(
+                    {
+                        "direction": "output",
+                        "campaign_id": str(campaign.id),
+                        "turn": campaign.turn_number,
+                        "step": step,
+                        "text": step_text,
+                        "tool_calls": [
+                            {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
+                            for tc in step_tool_calls
+                        ],
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                + "\n"
+                + ("═" * 80)
+            )
 
             logger.info(
                 "agent_step",
@@ -200,25 +221,36 @@ class DmAgent:
             # Special tools — sequential (dice needs player input, NPC needs await)
             for tc in special:
                 if tc.name == "request_dice":
-                    events, result_str = await self._run_dice(tc, state)
+                    # Yield events FIRST (dice_roll + await_player), then wait.
+                    # clear() is done by websocket BEFORE its blocking loop, so the
+                    # event is unset when we reach wait() here.
+                    events, result_str = self._prepare_dice(tc, state)
+                    for ev in events:
+                        yield ev
+                    await self.dice_reveal_event.wait()
                 elif tc.name == "invoke_npc":
                     events, result_str = await self._run_npc(tc, state, db)
+                    for ev in events:
+                        yield ev
                 else:
                     result_str = f"Unknown special tool: {tc.name}"
-                    events = []
-                for ev in events:
-                    yield ev
-                tool_results.append(
-                    self._provider.format_tool_result(tc.id, tc.name, result_str)
-                )
+                tool_results.append(self._provider.format_tool_result(tc.id, tc.name, result_str))
 
-            _llm_io.info(json.dumps({
-                "direction": "tool_results",
-                "campaign_id": str(campaign.id),
-                "turn": campaign.turn_number,
-                "step": step,
-                "results": tool_results,
-            }, ensure_ascii=False, indent=2) + "\n" + ("─" * 80))
+            _llm_io.info(
+                json.dumps(
+                    {
+                        "direction": "tool_results",
+                        "campaign_id": str(campaign.id),
+                        "turn": campaign.turn_number,
+                        "step": step,
+                        "results": tool_results,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                + "\n"
+                + ("─" * 80)
+            )
 
             # Build assistant + tool result messages for next step
             assistant_tool_calls = [
@@ -229,11 +261,13 @@ class DmAgent:
                 }
                 for tc in step_tool_calls
             ]
-            messages.append({
-                "role": "assistant",
-                "content": step_text or None,
-                "tool_calls": assistant_tool_calls,
-            })
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": step_text or None,
+                    "tool_calls": assistant_tool_calls,
+                }
+            )
             messages.extend(tool_results)
 
         # ── Post-loop cleanup ─────────────────────────────────────────────────
@@ -272,9 +306,7 @@ class DmAgent:
             },
         )
 
-    async def _run_regular(
-        self, tc, state: _AgentState
-    ) -> tuple[list[StreamEvent], str]:
+    async def _run_regular(self, tc, state: _AgentState) -> tuple[list[StreamEvent], str]:
         """Execute a regular (non-special) tool. Returns (events_to_yield, result_str)."""
         result = execute_tool(tc.name, tc.arguments, state.world_state, state.char_data)
         state.world_state = result.world_state
@@ -302,10 +334,8 @@ class DmAgent:
 
         return events, result.description
 
-    async def _run_dice(
-        self, tc, state: _AgentState
-    ) -> tuple[list[StreamEvent], str]:
-        """Handle request_dice. Pauses until player clicks reveal."""
+    def _prepare_dice(self, tc, state: _AgentState) -> tuple[list[StreamEvent], str]:
+        """Prepare dice roll events and result string. Does NOT await — caller must yield events then await."""
         args = tc.arguments
         check = args.get("check", "check")
         dc = int(args.get("dc", 10))
@@ -317,21 +347,30 @@ class DmAgent:
         modifier = (stat_score - 10) // 2
 
         dice_result = ability_check(modifier=modifier, dc=dc)
-        dice_result["check"] = check
-        dice_result["stat"] = stat
-        dice_result["reason"] = reason
+
+        # Format for frontend: Record<string, DiceRollResult>
+        check_label = check.replace("_", " ").title()
+        roll_obj = dice_result["roll"]
+        formatted_dice = {
+            check_label: {
+                "expression": roll_obj.expression,
+                "rolls": roll_obj.rolls,
+                "modifier": roll_obj.modifier,
+                "total": roll_obj.total,
+                "dc": dc,
+                "success": dice_result["success"],
+                "outcome": dice_result["outcome"],
+                "is_critical": dice_result["is_critical"],
+            }
+        }
 
         events: list[StreamEvent] = [
-            StreamEvent(type="dice_roll", data=dice_result),
+            StreamEvent(type="dice_roll", data=formatted_dice),
             StreamEvent(type="await_player", data="dice_reveal"),
         ]
 
-        # Pause until WebSocket receives "dice_revealed" from client
-        self.dice_reveal_event.clear()
-        await self.dice_reveal_event.wait()
-
         outcome = dice_result.get("outcome", "partial_success")
-        total = dice_result.get("total", 10)
+        total = roll_obj.total
         result_str = (
             f"{check.title()} check (DC {dc}): rolled {total} ({modifier:+d} modifier) → {outcome}."
             + (f" Context: {reason}" if reason else "")
@@ -371,10 +410,18 @@ class DmAgent:
                 new_state, new_char = apply_typed_updates(
                     state.world_state,
                     state.char_data,
-                    [{"key": "npc_disposition", "target": npc.npc_name, "change": npc.disposition_change}],
+                    [
+                        {
+                            "key": "npc_disposition",
+                            "target": npc.npc_name,
+                            "change": npc.disposition_change,
+                        }
+                    ],
                 )
                 state.world_state = new_state
                 state.char_data = new_char
 
-        result_str = " | ".join(dialogue_parts) if dialogue_parts else f"{npc_name} does not respond."
+        result_str = (
+            " | ".join(dialogue_parts) if dialogue_parts else f"{npc_name} does not respond."
+        )
         return events, result_str

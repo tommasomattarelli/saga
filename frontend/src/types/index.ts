@@ -150,15 +150,15 @@ export interface TurnResponse {
   player_action?: string;
   narration: string;
   dice_rolls: Record<string, DiceRollResult> | null;
-  companion_actions: Record<string, string> | null;
-  world_updates: Record<string, unknown> | null;
+  companion_actions?: Record<string, string> | null;
+  world_updates?: Record<string, unknown> | null;
   scene_mood: string | null;
-  suggested_actions: string[] | null;
-  model_used: string;
-  invoke_npcs: string[];
-  time_passed_minutes: number;
-  ambient_detail: string | null;
-  requires_player_action: boolean;
+  suggested_actions?: string[] | null;
+  model_used?: string;
+  invoke_npcs?: string[];
+  time_passed_minutes?: number;
+  ambient_detail?: string | null;
+  requires_player_action?: boolean;
 }
 
 export interface SavePoint {

@@ -18,7 +18,9 @@ logger = structlog.get_logger()
 class LocalProvider(AIProvider):
     """Any OpenAI-compatible endpoint: local models (Ollama, LM Studio) or OpenRouter."""
 
-    def __init__(self, base_url: str = "http://localhost:8080/v1", api_key: str | None = None) -> None:
+    def __init__(
+        self, base_url: str = "http://localhost:8080/v1", api_key: str | None = None
+    ) -> None:
         self.client = openai.AsyncOpenAI(
             base_url=base_url,
             api_key=api_key or "local",  # Many local servers accept any non-empty key

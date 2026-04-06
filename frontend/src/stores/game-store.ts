@@ -38,7 +38,7 @@ interface StreamingState {
   currentNarration: string;
   pendingDice: Record<string, DiceRollResult> | null;
   diceRevealed: boolean;
-  diceAwaitingReveal: boolean;  // server paused, waiting for player to click
+  diceAwaitingReveal: boolean; // server paused, waiting for player to click
   currentMood: string;
   combatState: CombatState | null;
   deathEvent: DeathEvent | null;
@@ -57,6 +57,7 @@ interface GameState {
   setProcessing: (processing: boolean) => void;
   updateWorldState: (updates: Partial<WorldState>) => void;
   updateCharacter: (updates: Partial<CharacterData>) => void;
+  updateTurnNumber: (n: number) => void;
   setStreaming: (updates: Partial<StreamingState>) => void;
   appendNarration: (chunk: string) => void;
   setPendingDice: (dice: Record<string, DiceRollResult>) => void;
@@ -114,6 +115,11 @@ export const useGameStore = create<GameState>()((set) => ({
           character_data: { ...state.campaign.character_data, ...updates },
         },
       };
+    }),
+  updateTurnNumber: (n) =>
+    set((state) => {
+      if (!state.campaign) return state;
+      return { campaign: { ...state.campaign, turn_number: n } };
     }),
   setStreaming: (updates) => set((state) => ({ streaming: { ...state.streaming, ...updates } })),
   appendNarration: (chunk) =>
