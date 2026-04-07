@@ -103,9 +103,13 @@ def _register(cls: type[DmTool]) -> type[DmTool]:
     return cls
 
 
-def get_tool_schemas() -> list[dict]:
-    """Return all tool schemas in OpenAI format."""
-    return [cls.to_openai_schema() for cls in _TOOLS.values()]
+def get_tool_schemas(allowed: set[str] | None = None) -> list[dict]:
+    """Return tool schemas in OpenAI format, optionally filtered to `allowed` names."""
+    return [
+        cls.to_openai_schema()
+        for name, cls in _TOOLS.items()
+        if allowed is None or name in allowed
+    ]
 
 
 def get_tool(name: str) -> type[DmTool] | None:
@@ -371,8 +375,23 @@ class MoveTo(DmTool):
         new_state, new_char = _apply(
             world_state, char_data, {"key": "location", "change": self.location}
         )
+        # Also sync meta.current_location for context builder
+        new_state.setdefault("meta", {})["current_location"] = self.location
+
+        loc_data = new_state.get("locations", {}).get(self.location)
+        if loc_data:
+            desc = loc_data.get("description", "")
+            connections = ", ".join(loc_data.get("connections", []))
+            detail = f"Player moved to: {self.location}"
+            if desc:
+                detail += f"\nDescription: {desc}"
+            if connections:
+                detail += f"\nConnected to: {connections}"
+        else:
+            detail = f"Player moved to: {self.location}"
+
         return ToolResult(
-            description=f"Player moved to: {self.location}",
+            description=detail,
             world_state=new_state,
             char_data=new_char,
         )

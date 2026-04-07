@@ -30,6 +30,7 @@ from app.ai.providers.schemas import TextChunk, ToolCallChunk
 from app.ai.router import AICallType, route_ai_call
 from app.ai.semantic_resolver import resolve_player_action
 from app.ai.tools.dm_tools import execute_tool, get_tool, get_tool_schemas
+from app.ai.tools.tool_groups import resolve_active_tools
 from app.config import settings
 from app.core.death import check_player_death
 from app.core.dice import ability_check
@@ -94,7 +95,14 @@ class DmAgent:
             char_data=campaign.character_data or {},
         )
         messages = list(context.messages)
-        tool_schemas = get_tool_schemas()
+        allowed_tools = resolve_active_tools(campaign)
+        tool_schemas = get_tool_schemas(allowed=allowed_tools)
+        logger.info(
+            "tool_groups_resolved",
+            campaign_id=str(campaign.id),
+            tool_count=len(tool_schemas),
+            tools=sorted(allowed_tools),
+        )
 
         empty_text_steps = 0
         for step in range(settings.saga_max_agent_steps):
@@ -380,9 +388,17 @@ class DmAgent:
     async def _run_npc(
         self, tc, state: _AgentState, db: AsyncSession
     ) -> tuple[list[StreamEvent], str]:
-        """Handle invoke_npc. Calls NPC director and returns dialogue to DM."""
+        """Handle invoke_npc. Pre-hook: guard + load profile. Calls NPC director."""
         npc_name = tc.arguments.get("name", "")
         context_hint = tc.arguments.get("context", "")
+
+        # Pre-hook: guard against NPCs not in world_state
+        npc_profile = state.world_state.get("npcs", {}).get(npc_name)
+        if not npc_profile:
+            return [], (
+                f"NPC '{npc_name}' is not defined in this world. "
+                "Do not invoke them. Use an NPC that exists in the current template."
+            )
 
         npc_results = await invoke_npcs_parallel(
             npc_names=[npc_name],
@@ -405,6 +421,15 @@ class DmAgent:
             if npc.action:
                 part += f" [{npc.action}]"
             dialogue_parts.append(part)
+
+            # Store last_interactions ring buffer (max 3) in world_state
+            npc_ws = state.world_state.get("npcs", {}).get(npc.npc_name)
+            if npc_ws is not None:
+                history: list[str] = npc_ws.setdefault("last_interactions", [])
+                entry = f'Turn {self.campaign.turn_number}: "{npc.dialogue}"'
+                history.append(entry)
+                if len(history) > 3:
+                    history[:] = history[-3:]
 
             if npc.disposition_change != 0:
                 new_state, new_char = apply_typed_updates(

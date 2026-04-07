@@ -1,0 +1,137 @@
+# saga.config.yaml — Game-tunable configuration
+#
+# Edit this file to change models, gameplay behavior, feature toggles, and tool groups.
+# Secrets and infra settings stay in .env / backend/app/config.py (12-factor).
+#
+# Environment variable overrides (still supported):
+#   SAGA_MODEL_DM_NARRATION_LOW_PROVIDER, SAGA_MODEL_DM_NARRATION_HIGH, etc.
+#   SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS, SAGA_GAMEPLAY_NPC_VERBOSITY, etc.
+#   SAGA_GLOBAL_PROVIDER, SAGA_GLOBAL_MODEL_HIGH, SAGA_GLOBAL_MODEL_LOW, etc.
+
+# ---------------------------------------------------------------------------
+# DM Narration — three-tier routing based on scene importance (0-10)
+# ---------------------------------------------------------------------------
+dm_narration:
+  low:                       # importance 0-3: routine exploration / simple responses
+    provider: google
+    model: gemini-2.5-flash
+    temperature: 0.8
+    max_tokens: 2000
+  medium:                    # importance 4-6: normal gameplay
+    provider: google
+    model: gemini-2.5-flash
+    temperature: 0.8
+    max_tokens: 3000
+  high:                      # importance 7-10: boss fights, dramatic reveals
+    provider: google
+    model: gemini-2.5-flash
+    temperature: 0.9
+    max_tokens: 4000
+
+# ---------------------------------------------------------------------------
+# Companion Dialogue — single tier, conversational
+# ---------------------------------------------------------------------------
+companion_dialogue:
+  default:
+    provider: google
+    model: gemini-2.5-flash
+    temperature: 0.7
+    max_tokens: 1500
+
+# ---------------------------------------------------------------------------
+# NPC Behavior — budget model, high volume
+# ---------------------------------------------------------------------------
+npc_behavior:
+  default:
+    provider: google
+    model: gemini-2.5-flash
+    temperature: 0.7
+    max_tokens: 1000
+
+# ---------------------------------------------------------------------------
+# World Simulation — deterministic scoring, lower temperature
+# ---------------------------------------------------------------------------
+world_sim:
+  default:
+    provider: google
+    model: gemini-2.5-flash
+    temperature: 0.5
+    max_tokens: 1500
+
+# ---------------------------------------------------------------------------
+# Memory Compression — focused summarization
+# ---------------------------------------------------------------------------
+memory_compression:
+  default:
+    provider: google
+    model: gemini-2.5-flash
+    temperature: 0.3
+    max_tokens: 500
+
+# ---------------------------------------------------------------------------
+# Embeddings
+# ---------------------------------------------------------------------------
+embedding:
+  default:
+    provider: google
+    model: text-embedding-004
+    dimensions: 1536
+
+
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Gameplay Settings — runtime behavior
+# ---------------------------------------------------------------------------
+gameplay:
+  context_window_turns: 8        # verbatim turns in DM prompt
+  npc_verbosity: "medium"        # null=0 minimal=1 low=2 medium=3 high=5 unlimited=999
+  compression_enabled: true
+  fact_extraction_enabled: true
+  max_agent_steps: 5
+
+# ---------------------------------------------------------------------------
+# Feature Toggles — opt-in AI features (BYOAK — off by default)
+# ---------------------------------------------------------------------------
+features:
+  global_summary:
+    enabled: false               # v1.5: rolling story summary
+    mode: rule_based             # "rule_based" or "llm"
+    interval_turns: 5
+  npc_enrichment:
+    enabled: false               # v1.5+: LLM-enriched NPC profiles before invoke_npc
+  world_sim:
+    enabled: false               # v2: autonomous world simulation agent
+
+# ---------------------------------------------------------------------------
+# Tool Groups — dynamic tool loading per world state
+# Conditions: "combat_active" | "npcs_present" | "companion_active"
+# ---------------------------------------------------------------------------
+tool_groups:
+  core:
+    always: true
+    tools:
+      - move_to
+      - advance_time
+      - set_scene_mood
+      - log_event
+      - update_quest
+  combat:
+    when: combat_active
+    tools:
+      - request_dice
+      - apply_damage
+      - end_combat
+      - update_hp
+      - start_combat
+  social:
+    when: npcs_present
+    tools:
+      - invoke_npc
+      - change_npc_disposition
+  inventory:
+    always: true
+    tools:
+      - add_item
+      - remove_item

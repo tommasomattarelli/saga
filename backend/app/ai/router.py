@@ -3,12 +3,9 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from enum import StrEnum
-from functools import lru_cache
-from pathlib import Path
-
-import yaml
 
 from app.config import settings
+from app.config_loader import load_saga_config
 
 
 class AICallType(StrEnum):
@@ -32,14 +29,8 @@ class ModelConfig:
     max_tokens: int
 
 
-# Path to the YAML config file
-_CONFIG_PATH = Path(__file__).parent / "model_config.yaml"
-
-
-@lru_cache(maxsize=1)
 def _load_config() -> dict:
-    with open(_CONFIG_PATH) as f:
-        return yaml.safe_load(f)
+    return load_saga_config()
 
 
 def _cfg_to_model_config(cfg: dict) -> ModelConfig:
