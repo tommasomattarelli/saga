@@ -118,6 +118,8 @@ async def resolve_player_action(
 
             data = json.loads(repair_json(cleaned))
 
+        if isinstance(data, list):
+            data = data[0] if data else {}
         return ResolverOutput(**data)
 
     except Exception:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 
 import structlog
@@ -14,6 +15,25 @@ from app.ai.providers.schemas import AgentChunk, AgentResponse, TextChunk, ToolC
 from app.config import settings
 
 logger = structlog.get_logger()
+
+_RETRY_DELAYS = [5, 15, 30]  # seconds between retries on 503
+
+
+async def _with_retry(coro_fn, *args, **kwargs):
+    """Retry a coroutine up to 3 times on 503 errors."""
+    last_exc: Exception | None = None
+    for attempt, delay in enumerate([0] + _RETRY_DELAYS):
+        if delay:
+            await asyncio.sleep(delay)
+        try:
+            return await coro_fn(*args, **kwargs)
+        except Exception as e:
+            if "503" in str(e) or "UNAVAILABLE" in str(e):
+                logger.warning("google_503_retry", attempt=attempt + 1, error=str(e)[:100])
+                last_exc = e
+            else:
+                raise
+    raise last_exc
 
 
 def _to_contents(messages: list[dict]) -> list[dict]:
@@ -113,7 +133,8 @@ class GoogleProvider(AIProvider):
         temperature: float = 0.8,
         max_tokens: int = 2000,
     ) -> str:
-        response = await self.client.aio.models.generate_content(
+        response = await _with_retry(
+            self.client.aio.models.generate_content,
             model=model,
             contents=_to_contents(messages),
             config={
@@ -158,7 +179,8 @@ class GoogleProvider(AIProvider):
         google_tools = [
             genai_types.Tool(function_declarations=[_openai_tool_to_google(t) for t in tools])
         ]
-        response = await self.client.aio.models.generate_content(
+        response = await _with_retry(
+            self.client.aio.models.generate_content,
             model=model,
             contents=_to_contents(messages),
             config=genai_types.GenerateContentConfig(
@@ -167,7 +189,7 @@ class GoogleProvider(AIProvider):
                 max_output_tokens=max_tokens,
                 tools=google_tools,
                 automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
-                    maximum_remote_calls=0
+                    disable=True, maximum_remote_calls=None
                 ),
             ),
         )
@@ -204,34 +226,50 @@ class GoogleProvider(AIProvider):
         google_tools = [
             genai_types.Tool(function_declarations=[_openai_tool_to_google(t) for t in tools])
         ]
-        response = await self.client.aio.models.generate_content_stream(
-            model=model,
-            contents=_to_contents(messages),
-            config=genai_types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                temperature=temperature,
-                max_output_tokens=max_tokens,
-                tools=google_tools,
-                automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
-                    maximum_remote_calls=0
-                ),
+        config = genai_types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            temperature=temperature,
+            max_output_tokens=max_tokens,
+            tools=google_tools,
+            automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
+                disable=True, maximum_remote_calls=None
             ),
         )
-        async for chunk in response:
-            if not chunk.candidates:
-                continue
-            for part in chunk.candidates[0].content.parts:
-                if hasattr(part, "text") and part.text:
-                    yield TextChunk(text=part.text)
-                elif hasattr(part, "function_call") and part.function_call:
-                    fc = part.function_call
-                    yield ToolCallChunk(
-                        tool_call=ToolCall(
-                            id=fc.id if hasattr(fc, "id") and fc.id else fc.name,
-                            name=fc.name,
-                            arguments=dict(fc.args) if fc.args else {},
-                        )
-                    )
+        contents = _to_contents(messages)
+
+        for attempt, delay in enumerate([0] + _RETRY_DELAYS):
+            if delay:
+                await asyncio.sleep(delay)
+            try:
+                response = await self.client.aio.models.generate_content_stream(
+                    model=model, contents=contents, config=config
+                )
+                async for chunk in response:
+                    if not chunk.candidates:
+                        continue
+                    candidate = chunk.candidates[0]
+                    content = candidate.content
+                    if not content or not content.parts:
+                        continue
+                    for part in content.parts:
+                        if hasattr(part, "text") and part.text:
+                            yield TextChunk(text=part.text)
+                        elif hasattr(part, "function_call") and part.function_call:
+                            fc = part.function_call
+                            yield ToolCallChunk(
+                                tool_call=ToolCall(
+                                    id=fc.id if hasattr(fc, "id") and fc.id else fc.name,
+                                    name=fc.name,
+                                    arguments=dict(fc.args) if fc.args else {},
+                                )
+                            )
+                return
+            except Exception as e:
+                if "503" in str(e) or "UNAVAILABLE" in str(e):
+                    logger.warning("google_503_retry_stream", attempt=attempt + 1, error=str(e)[:100])
+                else:
+                    raise
+        raise RuntimeError(f"Google streaming failed after {len(_RETRY_DELAYS) + 1} attempts (503)")
 
     def format_tool_result(self, tool_call_id: str, tool_name: str, result: str) -> dict:
         # Google uses function_response inside a user turn

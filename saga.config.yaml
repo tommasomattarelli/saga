@@ -14,17 +14,17 @@
 dm_narration:
   low:                       # importance 0-3: routine exploration / simple responses
     provider: google
-    model: gemini-2.5-flash
+    model: gemini-2.5-pro
     temperature: 0.8
     max_tokens: 2000
   medium:                    # importance 4-6: normal gameplay
     provider: google
-    model: gemini-2.5-flash
+    model: gemini-2.5-pro
     temperature: 0.8
     max_tokens: 3000
   high:                      # importance 7-10: boss fights, dramatic reveals
     provider: google
-    model: gemini-2.5-flash
+    model: gemini-2.5-pro
     temperature: 0.9
     max_tokens: 4000
 
@@ -88,7 +88,8 @@ gameplay:
   context_window_turns: 8        # verbatim turns in DM prompt
   npc_verbosity: "medium"        # null=0 minimal=1 low=2 medium=3 high=5 unlimited=999
   compression_enabled: true
-  fact_extraction_enabled: true
+  fact_extraction_enabled: true   # background only, used in v2 pgvector search
+  semantic_resolver_enabled: false # disabled until v1.5 (NPC filtering + intent classification)
   max_agent_steps: 5
 
 # ---------------------------------------------------------------------------

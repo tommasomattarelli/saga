@@ -165,6 +165,14 @@ def get_provider(name: str) -> AIProvider:
                 base_url="https://api.cohere.ai/compatibility/v1",
                 api_key=settings.cohere_api_key,
             )
+        elif name == "groq":
+            from app.ai.providers.local import LocalProvider
+            from app.config import settings
+
+            _providers[name] = LocalProvider(
+                base_url="https://api.groq.com/openai/v1",
+                api_key=settings.groq_api_key,
+            )
         else:
             raise ValueError(f"Unknown AI provider: {name}")
     return _providers[name]

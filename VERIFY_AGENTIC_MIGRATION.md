@@ -21,8 +21,8 @@
 **Atteso**:
 - Il testo della narrazione appare token by token in tempo reale  **SI**
 - L'indicatore di processing (`DM considers...`) appare durante lo streaming **si**
-- Al termine, `turn_complete` arriva e la narrazione si consolida   --> quando finisce la narrazzione, la pagina veiene 'ricaricata' solo il singolo messaggio, perche il messaggio che utente manda non appare visualizzabile mentre dm consider // non sembra chat message.
-- L'header mostra il turn counter aggiornato --> NO NON SI AGGIORNA (SI AGGIORNA AL REFRESH DELLA PAGINA)
+- Al termine, `turn_complete` arriva e la narrazione si consolida   
+- L'header mostra il turn counter aggiornato 
 
 **Log da verificare**:
 ```bash
@@ -31,6 +31,23 @@ grep "ai_raw_response" logs/saga.log | tail -5
 grep "agent_step" logs/saga.log | tail -5
 ```
 Atteso: `ai_request` mostra provider/model/importance. `ai_raw_response` per ogni step con `raw_preview` e `tool_calls`. Almeno 1 step per turno.
+
+tommasomattarelli@LAPTOP-41P6SR3J:~/saga/backend$ grep "ai_request" logs/saga.log | tail -1
+{"campaign_id": "77a73218-171f-444d-8308-92cc07052a18", "turn_number": 5, "provider": "google", "model": "gemini-2.5-pro", "importance": 5, "system_prompt_preview": "<instructions>\nYou are an expert Dungeon Master running a tabletop RPG sessi...", "messages_count": 9, "event": "ai_request", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T19:37:38.124040Z"}
+tommasomattarelli@LAPTOP-41P6SR3J:~/saga/backend$ grep "ai_raw_response" logs/saga.log | tail -5
+{"step": 0, "raw_length": 1062, "raw_preview": "You give a final nod to Sister Ember, who touches two fingers to her brow in a silent gest...", "tool_calls": [{"name": "move_to", "args": {"location": "The Dusk Road"}}], "event": "ai_raw_response", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T19:37:47.124443Z"}
+{"step": 1, "raw_length": 0, "raw_preview": "", "tool_calls": [{"name": "set_scene_mood", "args": {"mood": "melancholic_reflection"}}, {"name": "advance_time", "args": {"minutes": 15}}], "event": "ai_raw_response", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T19:38:01.584129Z"}
+{"step": 2, "raw_length": 75, "raw_preview": "The road ahead is lost in shadow, a stark and lonely path into the unknown.", "tool_calls": [], "event": "ai_raw_response", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T19:38:02.725783Z"}
+tommasomattarelli@LAPTOP-41P6SR3J:~/saga/backend$ grep "agent_step" logs/saga.log | tail -5
+{"step": 0, "text_len": 1062, "tool_calls": ["move_to"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T19:37:47.123890Z"}
+{"step": 1, "text_len": 0, "tool_calls": ["set_scene_mood", "advance_time"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T19:38:01.583595Z"}
+{"step": 2, "text_len": 75, "tool_calls": [], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T19:38:02.724635Z"}
+
+
+
+SUPPONGO SIA CORRETTO
+
+
 
 ---
 
@@ -56,17 +73,56 @@ Atteso: `ai_request` mostra provider/model/importance. `ai_raw_response` per ogn
 
 
 
-{"step": 0, "text_len": 0, "tool_calls": ["request_dice"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-04T17:39:03.850918Z"}
-{"step": 0, "raw_length": 0, "raw_preview": "", "tool_calls": [{"name": "request_dice", "args": {"check": "lockpicking", "dc": 15, "stat": "dexterity", "reason": "Picking a lock"}}], "event": "ai_raw_response", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-04T17:39:03.851547Z"}
-
-
-questo nei log, ma nessuna grafica nel frontend. soft lock perche non va avanti --> tutto il dice reveal è da sistemare
-
 
 **Log**:
 ```bash
 grep "request_dice\|await_player" logs/saga.log | tail -5
 ```
+
+
+tommasomattarelli@LAPTOP-41P6SR3J:~/saga/backend$ grep "request_dice\|await_player" logs/saga.log | tail -5
+{"step": 0, "text_len": 389, "tool_calls": ["request_dice", "set_scene_mood", "advance_time"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T19:58:21.124221Z"}
+{"step": 0, "raw_length": 389, "raw_preview": "You stop dead on the road, your eyes straining to pierce the gloom in the direction of the cry. The landscape is a wash of muted greys and deep shadows under the oppressive sky. The withered grass is tall enough to hide a person, or anything else for that matter, and the wind makes it ripple and swa", "tool_calls": [{"name": "request_dice", "args": {"dc": 15, "skill": "Perception", "reason": "to see what made the cry from off the road"}}, {"name": "set_scene_mood", "args": {"mood": "tense_anticipation"}}, {"name": "advance_time", "args": {"minutes": 1}}], "event": "ai_raw_response", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T19:58:21.124770Z"}
+
+  "role": "user",
+      "parts": [
+        {
+          "function_response": {
+            "name": "request_dice",
+            "response": {
+              "result": "Check check (DC 15): rolled 14 (+0 modifier) → soft_failure. Context: to see what made the cry from off the road"
+            }
+          }
+
+
+  "direction": "output",
+  "caller": "dm:step1",
+  "campaign_id": "77a73218-171f-444d-8308-92cc07052a18",
+  "turn": 7,
+  "step": 1,
+  "text": "The wind whips a strand of hair across your face, and for a second, you see nothing but the swaying, dead grass. But then, for just a fleeting moment, you spot a flicker of movement. It's low to the ground, a hunched, loping shape that disappears behind a shallow rise in the terrain. You can't make out any details, but its form was unsettling, wrong. The cry is not repeated. The field has fallen silent once more, the only sound the rustling of the wind.",
+  "tool_calls": []
+}
+
+
+
+
+
+
+
+
+
+FUNZIONA!
+
+
+due problemi principlali pero: 
+- il dado non viene salvato nel frontend (viene perso al refresh) e vorrei che rimanga in mezzo al testo, ora appare sempre inf fondo, anche quando arriva il nuovo chunk
+
+- non ti dice che statistica sta checkando. fa solo check: ROLL! e una cosa del genere. il resto funziona, anche la chiamata è mezza negativa, dato che ho perso come vedi dai log, verifica se va bene
+
+senza riscrivere la doppia narrazzione cghe faceva prima!
+
+
 
 ---
 
@@ -101,6 +157,10 @@ no non parte nemmeno il combattimento:
 
 
 
+IL PROBLEMA DEL COMBATTIMENTO è CHE ORA GLI PASSIAMO ALCUNI GRUPPI DI TOOL. MA SE IL COMBATTIMENTO NON INIZIA LUI NON LO HA IL TOOL DEL COMBATTIMENTO. COME POSSIAMO FARE???
+
+
+
 **Log**:
 ```bash
 grep "start_combat\|end_combat\|apply_damage" logs/saga.log | tail -10
@@ -118,11 +178,9 @@ grep "start_combat\|end_combat\|apply_damage" logs/saga.log | tail -10
 - **Log**: `grep "location_updated\|move_to" logs/saga.log | tail -3`
 
 
+ool_calls=[{'name': 'move_to', 'args': {'location': 'Thornhaven'}}]
 
-
-da verificare perche non riesco a farlo aprtire. prima funzionava ora bo
-
-
+e si aggiorna correttamente
 
 
 ---
@@ -143,7 +201,62 @@ grep "invoke_npc\|npc_dialogue" logs/saga.log | tail -5
 ```
 
 
-da verificare ancora
+tommasomattarelli@LAPTOP-41P6SR3J:~/saga/backend$ grep "invoke_npc\|npc_dialogue" logs/saga.log | tail -5
+{"step": 0, "text_len": 687, "tool_calls": ["move_to", "set_scene_mood", "advance_time", "invoke_npc"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:56:53.591455Z"}
+{"step": 0, "raw_length": 687, "raw_preview": "You push open the heavy wooden door of The Weary Wanderer, a wave of warm air, smelling of stale ale and roasting meat, washing over you. The inn's common room is dimly lit, the low-beamed ceiling casting long shadows. A few patrons, mostly gruff-looking woodsmen and farmers, are scattered at rough-", "tool_calls": [{"name": "move_to", "args": {"location": "The Weary Wanderer"}}, {"name": "set_scene_mood", "args": {"mood": "neutral"}}, {"name": "advance_time", "args": {"minutes": 5}}, {"name": "invoke_npc", "args": {"name": "Beron the Innkeeper", "context": "A stranger has entered my inn and told me they were sent by someone named Askellad. I am the innkeeper."}}], "event": "ai_raw_response", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:56:53.592246Z"}
+{"campaign_id": "1a27fa9d-53e8-4f0e-abe6-841b5a12d819", "tool_count": 9, "tools": ["add_item", "advance_time", "change_npc_disposition", "invoke_npc", "log_event", "move_to", "remove_item", "set_scene_mood", "update_quest"], "event": "tool_groups_resolved", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:57:42.435731Z"}
+{"step": 0, "text_len": 0, "tool_calls": ["invoke_npc", "advance_time", "set_scene_mood"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:57:51.767264Z"}
+{"step": 0, "raw_length": 0, "raw_preview": "", "tool_calls": [{"name": "invoke_npc", "args": {"name": "Gregor, the Innkeeper", "context": "The player just addressed him as 'old man' and demanded information after mentioning Askellad. He should respond gruffly, questioning the player's identity and manners before he says anything else."}}, {"name": "advance_time", "args": {"minutes": 2}}, {"name": "set_scene_mood", "args": {"mood": "social_intrigue"}}], "event": "ai_raw_response", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:57:51.767750Z"}
+
+
+si funziona!
+
+qui pero mifliorerei narrando il testo grezzo del npc, e veien stampato a schermo il testo grezzo dell npc (con una grafica diversa, magari icona di un uomo prima cosi graficamnete carino. da capire se fare solo frasi o anche azioni)
+
+
+il DM non dorvrebbe parafrase la risposta, ma generare il successivo. oppure anche vuoto se necessario e finire il turno.
+
+
+
+
+
+
+
+
+non sempre usa il tool pero 
+
+{
+  "direction": "output",
+  "caller": "dm:step0",
+  "campaign_id": "1a27fa9d-53e8-4f0e-abe6-841b5a12d819",
+  "turn": 16,
+  "step": 0,
+  "text": "A low, humorless chuckle escapes the innkeeper's lips. He straightens up, crossing his thick arms over his chest. \"He detests wasting time, you say? Funny. He also detests fools who throw his name around thinking it's a key to any door. You storm into my place, call me 'old man', and think dropping a name is enough? That's not how this works.\"\n\nHe leans in again, his voice dropping to a conspiratorial whisper that's somehow more menacing than a shout. \"You want what he left? Prove you're who you say you are. Tell me something only someone who's actually spoken to him would know. Tell me what he called the old wolf that used to stalk the northern ridge.\" The patrons in the room shift, their attention now fully on the confrontation at the bar. The air is thick with tension.",
+  "tool_calls": [
+    {
+      "id": "set_scene_mood",
+      "name": "set_scene_mood",
+      "arguments": {
+        "mood": "tense_anticipation"
+      }
+    },
+    {
+      "id": "advance_time",
+      "name": "advance_time",
+      "arguments": {
+        "minutes": 2
+      }
+    }
+  ]
+}
+
+
+come risolbere^+?
+
+
+
+
+
 
 
 
@@ -166,9 +279,22 @@ grep "agent_step" logs/saga.log | tail -10
 # atteso: step=0 spesso è sufficiente, step=1 se c'erano tool calls
 ```
 
+tommasomattarelli@LAPTOP-41P6SR3J:~/saga/backend$ grep "agent_step" logs/saga.log | tail -10
+{"step": 0, "text_len": 0, "tool_calls": [], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:39:16.192383Z"}
+{"step": 0, "text_len": 0, "tool_calls": ["move_to"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:47:14.787258Z"}
+{"step": 0, "text_len": 0, "tool_calls": ["set_scene_mood"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:50:11.309877Z"}
+{"step": 1, "text_len": 0, "tool_calls": ["move_to"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:50:11.566262Z"}
+{"step": 0, "text_len": 637, "tool_calls": ["move_to", "advance_time", "set_scene_mood", "log_event"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:55:42.565294Z"}
+{"step": 0, "text_len": 687, "tool_calls": ["move_to", "set_scene_mood", "advance_time", "invoke_npc"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:56:53.591455Z"}
+{"step": 1, "text_len": 500, "tool_calls": ["set_scene_mood"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:57:04.728440Z"}
+{"step": 0, "text_len": 0, "tool_calls": ["invoke_npc", "advance_time", "set_scene_mood"], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:57:51.767264Z"}
+{"step": 1, "text_len": 467, "tool_calls": [], "event": "agent_step", "level": "info", "logger": "app.core.agent", "timestamp": "2026-04-09T20:59:12.957188Z"}
+tommasomattarelli@LAPTOP-41P6SR3J:~/saga/backend$
 
-da verificare
 
+
+
+emette piu tool ogni volta senza problemi
 
 
 ---
@@ -182,7 +308,9 @@ da verificare
 - `remove_item(name="Health Potion")` → l'oggetto sparisce dall'inventario
 - Evento `tool:executed` arriva per entrambi
 
-quando funzionano i tool funziona
+
+
+non sempre parte
 
 
 
@@ -198,7 +326,7 @@ quando funzionano i tool funziona
 - Il DM chiama `set_scene_mood` durante i turni
 - La transizione CSS è smooth (1.5s)
 
-si funziona quando partono i tool
+si funziona. non lo fa sempre, descrivere bene quando deve farlo
 
 
 
@@ -215,8 +343,7 @@ si funziona quando partono i tool
 - Le dice rolls storiche sono visibili ma non più rivelabili (già revealed)
 - Nessun messaggio "Your adventure awaits..." se ci sono turni
 
-NO. dopo il reload i messaggi non vengono mantnuti in memoria. penso siano salvati lato frotnend. invece dovrebbero essere salvati nel db. 
-
+SI FUNZIONA
 
 
 
@@ -232,10 +359,9 @@ NO. dopo il reload i messaggi non vengono mantnuti in memoria. penso siano salva
 - Dopo `turn_complete`, l'azione è parte del turno storico
 
 ---
-il messaggio dell utente quando viene mandato non ce (si vede solo dm considering etc etc)
-poi appare; mentre per i messaggi succesivi nella pagina non appaiono mai
 
-dovrebbe apparire subito, come se fosse una chat 
+
+SI FUNZIONAS
 
 
 
@@ -262,8 +388,7 @@ NO NON CE AUTOSCROLL
 
 **Atteso**: Naviga a `/` senza errori. WebSocket si chiude correttamente.
 
-funziona
-
+FUNZIONA E VERIFICATP
 
 
 ---
@@ -313,6 +438,12 @@ grep '"event":"agent_step"' logs/saga.log | tail -10
 grep '"event":"parse_error"\|json_decode_error' logs/saga.log | tail -5
 # atteso: 0 risultati — il formato è garantito dall'SDK
 ```
+
+
+SI
+
+
+
 
 ---
 

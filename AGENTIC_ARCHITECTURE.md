@@ -247,11 +247,57 @@ world_state persisted to campaigns table (JSONB)
 build_context() reads world_state -> system prompt
 ```
 
+## Semantic Resolver — Current Status & v1.5 Plan
+
+**Status**: Disabled (`gameplay.semantic_resolver_enabled: false` in `saga.config.yaml`). Code preserved.
+
+**Why disabled**: The resolver ran every turn but its output (`target_npcs`, `target_locations`) was never consumed by the context builder. It was dead code burning a flash model call per turn.
+
+**What it could become in v1.5 — planned uses:**
+
+| Use | How | Cost |
+|-----|-----|------|
+| **NPC context filter** | Location filter (deterministic, zero cost) + name matching from action text → include only relevant NPCs in `<npcs_present>` | Zero — pure string logic |
+| **Intent classification** | Classify action into `social / combat / exploration / stealth / travel` → activates correct tool_groups *before* DM call, more accurately than world_state predicates alone | +1 flash call |
+| **Importance scoring** | Better than keyword heuristics — classify intent → map to importance tier (dialogue=4, boss=9) → better model selection | Reuse intent call above |
+| **Quest thread detection** | Identify which active quest is relevant to the action → pass only that quest to `<quests>` in prompt | Reuse intent call |
+| **pgvector memory retrieval** | Embed the action → query `memory_facts` for top-3 semantically relevant facts → inject as `<memory>` in prompt | +1 embedding call (v2) |
+| **History relevance selection** | Instead of always last-N turns, pick the K most semantically relevant turns for this action | +embedding per turn (v2) |
+
+**Recommended v1.5 implementation — two phases, no extra LLM:**
+```
+Phase 1 (zero cost, rule-based):
+  - NPC filter: location match + name string match in action text
+  - Activates in build_context(), replaces _npcs_at_current_location()
+
+Phase 2 (one flash call, replaces current resolver):
+  - Input: action + world_state summary (no full history)
+  - Output: {intent, importance_score, relevant_quest, target_npcs_not_in_location}
+  - Feeds: tool_groups activation, model routing, prompt NPC list
+```
+
+**v2 addition:**
+```
+Phase 3 (pgvector, on top of phase 2):
+  - Embed action → query memory_facts → top-3 facts → inject as <memory>
+  - Requires fact_extractor having run for N turns (already collecting data)
+```
+
+## Fact Extractor — Current Status
+
+**Status**: Active, fire-and-forget after each turn. Code at `memory/fact_extractor.py`.
+
+**What it does**: Extracts 1-5 atomic facts from the current turn only (not history), stores in `memory_facts` table with pgvector embedding (384d). Each turn adds incrementally.
+
+**What it does NOT do yet**: Nobody reads these facts. The pgvector similarity query is not implemented. This is infrastructure for v2.
+
+**Why keep it running**: It silently builds a semantic memory database. By the time v2 ships, campaigns will have hundreds of queryable facts. Costs ~1 flash call post-turn (non-blocking, doesn't affect latency).
+
 ## Provider Support
 
 | Provider | Tool Calling | Streaming | Notes |
 |----------|-------------|-----------|-------|
-| Google Gemini | Native | Yes | Best free option. Use `maximum_remote_calls=0` (not `disable=True`) |
+| Google Gemini | Native | Yes | Use `disable=True, maximum_remote_calls=None` in `AutomaticFunctionCallingConfig`. gemini-2.5-flash broken with streaming+tools; use gemini-2.5-pro for DM. |
 | OpenAI | Native | Yes | Most reliable tool calling |
 | Anthropic | Native | Yes | Best narrative quality |
 | Cohere | Via OpenAI compat | Yes | command-r OK, command-a writes tools as text |
@@ -539,13 +585,19 @@ Companions can:
 
 **v1 acceptance**: Player can play 30+ turns with command-r or Gemini Flash, narrative is coherent, NPCs feel distinct, locations feel real, no tool hallucination, no soft locks.
 
-### v1.5 — Companion + Tension
+### v1.5 — Companion + Tension + Smarter Context
 
 **Goal**: Add the missing systems that make the world feel populated and dynamic, without yet introducing background simulation.
 
 **Tasks**:
 
-1. **Companion system base**
+1. **Semantic Resolver — Phase 1+2**
+   - Phase 1 (zero cost): NPC filter by location + name match in action text → replaces `_npcs_at_current_location()`
+   - Phase 2 (one flash call): intent classification → importance score, relevant quest, tool_groups activation
+   - Feed results into `build_context()` and `route_ai_call()`
+   - Toggle via `gameplay.semantic_resolver_enabled: true`
+
+2. **Companion system base**
    - `world_state.companions` extended with: loyalty, trust, mood, location, last_interaction, relationship_summary
    - New tools: `companion_dialogue(name, context)`, `companion_command(name, action)`
    - Companions can refuse actions if loyalty too low

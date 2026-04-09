@@ -24,6 +24,7 @@ _llm_io = logging.getLogger("llm_io")
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.context import build_context
+from app.config_loader import load_saga_config
 from app.ai.exceptions import ContentPolicyError
 from app.ai.npc_director import invoke_npcs_parallel
 from app.ai.providers.schemas import TextChunk, ToolCallChunk
@@ -65,12 +66,14 @@ class DmAgent:
     async def run(self, player_action: str, db: AsyncSession) -> AsyncIterator[StreamEvent]:
         campaign = self.campaign
 
-        resolver_output = await resolve_player_action(player_action, campaign, db)
-        logger.debug(
-            "semantic_resolver",
-            target_npcs=resolver_output.target_npcs,
-            target_locations=resolver_output.target_locations,
-        )
+        config = load_saga_config()
+        if config.get("gameplay", {}).get("semantic_resolver_enabled", False):
+            resolver_output = await resolve_player_action(player_action, campaign, db)
+            logger.debug(
+                "semantic_resolver",
+                target_npcs=resolver_output.target_npcs,
+                target_locations=resolver_output.target_locations,
+            )
 
         context = await build_context(campaign, player_action, db)
         model_config = await route_ai_call(AICallType.DM_NARRATION, context)
@@ -104,6 +107,10 @@ class DmAgent:
             tools=sorted(allowed_tools),
         )
 
+        # Tools that return meaningful content the DM needs to narrate around.
+        # Steps following only silent tools tend to re-narrate — suppress those.
+        _MEANINGFUL_TOOLS = {"invoke_npc", "request_dice"}
+
         empty_text_steps = 0
         for step in range(settings.saga_max_agent_steps):
             step_text, step_tool_calls, stop = "", [], False
@@ -116,6 +123,7 @@ class DmAgent:
                 json.dumps(
                     {
                         "direction": "input",
+                        "caller": f"dm:step{step}",
                         "campaign_id": str(campaign.id),
                         "turn": campaign.turn_number,
                         "step": step,
@@ -149,15 +157,38 @@ class DmAgent:
                         state.narration += chunk.text
                     elif isinstance(chunk, ToolCallChunk):
                         step_tool_calls.append(chunk.tool_call)
+
+                # Fallback: streaming returned nothing — retry with non-streaming
+                if not step_text and not step_tool_calls:
+                    logger.warning("stream_with_tools_empty_fallback", step=step, model=model_config.model)
+                    fallback = await self._provider.generate_with_tools(
+                        system_prompt=context.system_prompt,
+                        messages=messages,
+                        tools=tool_schemas,
+                        model=model_config.model,
+                        temperature=model_config.temperature,
+                        max_tokens=model_config.max_tokens,
+                    )
+                    if fallback.text:
+                        yield StreamEvent(type="narration_chunk", data=fallback.text)
+                        step_text += fallback.text
+                        state.narration += fallback.text
+                    step_tool_calls.extend(fallback.tool_calls)
             except ContentPolicyError:
                 yield StreamEvent(type="narration_chunk", data=CONTENT_POLICY_NARRATION)
                 state.narration += CONTENT_POLICY_NARRATION
                 stop = True
+            except Exception as e:
+                if "failed_generation" in str(e).lower():
+                    logger.warning("generate_with_tools_failed_generation", step=step, error=str(e)[:200])
+                else:
+                    raise
 
             _llm_io.info(
                 json.dumps(
                     {
                         "direction": "output",
+                        "caller": f"dm:step{step}",
                         "campaign_id": str(campaign.id),
                         "turn": campaign.turn_number,
                         "step": step,
@@ -190,6 +221,12 @@ class DmAgent:
             )
 
             if stop or not step_tool_calls:
+                break
+
+            # Skip next LLM step only if the DM already produced narration AND all tools
+            # are silent (no meaningful results to react to). If the model called tools
+            # without any text, we still need a follow-up step to get the narration.
+            if step_text and not any(tc.name in _MEANINGFUL_TOOLS for tc in step_tool_calls):
                 break
 
             # Guard: if the model keeps calling tools without any narration,
@@ -248,6 +285,7 @@ class DmAgent:
                 json.dumps(
                     {
                         "direction": "tool_results",
+                        "caller": f"dm:step{step}",
                         "campaign_id": str(campaign.id),
                         "turn": campaign.turn_number,
                         "step": step,
