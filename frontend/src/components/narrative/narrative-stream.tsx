@@ -1,7 +1,8 @@
-import { type RefObject, useEffect } from "react";
+import { Fragment, type RefObject, useLayoutEffect } from "react";
 import { useGameStore } from "../../stores/game-store";
 import DiceRoller from "./dice-roller";
-import type { TurnResponse } from "../../types";
+import NPCBubble from "./npc-bubble";
+import type { NarrationSegment, TurnResponse } from "../../types";
 import type { GameWebSocket } from "../../services/websocket";
 
 function PlayerBubble({ action }: { action: string }) {
@@ -19,6 +20,24 @@ interface NarrativeStreamProps {
   scrollRef?: RefObject<HTMLDivElement | null>;
 }
 
+function SegmentView({ segment }: { segment: NarrationSegment }) {
+  return (
+    <Fragment>
+      <div className="prose prose-invert max-w-none font-serif leading-relaxed mood-text">
+        {segment.text.split("\n").map((paragraph, i) => (
+          <p key={i} className="mb-3">
+            {paragraph}
+          </p>
+        ))}
+      </div>
+      {segment.npc_dialogues?.map((npc, i) => (
+        <NPCBubble key={`npc-${segment.step}-${i}`} {...npc} />
+      ))}
+      {segment.dice && <DiceRoller rolls={segment.dice} />}
+    </Fragment>
+  );
+}
+
 function TurnBlock({
   turn,
   onSuggestedAction,
@@ -26,19 +45,29 @@ function TurnBlock({
   turn: TurnResponse;
   onSuggestedAction?: (action: string) => void;
 }) {
+  const segments =
+    turn.narration_segments && turn.narration_segments.length > 0
+      ? turn.narration_segments
+      : null;
+
   return (
     <div className="mb-6" data-mood={turn.scene_mood || "neutral"}>
       {turn.player_action && <PlayerBubble action={turn.player_action} />}
 
-      <div className="prose prose-invert max-w-none font-serif leading-relaxed mood-text">
-        {turn.narration.split("\n").map((paragraph, i) => (
-          <p key={i} className="mb-3">
-            {paragraph}
-          </p>
-        ))}
-      </div>
-
-      {turn.dice_rolls && <DiceRoller rolls={turn.dice_rolls} />}
+      {segments ? (
+        segments.map((seg) => <SegmentView key={seg.step} segment={seg} />)
+      ) : (
+        <>
+          <div className="prose prose-invert max-w-none font-serif leading-relaxed mood-text">
+            {turn.narration.split("\n").map((paragraph, i) => (
+              <p key={i} className="mb-3">
+                {paragraph}
+              </p>
+            ))}
+          </div>
+          {turn.dice_rolls && <DiceRoller rolls={turn.dice_rolls} />}
+        </>
+      )}
 
       {turn.ambient_detail && (
         <p className="mt-2 text-sm italic text-parchment-500">{turn.ambient_detail}</p>
@@ -86,10 +115,14 @@ export default function NarrativeStream({ wsRef, scrollRef }: NarrativeStreamPro
     wsRef.current?.send({ action });
   };
 
-  useEffect(() => {
+  const streamingVersion =
+    streaming.segments.reduce((acc, s) => acc + s.text.length, 0) +
+    streaming.currentNarration.length;
+
+  useLayoutEffect(() => {
     const el = scrollRef?.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [streaming.currentNarration, turnHistory.length, scrollRef]);
+  }, [streamingVersion, turnHistory.length, scrollRef]);
 
   return (
     <div>
@@ -107,21 +140,16 @@ export default function NarrativeStream({ wsRef, scrollRef }: NarrativeStreamPro
       {/* Pending player action bubble */}
       {streaming.pendingAction && <PlayerBubble action={streaming.pendingAction} />}
 
-      {/* Live streaming narration */}
-      {streaming.isStreaming && streaming.currentNarration && (
+      {/* Live streaming narration — rendered per segment */}
+      {streaming.isStreaming && streaming.segments.length > 0 && (
         <div className="mb-6">
-          <div className="prose prose-invert max-w-none font-serif leading-relaxed mood-text">
-            {streaming.currentNarration.split("\n").map((paragraph, i) => (
-              <p key={i} className="mb-3">
-                {paragraph}
-              </p>
-            ))}
-          </div>
-          {streaming.pendingDice && <DiceRoller rolls={streaming.pendingDice} />}
+          {streaming.segments.map((seg) => (
+            <SegmentView key={seg.step} segment={seg} />
+          ))}
         </div>
       )}
 
-      {isProcessing && !streaming.currentNarration && (
+      {isProcessing && streaming.segments.length === 0 && (
         <div className="flex items-center gap-2 py-4 text-parchment-400">
           <span className="text-sm">The DM considers your action</span>
           <span className="flex gap-1">

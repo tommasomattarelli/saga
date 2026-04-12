@@ -145,10 +145,24 @@ export interface DiceRollResult {
   is_critical: boolean;
 }
 
+export interface NPCDialogue {
+  npc_name: string;
+  dialogue: string;
+  action?: string | null;
+}
+
+export interface NarrationSegment {
+  step: number;
+  text: string;
+  dice: Record<string, DiceRollResult> | null;
+  npc_dialogues: NPCDialogue[];
+}
+
 export interface TurnResponse {
   turn_number: number;
   player_action?: string;
   narration: string;
+  narration_segments?: NarrationSegment[] | null;
   dice_rolls: Record<string, DiceRollResult> | null;
   companion_actions?: Record<string, string> | null;
   world_updates?: Record<string, unknown> | null;

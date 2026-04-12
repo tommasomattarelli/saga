@@ -7,6 +7,8 @@ import type {
   DiceRollResult,
   CombatState,
   DeathEvent,
+  NarrationSegment,
+  NPCDialogue,
 } from "../types";
 
 const ALLOWED_WORLD_STATE_KEYS = new Set([
@@ -36,6 +38,7 @@ const __DEV__ =
 interface StreamingState {
   isStreaming: boolean;
   currentNarration: string;
+  segments: NarrationSegment[];
   pendingDice: Record<string, DiceRollResult> | null;
   diceRevealed: boolean;
   diceAwaitingReveal: boolean; // server paused, waiting for player to click
@@ -59,7 +62,9 @@ interface GameState {
   updateCharacter: (updates: Partial<CharacterData>) => void;
   updateTurnNumber: (n: number) => void;
   setStreaming: (updates: Partial<StreamingState>) => void;
-  appendNarration: (chunk: string) => void;
+  appendNarration: (chunk: string, stepIndex?: number) => void;
+  appendSegmentDice: (dice: Record<string, DiceRollResult>, stepIndex: number) => void;
+  appendSegmentNpc: (npc: NPCDialogue, stepIndex: number) => void;
   setPendingDice: (dice: Record<string, DiceRollResult>) => void;
   revealDice: () => void;
   resetStreaming: () => void;
@@ -69,6 +74,7 @@ interface GameState {
 const initialStreaming: StreamingState = {
   isStreaming: false,
   currentNarration: "",
+  segments: [],
   pendingDice: null,
   diceRevealed: false,
   diceAwaitingReveal: false,
@@ -77,6 +83,21 @@ const initialStreaming: StreamingState = {
   deathEvent: null,
   pendingAction: null,
 };
+
+function upsertSegment(
+  segments: NarrationSegment[],
+  stepIndex: number,
+  mutate: (seg: NarrationSegment) => NarrationSegment,
+): NarrationSegment[] {
+  const idx = segments.findIndex((s) => s.step === stepIndex);
+  if (idx === -1) {
+    const fresh: NarrationSegment = { step: stepIndex, text: "", dice: null, npc_dialogues: [] };
+    return [...segments, mutate(fresh)].sort((a, b) => a.step - b.step);
+  }
+  const next = segments.slice();
+  next[idx] = mutate(next[idx]);
+  return next;
+}
 
 export const useGameStore = create<GameState>()((set) => ({
   campaign: null,
@@ -122,11 +143,35 @@ export const useGameStore = create<GameState>()((set) => ({
       return { campaign: { ...state.campaign, turn_number: n } };
     }),
   setStreaming: (updates) => set((state) => ({ streaming: { ...state.streaming, ...updates } })),
-  appendNarration: (chunk) =>
+  appendNarration: (chunk, stepIndex = 0) =>
     set((state) => ({
       streaming: {
         ...state.streaming,
         currentNarration: state.streaming.currentNarration + chunk,
+        segments: upsertSegment(state.streaming.segments, stepIndex, (seg) => ({
+          ...seg,
+          text: seg.text + chunk,
+        })),
+      },
+    })),
+  appendSegmentDice: (dice, stepIndex) =>
+    set((state) => ({
+      streaming: {
+        ...state.streaming,
+        segments: upsertSegment(state.streaming.segments, stepIndex, (seg) => ({
+          ...seg,
+          dice: { ...(seg.dice || {}), ...dice },
+        })),
+      },
+    })),
+  appendSegmentNpc: (npc, stepIndex) =>
+    set((state) => ({
+      streaming: {
+        ...state.streaming,
+        segments: upsertSegment(state.streaming.segments, stepIndex, (seg) => ({
+          ...seg,
+          npc_dialogues: [...seg.npc_dialogues, npc],
+        })),
       },
     })),
   setPendingDice: (dice) =>

@@ -19,9 +19,13 @@ _SAMPLE_CONFIG = {
             "always": True,
             "tools": ["move_to", "advance_time", "set_scene_mood", "log_event", "update_quest"],
         },
+        "combat_entry": {
+            "always": True,
+            "tools": ["start_combat"],
+        },
         "combat": {
             "when": "combat_active",
-            "tools": ["request_dice", "apply_damage", "end_combat", "update_hp", "start_combat"],
+            "tools": ["request_dice", "apply_damage", "end_combat", "update_hp"],
         },
         "social": {
             "when": "npcs_present",
@@ -54,7 +58,15 @@ def test_combat_tools_inactive_when_no_combat():
     tools = resolve_active_tools(campaign)
     assert "apply_damage" not in tools
     assert "end_combat" not in tools
-    assert "start_combat" not in tools
+    # start_combat is in combat_entry group (always active) so the DM can open combat
+    assert "start_combat" in tools
+
+
+def test_start_combat_always_available():
+    """combat_entry group exposes start_combat regardless of combat state."""
+    campaign = _make_campaign({"combat_state": {"active": False}, "npcs": {}, "companions": {}})
+    tools = resolve_active_tools(campaign)
+    assert "start_combat" in tools
 
 
 def test_combat_tools_active_when_combat():

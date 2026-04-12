@@ -83,19 +83,40 @@ async def game_ws(
 
                 turn_result = None
                 npc_dialogues_for_facts: list[str] = []
+                dice_rolls_accumulated: dict = {}
+                segments_by_step: dict[int, dict] = {}
                 dice_reveal_event = asyncio.Event()
                 agent = DmAgent(campaign, dice_reveal_event)
 
+                def _segment_for(step: int) -> dict:
+                    seg = segments_by_step.get(step)
+                    if seg is None:
+                        seg = {"step": step, "text": "", "dice": None, "npc_dialogues": []}
+                        segments_by_step[step] = seg
+                    return seg
+
                 try:
                     async for event in agent.run(action, db):
+                        step_idx = event.step_index if event.step_index is not None else 0
                         if event.type == "narration_chunk":
+                            if isinstance(event.data, str):
+                                _segment_for(step_idx)["text"] += event.data
                             await websocket.send_json(
-                                {"type": "dm:narration:chunk", "chunk": event.data}
+                                {
+                                    "type": "dm:narration:chunk",
+                                    "chunk": event.data,
+                                    "step_index": step_idx,
+                                }
                             )
                         elif event.type == "dice_roll":
+                            if isinstance(event.data, dict):
+                                dice_rolls_accumulated.update(event.data)
+                                seg = _segment_for(step_idx)
+                                seg["dice"] = {**(seg["dice"] or {}), **event.data}
                             await websocket.send_json(
                                 {
                                     "type": "dice:roll",
+                                    "step_index": step_idx,
                                     **(event.data if isinstance(event.data, dict) else {}),
                                 }
                             )
@@ -115,7 +136,10 @@ async def game_ws(
                             await websocket.send_json({"type": "scene_mood", "mood": event.data})
                         elif event.type == "npc_dialogue":
                             npc_data = event.data if isinstance(event.data, dict) else {}
-                            await websocket.send_json({"type": "npc:dialogue", **npc_data})
+                            _segment_for(step_idx)["npc_dialogues"].append(npc_data)
+                            await websocket.send_json(
+                                {"type": "npc:dialogue", "step_index": step_idx, **npc_data}
+                            )
                             npc_name = npc_data.get("npc_name", "NPC")
                             dialogue = npc_data.get("dialogue", "")
                             npc_dialogues_for_facts.append(f"{npc_name}: {dialogue}")
@@ -165,12 +189,18 @@ async def game_ws(
 
                 summary = await compress_turn_to_summary(narration, action)
                 embedding = await generate_embedding(summary)
+                narration_segments = (
+                    [segments_by_step[k] for k in sorted(segments_by_step.keys())]
+                    if segments_by_step
+                    else None
+                )
                 turn = Turn(
                     campaign_id=campaign.id,
                     turn_number=turn_number,
                     player_action=action,
                     narration=narration,
-                    dice_rolls=None,  # dice results embedded in tool_events
+                    narration_segments=narration_segments,
+                    dice_rolls=dice_rolls_accumulated or None,
                     companion_actions=None,
                     world_updates={"tool_events": turn_result.get("tool_events", [])},
                     scene_mood=turn_result.get("scene_mood"),
@@ -210,6 +240,8 @@ async def game_ws(
                             "type": "turn_complete",
                             "turn_number": turn_number,
                             "player_action": action,
+                            "narration_segments": narration_segments,
+                            "dice_rolls": dice_rolls_accumulated or None,
                             **turn_result,
                         }
                     )

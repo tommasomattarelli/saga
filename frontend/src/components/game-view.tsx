@@ -29,6 +29,8 @@ export default function GameView() {
   const setProcessing = useGameStore((s) => s.setProcessing);
   const setStreaming = useGameStore((s) => s.setStreaming);
   const appendNarration = useGameStore((s) => s.appendNarration);
+  const appendSegmentDice = useGameStore((s) => s.appendSegmentDice);
+  const appendSegmentNpc = useGameStore((s) => s.appendSegmentNpc);
   const setPendingDice = useGameStore((s) => s.setPendingDice);
   const resetStreaming = useGameStore((s) => s.resetStreaming);
   const updateWorldState = useGameStore((s) => s.updateWorldState);
@@ -90,14 +92,14 @@ export default function GameView() {
     ws.on(
       "narration",
       guard((data) => {
-        appendNarration(data.text as string);
+        appendNarration(data.text as string, (data.step_index as number) ?? 0);
       }),
     );
 
     ws.on(
       "dm:narration:chunk",
       guard((data) => {
-        appendNarration(data.chunk as string);
+        appendNarration(data.chunk as string, (data.step_index as number) ?? 0);
       }),
     );
 
@@ -111,9 +113,26 @@ export default function GameView() {
     ws.on(
       "dice:roll",
       guard((data) => {
-        const { type: _, ...rolls } = data;
-        setPendingDice(rolls as Record<string, DiceRollResult>);
+        const { type: _type, step_index: stepIdx, ...rolls } = data as Record<string, unknown>;
+        const rollsTyped = rolls as Record<string, DiceRollResult>;
+        setPendingDice(rollsTyped);
+        appendSegmentDice(rollsTyped, (stepIdx as number) ?? 0);
         setStreaming({ diceAwaitingReveal: true });
+      }),
+    );
+
+    ws.on(
+      "npc:dialogue",
+      guard((data) => {
+        const { type: _type, step_index: stepIdx, ...npc } = data as Record<string, unknown>;
+        appendSegmentNpc(
+          {
+            npc_name: (npc.npc_name as string) || "NPC",
+            dialogue: (npc.dialogue as string) || "",
+            action: (npc.action as string) || null,
+          },
+          (stepIdx as number) ?? 0,
+        );
       }),
     );
 
@@ -186,10 +205,21 @@ export default function GameView() {
 
         const turnData = data as Record<string, unknown>;
         const state = useGameStore.getState();
+        const liveSegments = state.streaming.segments;
+        const serverSegments = turnData.narration_segments as
+          | import("../types").NarrationSegment[]
+          | null
+          | undefined;
         addTurn({
           turn_number: turnData.turn_number as number,
           player_action: (turnData.player_action as string) || undefined,
           narration: state.streaming.currentNarration || (turnData.narration as string) || "",
+          narration_segments:
+            serverSegments && serverSegments.length > 0
+              ? serverSegments
+              : liveSegments.length > 0
+                ? liveSegments
+                : null,
           dice_rolls:
             (turnData.dice_rolls as Record<string, DiceRollResult>) || state.streaming.pendingDice,
           companion_actions: (turnData.companion_actions as Record<string, string>) || null,
@@ -233,6 +263,8 @@ export default function GameView() {
     setProcessing,
     setStreaming,
     appendNarration,
+    appendSegmentDice,
+    appendSegmentNpc,
     setPendingDice,
     resetStreaming,
     updateWorldState,

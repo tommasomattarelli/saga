@@ -14,6 +14,21 @@
 
 
 
+idea principae comuqnue sarebbe quella di avere i tool meaningful stampati a schermo e persistente, per dare un po di profondita al progetto. non solo flat text monotono e boring
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## 1. Turno base — narrazione streamma correttamente
 
 **Procedura**: Crea una campagna, scrivi un'azione qualsiasi (es. "I look around the room"), premi Act.

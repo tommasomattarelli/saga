@@ -78,6 +78,7 @@ function SingleDice({ name, result }: { name: string; result: DiceRollResult }) 
       >
         <span className="text-xs font-semibold uppercase tracking-wider text-parchment-400">
           {name}
+          <span className="ml-2 text-parchment-500">DC {result.dc}</span>
         </span>
         <span className="font-display text-lg text-gold-400">Roll!</span>
       </button>

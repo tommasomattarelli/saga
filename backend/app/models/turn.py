@@ -21,6 +21,7 @@ class Turn(Base, UUIDMixin, TimestampMixin):
 
     # DM structured output
     narration: Mapped[str] = mapped_column(Text)
+    narration_segments: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     dice_rolls: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     companion_actions: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     world_updates: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

@@ -36,6 +36,7 @@ class TurnSubmit(BaseModel):
 class TurnResponse(BaseModel):
     turn_number: int
     narration: str
+    narration_segments: list[dict] | None = None
     dice_rolls: dict | None = None
     companion_actions: dict | None = None
     world_updates: dict | None = None

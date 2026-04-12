@@ -152,7 +152,7 @@ class DmAgent:
                     max_tokens=model_config.max_tokens,
                 ):
                     if isinstance(chunk, TextChunk):
-                        yield StreamEvent(type="narration_chunk", data=chunk.text)
+                        yield StreamEvent(type="narration_chunk", data=chunk.text, step_index=step)
                         step_text += chunk.text
                         state.narration += chunk.text
                     elif isinstance(chunk, ToolCallChunk):
@@ -170,12 +170,12 @@ class DmAgent:
                         max_tokens=model_config.max_tokens,
                     )
                     if fallback.text:
-                        yield StreamEvent(type="narration_chunk", data=fallback.text)
+                        yield StreamEvent(type="narration_chunk", data=fallback.text, step_index=step)
                         step_text += fallback.text
                         state.narration += fallback.text
                     step_tool_calls.extend(fallback.tool_calls)
             except ContentPolicyError:
-                yield StreamEvent(type="narration_chunk", data=CONTENT_POLICY_NARRATION)
+                yield StreamEvent(type="narration_chunk", data=CONTENT_POLICY_NARRATION, step_index=step)
                 state.narration += CONTENT_POLICY_NARRATION
                 stop = True
             except Exception as e:
@@ -258,6 +258,7 @@ class DmAgent:
                     else:
                         events, result_str = res
                         for ev in events:
+                            ev.step_index = step
                             yield ev
                     tool_results.append(
                         self._provider.format_tool_result(tc.id, tc.name, result_str)
@@ -271,11 +272,13 @@ class DmAgent:
                     # event is unset when we reach wait() here.
                     events, result_str = self._prepare_dice(tc, state)
                     for ev in events:
+                        ev.step_index = step
                         yield ev
                     await self.dice_reveal_event.wait()
                 elif tc.name == "invoke_npc":
                     events, result_str = await self._run_npc(tc, state, db)
                     for ev in events:
+                        ev.step_index = step
                         yield ev
                 else:
                     result_str = f"Unknown special tool: {tc.name}"
@@ -383,9 +386,10 @@ class DmAgent:
     def _prepare_dice(self, tc, state: _AgentState) -> tuple[list[StreamEvent], str]:
         """Prepare dice roll events and result string. Does NOT await — caller must yield events then await."""
         args = tc.arguments
-        check = args.get("check", "check")
         dc = int(args.get("dc", 10))
         stat = args.get("stat", "DEX")
+        # Fall back to the stat name if the DM forgot to pass a check label
+        check = args.get("check") or f"{stat} check"
         reason = args.get("reason", "")
 
         abilities = state.char_data.get("abilities", {})

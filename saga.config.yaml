@@ -118,6 +118,10 @@ tool_groups:
       - set_scene_mood
       - log_event
       - update_quest
+  combat_entry:
+    always: true
+    tools:
+      - start_combat
   combat:
     when: combat_active
     tools:
@@ -125,7 +129,6 @@ tool_groups:
       - apply_damage
       - end_combat
       - update_hp
-      - start_combat
   social:
     when: npcs_present
     tools:

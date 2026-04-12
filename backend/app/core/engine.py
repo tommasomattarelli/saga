@@ -42,3 +42,4 @@ class StreamEvent:
         "error",
     ]
     data: str | dict
+    step_index: int | None = None
