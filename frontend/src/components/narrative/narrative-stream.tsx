@@ -1,9 +1,10 @@
-import { Fragment, type RefObject, useLayoutEffect } from "react";
+import { Fragment, useLayoutEffect } from "react";
 import { useGameStore } from "../../stores/game-store";
 import DiceRoller from "./dice-roller";
 import NPCBubble from "./npc-bubble";
-import type { NarrationSegment, TurnResponse } from "../../types";
-import type { GameWebSocket } from "../../services/websocket";
+import DmLoading from "./dm-loading";
+import Typewriter from "./typewriter";
+import type { DiceResult, NarrationSegment, TurnResponse } from "../../types";
 
 function PlayerBubble({ action }: { action: string }) {
   return (
@@ -15,152 +16,150 @@ function PlayerBubble({ action }: { action: string }) {
   );
 }
 
-interface NarrativeStreamProps {
-  wsRef: RefObject<GameWebSocket | null>;
-  scrollRef?: RefObject<HTMLDivElement | null>;
-}
+function SegmentView({
+  segment,
+  diceResults,
+  alwaysRevealed,
+  useTypewriter,
+}: {
+  segment: NarrationSegment;
+  diceResults?: DiceResult[] | null;
+  alwaysRevealed: boolean;
+  useTypewriter: boolean;
+}) {
+  // Find dice for this step from dice_results array
+  const stepDice = diceResults?.find((d) => d.step === segment.step)?.rolls ?? segment.dice;
 
-function SegmentView({ segment }: { segment: NarrationSegment }) {
   return (
     <Fragment>
       <div className="prose prose-invert max-w-none font-serif leading-relaxed mood-text">
-        {segment.text.split("\n").map((paragraph, i) => (
-          <p key={i} className="mb-3">
-            {paragraph}
-          </p>
-        ))}
+        {useTypewriter ? (
+          <Typewriter text={segment.text} />
+        ) : (
+          segment.text.split("\n").map((paragraph, i) => (
+            <p key={i} className="mb-3">
+              {paragraph}
+            </p>
+          ))
+        )}
       </div>
       {segment.npc_dialogues?.map((npc, i) => (
         <NPCBubble key={`npc-${segment.step}-${i}`} {...npc} />
       ))}
-      {segment.dice && <DiceRoller rolls={segment.dice} />}
+      {stepDice && <DiceRoller rolls={stepDice} alwaysRevealed={alwaysRevealed} />}
     </Fragment>
   );
 }
 
 function TurnBlock({
   turn,
-  onSuggestedAction,
+  isLatest,
+  isFresh,
 }: {
   turn: TurnResponse;
-  onSuggestedAction?: (action: string) => void;
+  isLatest: boolean;
+  isFresh: boolean;
 }) {
   const segments =
     turn.narration_segments && turn.narration_segments.length > 0
       ? turn.narration_segments
       : null;
 
+  // Historical turns: always revealed dice, no typewriter
+  // Latest turn that was submitted in this session: typewriter effect + clickable dice
+  const alwaysRevealed = !isLatest;
+  const useTypewriter = isLatest && isFresh;
+
   return (
     <div className="mb-6" data-mood={turn.scene_mood || "neutral"}>
       {turn.player_action && <PlayerBubble action={turn.player_action} />}
 
       {segments ? (
-        segments.map((seg) => <SegmentView key={seg.step} segment={seg} />)
+        segments.map((seg) => (
+          <SegmentView
+            key={seg.step}
+            segment={seg}
+            diceResults={turn.dice_results}
+            alwaysRevealed={alwaysRevealed}
+            useTypewriter={useTypewriter}
+          />
+        ))
       ) : (
         <>
           <div className="prose prose-invert max-w-none font-serif leading-relaxed mood-text">
-            {turn.narration.split("\n").map((paragraph, i) => (
-              <p key={i} className="mb-3">
-                {paragraph}
-              </p>
-            ))}
+            {useTypewriter ? (
+              <Typewriter text={turn.narration} />
+            ) : (
+              turn.narration.split("\n").map((paragraph, i) => (
+                <p key={i} className="mb-3">
+                  {paragraph}
+                </p>
+              ))
+            )}
           </div>
-          {turn.dice_rolls && <DiceRoller rolls={turn.dice_rolls} />}
+          {turn.dice_rolls && (
+            <DiceRoller rolls={turn.dice_rolls} alwaysRevealed={alwaysRevealed} />
+          )}
         </>
-      )}
-
-      {turn.ambient_detail && (
-        <p className="mt-2 text-sm italic text-parchment-500">{turn.ambient_detail}</p>
-      )}
-
-      {turn.companion_actions && (
-        <div className="mt-3 space-y-1">
-          {Object.entries(turn.companion_actions).map(([name, action]) => (
-            <p key={name} className="text-sm italic text-parchment-400">
-              <span className="font-semibold text-parchment-300">{name}</span> {action}
-            </p>
-          ))}
-        </div>
-      )}
-
-      {turn.suggested_actions && turn.suggested_actions.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {turn.suggested_actions.map((action, i) => (
-            <button
-              key={i}
-              onClick={() => onSuggestedAction?.(action)}
-              className="rounded-full border border-parchment-600/30 bg-parchment-800/50 px-3 py-1 text-sm text-parchment-300 transition hover:border-gold-500/50 hover:text-gold-400"
-            >
-              {action}
-            </button>
-          ))}
-        </div>
       )}
 
       {turn.scene_mood && turn.scene_mood !== "neutral" && (
         <div className="mood-accent mt-2 text-xs uppercase tracking-wider">
-          {turn.scene_mood.replace("_", " ")}
+          {turn.scene_mood.replace(/_/g, " ")}
         </div>
       )}
     </div>
   );
 }
 
-export default function NarrativeStream({ wsRef, scrollRef }: NarrativeStreamProps) {
+export default function NarrativeStream({
+  scrollRef,
+  actionError,
+}: {
+  scrollRef?: React.RefObject<HTMLDivElement | null>;
+  actionError?: string | null;
+}) {
   const turnHistory = useGameStore((s) => s.turnHistory);
-  const isProcessing = useGameStore((s) => s.isProcessing);
-  const streaming = useGameStore((s) => s.streaming);
+  const isLoading = useGameStore((s) => s.isLoading);
+  const pendingAction = useGameStore((s) => s.pendingAction);
+  const freshTurnNumber = useGameStore((s) => s.freshTurnNumber);
 
-  const handleSuggestedAction = (action: string) => {
-    wsRef.current?.send({ action });
-  };
-
-  const streamingVersion =
-    streaming.segments.reduce((acc, s) => acc + s.text.length, 0) +
-    streaming.currentNarration.length;
-
+  // Scroll to bottom on new content
   useLayoutEffect(() => {
     const el = scrollRef?.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [streamingVersion, turnHistory.length, scrollRef]);
+  }, [turnHistory.length, isLoading, scrollRef]);
 
   return (
     <div>
-      {turnHistory.length === 0 && !isProcessing && !streaming.pendingAction && (
+      {turnHistory.length === 0 && !isLoading && !pendingAction && (
         <div className="py-12 text-center">
-          <p className="font-display text-xl text-gold-400">Your adventure awaits...</p>
+          <p className="font-display text-xl text-gold-400">Your adventure awaits…</p>
           <p className="mt-2 text-sm text-parchment-500">Type an action below to begin</p>
         </div>
       )}
 
       {turnHistory.map((turn, i) => (
-        <TurnBlock key={i} turn={turn} onSuggestedAction={handleSuggestedAction} />
+        <TurnBlock
+          key={turn.turn_number}
+          turn={turn}
+          isLatest={i === turnHistory.length - 1}
+          isFresh={turn.turn_number === freshTurnNumber}
+        />
       ))}
 
-      {/* Pending player action bubble */}
-      {streaming.pendingAction && <PlayerBubble action={streaming.pendingAction} />}
+      {/* Pending player action bubble shown while loading */}
+      {pendingAction && isLoading && <PlayerBubble action={pendingAction} />}
 
-      {/* Live streaming narration — rendered per segment */}
-      {streaming.isStreaming && streaming.segments.length > 0 && (
-        <div className="mb-6">
-          {streaming.segments.map((seg) => (
-            <SegmentView key={seg.step} segment={seg} />
-          ))}
+      {/* Skeleton loader while DM is thinking */}
+      {isLoading && <DmLoading />}
+
+      {/* Error feedback when the DM node fails */}
+      {actionError && !isLoading && (
+        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-900/20 px-4 py-3">
+          <p className="font-serif text-sm text-red-300">{actionError}</p>
         </div>
       )}
-
-      {isProcessing && streaming.segments.length === 0 && (
-        <div className="flex items-center gap-2 py-4 text-parchment-400">
-          <span className="text-sm">The DM considers your action</span>
-          <span className="flex gap-1">
-            <span className="typing-dot h-1.5 w-1.5 rounded-full bg-gold-400" />
-            <span className="typing-dot h-1.5 w-1.5 rounded-full bg-gold-400" />
-            <span className="typing-dot h-1.5 w-1.5 rounded-full bg-gold-400" />
-          </span>
-        </div>
-      )}
-
-      <div />
     </div>
   );
 }

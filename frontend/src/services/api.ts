@@ -62,8 +62,12 @@ export const createCampaign = (data: {
   character_data?: Record<string, unknown>;
 }) => api.post<Campaign>("/campaigns", data);
 
+// Legacy alias kept for any remaining references
 export const submitTurn = (campaignId: string, action: string) =>
-  api.post<TurnResponse>(`/campaigns/${campaignId}/turn`, { action });
+  api.post<TurnResponse>(`/campaigns/${campaignId}/action`, { action });
+
+export const submitAction = (campaignId: string, action: string) =>
+  api.post<TurnResponse>(`/campaigns/${campaignId}/action`, { action });
 
 export interface TemplateOption {
   id: string;

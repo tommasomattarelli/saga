@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { DiceRollResult, DiceOutcome } from "../../types";
 import { useUIStore } from "../../stores/ui-store";
-import { useGameStore } from "../../stores/game-store";
 
 interface DiceRollerProps {
   rolls: Record<string, DiceRollResult>;
+  alwaysRevealed?: boolean; // true for historical turns — skip animation, show result
 }
 
 const OUTCOME_LABELS: Record<DiceOutcome, string> = {
@@ -19,12 +19,21 @@ const OUTCOME_LABELS: Record<DiceOutcome, string> = {
 const COUNTER_DURATION_MS = 1500;
 const COUNTER_INTERVAL_MS = 60;
 
-function SingleDice({ name, result }: { name: string; result: DiceRollResult }) {
-  const [displayValue, setDisplayValue] = useState<number | null>(null);
-  const [revealed, setRevealed] = useState(false);
+function SingleDice({
+  name,
+  result,
+  alwaysRevealed = false,
+}: {
+  name: string;
+  result: DiceRollResult;
+  alwaysRevealed?: boolean;
+}) {
+  const [displayValue, setDisplayValue] = useState<number | null>(
+    alwaysRevealed ? result.total : null,
+  );
+  const [revealed, setRevealed] = useState(alwaysRevealed);
   const [animating, setAnimating] = useState(false);
   const soundEnabled = useUIStore((s) => s.soundEnabled);
-  const revealDice = useGameStore((s) => s.revealDice);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -45,20 +54,18 @@ function SingleDice({ name, result }: { name: string; result: DiceRollResult }) 
     setAnimating(true);
     playSound();
 
-    // Counter animation: rapidly cycle 1-20
     intervalRef.current = setInterval(() => {
       setDisplayValue(Math.floor(Math.random() * 20) + 1);
     }, COUNTER_INTERVAL_MS);
 
-    // Stop after duration and reveal real value
     timeoutRef.current = setTimeout(() => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       setDisplayValue(result.total);
       setRevealed(true);
       setAnimating(false);
-      revealDice();
+      // No WebSocket message needed — result was pre-computed server-side
     }, COUNTER_DURATION_MS);
-  }, [animating, revealed, result.total, playSound, revealDice]);
+  }, [animating, revealed, result.total, playSound]);
 
   useEffect(() => {
     return () => {
@@ -70,7 +77,6 @@ function SingleDice({ name, result }: { name: string; result: DiceRollResult }) 
   const outcomeClass = result.outcome ? `dice-${result.outcome}` : "";
 
   if (!revealed && !animating) {
-    // Waiting for click
     return (
       <button
         onClick={handleClick}
@@ -109,11 +115,7 @@ function SingleDice({ name, result }: { name: string; result: DiceRollResult }) 
           <span
             className={`text-sm font-bold ${result.success ? "text-green-400" : "text-red-400"}`}
           >
-            {result.outcome
-              ? OUTCOME_LABELS[result.outcome]
-              : result.success
-                ? "SUCCESS"
-                : "FAILURE"}
+            {result.outcome ? OUTCOME_LABELS[result.outcome] : result.success ? "SUCCESS" : "FAILURE"}
           </span>
         </>
       )}
@@ -121,11 +123,11 @@ function SingleDice({ name, result }: { name: string; result: DiceRollResult }) 
   );
 }
 
-export default function DiceRoller({ rolls }: DiceRollerProps) {
+export default function DiceRoller({ rolls, alwaysRevealed = false }: DiceRollerProps) {
   return (
     <div className="mb-4 space-y-2">
       {Object.entries(rolls).map(([name, result]) => (
-        <SingleDice key={name} name={name} result={result} />
+        <SingleDice key={name} name={name} result={result} alwaysRevealed={alwaysRevealed} />
       ))}
     </div>
   );

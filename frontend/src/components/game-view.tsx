@@ -1,323 +1,115 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getCampaign, getTurns } from "../services/api";
-import { GameWebSocket } from "../services/websocket";
-import { useGameStore, setDiceRevealCallback } from "../stores/game-store";
+import { useGameStore } from "../stores/game-store";
 import { useUIStore } from "../stores/ui-store";
 import NarrativeStream from "./narrative/narrative-stream";
 import ActionInput from "./input/action-input";
 import CharacterSheet from "./character/character-sheet";
 import CompanionBar from "./companion/companion-bar";
 import CombatTracker from "./combat/combat-tracker";
-import type {
-  CharacterData,
-  CombatState,
-  DeathEvent,
-  DiceRollResult,
-  TurnResponse,
-  WorldState,
-} from "../types";
+import type { CombatState, TurnResponse } from "../types";
 
 export default function GameView() {
   const { campaignId } = useParams<{ campaignId: string }>();
   const navigate = useNavigate();
+
   const setCampaign = useGameStore((s) => s.setCampaign);
   const setTurnHistory = useGameStore((s) => s.setTurnHistory);
   const campaign = useGameStore((s) => s.campaign);
   const addTurn = useGameStore((s) => s.addTurn);
-  const setProcessing = useGameStore((s) => s.setProcessing);
-  const setStreaming = useGameStore((s) => s.setStreaming);
-  const appendNarration = useGameStore((s) => s.appendNarration);
-  const appendSegmentDice = useGameStore((s) => s.appendSegmentDice);
-  const appendSegmentNpc = useGameStore((s) => s.appendSegmentNpc);
-  const setPendingDice = useGameStore((s) => s.setPendingDice);
-  const resetStreaming = useGameStore((s) => s.resetStreaming);
+  const setLoading = useGameStore((s) => s.setLoading);
+  const setPendingAction = useGameStore((s) => s.setPendingAction);
+  const setCurrentMood = useGameStore((s) => s.setCurrentMood);
+  const setCombatState = useGameStore((s) => s.setCombatState);
   const updateWorldState = useGameStore((s) => s.updateWorldState);
   const updateCharacter = useGameStore((s) => s.updateCharacter);
   const updateTurnNumber = useGameStore((s) => s.updateTurnNumber);
+  const currentMood = useGameStore((s) => s.currentMood);
+  const combatState = useGameStore((s) => s.combatState);
+  const isLoading = useGameStore((s) => s.isLoading);
+
+  const [actionError, setActionError] = useState<string | null>(null);
+
   const sidePanel = useUIStore((s) => s.sidePanel);
   const toggleSidePanel = useUIStore((s) => s.toggleSidePanel);
-  const currentMood = useGameStore((s) => s.streaming.currentMood);
-  const deathEvent = useGameStore((s) => s.streaming.deathEvent);
-  const persistentCombat = campaign?.world_state?.combat_state;
-
-  const wsRef = useRef<GameWebSocket | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { isLoading } = useQuery({
+  const { isLoading: isCampaignLoading } = useQuery({
     queryKey: ["campaign", campaignId],
     queryFn: () => getCampaign(campaignId!).then((r) => r.data),
     enabled: !!campaignId,
   });
 
+  // Initial load: campaign + turn history
   useEffect(() => {
     if (!campaignId) return;
     getCampaign(campaignId).then((r) => {
       setCampaign(r.data);
+      // Restore combat state from persisted world_state
+      const cs = r.data.world_state?.combat_state as CombatState | undefined;
+      if (cs?.active) setCombatState(cs);
     });
     getTurns(campaignId).then((r) => {
       if (r.data?.length) {
-        // Journal returns newest-first; reverse to chronological order
         setTurnHistory([...r.data].reverse() as TurnResponse[]);
       }
     });
-  }, [campaignId, setCampaign, setTurnHistory]);
+  }, [campaignId, setCampaign, setTurnHistory, setCombatState]);
 
-  // WebSocket lifecycle
-  const isMountedRef = useRef(true);
-  useEffect(() => {
-    if (!campaignId) return;
-    isMountedRef.current = true;
+  // Called by ActionInput when the player submits an action
+  const handleAction = async (action: string) => {
+    if (!campaignId || isLoading) return;
 
-    const ws = new GameWebSocket(campaignId);
-    wsRef.current = ws;
+    setActionError(null);
+    setPendingAction(action);
+    setLoading(true);
 
-    const guard =
-      <T extends unknown[]>(fn: (...args: T) => void) =>
-      (...args: T) => {
-        if (isMountedRef.current) fn(...args);
-      };
-
-    ws.on(
-      "turn_start",
-      guard(() => {
-        const currentAction = useGameStore.getState().streaming.pendingAction;
-        setProcessing(true);
-        resetStreaming();
-        setStreaming({ isStreaming: true, pendingAction: currentAction });
-      }),
-    );
-
-    ws.on(
-      "narration",
-      guard((data) => {
-        appendNarration(data.text as string, (data.step_index as number) ?? 0);
-      }),
-    );
-
-    ws.on(
-      "dm:narration:chunk",
-      guard((data) => {
-        appendNarration(data.chunk as string, (data.step_index as number) ?? 0);
-      }),
-    );
-
-    ws.on(
-      "dice_rolls",
-      guard((data) => {
-        setPendingDice(data.rolls as Record<string, DiceRollResult>);
-      }),
-    );
-
-    ws.on(
-      "dice:roll",
-      guard((data) => {
-        const { type: _type, step_index: stepIdx, ...rolls } = data as Record<string, unknown>;
-        const rollsTyped = rolls as Record<string, DiceRollResult>;
-        setPendingDice(rollsTyped);
-        appendSegmentDice(rollsTyped, (stepIdx as number) ?? 0);
-        setStreaming({ diceAwaitingReveal: true });
-      }),
-    );
-
-    ws.on(
-      "npc:dialogue",
-      guard((data) => {
-        const { type: _type, step_index: stepIdx, ...npc } = data as Record<string, unknown>;
-        appendSegmentNpc(
-          {
-            npc_name: (npc.npc_name as string) || "NPC",
-            dialogue: (npc.dialogue as string) || "",
-            action: (npc.action as string) || null,
-          },
-          (stepIdx as number) ?? 0,
-        );
-      }),
-    );
-
-    // Server paused — player must click to reveal dice
-    ws.on(
-      "await:dice_reveal",
-      guard(() => {
-        setStreaming({ diceAwaitingReveal: true });
-      }),
-    );
-
-    ws.on(
-      "scene_mood",
-      guard((data) => {
-        setStreaming({ currentMood: (data.mood as string) || "neutral" });
-      }),
-    );
-
-    ws.on(
-      "combat:start",
-      guard((data) => {
-        setStreaming({ combatState: data as unknown as CombatState });
-      }),
-    );
-
-    ws.on(
-      "combat:end",
-      guard(() => {
-        setStreaming({ combatState: null });
-      }),
-    );
-
-    // Visible tool execution events
-    ws.on(
-      "tool:executed",
-      guard((data) => {
-        const toolData = data as Record<string, unknown>;
-        const toolName = toolData.tool as string;
-
-        if (toolName === "update_hp" || toolName === "apply_damage") {
-          // CharacterSheet and CombatTracker update automatically from turn_complete
-          // For immediate visual feedback, could trigger a flash here
-        }
-        if (toolName === "add_item" || toolName === "remove_item") {
-          // Could show a toast notification here in a future sprint
-        }
-      }),
-    );
-
-    ws.on(
-      "death:event",
-      guard((data) => {
-        setStreaming({ deathEvent: data as unknown as DeathEvent });
-      }),
-    );
-
-    ws.on(
-      "error",
-      guard(() => {
-        setProcessing(false);
-        setStreaming({ isStreaming: false });
-      }),
-    );
-
-    ws.on(
-      "turn_complete",
-      guard((data) => {
-        setProcessing(false);
-        setStreaming({ isStreaming: false });
-
-        const turnData = data as Record<string, unknown>;
-        const state = useGameStore.getState();
-        const liveSegments = state.streaming.segments;
-        const serverSegments = turnData.narration_segments as
-          | import("../types").NarrationSegment[]
-          | null
-          | undefined;
-        addTurn({
-          turn_number: turnData.turn_number as number,
-          player_action: (turnData.player_action as string) || undefined,
-          narration: state.streaming.currentNarration || (turnData.narration as string) || "",
-          narration_segments:
-            serverSegments && serverSegments.length > 0
-              ? serverSegments
-              : liveSegments.length > 0
-                ? liveSegments
-                : null,
-          dice_rolls:
-            (turnData.dice_rolls as Record<string, DiceRollResult>) || state.streaming.pendingDice,
-          companion_actions: (turnData.companion_actions as Record<string, string>) || null,
-          world_updates: (turnData.world_updates as Record<string, unknown>) || null,
-          scene_mood: (turnData.scene_mood as string) || state.streaming.currentMood,
-          suggested_actions: (turnData.suggested_actions as string[]) || null,
-          model_used: (turnData.model_used as string) || "",
-          invoke_npcs: (turnData.invoke_npcs as string[]) || [],
-          time_passed_minutes: (turnData.time_passed_minutes as number) || 5,
-          ambient_detail: (turnData.ambient_detail as string) || null,
-          requires_player_action: (turnData.requires_player_action as boolean) ?? true,
-        });
-
-        // Sync backend state into store so CharacterSheet, CombatTracker, etc. update
-        const worldState = turnData.world_state as WorldState | undefined;
-        const characterData = turnData.character_data as CharacterData | undefined;
-        if (worldState) updateWorldState(worldState);
-        if (characterData) updateCharacter(characterData);
-        if (turnData.turn_number) updateTurnNumber(turnData.turn_number as number);
-
-        resetStreaming();
-      }),
-    );
-
-    // Register dice reveal callback — sends dice_revealed to server when player clicks
-    setDiceRevealCallback(() => {
-      wsRef.current?.send({ type: "dice_revealed" });
+    // Scroll down so skeleton loader is visible
+    requestAnimationFrame(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     });
 
-    ws.connect();
+    try {
+      const { submitAction } = await import("../services/api");
+      const res = await submitAction(campaignId, action);
+      const turn = res.data;
 
-    return () => {
-      isMountedRef.current = false;
-      setDiceRevealCallback(null);
-      ws.disconnect();
-      wsRef.current = null;
-    };
-  }, [
-    campaignId,
-    addTurn,
-    setProcessing,
-    setStreaming,
-    appendNarration,
-    appendSegmentDice,
-    appendSegmentNpc,
-    setPendingDice,
-    resetStreaming,
-    updateWorldState,
-    updateCharacter,
-    updateTurnNumber,
-  ]);
+      addTurn(turn);
 
-  if (isLoading || !campaign) {
+      // Update store with backend state
+      if (turn.world_state) updateWorldState(turn.world_state as never);
+      if (turn.character_data) updateCharacter(turn.character_data as never);
+      if (turn.turn_number) updateTurnNumber(turn.turn_number);
+      if (turn.scene_mood) setCurrentMood(turn.scene_mood);
+
+      // Combat state
+      if (turn.combat_state?.active) {
+        setCombatState(turn.combat_state);
+      } else if (turn.combat_state && !turn.combat_state.active) {
+        setCombatState(null);
+      }
+    } catch (err) {
+      console.error("Action failed", err);
+      setActionError("The DM couldn't process your action. Please try again.");
+    } finally {
+      setLoading(false);
+      setPendingAction(null);
+    }
+  };
+
+  if (isCampaignLoading || !campaign) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-parchment-400">Loading your adventure...</p>
+        <p className="text-parchment-400">Loading your adventure…</p>
       </div>
     );
   }
 
-  const deathOverlayMessage = deathEvent
-    ? deathEvent.mode === "cronista"
-      ? {
-          title: "Near Death!",
-          sub: "You survive by a thread — your story is not over yet.",
-          color: "text-yellow-400",
-        }
-      : deathEvent.mode === "destino"
-        ? {
-            title: "Fate Intervenes!",
-            sub: deathEvent.cost_hint || "Destiny has a price.",
-            color: "text-purple-400",
-          }
-        : { title: "You Have Fallen", sub: "Your journey ends here.", color: "text-red-500" }
-    : null;
-
   return (
     <div className="flex h-screen" data-mood={currentMood}>
-      {persistentCombat?.active && <CombatTracker combatState={persistentCombat} />}
-
-      {deathEvent && deathOverlayMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-          <div className="max-w-md rounded-lg border border-parchment-700/30 bg-parchment-900 p-8 text-center shadow-2xl">
-            <h2 className={`mb-3 font-display text-4xl font-bold ${deathOverlayMessage.color}`}>
-              {deathOverlayMessage.title}
-            </h2>
-            <p className="mb-6 text-parchment-300">{deathOverlayMessage.sub}</p>
-            {deathEvent.mode !== "ironman" && (
-              <button
-                onClick={() => setStreaming({ deathEvent: null })}
-                className="rounded bg-gold-600 px-6 py-2 text-sm font-semibold text-parchment-900 hover:bg-gold-500"
-              >
-                Continue
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+      {combatState?.active && <CombatTracker combatState={combatState} />}
 
       <div className="mood-container flex flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-parchment-700/20 bg-parchment-900/90 px-4 py-2">
@@ -372,10 +164,10 @@ export default function GameView() {
         <CompanionBar />
 
         <div ref={scrollRef} className="narrative-scroll flex-1 overflow-y-auto px-6 py-4">
-          <NarrativeStream wsRef={wsRef} scrollRef={scrollRef} />
+          <NarrativeStream scrollRef={scrollRef} actionError={actionError} />
         </div>
 
-        <ActionInput campaignId={campaign.id} wsRef={wsRef} />
+        <ActionInput campaignId={campaign.id} onAction={handleAction} />
       </div>
 
       {sidePanel && (

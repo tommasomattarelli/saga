@@ -204,9 +204,12 @@ def test_update_status(mocker, mock_user_dependency):
     app.dependency_overrides.clear()
 
 
-def test_post_turn(mocker, mock_user_dependency):
+def test_post_action(mocker, mock_user_dependency):
+    """Test the new REST POST /action endpoint (replaces WebSocket + /turn)."""
     mock_db = mocker.AsyncMock()
     mock_db.add = mocker.Mock()
+    mock_db.commit = mocker.AsyncMock()
+    mock_db.execute = mocker.AsyncMock()
     camp_id = str(uuid.uuid4())
 
     camp = Campaign(
@@ -217,7 +220,7 @@ def test_post_turn(mocker, mock_user_dependency):
         status=CampaignStatus.ACTIVE,
         death_mode=DeathMode.IRONMAN,
         turn_number=1,
-        character_data={},
+        character_data={"name": "Hero", "hp": {"current": 10, "max": 10}},
         world_state={},
         quests={},
         created_at=datetime.now(UTC),
@@ -228,6 +231,9 @@ def test_post_turn(mocker, mock_user_dependency):
         def scalar_one_or_none(self):
             return camp
 
+        def scalar_one(self):
+            return camp
+
     mock_db.execute.return_value = MockCampaignResult()
 
     async def override_get_db():
@@ -235,24 +241,31 @@ def test_post_turn(mocker, mock_user_dependency):
 
     app.dependency_overrides[get_db] = override_get_db
 
-    from app.models.turn import Turn
+    # Mock dm_graph.ainvoke to avoid real LLM calls
+    fake_state = {
+        "narration": "You take a step forward.",
+        "narration_segments": None,
+        "dice_results": [],
+        "npc_dialogues": [],
+        "world_state": {},
+        "char_data": {"name": "Hero", "hp": {"current": 10, "max": 10}},
+        "scene_mood": "neutral",
+        "tool_events": [],
+        "death_event": None,
+        "model_used": "gpt-4o",
+        "importance_score": 5,
+        "time_passed_minutes": 0,
+    }
+    mocker.patch("app.api.turns.dm_graph.ainvoke", return_value=fake_state)
+    mocker.patch("app.api.turns.compress_turn_to_summary", return_value="A step forward.")
+    mocker.patch("app.api.turns.generate_embedding", return_value=[0.1] * 1536)
+    mocker.patch("app.api.turns.extract_and_store_facts")
+    mocker.patch("app.api.turns._background_compression")
 
-    fake_turn = Turn(
-        id=uuid.uuid4(),
-        campaign_id=camp.id,
-        turn_number=2,
-        player_action="Walk forward",
-        narration="You take a step.",
-        model_used="gpt-4o",
-        created_at=datetime.now(UTC),
-    )
-
-    # Mock process_turn
-    mocker.patch("app.api.campaigns.process_turn", return_value=fake_turn)
-
-    response = client.post(f"/api/campaigns/{camp_id}/turn", json={"action": "Walk forward"})
+    response = client.post(f"/api/campaigns/{camp_id}/action", json={"action": "Walk forward"})
     assert response.status_code == 200
     data = response.json()
     assert data["turn_number"] == 2
+    assert "You take a step" in data["narration"]
 
     app.dependency_overrides.clear()

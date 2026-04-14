@@ -43,12 +43,12 @@ services:
         condition: service_healthy
     environment:
       - UV_LINK_MODE=copy
-      - SAGA_CONFIG_PATH=/app/saga.config.yaml
+      - SAGA_CONFIG_PATH=/config/saga.config.yaml
     volumes:
       - ./backend:/app
       - backend_venv:/app/.venv
       - ./templates:/templates
-      - ./saga.config.yaml:/app/saga.config.yaml
+      - ./saga.config.yaml:/config/saga.config.yaml
     command: uv run --no-dev uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:

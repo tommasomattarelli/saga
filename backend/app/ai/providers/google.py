@@ -49,13 +49,14 @@ def _to_contents(messages: list[dict]) -> list[dict]:
 
         # OpenAI-format tool result: role=tool
         elif msg["role"] == "tool":
+            tool_name = msg.get("name") or msg.get("tool_call_id") or "tool"
             contents.append(
                 {
                     "role": "user",
                     "parts": [
                         {
                             "function_response": {
-                                "name": msg.get("name", ""),
+                                "name": tool_name,
                                 "response": {"result": msg["content"]},
                             }
                         }

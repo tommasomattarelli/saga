@@ -158,21 +158,43 @@ export interface NarrationSegment {
   npc_dialogues: NPCDialogue[];
 }
 
+export interface DiceResult {
+  step: number;
+  rolls: Record<string, DiceRollResult>;
+}
+
 export interface TurnResponse {
   turn_number: number;
   player_action?: string;
   narration: string;
   narration_segments?: NarrationSegment[] | null;
-  dice_rolls: Record<string, DiceRollResult> | null;
+  // New: pre-rolled dice (server-side), frontend reveals via animation
+  dice_results?: DiceResult[] | null;
+  // Legacy: flat dice_rolls from journal endpoint
+  dice_rolls?: Record<string, DiceRollResult> | null;
+  npc_dialogues?: NPCDialogue[] | null;
+  world_state?: Record<string, unknown>;
+  character_data?: Record<string, unknown>;
+  scene_mood: string | null;
+  combat_state?: CombatState | null;
+  tool_events?: Record<string, unknown>[];
+  death_event?: {
+    is_dead: boolean;
+    action: string;
+    death_mode: string;
+    narrative_instruction: string;
+    destino_lives_remaining: number | null;
+  } | null;
+  model_used?: string;
+  importance_score?: number;
+  time_passed_minutes?: number;
+  requires_player_action?: boolean;
+  // Legacy fields kept for backward-compat
   companion_actions?: Record<string, string> | null;
   world_updates?: Record<string, unknown> | null;
-  scene_mood: string | null;
   suggested_actions?: string[] | null;
-  model_used?: string;
   invoke_npcs?: string[];
-  time_passed_minutes?: number;
   ambient_detail?: string | null;
-  requires_player_action?: boolean;
 }
 
 export interface SavePoint {

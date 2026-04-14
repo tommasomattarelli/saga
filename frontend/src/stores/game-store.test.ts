@@ -40,14 +40,8 @@ const mockTurn: TurnResponse = {
   turn_number: 1,
   narration: "Turn 1 narration",
   dice_rolls: null,
-  companion_actions: null,
-  world_updates: null,
   scene_mood: "calm",
-  suggested_actions: ["action 1"],
   model_used: "test-model",
-  invoke_npcs: [],
-  time_passed_minutes: 5,
-  ambient_detail: null,
   requires_player_action: true,
 };
 
@@ -58,7 +52,7 @@ describe("Game Store", () => {
     useGameStore.setState({
       campaign: { ...mockCampaign },
       turnHistory: [],
-      isProcessing: false,
+      isLoading: false,
     });
     warnSpy.mockClear();
   });
@@ -67,7 +61,7 @@ describe("Game Store", () => {
     useGameStore.getState().reset();
     expect(useGameStore.getState().campaign).toBeNull();
     expect(useGameStore.getState().turnHistory).toEqual([]);
-    expect(useGameStore.getState().isProcessing).toBe(false);
+    expect(useGameStore.getState().isLoading).toBe(false);
   });
 
   it("should set campaign", () => {
@@ -82,9 +76,9 @@ describe("Game Store", () => {
     expect(useGameStore.getState().turnHistory[0]).toEqual(mockTurn);
   });
 
-  it("should set processing status", () => {
-    useGameStore.getState().setProcessing(true);
-    expect(useGameStore.getState().isProcessing).toBe(true);
+  it("should set loading status", () => {
+    useGameStore.getState().setLoading(true);
+    expect(useGameStore.getState().isLoading).toBe(true);
   });
 
   it("should update world state", () => {
@@ -95,11 +89,8 @@ describe("Game Store", () => {
   });
 
   it("should warn on invalid world state keys in dev", () => {
-    // We intentionally pass an object that satisfies WorldState but has unallowed keys for the store check
     useGameStore.getState().updateWorldState({ sidePanel: "inventory" } as unknown as WorldState);
-    expect(warnSpy).toHaveBeenCalledWith("[game-store] WorldState leakage (UI keys found):", [
-      "sidePanel",
-    ]);
+    expect(warnSpy).toHaveBeenCalledWith("[game-store] WorldState leakage:", ["sidePanel"]);
   });
 
   it("should update character data", () => {

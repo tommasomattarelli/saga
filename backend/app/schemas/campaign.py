@@ -35,17 +35,23 @@ class TurnSubmit(BaseModel):
 
 class TurnResponse(BaseModel):
     turn_number: int
+    player_action: str = ""
     narration: str
     narration_segments: list[dict] | None = None
+    # dice_results: pre-rolled by server, frontend animates as clickable UX
+    dice_results: list[dict] | None = None
+    # kept for backward-compat with journal endpoint
     dice_rolls: dict | None = None
-    companion_actions: dict | None = None
-    world_updates: dict | None = None
+    npc_dialogues: list[dict] | None = None
+    world_state: dict = {}
+    character_data: dict = {}
     scene_mood: str | None = None
-    suggested_actions: list[str] | None = None
+    combat_state: dict | None = None
+    tool_events: list[dict] = []
+    death_event: dict | None = None
     model_used: str
-    invoke_npcs: list[str] = []
-    time_passed_minutes: int = 5
-    ambient_detail: str | None = None
+    importance_score: int = 5
+    time_passed_minutes: int = 0
     requires_player_action: bool = True
 
     model_config = {"from_attributes": True}

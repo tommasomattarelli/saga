@@ -1,4 +1,4 @@
-from app.core.combat import Combatant, CombatState, attack_roll, damage_roll, roll_initiative
+from app.core.combat.combat import Combatant, CombatState, attack_roll, damage_roll, roll_initiative
 
 
 def test_combatant_initialization():

@@ -89,7 +89,7 @@ describe("NewCampaign Component", () => {
     const templateBtn = await screen.findByText("Classic Fantasy");
     fireEvent.click(templateBtn);
 
-    expect(screen.getByText("Create your hero")).toBeInTheDocument();
+    expect(screen.getByText("Name your hero")).toBeInTheDocument();
   });
 
   it("should go back from step 2 to step 1", async () => {
@@ -138,10 +138,13 @@ describe("NewCampaign Component", () => {
     const templateBtn = await screen.findByText("Classic Fantasy");
     fireEvent.click(templateBtn);
 
+    // Step 2: fill hero name, go to step 3
     const nameInput = screen.getByPlaceholderText(/Leave blank/i);
     fireEvent.change(nameInput, { target: { value: "Durin" } });
+    fireEvent.click(screen.getByText(/Next: Create Character/));
 
-    const submitBtn = screen.getByText("Begin the Saga →");
+    // Step 3: submit
+    const submitBtn = await screen.findByText("Begin the Saga");
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -171,7 +174,11 @@ describe("NewCampaign Component", () => {
     const templateBtn = await screen.findByText("Classic Fantasy");
     fireEvent.click(templateBtn);
 
-    const submitBtn = screen.getByText("Begin the Saga →");
+    // Step 2 → step 3
+    fireEvent.click(screen.getByText(/Next: Create Character/));
+
+    // Step 3: submit
+    const submitBtn = await screen.findByText("Begin the Saga");
     fireEvent.click(submitBtn);
 
     await waitFor(() => {

@@ -7,10 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.user import User
-from app.schemas.campaign import CampaignCreate, CampaignResponse, TurnResponse, TurnSubmit
+from app.schemas.campaign import CampaignCreate, CampaignResponse
 from app.security.auth import get_current_user
 from app.services import campaign_service
-from app.services.turn_service import process_turn
 
 router = APIRouter()
 
@@ -51,30 +50,6 @@ async def get_campaign(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
     return campaign
 
-
-@router.post("/{campaign_id}/turn", response_model=TurnResponse)
-async def submit_turn(
-    campaign_id: uuid.UUID,
-    body: TurnSubmit,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> TurnResponse:
-    """Submit player action and get response."""
-    result = await db.execute(
-        select(Campaign).where(
-            Campaign.id == campaign_id,
-            Campaign.user_id == user.id,
-            Campaign.status == CampaignStatus.ACTIVE,
-        )
-    )
-    campaign = result.scalar_one_or_none()
-    if not campaign:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Active campaign not found"
-        )
-
-    turn = await process_turn(campaign, body.action, user, db)
-    return turn
 
 
 @router.patch("/{campaign_id}/status")

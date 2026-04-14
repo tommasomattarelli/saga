@@ -10,6 +10,7 @@ import type { Campaign } from "../types";
 
 vi.mock("../services/api", () => ({
   getCampaign: vi.fn(),
+  getTurns: vi.fn().mockResolvedValue({ data: [] }),
 }));
 
 const mockParams = { campaignId: "c123" };
@@ -82,7 +83,7 @@ describe("GameView Component", () => {
   it("should show loading state initially", () => {
     vi.mocked(getCampaign).mockReturnValue(new Promise(() => {})); // Never resolves
     renderComponent();
-    expect(screen.getByText("Loading your adventure...")).toBeInTheDocument();
+    expect(screen.getByText("Loading your adventure…")).toBeInTheDocument();
   });
 
   it("should render campaign info when loaded", async () => {
