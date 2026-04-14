@@ -114,6 +114,35 @@ def test_returns_set():
     assert isinstance(result, set)
 
 
+def test_resolve_from_state_always_tools():
+    from app.ai.tools.tool_groups import resolve_active_tools_from_state
+    tools = resolve_active_tools_from_state({"combat_state": {"active": False}, "npcs": {}, "companions": {}})
+    assert "move_to" in tools
+    assert "add_item" in tools
+    assert "start_combat" in tools
+
+
+def test_resolve_from_state_combat_active():
+    from app.ai.tools.tool_groups import resolve_active_tools_from_state
+    tools = resolve_active_tools_from_state({"combat_state": {"active": True}, "npcs": {}, "companions": {}})
+    assert "apply_damage" in tools
+    assert "end_combat" in tools
+    assert "request_dice" in tools
+
+
+def test_resolve_from_state_npcs_present():
+    from app.ai.tools.tool_groups import resolve_active_tools_from_state
+    tools = resolve_active_tools_from_state({"combat_state": {"active": False}, "npcs": {"Marta": {}}, "companions": {}})
+    assert "invoke_npc" in tools
+    assert "change_npc_disposition" in tools
+
+
+def test_resolve_from_state_no_npcs():
+    from app.ai.tools.tool_groups import resolve_active_tools_from_state
+    tools = resolve_active_tools_from_state({"combat_state": {"active": False}, "npcs": {}, "companions": {}})
+    assert "invoke_npc" not in tools
+
+
 def test_get_tool_schemas_filtered():
     from app.ai.tools.dm_tools import get_tool_schemas
     all_schemas = get_tool_schemas()

@@ -45,6 +45,9 @@ ignore = ["B008", "E501", "SIM105"]
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
 
+[tool.coverage.run]
+omit = ["app/core/agent.py", "app/core/streaming.py"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

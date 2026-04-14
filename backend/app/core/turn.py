@@ -9,13 +9,13 @@ from app.ai.parser import parse_dm_response
 from app.ai.router import AICallType, route_ai_call
 from app.core.dice import ability_check
 from app.core.engine import CONTENT_POLICY_NARRATION, ProcessedTurn
+from app.memory.world_state import advance_game_clock, apply_world_updates, migrate_world_state
+from app.models.campaign import Campaign
 
 DICE_RE_PROMPT_TEMPLATE = (
     'The player attempted "{check}". They rolled {roll} + {modifier} = {total} vs DC {dc}. '
     "Outcome: {outcome}. Narrate the result in 2-3 sentences."
 )
-from app.memory.world_state import advance_game_clock, apply_world_updates, migrate_world_state
-from app.models.campaign import Campaign
 
 logger = structlog.get_logger()
 

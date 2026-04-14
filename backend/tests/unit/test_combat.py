@@ -37,7 +37,7 @@ def test_roll_initiative(mocker):
 
     # Predictable rolls: 15, 5, 20
     mocker.patch(
-        "app.core.combat.roll_dice",
+        "app.core.combat.combat.roll_dice",
         side_effect=[
             mocker.Mock(total=15),
             mocker.Mock(total=5),
@@ -58,7 +58,7 @@ def test_roll_initiative(mocker):
 
 def test_attack_roll(mocker):
     mocker.patch(
-        "app.core.combat.roll_dice",
+        "app.core.combat.combat.roll_dice",
         return_value=mocker.Mock(total=16, rolls=[12], natural_20=False, natural_1=False),
     )
     res = attack_roll(attacker_modifier=4, target_ac=15)
@@ -68,7 +68,7 @@ def test_attack_roll(mocker):
 
     # Miss
     mocker.patch(
-        "app.core.combat.roll_dice",
+        "app.core.combat.combat.roll_dice",
         return_value=mocker.Mock(total=12, rolls=[8], natural_20=False, natural_1=False),
     )
     res2 = attack_roll(attacker_modifier=4, target_ac=15)
@@ -77,7 +77,7 @@ def test_attack_roll(mocker):
 
 def test_attack_roll_critical(mocker):
     mocker.patch(
-        "app.core.combat.roll_dice",
+        "app.core.combat.combat.roll_dice",
         return_value=mocker.Mock(total=25, rolls=[20], natural_20=True, natural_1=False),
     )
     res = attack_roll(attacker_modifier=5, target_ac=30)  # Crit always hits
@@ -86,6 +86,6 @@ def test_attack_roll_critical(mocker):
 
 
 def test_damage_roll(mocker):
-    mocker.patch("app.core.combat.roll_dice", return_value=mocker.Mock(total=8))
+    mocker.patch("app.core.combat.combat.roll_dice", return_value=mocker.Mock(total=8))
     res = damage_roll("2d6+1")
     assert res.total == 8

@@ -11,8 +11,8 @@ from app.ai.npc_director import invoke_npcs_parallel
 from app.ai.tools.dm_tools import execute_tool, get_tool
 from app.core.combat.combat_graph import combat_graph
 from app.core.dice import ability_check
-from app.core.dm.game_state import GameState
 from app.core.dm.dm_helpers import get_or_create_segment, sync_narration_to_segment
+from app.core.dm.game_state import GameState
 from app.memory.updater import apply_typed_updates
 
 logger = structlog.get_logger()
@@ -22,9 +22,9 @@ async def tools_node(state: GameState) -> dict[str, Any]:
     """Execute all tool calls from the last AI message."""
     from sqlalchemy import select
 
+    from app.core.dm.dm_helpers import last_ai_message, tool_calls_from_ai_message
     from app.dependencies import get_db_context
     from app.models.campaign import Campaign
-    from app.core.dm.dm_helpers import last_ai_message, tool_calls_from_ai_message
 
     ai_msg = last_ai_message(state["messages"])
     if not ai_msg:
@@ -96,11 +96,6 @@ async def tools_node(state: GameState) -> dict[str, Any]:
                 continue
 
             called_npcs.append(npc_name)
-            npc_profile = world_state.get("npcs", {}).get(npc_name) or {
-                "name": npc_name,
-                "personality": "neutral",
-                "role": "citizen",
-            }
 
             async with get_db_context() as db:
                 result = await db.execute(

@@ -88,7 +88,7 @@ async def game_ws(
                 dice_reveal_event = asyncio.Event()
                 agent = DmAgent(campaign, dice_reveal_event)
 
-                def _segment_for(step: int) -> dict:
+                def _segment_for(step: int, segments_by_step: dict[int, dict] = segments_by_step) -> dict:
                     seg = segments_by_step.get(step)
                     if seg is None:
                         seg = {"step": step, "text": "", "dice": None, "npc_dialogues": []}

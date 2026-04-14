@@ -67,14 +67,14 @@ class DmTool(BaseModel):
         raw = cls.model_json_schema()
         props_raw = raw.get("properties", {})
         # Keep only type + description + enum + items per property (strip Pydantic noise)
-        ALLOWED = {"type", "description", "enum", "items"}
-        ITEMS_ALLOWED = {"type", "description", "enum"}
+        _allowed = {"type", "description", "enum", "items"}
+        _items_allowed = {"type", "description", "enum"}
 
         def _clean_prop(v: dict) -> dict:
-            cleaned = {kk: vv for kk, vv in v.items() if kk in ALLOWED}
+            cleaned = {kk: vv for kk, vv in v.items() if kk in _allowed}
             if "items" in cleaned and isinstance(cleaned["items"], dict):
                 cleaned["items"] = {
-                    kk: vv for kk, vv in cleaned["items"].items() if kk in ITEMS_ALLOWED
+                    kk: vv for kk, vv in cleaned["items"].items() if kk in _items_allowed
                 }
             return cleaned
 
