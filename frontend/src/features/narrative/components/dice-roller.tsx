@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { DiceRollResult, DiceOutcome } from "../../types";
-import { useUIStore } from "../../stores/ui-store";
+import type { DiceRollResult, DiceOutcome } from "../../../shared/types";
+import { useUIStore } from "../../../shared/stores/ui-store";
 
 interface DiceRollerProps {
   rolls: Record<string, DiceRollResult>;
