@@ -3,23 +3,16 @@ import { useRef } from "react";
 import { submitAction } from "../../../shared/api/client";
 import { useGameStore } from "../../../shared/stores/game-store";
 import { TurnResponseSchema } from "../../../shared/schemas/turn";
-import type { CombatState, TurnResponse } from "../../../shared/types";
+import type { CombatState, TurnResponse, WorldState, CharacterData } from "../../../shared/types";
 
 export function useSubmitAction(campaignId: string) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const addTurn = useGameStore((s) => s.addTurn);
-  const setLoading = useGameStore((s) => s.setLoading);
-  const setPendingAction = useGameStore((s) => s.setPendingAction);
-  const setCurrentMood = useGameStore((s) => s.setCurrentMood);
-  const setCombatState = useGameStore((s) => s.setCombatState);
-  const updateWorldState = useGameStore((s) => s.updateWorldState);
-  const updateCharacter = useGameStore((s) => s.updateCharacter);
-  const updateTurnNumber = useGameStore((s) => s.updateTurnNumber);
-
   const mutation = useMutation({
     mutationFn: (action: string) => submitAction(campaignId, action).then((r) => r.data),
+
     onMutate: (action: string) => {
+      const { setLoading, setPendingAction } = useGameStore.getState();
       setLoading(true);
       setPendingAction(action);
       requestAnimationFrame(() => {
@@ -27,13 +20,19 @@ export function useSubmitAction(campaignId: string) {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
       });
     },
-    onSuccess: (raw) => {
-      const result = TurnResponseSchema.safeParse(raw);
-      const turn: TurnResponse = result.success ? (result.data as unknown as TurnResponse) : raw;
+
+    onSuccess: (turn: TurnResponse) => {
+      if (import.meta.env.DEV) {
+        const check = TurnResponseSchema.safeParse(turn);
+        if (!check.success) console.warn("[useSubmitAction] schema mismatch", check.error.issues);
+      }
+
+      const { addTurn, updateWorldState, updateCharacter, updateTurnNumber, setCurrentMood, setCombatState } =
+        useGameStore.getState();
 
       addTurn(turn);
-      if (turn.world_state) updateWorldState(turn.world_state as Parameters<typeof updateWorldState>[0]);
-      if (turn.character_data) updateCharacter(turn.character_data as Parameters<typeof updateCharacter>[0]);
+      if (turn.world_state) updateWorldState(turn.world_state as Partial<WorldState>);
+      if (turn.character_data) updateCharacter(turn.character_data as Partial<CharacterData>);
       if (turn.turn_number) updateTurnNumber(turn.turn_number);
       if (turn.scene_mood) setCurrentMood(turn.scene_mood);
 
@@ -43,7 +42,9 @@ export function useSubmitAction(campaignId: string) {
         setCombatState(null);
       }
     },
+
     onSettled: () => {
+      const { setLoading, setPendingAction } = useGameStore.getState();
       setLoading(false);
       setPendingAction(null);
     },
