@@ -1,10 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 import type { DiceRollResult, DiceOutcome } from "../../../shared/types";
 import { useUIStore } from "../../../shared/stores/ui-store";
 
 interface DiceRollerProps {
   rolls: Record<string, DiceRollResult>;
-  alwaysRevealed?: boolean; // true for historical turns — skip animation, show result
+  alwaysRevealed?: boolean;
 }
 
 const OUTCOME_LABELS: Record<DiceOutcome, string> = {
@@ -18,6 +19,12 @@ const OUTCOME_LABELS: Record<DiceOutcome, string> = {
 
 const COUNTER_DURATION_MS = 1500;
 const COUNTER_INTERVAL_MS = 60;
+
+function isCrit(outcome?: DiceOutcome): "success" | "fail" | null {
+  if (outcome === "critical_success") return "success";
+  if (outcome === "critical_failure") return "fail";
+  return null;
+}
 
 function SingleDice({
   name,
@@ -44,7 +51,7 @@ function SingleDice({
       audio.volume = 0.5;
       audio.play().catch(() => {});
     } catch {
-      // Sound not available
+      /* Sound not available */
     }
   }, [soundEnabled]);
 
@@ -73,38 +80,79 @@ function SingleDice({
     };
   }, []);
 
-  const outcomeClass = result.outcome ? `dice-${result.outcome}` : "";
+  const crit = revealed ? isCrit(result.outcome) : null;
 
+  /* Unrevealed — clickable sigil */
   if (!revealed && !animating) {
     return (
       <button
         onClick={handleClick}
-        className="inline-flex items-center gap-3 rounded-lg border border-gold-500/50 bg-parchment-800/50 px-4 py-2 transition hover:border-gold-400 hover:bg-parchment-700/50"
+        className="group inline-flex items-center gap-3 px-4 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
+        style={{
+          border: "1px solid var(--gold-deep)",
+          background: "rgba(212, 175, 55, 0.06)",
+        }}
       >
-        <span className="text-xs font-semibold uppercase tracking-wider text-parchment-400">
+        <span
+          className="font-display text-[10px] uppercase"
+          style={{ color: "var(--ink-faded)", letterSpacing: "0.2em" }}
+        >
           {name}
-          <span className="ml-2 text-parchment-500">DC {result.dc}</span>
+          <span className="ml-2" style={{ opacity: 0.7 }}>DC {result.dc}</span>
         </span>
-        <span className="font-display text-lg text-gold-400">Roll!</span>
+        <span
+          className="font-display text-base group-hover:scale-110 transition-transform"
+          style={{ color: "var(--gold-bright)" }}
+        >
+          Cast the Die
+        </span>
       </button>
     );
   }
 
+  const success = result.success;
+
   return (
-    <div
-      className={`inline-flex items-center gap-3 rounded-lg border px-4 py-2 ${outcomeClass || (result.success ? "border-green-700/50 bg-green-900/20" : "border-red-700/50 bg-red-900/20")}`}
+    <motion.div
+      className="inline-flex items-center gap-3 px-4 py-2"
+      style={{
+        border: `1px solid ${success ? "var(--gold-bright)" : "var(--blood)"}`,
+        background: success ? "rgba(212, 175, 55, 0.1)" : "rgba(139, 0, 0, 0.08)",
+      }}
+      /* Crit screen-shake */
+      animate={
+        crit
+          ? { x: [0, -3, 3, -2, 2, 0], transition: { duration: 0.4 } }
+          : undefined
+      }
     >
-      <span className="text-xs font-semibold uppercase tracking-wider text-parchment-400">
+      <span
+        className="font-display text-[10px] uppercase"
+        style={{ color: "var(--ink-faded)", letterSpacing: "0.2em" }}
+      >
         {name}
       </span>
+
+      {/* The rolled number */}
       <span
-        className={`font-display text-2xl font-bold text-parchment-100 ${revealed ? "dice-final" : "dice-counter-animate"}`}
+        className="font-display text-2xl font-bold"
+        style={{
+          color: crit === "success"
+            ? "var(--gold-bright)"
+            : crit === "fail"
+              ? "var(--blood)"
+              : "var(--ink-primary)",
+        }}
       >
         {displayValue}
       </span>
+
       {revealed && (
         <>
-          <span className="text-xs text-parchment-500">
+          <span
+            className="font-body text-xs"
+            style={{ color: "var(--ink-faded)" }}
+          >
             [{result.rolls.join(", ")}]
             {result.modifier !== 0 && (
               <>{result.modifier > 0 ? `+${result.modifier}` : result.modifier}</>
@@ -112,21 +160,43 @@ function SingleDice({
             vs DC {result.dc}
           </span>
           <span
-            className={`text-sm font-bold ${result.success ? "text-green-400" : "text-red-400"}`}
+            className="font-display text-xs uppercase"
+            style={{
+              color: success ? "var(--gold-bright)" : "var(--blood)",
+              letterSpacing: "0.15em",
+            }}
           >
-            {result.outcome ? OUTCOME_LABELS[result.outcome] : result.success ? "SUCCESS" : "FAILURE"}
+            {result.outcome ? OUTCOME_LABELS[result.outcome] : success ? "SUCCESS" : "FAILURE"}
           </span>
         </>
       )}
-    </div>
+
+      {/* Ink-blot splash on crit */}
+      {crit && (
+        <motion.span
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 0.15 }}
+          transition={{ duration: 0.5 }}
+          className="absolute -inset-2 pointer-events-none"
+          style={{
+            borderRadius: "50%",
+            background: crit === "success"
+              ? "radial-gradient(circle, var(--gold-bright), transparent 70%)"
+              : "radial-gradient(circle, var(--blood), transparent 70%)",
+          }}
+        />
+      )}
+    </motion.div>
   );
 }
 
 export default function DiceRoller({ rolls, alwaysRevealed = false }: DiceRollerProps) {
   return (
-    <div className="mb-4 space-y-2">
+    <div className="my-4 flex flex-wrap gap-2">
       {Object.entries(rolls).map(([name, result]) => (
-        <SingleDice key={name} name={name} result={result} alwaysRevealed={alwaysRevealed} />
+        <div key={name} className="relative">
+          <SingleDice name={name} result={result} alwaysRevealed={alwaysRevealed} />
+        </div>
       ))}
     </div>
   );

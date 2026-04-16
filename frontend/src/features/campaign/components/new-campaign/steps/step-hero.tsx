@@ -7,7 +7,6 @@ import {
   HolySymbol,
   HolyOak,
   CrystalBall,
-  CrenulatedShield,
 } from "react-game-icons";
 import type { ComponentType } from "react";
 import { CLASS_PRESETS } from "../../../data/class-presets";

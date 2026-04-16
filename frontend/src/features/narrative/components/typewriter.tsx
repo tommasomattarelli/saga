@@ -1,52 +1,51 @@
-import { useState, useEffect, useRef } from "react";
+import { useTypewriter } from "../hooks/use-typewriter";
 
 interface TypewriterProps {
   text: string;
-  speed?: number; // chars per interval tick (default 2)
-  intervalMs?: number; // ms per tick (default 16 ≈ 60fps)
   onComplete?: () => void;
+  /** First turn of the saga — renders a decorative drop-cap */
+  dropCap?: boolean;
 }
 
-export default function Typewriter({
-  text,
-  speed = 2,
-  intervalMs = 16,
-  onComplete,
-}: TypewriterProps) {
-  const [index, setIndex] = useState(0);
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
-
-  useEffect(() => {
-    // Reset when text changes (new turn)
-    setIndex(0);
-  }, [text]);
-
-  useEffect(() => {
-    if (index >= text.length) {
-      onCompleteRef.current?.();
-      return;
-    }
-    const timer = setTimeout(
-      () => setIndex((i) => Math.min(i + speed, text.length)),
-      intervalMs,
-    );
-    return () => clearTimeout(timer);
-  }, [index, text.length, speed, intervalMs]);
-
-  const visible = text.slice(0, index);
+export default function Typewriter({ text, onComplete, dropCap = false }: TypewriterProps) {
+  const { displayed, isTyping } = useTypewriter({ text, onComplete });
+  const paragraphs = displayed.split("\n").filter((p) => p.length > 0);
 
   return (
     <>
-      {visible.split("\n").map((paragraph, i) => (
-        <p key={i} className="mb-3">
-          {paragraph}
-          {/* blinking cursor on last paragraph while typing */}
-          {i === visible.split("\n").length - 1 && index < text.length && (
-            <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-gold-400" />
-          )}
-        </p>
-      ))}
+      {paragraphs.map((paragraph, i) => {
+        const isFirst = i === 0 && dropCap;
+        const isLast = i === paragraphs.length - 1;
+        return (
+          <p key={i} className="mb-3 leading-relaxed">
+            {isFirst && paragraph.length > 0 && (
+              <span
+                className="float-left mr-2 font-display leading-none"
+                style={{
+                  fontSize: "3.2rem",
+                  color: "var(--gold-bright)",
+                  lineHeight: 0.8,
+                  marginTop: "0.1em",
+                }}
+              >
+                {paragraph[0]}
+              </span>
+            )}
+            {isFirst ? paragraph.slice(1) : paragraph}
+            {isLast && isTyping && (
+              <span
+                className="ml-0.5 inline-block animate-pulse"
+                style={{
+                  width: 2,
+                  height: "1em",
+                  background: "var(--gold-bright)",
+                  verticalAlign: "text-bottom",
+                }}
+              />
+            )}
+          </p>
+        );
+      })}
     </>
   );
 }

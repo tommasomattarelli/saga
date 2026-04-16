@@ -1,102 +1,161 @@
+import { motion, AnimatePresence } from "framer-motion";
+import { OrnamentDivider } from "../../../shared/ui/ornament-divider";
 import type { CombatState } from "../../../shared/types";
 
 interface CombatTrackerProps {
   combatState: CombatState;
 }
 
-function HpBar({ current, max }: { current: number; max: number }) {
+function CombatHpBar({
+  current,
+  max,
+  isPlayer,
+}: {
+  current: number;
+  max: number;
+  isPlayer: boolean;
+}) {
   const pct = max > 0 ? (current / max) * 100 : 0;
-  const color = pct > 50 ? "#4a7c59" : pct > 25 ? "#c4943a" : "#cc3333";
   return (
     <div
+      className="mt-1 relative overflow-hidden"
       style={{
-        width: "60px",
-        height: "8px",
-        background: "#333",
-        borderRadius: "4px",
-        overflow: "hidden",
+        width: 64,
+        height: 5,
+        border: "1px solid var(--gold-deep)",
+        background: "rgba(0,0,0,0.3)",
       }}
     >
-      <div
-        style={{
-          width: `${pct}%`,
-          height: "100%",
-          background: color,
-          transition: "width 0.3s ease",
-        }}
+      <motion.div
+        className="h-full absolute left-0 top-0"
+        style={{ background: isPlayer ? "var(--gold-bright)" : "var(--blood)" }}
+        initial={false}
+        animate={{ width: `${pct}%` }}
+        transition={{ duration: 0.5 }}
       />
     </div>
   );
 }
 
-export default function CombatTracker({ combatState }: CombatTrackerProps) {
-  if (!combatState.active) return null;
+function CombatantCard({
+  combatant,
+  isCurrent,
+}: {
+  combatant: CombatState["initiative_order"][number];
+  isCurrent: boolean;
+}) {
+  const isPlayer = combatant.type === "player";
+  const isCompanion = combatant.type === "companion";
+  const isDead = combatant.hp <= 0;
+  const glyph = isPlayer ? "❖" : isCompanion ? "✦" : "▲";
 
   return (
     <div
-      className="combat-tracker"
+      className="flex-shrink-0 flex flex-col items-center px-3 py-2 transition-all"
       style={{
-        position: "fixed",
-        top: "80px",
-        right: "16px",
-        width: "220px",
-        background: "rgba(30, 10, 10, 0.95)",
-        border: "1px solid #cc3333",
-        borderRadius: "8px",
-        padding: "12px",
-        zIndex: 100,
-        fontFamily: "monospace",
-        fontSize: "13px",
-        color: "#e0d0c0",
+        width: 110,
+        border: `1px solid ${isCurrent ? "var(--gold-bright)" : "var(--gold-deep)"}`,
+        background: isCurrent ? "rgba(212, 175, 55, 0.15)" : "rgba(42, 26, 16, 0.6)",
+        boxShadow: isCurrent ? "0 0 18px rgba(212,175,55,0.4)" : "none",
+        opacity: isDead ? 0.35 : 1,
       }}
     >
-      <div
+      {/* Type glyph + initiative */}
+      <div className="flex items-center gap-1 mb-0.5">
+        <span
+          className="font-display text-xs"
+          style={{ color: isPlayer ? "var(--gold-bright)" : isCompanion ? "var(--gold-deep)" : "var(--blood)" }}
+        >
+          {glyph}
+        </span>
+        <span
+          className="font-display text-[10px]"
+          style={{ color: "var(--ink-faded)", letterSpacing: "0.1em" }}
+        >
+          {combatant.initiative}
+        </span>
+      </div>
+      {/* Name */}
+      <span
+        className="font-display text-[10px] uppercase text-center truncate w-full text-center"
         style={{
-          fontWeight: "bold",
-          marginBottom: "8px",
-          color: "#cc3333",
-          textAlign: "center",
+          color: isPlayer ? "var(--gold-bright)" : "var(--ink-primary)",
+          letterSpacing: "0.12em",
+          textDecoration: isDead ? "line-through" : "none",
         }}
       >
-        COMBAT - Round {combatState.round}
-      </div>
+        {combatant.name}
+      </span>
+      {/* HP bar */}
+      <CombatHpBar current={combatant.hp} max={combatant.max_hp} isPlayer={isPlayer} />
+      <span
+        className="mt-0.5 font-body text-[10px]"
+        style={{ color: "var(--ink-faded)" }}
+      >
+        {combatant.hp}/{combatant.max_hp}
+      </span>
+      {/* Your turn label */}
+      {isCurrent && (
+        <span
+          className="mt-0.5 font-body italic text-[9px]"
+          style={{ color: "var(--gold-bright)" }}
+        >
+          ◀ your turn
+        </span>
+      )}
+    </div>
+  );
+}
 
-      {combatState.initiative_order.map((c, i) => {
-        const isCurrent = i === combatState.current_turn_index;
-        const isDead = c.hp <= 0;
-        return (
+export default function CombatTracker({ combatState }: CombatTrackerProps) {
+  return (
+    <AnimatePresence>
+      {combatState.active && (
+        <motion.div
+          className="fixed bottom-0 left-0 right-0 z-50"
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          exit={{ y: "100%" }}
+          transition={{ duration: 0.5, ease: [0.77, 0, 0.175, 1] }}
+        >
           <div
-            key={`${c.name}-${i}`}
+            className="max-w-[1200px] mx-auto px-6 py-3"
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "4px 6px",
-              marginBottom: "2px",
-              borderRadius: "4px",
-              background: isCurrent ? "rgba(204, 51, 51, 0.2)" : "transparent",
-              opacity: isDead ? 0.4 : 1,
-              borderLeft: isCurrent ? "2px solid #cc3333" : "2px solid transparent",
+              background: "var(--parchment-aged)",
+              border: "1px solid var(--gold-deep)",
+              borderBottom: "none",
             }}
           >
-            <span style={{ width: "14px", fontSize: "10px", color: "#888" }}>{c.initiative}</span>
-            <span
-              style={{
-                flex: 1,
-                color:
-                  c.type === "player" ? "#8bc4ff" : c.type === "companion" ? "#8bff8b" : "#ff8b8b",
-                textDecoration: isDead ? "line-through" : "none",
-              }}
-            >
-              {c.name}
-            </span>
-            <HpBar current={c.hp} max={c.max_hp} />
-            <span style={{ width: "40px", textAlign: "right", fontSize: "11px" }}>
-              {c.hp}/{c.max_hp}
-            </span>
+            {/* Header */}
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <span
+                className="font-display text-xs uppercase"
+                style={{ color: "var(--gold-bright)", letterSpacing: "0.3em" }}
+              >
+                ⚔ Initiative
+              </span>
+              <span
+                className="font-body italic text-xs"
+                style={{ color: "var(--ink-faded)" }}
+              >
+                Round {combatState.round}
+              </span>
+            </div>
+            <OrnamentDivider variant="flourish-a" className="!my-1" />
+
+            {/* Combatant cards — horizontal scroll */}
+            <div className="flex items-end gap-3 overflow-x-auto pb-1 justify-start">
+              {combatState.initiative_order.map((c, i) => (
+                <CombatantCard
+                  key={`${c.name}-${i}`}
+                  combatant={c}
+                  isCurrent={i === combatState.current_turn_index}
+                />
+              ))}
+            </div>
           </div>
-        );
-      })}
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

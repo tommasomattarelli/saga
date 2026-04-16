@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGameStore } from "../../../shared/stores/game-store";
 import { useUIStore } from "../../../shared/stores/ui-store";
+
 import { useCampaignData } from "../hooks/use-campaign-data";
 import { useSubmitAction } from "../hooks/use-submit-action";
 import NarrativeStream from "../../narrative/components/narrative-stream";
@@ -9,8 +10,10 @@ import ActionInput from "./action-input";
 import CharacterSheet from "../../character/components/character-sheet";
 import CompanionBar from "../../character/components/companion-bar";
 import CombatTracker from "../../combat/components/combat-tracker";
+import JournalDrawer from "./journal-drawer";
+import SettingsDrawer from "./settings-drawer";
 import { OrnamentDivider } from "../../../shared/ui/ornament-divider";
-import { Drawer } from "../../../shared/ui/drawer";
+// CharacterSheet manages its own fullscreen modal dialog internally
 
 export default function GameView() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -22,7 +25,6 @@ export default function GameView() {
   const combatState = useGameStore((s) => s.combatState);
 
   const sidePanel = useUIStore((s) => s.sidePanel);
-  const setSidePanel = useUIStore((s) => s.setSidePanel);
   const toggleSidePanel = useUIStore((s) => s.toggleSidePanel);
 
   // Force LIGHT theme in game
@@ -71,7 +73,8 @@ export default function GameView() {
       data-mood={currentMood}
       style={{ background: "var(--parchment-base)" }}
     >
-      {combatState?.active && <CombatTracker combatState={combatState} />}
+      {/* CombatTracker handles its own AnimatePresence — always render when state exists */}
+      {combatState && <CombatTracker combatState={combatState} />}
 
       <div className="mood-container flex flex-1 flex-col">
         {/* Ornamental banner header */}
@@ -163,7 +166,8 @@ export default function GameView() {
 
         <CompanionBar />
 
-        <div
+        <main
+          id="main-content"
           ref={scrollRef}
           className="narrative-scroll flex-1 overflow-y-auto px-8 py-6"
           style={{ background: "var(--parchment-base)" }}
@@ -171,57 +175,17 @@ export default function GameView() {
           <div className="mx-auto max-w-3xl">
             <NarrativeStream scrollRef={scrollRef} actionError={actionError} />
           </div>
-        </div>
+        </main>
 
         <ActionInput campaignId={campaign.id} onAction={handleAction} />
       </div>
 
-      {/* Side drawers */}
-      <Drawer
-        open={sidePanel === "character"}
-        onClose={() => setSidePanel(null)}
-        title="Character"
-      >
-        <CharacterSheet />
-      </Drawer>
-      <Drawer
-        open={sidePanel === "quests"}
-        onClose={() => setSidePanel(null)}
-        title="Active Quests"
-      >
-        {(campaign.quests?.active as Array<{ name: string; description: string }> | undefined)?.map(
-          (q, i) => (
-            <div
-              key={i}
-              className="mb-3 p-3"
-              style={{ border: "1px solid var(--gold-deep)" }}
-            >
-              <p
-                className="font-display text-sm uppercase"
-                style={{ color: "var(--gold-bright)", letterSpacing: "0.15em" }}
-              >
-                {q.name}
-              </p>
-              <p className="mt-1 font-body text-sm italic" style={{ color: "var(--ink-secondary)" }}>
-                {q.description}
-              </p>
-            </div>
-          ),
-        ) || (
-          <p className="font-body italic text-sm" style={{ color: "var(--ink-faded)" }}>
-            No quests yet inscribed.
-          </p>
-        )}
-      </Drawer>
-      <Drawer
-        open={sidePanel === "settings"}
-        onClose={() => setSidePanel(null)}
-        title="Settings"
-      >
-        <p className="font-body italic text-sm" style={{ color: "var(--ink-faded)" }}>
-          Settings (WIP)
-        </p>
-      </Drawer>
+      {/* Character sheet — fullscreen modal (self-contained) */}
+      <CharacterSheet />
+
+      {/* Dedicated drawer components (self-contained with Radix Dialog) */}
+      <JournalDrawer />
+      <SettingsDrawer />
     </div>
   );
 }
