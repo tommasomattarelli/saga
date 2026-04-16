@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGameStore } from "../../../shared/stores/game-store";
 import { useUIStore } from "../../../shared/stores/ui-store";
@@ -9,6 +9,8 @@ import ActionInput from "./action-input";
 import CharacterSheet from "../../character/components/character-sheet";
 import CompanionBar from "../../character/components/companion-bar";
 import CombatTracker from "../../combat/components/combat-tracker";
+import { OrnamentDivider } from "../../../shared/ui/ornament-divider";
+import { Drawer } from "../../../shared/ui/drawer";
 
 export default function GameView() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -20,12 +22,18 @@ export default function GameView() {
   const combatState = useGameStore((s) => s.combatState);
 
   const sidePanel = useUIStore((s) => s.sidePanel);
+  const setSidePanel = useUIStore((s) => s.setSidePanel);
   const toggleSidePanel = useUIStore((s) => s.toggleSidePanel);
+
+  // Force LIGHT theme in game
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", "light");
+    return () => document.documentElement.removeAttribute("data-theme");
+  }, []);
 
   const { isLoading: isDataLoading } = useCampaignData(campaignId);
   const { mutation, scrollRef: submitScrollRef } = useSubmitAction(campaignId!);
 
-  // Sync scrollRef to the one inside useSubmitAction
   submitScrollRef.current = scrollRef.current;
 
   const [actionError, setActionError] = useState<string | null>(null);
@@ -35,102 +43,185 @@ export default function GameView() {
     try {
       await mutation.mutateAsync(action);
     } catch {
-      setActionError("The DM couldn't process your action. Please try again.");
+      setActionError("The DM's quill falters. Try thy action anew.");
     }
   };
 
   if (isDataLoading || !campaign) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-parchment-400">Loading your adventure…</p>
+      <div
+        className="flex min-h-screen items-center justify-center"
+        style={{ background: "var(--parchment-base)" }}
+      >
+        <p className="font-body italic text-lg" style={{ color: "var(--ink-secondary)" }}>
+          The chronicler retrieves thy tale…
+        </p>
       </div>
     );
   }
 
+  const clock = campaign.world_state?.clock as
+    | { current_day?: number; time_of_day?: string }
+    | undefined;
+  const location = (campaign.world_state?.location as string | undefined) || "Unknown lands";
+
   return (
-    <div className="flex h-screen" data-mood={currentMood}>
+    <div
+      className="flex h-screen"
+      data-mood={currentMood}
+      style={{ background: "var(--parchment-base)" }}
+    >
       {combatState?.active && <CombatTracker combatState={combatState} />}
 
       <div className="mood-container flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-parchment-700/20 bg-parchment-900/90 px-4 py-2">
-          <div className="flex items-center gap-3">
+        {/* Ornamental banner header */}
+        <header
+          className="relative px-6 pt-3 pb-1"
+          style={{
+            background: "var(--parchment-aged)",
+            borderBottom: "1px solid var(--gold-deep)",
+          }}
+        >
+          <div className="flex items-center justify-between gap-4">
             <button
-              onClick={() => navigate("/")}
-              aria-label="Back to campaigns"
-              className="rounded px-2 py-1 text-sm text-parchment-400 hover:bg-parchment-800 hover:text-parchment-200"
+              onClick={() => navigate("/campaigns")}
+              aria-label="Back to the shelf"
+              className="font-display text-xs uppercase px-2 py-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
+              style={{
+                color: "var(--ink-faded)",
+                letterSpacing: "0.25em",
+              }}
             >
-              &larr;
+              ← Shelf
             </button>
-            <div>
-              <h2 className="font-display text-lg text-gold-400">{campaign.name}</h2>
-              <span className="text-xs text-parchment-500">
-                Turn {campaign.turn_number} &mdash;{" "}
-                {campaign.world_state?.location || "Unknown location"}
-                {campaign.world_state?.clock && (
+
+            <div className="flex-1 text-center">
+              <h2
+                className="font-display text-lg uppercase truncate"
+                style={{
+                  color: "var(--gold-bright)",
+                  letterSpacing: "0.22em",
+                }}
+              >
+                {campaign.name}
+              </h2>
+              <div
+                className="font-display text-[10px] uppercase mt-0.5"
+                style={{ color: "var(--ink-faded)", letterSpacing: "0.28em" }}
+              >
+                <span>Chapter {campaign.turn_number}</span>
+                <span className="mx-2" aria-hidden="true">·</span>
+                <span className="italic normal-case" style={{ fontStyle: "italic", letterSpacing: "0.1em" }}>
+                  {location}
+                </span>
+                {clock?.current_day && (
                   <>
-                    {" "}
-                    &mdash; Day {(campaign.world_state.clock as Record<string, unknown>).current_day as number},{" "}
-                    {(campaign.world_state.clock as Record<string, unknown>).time_of_day as string}
+                    <span className="mx-2" aria-hidden="true">·</span>
+                    <span>Day {clock.current_day}</span>
+                    {clock.time_of_day && (
+                      <>
+                        <span className="mx-2" aria-hidden="true">·</span>
+                        <span>{clock.time_of_day}</span>
+                      </>
+                    )}
                   </>
                 )}
-              </span>
+              </div>
+            </div>
+
+            {/* Action toolbar — rune-style buttons */}
+            <div className="flex gap-1">
+              {[
+                { key: "character" as const, glyph: "❖", label: "Character" },
+                { key: "quests" as const, glyph: "✦", label: "Quests" },
+                { key: "settings" as const, glyph: "⚙", label: "Settings" },
+              ].map((t) => {
+                const active = sidePanel === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => toggleSidePanel(t.key)}
+                    aria-label={t.label}
+                    title={t.label}
+                    className="w-9 h-9 flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
+                    style={{
+                      border: `1px solid ${active ? "var(--gold-bright)" : "var(--gold-deep)"}`,
+                      background: active ? "rgba(212, 175, 55, 0.15)" : "transparent",
+                      color: active ? "var(--gold-bright)" : "var(--ink-secondary)",
+                      fontFamily: "var(--font-display)",
+                      fontSize: 16,
+                    }}
+                  >
+                    {t.glyph}
+                  </button>
+                );
+              })}
             </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => toggleSidePanel("character")}
-              className="rounded px-3 py-1 text-sm text-parchment-300 hover:bg-parchment-800"
-            >
-              Character
-            </button>
-            <button
-              onClick={() => toggleSidePanel("quests")}
-              className="rounded px-3 py-1 text-sm text-parchment-300 hover:bg-parchment-800"
-            >
-              Quests
-            </button>
-            <button
-              onClick={() => toggleSidePanel("settings")}
-              className="rounded px-3 py-1 text-sm text-parchment-300 hover:bg-parchment-800"
-            >
-              Settings
-            </button>
-          </div>
+          <OrnamentDivider variant="flourish-b" className="!my-1" />
         </header>
 
         <CompanionBar />
 
-        <div ref={scrollRef} className="narrative-scroll flex-1 overflow-y-auto px-6 py-4">
-          <NarrativeStream scrollRef={scrollRef} actionError={actionError} />
+        <div
+          ref={scrollRef}
+          className="narrative-scroll flex-1 overflow-y-auto px-8 py-6"
+          style={{ background: "var(--parchment-base)" }}
+        >
+          <div className="mx-auto max-w-3xl">
+            <NarrativeStream scrollRef={scrollRef} actionError={actionError} />
+          </div>
         </div>
 
         <ActionInput campaignId={campaign.id} onAction={handleAction} />
       </div>
 
-      {sidePanel && (
-        <aside className="w-80 overflow-y-auto border-l border-parchment-700/20 bg-parchment-900/95 p-4">
-          {sidePanel === "character" && <CharacterSheet />}
-          {sidePanel === "quests" && (
-            <div>
-              <h3 className="mb-3 font-display text-lg text-gold-400">Active Quests</h3>
-              {(campaign.quests?.active as Array<{ name: string; description: string }> | undefined)?.map(
-                (q, i) => (
-                  <div key={i} className="mb-2 rounded border border-parchment-700/20 p-3">
-                    <p className="font-semibold text-parchment-200">{q.name}</p>
-                    <p className="text-sm text-parchment-400">{q.description}</p>
-                  </div>
-                ),
-              ) || <p className="text-sm text-parchment-500">No active quests</p>}
+      {/* Side drawers */}
+      <Drawer
+        open={sidePanel === "character"}
+        onClose={() => setSidePanel(null)}
+        title="Character"
+      >
+        <CharacterSheet />
+      </Drawer>
+      <Drawer
+        open={sidePanel === "quests"}
+        onClose={() => setSidePanel(null)}
+        title="Active Quests"
+      >
+        {(campaign.quests?.active as Array<{ name: string; description: string }> | undefined)?.map(
+          (q, i) => (
+            <div
+              key={i}
+              className="mb-3 p-3"
+              style={{ border: "1px solid var(--gold-deep)" }}
+            >
+              <p
+                className="font-display text-sm uppercase"
+                style={{ color: "var(--gold-bright)", letterSpacing: "0.15em" }}
+              >
+                {q.name}
+              </p>
+              <p className="mt-1 font-body text-sm italic" style={{ color: "var(--ink-secondary)" }}>
+                {q.description}
+              </p>
             </div>
-          )}
-          {sidePanel === "settings" && (
-            <div>
-              <h3 className="mb-3 font-display text-lg text-gold-400">Settings</h3>
-              <p className="text-sm text-parchment-400">Settings panel (WIP)</p>
-            </div>
-          )}
-        </aside>
-      )}
+          ),
+        ) || (
+          <p className="font-body italic text-sm" style={{ color: "var(--ink-faded)" }}>
+            No quests yet inscribed.
+          </p>
+        )}
+      </Drawer>
+      <Drawer
+        open={sidePanel === "settings"}
+        onClose={() => setSidePanel(null)}
+        title="Settings"
+      >
+        <p className="font-body italic text-sm" style={{ color: "var(--ink-faded)" }}>
+          Settings (WIP)
+        </p>
+      </Drawer>
     </div>
   );
 }

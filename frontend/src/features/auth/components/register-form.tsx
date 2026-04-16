@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuthFlow } from "../hooks/use-auth-flow";
+import { AuthPageLayout } from "./auth-page-layout";
+import {
+  AuthInput,
+  AuthError,
+  OrnateButton,
+} from "./auth-form-parts";
 
 export default function RegisterForm() {
   const [username, setUsername] = useState("");
@@ -14,78 +20,60 @@ export default function RegisterForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="w-full max-w-md rounded-lg border border-parchment-700/30 bg-parchment-900/80 p-8 shadow-2xl">
-        <h1 className="mb-2 text-center font-display text-3xl font-bold text-gold-400">SAGA</h1>
-        <p className="mb-8 text-center text-sm text-parchment-400">Begin Your Journey</p>
+    <AuthPageLayout subtitle="Inscribe thy name into the tome.">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <AuthInput
+          id="reg-username"
+          label="Name"
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          autoComplete="username"
+          required
+          minLength={3}
+        />
+        <AuthInput
+          id="reg-email"
+          label="Sigil (email)"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
+          required
+        />
+        <AuthInput
+          id="reg-password"
+          label="Word of Passage"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="new-password"
+          required
+          minLength={8}
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div role="alert" aria-live="polite" className="rounded bg-blood-900/50 p-3 text-sm text-red-300">
-              {error}
-            </div>
-          )}
+        {error && <AuthError message={error} />}
 
-          <div>
-            <label htmlFor="reg-username" className="mb-1 block text-sm text-parchment-300">
-              Username
-            </label>
-            <input
-              id="reg-username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded border border-parchment-700/50 bg-parchment-900 px-3 py-2 text-parchment-100 focus:border-gold-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500/40"
-              required
-              minLength={3}
-            />
-          </div>
+        <div className="pt-2">
+          <OrnateButton type="submit" disabled={isPending} className="w-full">
+            {isPending ? "Forging…" : "Begin Thy Tale"}
+          </OrnateButton>
+        </div>
+      </form>
 
-          <div>
-            <label htmlFor="reg-email" className="mb-1 block text-sm text-parchment-300">
-              Email
-            </label>
-            <input
-              id="reg-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded border border-parchment-700/50 bg-parchment-900 px-3 py-2 text-parchment-100 focus:border-gold-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500/40"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="reg-password" className="mb-1 block text-sm text-parchment-300">
-              Password
-            </label>
-            <input
-              id="reg-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded border border-parchment-700/50 bg-parchment-900 px-3 py-2 text-parchment-100 focus:border-gold-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500/40"
-              required
-              minLength={8}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isPending}
-            className="w-full rounded bg-gold-500 px-4 py-2 font-semibold text-parchment-900 transition hover:bg-gold-400 disabled:opacity-50"
-          >
-            {isPending ? "Forging your destiny..." : "Create Character"}
-          </button>
-        </form>
-
-        <p className="mt-4 text-center text-sm text-parchment-400">
-          Already have an account?{" "}
-          <Link to="/login" className="text-gold-400 hover:underline">
-            Sign in
-          </Link>
-        </p>
-      </div>
-    </div>
+      <p
+        className="mt-6 text-center text-xs font-body"
+        style={{ color: "var(--ink-secondary)" }}
+      >
+        Already of these lands?{" "}
+        <Link
+          to="/login"
+          className="underline underline-offset-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
+          style={{ color: "var(--gold-bright)" }}
+        >
+          Cross the threshold
+        </Link>
+      </p>
+    </AuthPageLayout>
   );
 }

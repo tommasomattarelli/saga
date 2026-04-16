@@ -1,10 +1,22 @@
-import { DEATH_MODES } from "../../../data/class-presets";
+import { motion } from "framer-motion";
+import {
+  CrossedSwords,
+  BatteredAxe,
+  WizardStaff,
+  Bowman,
+  HolySymbol,
+  HolyOak,
+  CrystalBall,
+  CrenulatedShield,
+} from "react-game-icons";
+import type { ComponentType } from "react";
+import { CLASS_PRESETS } from "../../../data/class-presets";
+import { abilityMod } from "../../../../../shared/utils/dnd";
 import type { TemplateOption } from "../../../../../shared/api/client";
 
 interface HeroForm {
   heroName: string;
-  campaignName: string;
-  deathMode: string;
+  archetype: string;
 }
 
 interface Props {
@@ -15,78 +27,208 @@ interface Props {
   onNext: () => void;
 }
 
+const CLASS_ICONS: Record<string, ComponentType> = {
+  warrior: CrossedSwords,
+  rogue: BatteredAxe,
+  mage: WizardStaff,
+  ranger: Bowman,
+  cleric: HolySymbol,
+  bard: HolyOak,
+};
+
+const FALLBACK_ICON: ComponentType = CrystalBall;
+
 export default function StepHero({ form, selectedTemplate, onChange, onBack, onNext }: Props) {
+  const preset = CLASS_PRESETS[form.archetype];
+
   return (
     <div>
-      <h2 className="mb-1 font-display text-xl text-parchment-200">Name your hero</h2>
-      <p className="mb-6 text-sm text-parchment-500">
-        Playing <span className="text-gold-400">{selectedTemplate.name}</span>
-      </p>
+      <div className="mb-6 text-center">
+        <h2
+          className="font-display text-2xl uppercase"
+          style={{ color: "var(--gold-bright)", letterSpacing: "0.22em" }}
+        >
+          The Hero
+        </h2>
+        <p
+          className="mt-2 font-body italic text-sm"
+          style={{ color: "var(--ink-secondary)" }}
+        >
+          Walking the paths of{" "}
+          <span style={{ color: "var(--gold-bright)" }}>{selectedTemplate.name}</span>
+          . Who dost thou become?
+        </p>
+      </div>
 
-      <div className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-8">
+        {/* Class grid */}
         <div>
-          <label htmlFor="hero-name" className="mb-1.5 block text-sm text-parchment-300">
-            Hero Name
+          <label
+            className="block mb-3 font-display text-[10px] uppercase"
+            style={{ color: "var(--ink-faded)", letterSpacing: "0.3em" }}
+          >
+            Choose thy calling
           </label>
-          <input
-            id="hero-name"
-            type="text"
-            value={form.heroName}
-            onChange={(e) => onChange({ heroName: e.target.value })}
-            placeholder="Leave blank for a mysterious stranger..."
-            className="w-full rounded-lg border border-parchment-700/30 bg-parchment-900 px-4 py-2.5 text-parchment-200 placeholder-parchment-600 focus:border-gold-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500/40"
-          />
-        </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {Object.entries(CLASS_PRESETS).map(([key, p]) => {
+              const Icon = CLASS_ICONS[key] ?? FALLBACK_ICON;
+              const selected = form.archetype === key;
+              return (
+                <motion.button
+                  key={key}
+                  type="button"
+                  onClick={() => onChange({ archetype: key })}
+                  whileHover={{ y: -2 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 22 }}
+                  className="relative p-3 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
+                  style={{
+                    border: `1px solid ${selected ? "var(--gold-bright)" : "var(--gold-deep)"}`,
+                    background: selected
+                      ? "rgba(212, 175, 55, 0.12)"
+                      : "rgba(244, 232, 208, 0.04)",
+                    boxShadow: selected ? "0 0 16px rgba(212,175,55,0.3)" : "none",
+                  }}
+                >
+                  <div
+                    className="mx-auto mb-1.5 flex items-center justify-center"
+                    style={{
+                      width: 48,
+                      height: 48,
+                      color: selected ? "var(--gold-bright)" : "var(--gold-deep)",
+                      fontSize: 36,
+                    }}
+                  >
+                    <Icon />
+                  </div>
+                  <div
+                    className="font-display text-xs uppercase"
+                    style={{
+                      color: selected ? "var(--gold-bright)" : "var(--ink-secondary)",
+                      letterSpacing: "0.15em",
+                    }}
+                  >
+                    {p.label}
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
 
-        <div>
-          <label htmlFor="campaign-name" className="mb-1.5 block text-sm text-parchment-300">
-            Campaign Name <span className="text-parchment-600">(optional)</span>
-          </label>
-          <input
-            id="campaign-name"
-            type="text"
-            value={form.campaignName}
-            onChange={(e) => onChange({ campaignName: e.target.value })}
-            placeholder={`${form.heroName || "The Stranger"}'s Adventure`}
-            className="w-full rounded-lg border border-parchment-700/30 bg-parchment-900 px-4 py-2.5 text-parchment-200 placeholder-parchment-600 focus:border-gold-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500/40"
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm text-parchment-300">Death Mode</label>
-          <div className="space-y-2">
-            {DEATH_MODES.map((m) => (
-              <button
-                key={m.value}
-                type="button"
-                onClick={() => onChange({ deathMode: m.value })}
-                className={`w-full rounded-lg border px-4 py-3 text-left transition-all ${
-                  form.deathMode === m.value
-                    ? "border-gold-500 bg-parchment-800/60"
-                    : "border-parchment-700/30 bg-parchment-900/60 hover:border-gold-500/30"
-                }`}
-              >
-                <span className="text-sm font-medium text-parchment-200">{m.label}</span>
-                <p className="mt-0.5 text-xs text-parchment-500">{m.desc}</p>
-              </button>
-            ))}
+          {/* Hero name */}
+          <div className="mt-6">
+            <label
+              htmlFor="hero-name"
+              className="block mb-2 font-display text-[10px] uppercase"
+              style={{ color: "var(--ink-faded)", letterSpacing: "0.3em" }}
+            >
+              Thy name
+            </label>
+            <input
+              id="hero-name"
+              type="text"
+              value={form.heroName}
+              onChange={(e) => onChange({ heroName: e.target.value })}
+              placeholder="Leave blank to walk as a stranger…"
+              className="w-full bg-transparent py-2 font-body text-lg italic focus:outline-none"
+              style={{
+                color: "var(--ink-primary)",
+                borderBottom: "1px solid var(--gold-deep)",
+              }}
+            />
           </div>
         </div>
 
-        <div className="flex gap-3 pt-2">
-          <button
-            onClick={onBack}
-            className="rounded-lg border border-parchment-700/30 px-4 py-2.5 text-sm text-parchment-400 hover:bg-parchment-800/40"
+        {/* Preview sigil */}
+        <aside
+          className="p-4 self-start"
+          style={{
+            border: "1px solid var(--gold-deep)",
+            background: "rgba(244, 232, 208, 0.03)",
+          }}
+        >
+          <div
+            className="font-display text-[9px] uppercase text-center mb-3"
+            style={{ color: "var(--ink-faded)", letterSpacing: "0.3em" }}
           >
-            Back
-          </button>
-          <button
-            onClick={onNext}
-            className="flex-1 rounded-lg border border-gold-500/30 bg-gold-900/20 py-2.5 text-sm font-medium text-gold-400 transition hover:bg-gold-900/40"
+            Sigil of the Hero
+          </div>
+          <div className="text-center mb-3">
+            <div
+              className="font-display text-lg uppercase"
+              style={{ color: "var(--gold-bright)", letterSpacing: "0.12em" }}
+            >
+              {form.heroName || "The Stranger"}
+            </div>
+            <div
+              className="font-body text-sm italic"
+              style={{ color: "var(--ink-secondary)" }}
+            >
+              {preset.label}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mb-3 font-body text-xs" style={{ color: "var(--ink-secondary)" }}>
+            <span>HP</span>
+            <span style={{ color: "var(--gold-bright)" }}>
+              {preset.baseHp} / {preset.baseHp}
+            </span>
+          </div>
+          <div
+            className="h-1.5 mb-4 overflow-hidden"
+            style={{ background: "var(--gold-deep)", opacity: 0.3 }}
           >
-            Next: Create Character &rarr;
-          </button>
-        </div>
+            <div className="h-full" style={{ background: "var(--gold-bright)", width: "100%" }} />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {Object.entries(preset.abilities).map(([ability, score]) => (
+              <div
+                key={ability}
+                className="text-center py-1.5"
+                style={{ border: "1px solid var(--gold-deep)" }}
+              >
+                <div
+                  className="font-display text-[9px] uppercase"
+                  style={{ color: "var(--ink-faded)", letterSpacing: "0.2em" }}
+                >
+                  {ability.slice(0, 3)}
+                </div>
+                <div
+                  className="font-display text-base"
+                  style={{ color: "var(--gold-bright)" }}
+                >
+                  {score}
+                </div>
+                <div className="font-body text-[10px]" style={{ color: "var(--ink-secondary)" }}>
+                  {abilityMod(score)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      </div>
+
+      <div className="mt-8 flex items-center justify-between gap-4">
+        <button
+          onClick={onBack}
+          className="font-display text-xs uppercase tracking-grimoire-wide px-4 py-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
+          style={{ color: "var(--ink-faded)" }}
+        >
+          ← Back
+        </button>
+        <button
+          onClick={onNext}
+          className="font-display text-sm uppercase tracking-grimoire-wide px-6 py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
+          style={{
+            color: "var(--gold-bright)",
+            border: "1px solid var(--gold-bright)",
+            outline: "1px solid var(--gold-deep)",
+            outlineOffset: "3px",
+            background: "rgba(212, 175, 55, 0.08)",
+          }}
+        >
+          Name thy Fate →
+        </button>
       </div>
     </div>
   );
