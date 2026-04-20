@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.parser import _strip_fences
-from app.ai.providers.base import get_provider
+from app.ai.providers.base import get_provider, logged_generate
 from app.ai.router import AICallType, route_ai_call
 from app.models.campaign import Campaign
 from app.models.turn import Turn
@@ -100,7 +100,9 @@ async def resolve_player_action(
         model_config = await route_ai_call(AICallType.NPC_BEHAVIOR, dummy_context)
         provider = get_provider(model_config.provider)
 
-        raw = await provider.generate(
+        raw = await logged_generate(
+            provider,
+            caller="semantic_resolver",
             system_prompt="You resolve implicit references in RPG player actions.",
             messages=[{"role": "user", "content": prompt_text}],
             model=model_config.model,
@@ -116,6 +118,8 @@ async def resolve_player_action(
 
             data = json.loads(repair_json(cleaned))
 
+        if isinstance(data, list):
+            data = data[0] if data else {}
         return ResolverOutput(**data)
 
     except Exception:

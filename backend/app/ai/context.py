@@ -50,6 +50,8 @@ async def build_context(
 
     messages = []
     for turn in recent_turns:
+        if not turn.narration:
+            continue
         messages.append({"role": "user", "content": turn.player_action})
         messages.append({"role": "assistant", "content": turn.narration})
 

@@ -5,7 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
 import "./styles/mood.css";
-import "./i18n/config";
+import "./shared/i18n/config";
 
 const queryClient = new QueryClient({
   defaultOptions: {

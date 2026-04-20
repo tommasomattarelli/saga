@@ -10,7 +10,7 @@ import structlog
 
 from app.ai.parser import _strip_fences
 from app.ai.prompts.npc import build_npc_prompt
-from app.ai.providers.base import get_provider
+from app.ai.providers.base import get_provider, logged_generate
 from app.ai.router import AICallType, get_gameplay_config, route_ai_call
 from app.models.campaign import Campaign
 
@@ -48,7 +48,9 @@ async def invoke_single_npc(
     provider = get_provider(model_config.provider)
 
     try:
-        raw = await provider.generate(
+        raw = await logged_generate(
+            provider,
+            caller=f"npc_director:{npc_name}",
             system_prompt=f"You are {npc_name}, an NPC in a tabletop RPG.",
             messages=[{"role": "user", "content": prompt}],
             model=model_config.model,

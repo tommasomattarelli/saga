@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, campaigns, characters, export, journal, saves, templates, websocket
+from app.api import auth, campaigns, characters, export, journal, saves, templates, turns
 from app.api import settings as settings_api
 from app.dependencies import close_db, close_redis, init_db, init_redis
 from app.logging_setup import setup_logging
@@ -45,7 +45,7 @@ def create_app() -> FastAPI:
     app.include_router(journal.router, prefix="/api/journal", tags=["journal"])
     app.include_router(settings_api.router, prefix="/api/settings", tags=["settings"])
     app.include_router(export.router, prefix="/api/export", tags=["export"])
-    app.include_router(websocket.router, prefix="/api/ws", tags=["websocket"])
+    app.include_router(turns.router, prefix="/api/campaigns", tags=["turns"])
 
     return app
 
