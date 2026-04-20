@@ -94,39 +94,99 @@ _NPC_VERBOSITY_MAP: dict[str, int] = {
 
 @dataclass
 class GameplayConfig:
-    """Runtime gameplay settings loaded from model_config.yaml."""
+    """Runtime gameplay settings loaded from saga.config.yaml."""
 
     context_window_turns: int = 8
+    context_token_cap: int = 12000
     npc_verbosity: str = "medium"
     compression_enabled: bool = True
     fact_extraction_enabled: bool = True
+    global_summary_enabled: bool = True
+    global_summary_update_every: int = 5
+    pgvector_hybrid: bool = False
+    auto_create_npcs: bool = True
+    npc_auto_create_detail: str = "standard"
+    consecutive_empty_steps_max: int = 2
 
     @property
     def max_npc_calls(self) -> int:
         return _NPC_VERBOSITY_MAP.get(self.npc_verbosity, 3)
 
 
+@dataclass
+class SummarizationConfig:
+    """Retry and deduplication settings for the summarization pipeline."""
+
+    max_retries: int = 3
+    retry_delays_seconds: list[int] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.retry_delays_seconds is None:
+            self.retry_delays_seconds = [1, 5, 30]
+
+
+def _bool_env(key: str, fallback: bool) -> bool:
+    val = os.getenv(key)
+    if val is None:
+        return fallback
+    return val.lower() not in ("false", "0", "no")
+
+
 def get_gameplay_config() -> GameplayConfig:
-    """Read the gameplay section from model_config.yaml with env overrides."""
+    """Read the gameplay section from saga.config.yaml with env overrides."""
     config = _load_config()
     gp = config.get("gameplay", {})
-
-    ctx_turns = int(
-        os.getenv("SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS", gp.get("context_window_turns", 8))
-    )
-    verbosity = os.getenv("SAGA_GAMEPLAY_NPC_VERBOSITY", gp.get("npc_verbosity", "medium"))
-    compression = os.getenv(
-        "SAGA_GAMEPLAY_COMPRESSION_ENABLED", str(gp.get("compression_enabled", True))
-    )
-    fact_ext = os.getenv(
-        "SAGA_GAMEPLAY_FACT_EXTRACTION_ENABLED", str(gp.get("fact_extraction_enabled", True))
-    )
+    gs = config.get("features", {}).get("global_summary", {})
 
     return GameplayConfig(
-        context_window_turns=ctx_turns,
-        npc_verbosity=verbosity,
-        compression_enabled=compression.lower() not in ("false", "0", "no"),
-        fact_extraction_enabled=fact_ext.lower() not in ("false", "0", "no"),
+        context_window_turns=int(
+            os.getenv("SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS", gp.get("context_window_turns", 8))
+        ),
+        context_token_cap=int(
+            os.getenv("SAGA_GAMEPLAY_CONTEXT_TOKEN_CAP", gp.get("context_token_cap", 12000))
+        ),
+        npc_verbosity=os.getenv(
+            "SAGA_GAMEPLAY_NPC_VERBOSITY", gp.get("npc_verbosity", "medium")
+        ),
+        compression_enabled=_bool_env(
+            "SAGA_GAMEPLAY_COMPRESSION_ENABLED", gp.get("compression_enabled", True)
+        ),
+        fact_extraction_enabled=_bool_env(
+            "SAGA_GAMEPLAY_FACT_EXTRACTION_ENABLED", gp.get("fact_extraction_enabled", True)
+        ),
+        global_summary_enabled=_bool_env(
+            "SAGA_GLOBAL_SUMMARY_ENABLED", gs.get("enabled", True)
+        ),
+        global_summary_update_every=int(
+            os.getenv("SAGA_GLOBAL_SUMMARY_INTERVAL_TURNS", gs.get("interval_turns", 5))
+        ),
+        pgvector_hybrid=_bool_env(
+            "SAGA_GAMEPLAY_PGVECTOR_HYBRID", gp.get("pgvector_hybrid", False)
+        ),
+        auto_create_npcs=_bool_env(
+            "SAGA_GAMEPLAY_AUTO_CREATE_NPCS", gp.get("auto_create_npcs", True)
+        ),
+        npc_auto_create_detail=os.getenv(
+            "SAGA_GAMEPLAY_NPC_AUTO_CREATE_DETAIL",
+            gp.get("npc_auto_create_detail", "standard"),
+        ),
+        consecutive_empty_steps_max=int(
+            os.getenv(
+                "SAGA_GAMEPLAY_CONSECUTIVE_EMPTY_STEPS_MAX",
+                gp.get("consecutive_empty_steps_max", 2),
+            )
+        ),
+    )
+
+
+def get_summarization_config() -> SummarizationConfig:
+    """Read the summarization section from saga.config.yaml."""
+    config = _load_config()
+    sc = config.get("summarization", {})
+
+    return SummarizationConfig(
+        max_retries=int(os.getenv("SAGA_SUMMARIZATION_MAX_RETRIES", sc.get("max_retries", 3))),
+        retry_delays_seconds=sc.get("retry_delays_seconds", [1, 5, 30]),
     )
 
 
