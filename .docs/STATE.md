@@ -1,140 +1,159 @@
 # Project State of the Art (STATE.md)
 
-## Current Snapshot: Phase A+B+C+Sprint1+Sprint2 Complete
-**239 unit tests passing.** The backend streams LLM tokens in real-time, combat and death systems are functional, all critical playtest bugs from Sprint 1–2 are resolved. The engine has been refactored into 3 clean files (Rule 12 compliance). The frontend now shows chat history on reload, user message bubbles, auto-scroll, and persists world state correctly between turns.
+## Current Snapshot: Sprint v1 Complete — Agentic DM
+**309 tests passing** (unit + integration). The agentic DM loop is live: world state is seeded from templates, tools are filtered per-turn, NPCs have profiles from the template, the system prompt is XML-structured. The "wrapper around LLM" feeling is eliminated for new campaigns.
 
-*Last updated: 2026-03-31*
-
----
-
-### ✅ Core Implementations (Verified & Stable)
-
-#### 1. AI Orchestration & Logic
-- **AI Router** (`ai/router.py`): Multi-provider (OpenAI, Anthropic, Google), importance tiering (High/Mid/Low), YAML config override, env var overrides (`SAGA_GLOBAL_MODEL_HIGH`, etc.).
-- **Semantic Resolver** (`ai/semantic_resolver.py`): Mini-call before Context Assembler. Resolves pronouns and implicit references → `ResolverOutput(target_npcs, target_locations, time_estimate_minutes)`.
-- **Healing Parser** (`ai/parser.py`): strip markdown fences → `json-repair` → Pydantic validation → `DMResponse`. Reduces retries ~70%.
-- **Content Policy Handler**: Per-provider detection (OpenAI `content_filter`, Anthropic empty, Google `SAFETY`) → `ContentPolicyError` → readable fallback narration.
-- **DM Prompt** (`ai/prompts/dm.py`): Full COMBAT_PROMPT, world_updates array format with examples, no creation mode (removed), rules for code fences, player agency, prompt injection defense, dice frequency, combat_start once.
-- **Model config**: All providers set to `google` / `gemini-3-flash-preview` in `model_config.yaml`.
-
-#### 2. Turn Pipeline — 3 files (engine split, Rule 12)
-- **`core/engine.py`** (50 lines): `ProcessedTurn`, `StreamEvent` dataclasses + constants.
-- **`core/turn.py`** (177 lines): `process_game_turn()` — non-streaming pipeline.
-- **`core/streaming.py`** (294 lines): `process_game_turn_streaming()` — streaming pipeline with `NarrationExtractor`, dice re-prompt, NPC Actor-Director, death check, typed world updates.
-- **AI request logging**: `ai_request` log before every LLM call (provider, model, temperature, importance, system_prompt_preview, messages_count).
-- **AI response logging**: `ai_raw_response` log after every response.
-
-#### 3. Dice Engine (6-Level Outcomes)
-- `DiceOutcome` StrEnum: `critical_failure` → `critical_success`.
-- Natural 1/20 overrides. Advantage/disadvantage. Re-prompt pipeline.
-- Rolls computed server-side, animation client-side (click-to-reveal).
-
-#### 4. GameClock
-- `GameClock` Pydantic model: `total_minutes`, computed `current_hour/day/season/time_of_day`.
-- `advance_game_clock()` increments from `time_passed_minutes` per turn.
-- World state schema v4 with migration pipeline v0→v4.
-
-#### 5. Real-Time Streaming
-- `NarrationExtractor` state machine (`ai/stream_extractor.py`): extracts narration tokens from raw JSON stream in real time.
-- WebSocket handler (`api/websocket.py`): iterates `StreamEvent`, dispatches typed WS events. `player_action` now included in `turn_complete` payload. Wrapped in try/except guards.
-
-#### 6. World State & Typed Updater
-- **11 handlers** in `memory/updater.py`: `npc_disposition`, `hp_change`, `inventory_change`, `quest_update`, `companion_loyalty`, `reputation_change`, `event_log_entry`, `combat_start`, `combat_end`, `combat_damage`, **`location`** (new, Sprint 2).
-- `combat_damage`: name-match fallback for generic targets ("player"/"playername"), auto-advance `current_turn_index` after each damage (Sprint 2).
-- Generic fallback for unknown types.
-
-#### 7. HP Format
-- Standardized to nested `{"current": N, "max": N}` everywhere — creation, updater, death check, frontend, character service.
-
-#### 8. Death System (`core/death.py`)
-- Ironman: death permanent, `campaign.status = COMPLETED`.
-- Destino: 3 fate interventions with escalating costs (Minor/Major/Severe), `destino_lives` in world state.
-- Cronista: HP reset to 1, narrative near-death consequences.
-- `DEATH_MODE_PROMPTS` injected in system prompt.
-
-#### 9. Combat System
-- Initiative: d20 + DEX modifier, sorted descending, stored in `combat_state`.
-- `combat_start` handler: rolls initiative, builds `initiative_order`.
-- `combat_damage` handler: applies to player or enemy combatant.
-- `combat_end` handler: resets `combat_state.active = false`.
-
-#### 10. Character Creation (UI Form, no AI)
-- 3-step `new-campaign.tsx`: template → hero name + death mode → character form.
-- 6 class presets in `character_service.py` (`CLASS_PRESETS`): warrior, rogue, mage, ranger, cleric, bard.
-- HP computed from CON modifier: `BASE_HP + (con - 10) // 2`.
-- Full `character_data` built client-side, sent to backend at campaign creation.
-
-#### 11. Memory System
-- **Active Window**: configurable, default 8 turns verbatim, older turns compressed.
-- **Turn Compression** (`memory/compressor.py`): batches of 5 turns, budget model summary.
-- **Fact Extractor** (`memory/fact_extractor.py`): fire-and-forget `asyncio.create_task` after turn commit. Handles list output and empty response (Sprint 1 fix).
-- `memory_facts` table with embedding (Vector 384) + tsvector index.
-
-#### 12. Logging (`logging_setup.py`)
-- Structlog dual output: console (ConsoleRenderer key=value) + rotating file JSON lines (`logs/saga.log`, 10MB × 3 backups).
-- `ai_request` log before every AI call with full context preview.
-- `location_updated` log when location changes.
-
-#### 13. Security
-- AES-256-GCM encryption for API keys.
-- `detect_injection()` + `sanitize_player_input()` in websocket handler.
-- JWT auth, cascade delete, multi-tenant isolation.
-
-#### 14. Frontend — Game View
-- **Chat history**: hydrated from `campaign.turns` on mount (Sprint 2, `setTurnHistory`).
-- **User message bubbles**: `pendingAction` shown immediately as gold bubble before DM responds, `player_action` shown in historical turns (Sprint 2).
-- **Auto-scroll**: `bottomRef` + `scrollIntoView` on narration/turn updates (Sprint 2).
-- **Dice below narration**: `DiceRoller` moved after narration text in both TurnBlock and streaming (Sprint 2).
-- **WebSocket isMounted guard**: all handlers wrapped in `guard()`, cleanup sets `isMountedRef.current = false` (Sprint 2).
-- **Error handler**: `ws.on("error")` resets `isProcessing`/`isStreaming` (Sprint 2).
-- **Back button**: `←` in header, `useNavigate` to `/` (Sprint 2).
-- **Season**: `world_state.meta.current_season` shown in header (Sprint 2).
-- **world_state + character_data** synced from `turn_complete` via `updateWorldState` / `updateCharacter`.
-- **CombatTracker** reads from `campaign.world_state.combat_state` (persistent, survives `resetStreaming`).
-- **CharacterSheet** with HP normalization helper `getHP()` for nested/flat format.
-- **DiceRoller**: click-to-reveal, 1.5s counter animation, 6 outcome CSS classes, sound.
-- **Scene moods**: 11 moods in CSS, 1.5s smooth transitions.
-- **ActionInput**: suggested actions only on last turn, "Continue" button for auto-continue.
-- **Death overlays**: Near Death / Fate Intervenes / You Have Fallen.
-- **New Campaign** (3 steps): template → hero name → character creation form.
-
-#### 15. Save System
-- `POST /api/campaigns/:id/saves` — manual save endpoint.
-- Auto-save after every turn (overwrite single slot per campaign).
-- Save blocked during active combat.
-- `POST /api/campaigns/:id/saves/:save_id/load` — fork endpoint.
-
-#### 16. Export/Import
-- Full JSON export of campaign + turns.
+*Last updated: 2026-04-07*
 
 ---
 
-### ⚠️ Partial / Needs Playtest Validation
-- Hybrid Search (pgvector + tsvector query) — table and indexes ready, query not implemented (Phase E)
-- Contextual Loading guided by Semantic Resolver — resolver works, selective loading deferred (Phase E)
-- DM sometimes doesn't emit combat_damage spontaneously — monitor with log file
-- B4 Template System — templates work partially, full system deferred (Phase E)
+## ✅ Sprint v1 — New Features (2026-04-07)
+
+### 1. Template World Initialization
+- `campaign_service.create_campaign()` seeds `world_state` from `template.content` at creation time
+- YAML template → `locations`, `npcs`, `companions`, `factions` dicts; `meta.current_location`, `time_of_day`, `weather` from `opening`
+- `campaign.quests` seeded from `template.content.opening.initial_quests`
+- `migrate_world_state()` applied after seeding (idempotent, ensures schema v4, clock, combat_state, destino_lives)
+- Unknown template slug → 404 with `detail: "Template '...' not found"`
+
+### 2. DELETE /campaigns/{id}
+- Ownership check: 403 if not owner, 404 if missing
+- ORM cascade deletes turns; DB cascade deletes memory_facts
+- Use for test data cleanup
+
+### 3. saga.config.yaml (project root)
+- Single root-level game-tunable config merging old `model_config.yaml` (deleted)
+- Sections: `model_routing` (dm_narration low/medium/high, npc_behavior, companion_dialogue, memory_compression, embedding), `gameplay`, `features`, `tool_groups`
+- `backend/app/config_loader.py` — `load_saga_config()` with `@lru_cache(maxsize=1)`
+- `backend/app/ai/router.py` reads from `load_saga_config()` instead of file path
+- `backend/app/ai/model_config.yaml` deleted
+
+### 4. Dynamic Tool Groups
+- `backend/app/ai/tools/tool_groups.py` — typed Python predicates, no eval
+- `resolve_active_tools(campaign) -> set[str]` reads `saga.config.yaml` `tool_groups` section
+- Predicates: `combat_active` (checks `combat_state.active`), `npcs_present` (checks `npcs` dict), `companion_active`
+- Groups: `core` (always: move_to, advance_time, set_scene_mood, log_event, update_quest), `combat` (when: combat_active), `social` (when: npcs_present), `inventory` (always)
+- `get_tool_schemas(allowed: set[str] | None)` filters tool list per turn
+- Reduces tool count: ~9 out of combat, ~14 during combat
+
+### 5. NPC Pre-Hook
+- `_run_npc` in `agent.py` guards against NPCs not in `world_state.npcs`
+- Unknown NPC → returns error string to DM: "NPC '...' is not defined in this world. Do not invoke them."
+- `last_interactions` ring buffer (max 3) stored in `world_state.npcs[name].last_interactions` after each NPC invocation
+- `npc.py` prompt builder handles both flat strings (template) and dict format (legacy personality/goals)
+
+### 6. Location Post-Hook
+- `MoveTo.execute` enriches tool result with `description` + `connections` from `world_state.locations`
+- DM receives: `"Player moved to: X\nDescription: ...\nConnected to: ..."` instead of bare `"moved to X"`
+- Updates `world_state.meta.current_location` on move
+
+### 7. XML System Prompt
+- `build_dm_system_prompt()` emits XML structure: `<instructions>`, `<character>`, `<scene>`, `<history>`, `<quests>`
+- `<scene>` includes: `<location>` (description + connections), `<npcs_present>` (filtered to current location only), `<time>`, `<weather>`, `<combat>` (only when active)
+- No `json.dumps(world_state)` anywhere — estimated 40-60% token reduction on populated campaigns
+- `_npcs_at_current_location(world_state)` filters by `npc.location == meta.current_location`; returns all NPCs if no location set (fallback)
 
 ---
 
-### ❌ Not Started
-- pgvector Hybrid Search query (`memory/semantic.py`)
-- Recap System (dual role: system prompt + JournalView)
-- API Keys UI (frontend settings panel)
-- Cost Dashboard
-- Second and third templates (The Shattered Crowns, The Last Light)
-- CI/CD (GitHub Actions)
-- Responsive / Mobile / PWA
-- Achievement System
-- Save Browser UI
-- Timeline Forking UI
-- World Simulator logic (schema exists, logic in v2)
-- **Phase D: Agentic DM** (tool-calling architecture — planned next)
+## ✅ Phase D — Agentic DM Architecture (2026-04-03)
+
+- **`core/agent.py`** — `DmAgent.run()` agentic loop (max 5 steps), streams narration + tool calls
+- **Tool execution**: regular tools parallel (`asyncio.gather`), special tools sequential (`request_dice`, `invoke_npc`)
+- **`ai/tools/dm_tools.py`** — 14 typed tools, each as `ToolDef` class with `openai_schema()` + `execute()`
+- **`api/websocket.py`** — WebSocket handler dispatches `StreamEvent` types to frontend
+- **Dice flow**: server-side roll → `dice_roll` event → `await_player` pause → player clicks → `dice_revealed` message → DM continues
+- **NPC director**: parallel NPC invocations via `invoke_npcs_parallel`, returns `NPCResult` per NPC
+- **Semantic resolver**: mini-LLM call before turn to resolve implicit references
 
 ---
 
-### 🚩 Technical Debt
-- `websocket.py` (~236 lines) — mixes game logic with transport; consider moving turn orchestration to a service layer (Phase E)
-- `turn_service.py` — mixes I/O with business logic (Phase E)
-- Hybrid search not yet wired despite table being ready
-- Frontend: no Vitest/RTL tests yet (structure in place)
+## ✅ Previous Phases (A-C, Sprint 1-2)
+
+- **AI Router**: multi-provider, importance tiering, env var overrides
+- **Memory system**: active window (8 turns), turn compression, fact extractor, pgvector embeddings
+- **Death system**: Ironman / Destino / Cronista modes
+- **Combat system**: initiative, apply_damage, end_combat
+- **Character creation**: 3-step UI, 6 class presets
+- **Frontend**: streaming chat, dice click-to-reveal, CombatTracker, CharacterSheet, scene moods, auto-scroll, history on reload, death overlays, save/load, export/import
+- **World state**: schema v4, migration pipeline v0→v4, GameClock
+- **Security**: AES-256-GCM API key encryption, JWT auth, injection detection
+
+---
+
+## 🚩 Technical Debt
+
+### Dead Code (safe to delete)
+| File | Lines | Why dead |
+|------|-------|----------|
+| `backend/app/core/streaming.py` | 294 | Not imported anywhere in `app/`; frontend uses WebSocket→agent, not this pipeline |
+| `backend/app/core/stream_extractor.py` | ~80 | Only used by dead `streaming.py` |
+| `backend/app/ai/prompts/companion.py` | ~40 | Not imported in `app/`; only referenced in tests |
+| `backend/app/ai/prompts/world.py` | ~30 | Not imported in `app/`; only referenced in tests |
+
+### Dual Pipeline (tech debt, not dead)
+- HTTP `POST /turn` → `turn_service.py` → `core/turn.py` → old non-agentic pipeline
+- WebSocket → `agent.py` → current agentic pipeline (what frontend uses)
+- `core/turn.py` and `turn_service.py` are still live (endpoint exists, some integration tests use it)
+- Should be retired once old HTTP pipeline tests are migrated to WebSocket tests
+
+### Size Violations (Rule 12: ≤300 lines)
+| File | Lines | Action |
+|------|-------|--------|
+| `backend/app/core/agent.py` | 452 | Split into `agent_loop.py` (streaming loop), `agent_tools.py` (tool executors), `agent_dice.py` (dice handling) |
+| `backend/app/core/streaming.py` | 294 | Delete (dead) |
+
+### Other
+- `backend/app/ai/model_config.yaml` — **deleted** in v1; if referenced anywhere → error (intentional)
+- `dm_response.py` — `DMResponse` Pydantic schema used by old pipeline only; can delete when old pipeline retired
+
+---
+
+## 🗺️ Future Steps
+
+### v1.5 — World Depth (next sprint)
+- **Global story summary**: rule-based (every 5 turns) + LLM hybrid compression. Currently `features.global_summary.enabled: false` in saga.config.yaml
+- **`suggest_actions` tool**: re-add as proper tool call (removed from `DMResponse`, not yet re-added)
+- **NPC location filtering**: already have `npc.location` in template YAML; need `_npcs_at_current_location` wired into `social` tool group predicate so `invoke_npc` only shows NPCs at current location
+- **NPC movement types**: `static` (stay in place), `wandering` (move every N turns via world_sim), `scheduled` (scripted routes)
+- **Companion dialogue tools**: `ask_companion`, `command_companion` — companion in `world_state.companions` but no tools yet
+- **Narrative tension score**: track escalation across turns, influence model temperature
+- **Refactor `agent.py`**: split 452-line file into 3 focused modules (Rule 12)
+- **Delete dead files**: `streaming.py`, `stream_extractor.py`, `companion.py` prompt, `world.py` prompt
+
+### v2 — Living World
+- **World Simulator**: NPC agents that move, plot, and react to player actions between turns (currently `features.world_sim.enabled: false`)
+- **Faction dynamics**: reputation changes trigger faction events
+- **Second/third templates**: The Shattered Crowns, The Last Light
+- **Hybrid search**: pgvector + tsvector wired in `memory/semantic.py` (table + indexes ready, query not implemented)
+- **Player journal**: auto-generated turn summaries in JournalView
+- **Recap system**: compressed history shown in UI + injected as `<history>` in prompt
+
+### v3 — Platform
+- **Multiplayer**: shared campaigns, spectator mode
+- **API Keys UI**: frontend settings panel for provider keys
+- **CI/CD**: GitHub Actions (lint + test on push)
+- **Mobile/PWA**: responsive layout
+- **Achievement system**, Save Browser UI, Timeline Forking UI
+- **Cost Dashboard**: token usage tracking per campaign
+
+---
+
+## ⚠️ Partial / Needs Validation
+- `suggest_actions` removed from `DMResponse` but not yet re-added as tool — buttons don't appear in frontend
+- HTTP `/turn` endpoint still active but uses stale pipeline (not tested in playtest guide)
+- NPC `wandering` / `scheduled` movement type field exists in YAML spec but predicate not implemented
+- pgvector hybrid search table+indexes ready, `memory/semantic.py` query not wired
+
+---
+
+## 📋 Test Coverage
+```
+309 tests — unit + integration (as of Sprint v1)
+New in v1:
+  tests/integration/test_campaign_creation.py   (3 tests — template seeding)
+  tests/integration/test_campaign_delete.py      (4 tests — cascade, auth)
+  tests/unit/test_tool_groups.py                 (8 tests — predicate resolver)
+  tests/unit/test_dm_prompt_xml.py               (13 tests — XML structure)
+```
+
+Run: `cd backend && .venv/Scripts/python.exe -m pytest tests/unit tests/integration -q`

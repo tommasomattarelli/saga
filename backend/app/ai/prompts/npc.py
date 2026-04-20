@@ -6,16 +6,16 @@ NPC_BASE_PROMPT = """You are an NPC in a tabletop RPG. You have your own life, g
 - Location: {location}
 
 ## Your Psychology
+- Personality: {personality}
 - Motivation: {motivation}
 - Fear: {fear}
 - Secret: {secret}
 - Disposition toward player: {disposition}/100
-- Personality traits: {traits}
 
 ## What just happened
 The player did: "{player_action}"
 The DM narrated: "{dm_narration}"
-
+{recent_history}
 ## Rules
 - You do NOT exist to serve the player. You have your own agenda.
 - React realistically to the player's approach (intimidation, charm, deception)
@@ -33,20 +33,56 @@ def build_npc_prompt(
     player_action: str = "",
     dm_narration: str = "",
 ) -> str:
-    personality = npc_data.get("personality", {})
-    traits = personality.get("traits", []) if isinstance(personality, dict) else []
-    fears = personality.get("fears", []) if isinstance(personality, dict) else []
-    secrets = personality.get("secrets", []) if isinstance(personality, dict) else []
+    # Personality: handle both flat string (template) and dict (legacy)
+    personality_raw = npc_data.get("personality", "")
+    if isinstance(personality_raw, dict):
+        traits = personality_raw.get("traits", [])
+        fears = personality_raw.get("fears", [])
+        dict_secrets = personality_raw.get("secrets", [])
+        personality_str = ", ".join(traits) if traits else "unremarkable"
+    else:
+        fears = []
+        dict_secrets = []
+        personality_str = str(personality_raw) if personality_raw else "unremarkable"
+
+    # Motivation: flat string (template) or list via "goals" (legacy)
+    motivation_raw = npc_data.get("motivation", "")
+    if not motivation_raw:
+        goals = npc_data.get("goals", ["Survive"])
+        motivation_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
+    else:
+        motivation_str = str(motivation_raw)
+
+    # Secret: dict.secrets (legacy) → flat secret (template) → fallback
+    if dict_secrets:
+        secret_str = ", ".join(dict_secrets)
+    else:
+        secret_raw = npc_data.get("secret", "")
+        secret_str = str(secret_raw) if secret_raw else "None"
+
+    # Fear: from personality.fears (legacy) or npc_data.fear (fallback)
+    fear_str = ", ".join(fears) if fears else npc_data.get("fear", "")
+
+    disposition = npc_data.get("disposition_toward_player", npc_data.get("disposition", 0))
+
+    # Last interactions (ring buffer, max 3)
+    last_interactions: list[str] = npc_data.get("last_interactions", [])
+    if last_interactions:
+        history_lines = "\n".join(f"  - {entry}" for entry in last_interactions[-3:])
+        recent_history = f"\n## Recent history with player\n{history_lines}\n"
+    else:
+        recent_history = ""
 
     return NPC_BASE_PROMPT.format(
         name=npc_data.get("name", "Unknown"),
         role=npc_data.get("role", "Commoner"),
         location=npc_data.get("location", "Unknown"),
-        motivation=", ".join(npc_data.get("goals", ["Survive"])),
-        fear=", ".join(fears) if fears else npc_data.get("fear", "Unknown"),
-        secret=", ".join(secrets) if secrets else npc_data.get("secret", "None"),
-        disposition=npc_data.get("disposition_toward_player", npc_data.get("disposition", 0)),
-        traits=", ".join(traits) if traits else "unremarkable",
+        personality=personality_str,
+        motivation=motivation_str,
+        fear=fear_str,
+        secret=secret_str,
+        disposition=disposition,
         player_action=player_action[:300],
         dm_narration=dm_narration[:500],
+        recent_history=recent_history,
     )

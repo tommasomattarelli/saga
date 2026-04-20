@@ -7,15 +7,10 @@ CONTENT_POLICY_NARRATION = (
     "The DM refuses to narrate this scene as described. Try rephrasing your action."
 )
 
-DICE_RE_PROMPT_TEMPLATE = (
-    'The player attempted "{check}". They rolled {roll} + {modifier} = {total} vs DC {dc}. '
-    "Outcome: {outcome}. Narrate the result in 2-3 sentences."
-)
-
 
 @dataclass
 class ProcessedTurn:
-    """The fully processed result of a game turn."""
+    """The fully processed result of a game turn (used by non-streaming pipeline)."""
 
     narration: str
     dice_rolls: dict | None
@@ -33,18 +28,18 @@ class ProcessedTurn:
 
 @dataclass
 class StreamEvent:
-    """An event yielded during streaming turn processing."""
+    """An event yielded during the agentic turn loop."""
 
     type: Literal[
-        "narration_chunk",
-        "dice_roll",
-        "dice_narration_chunk",
-        "scene_mood",
-        "npc_dialogue",
-        "combat_start",
-        "combat_end",
-        "death_event",
-        "turn_result",
+        "narration_chunk",  # DM narration text token
+        "dice_roll",  # Dice roll result (player must reveal)
+        "await_player",  # Loop paused — waiting for player interaction
+        "scene_mood",  # Scene mood changed
+        "npc_dialogue",  # NPC spoke
+        "tool_executed",  # Visible tool was executed (HP change, item, etc.)
+        "death_event",  # Player death or near-death
+        "turn_result",  # Final turn result with full state
         "error",
     ]
     data: str | dict
+    step_index: int | None = None

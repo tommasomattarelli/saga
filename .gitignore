@@ -51,6 +51,7 @@ docker-compose.override.yml
 htmlcov/
 .coverage
 .coverage.*
+coverage.*
 coverage/
 *.lcov
 

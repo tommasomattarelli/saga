@@ -31,7 +31,7 @@ async def compress_turn_to_summary(narration: str, player_action: str) -> str:
 async def compress_turns_batch_llm(turns: list[Turn]) -> str | None:
     """Compress a batch of turns into a 2-3 sentence summary via budget LLM."""
     from app.ai.context import GameContext
-    from app.ai.providers.base import get_provider
+    from app.ai.providers.base import get_provider, logged_generate
 
     turns_text = "\n".join(
         f"Turn {t.turn_number}: Player: {t.player_action[:200]} → DM: {(t.narration or '')[:300]}"
@@ -49,7 +49,9 @@ async def compress_turns_batch_llm(turns: list[Turn]) -> str | None:
     provider = get_provider(model_config.provider)
 
     try:
-        raw = await provider.generate(
+        raw = await logged_generate(
+            provider,
+            caller="compressor",
             system_prompt="You are a concise narrative summarizer for an RPG game.",
             messages=[
                 {"role": "user", "content": COMPRESSION_PROMPT.format(turns_text=turns_text)}

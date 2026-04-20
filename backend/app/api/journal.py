@@ -41,6 +41,7 @@ async def get_journal(
             "turn_number": t.turn_number,
             "player_action": t.player_action,
             "narration": t.narration,
+            "narration_segments": t.narration_segments,
             "dice_rolls": t.dice_rolls,
             "scene_mood": t.scene_mood,
             "created_at": t.created_at.isoformat(),
