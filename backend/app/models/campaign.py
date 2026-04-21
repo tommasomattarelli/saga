@@ -56,6 +56,10 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
     # Rolling story summary — updated every N turns (see gameplay.global_summary_update_every)
     global_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Persona preset — copied from template at creation, drives DM narrative tone
+    persona_preset: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    persona_xml: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Relationships
     user: Mapped[User] = relationship(back_populates="campaigns")
     turns: Mapped[list[Turn]] = relationship(

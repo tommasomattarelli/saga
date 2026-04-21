@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.ai.prompts.dm import _npcs_at_current_location, build_dm_system_prompt
 from app.models.campaign import DeathMode
 
@@ -111,7 +109,7 @@ def test_history_section_when_summary_present():
     campaign = _make_campaign(_WORLD_STATE, _CHAR_DATA)
     prompt = build_dm_system_prompt(campaign, summary_context="The hero woke at the shrine.")
 
-    assert "<history>" in prompt
+    assert '<history label="story_so_far">' in prompt
     assert "The hero woke at the shrine." in prompt
 
 
