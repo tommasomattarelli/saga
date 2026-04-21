@@ -56,6 +56,7 @@ async def invoke_single_npc(
             model=model_config.model,
             temperature=model_config.temperature,
             max_tokens=300,
+            json_mode=True,
         )
 
         cleaned = _strip_fences(raw)

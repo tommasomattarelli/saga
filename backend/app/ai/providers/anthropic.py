@@ -28,7 +28,9 @@ class AnthropicProvider(AIProvider):
         model: str = "claude-sonnet-4-20250514",
         temperature: float = 0.8,
         max_tokens: int = 2000,
+        json_mode: bool = False,
     ) -> str:
+        # Anthropic lacks native json_mode; the prompt already contains the JSON schema.
         response = await self.client.messages.create(
             model=model,
             system=system_prompt,

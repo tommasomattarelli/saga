@@ -33,14 +33,18 @@ class LocalProvider(AIProvider):
         model: str = "local",
         temperature: float = 0.8,
         max_tokens: int = 2000,
+        json_mode: bool = False,
     ) -> str:
         full_messages = [{"role": "system", "content": system_prompt}] + messages
-        response = await self.client.chat.completions.create(
-            model=model,
-            messages=full_messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        kwargs: dict = {
+            "model": model,
+            "messages": full_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        if json_mode:
+            kwargs["response_format"] = {"type": "json_object"}
+        response = await self.client.chat.completions.create(**kwargs)
         choice = response.choices[0]
         if choice.finish_reason == "content_filter":
             raise ContentPolicyError("local", "Response blocked by content filter")

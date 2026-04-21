@@ -128,8 +128,9 @@ def execute_tool(name: str, arguments: dict, world_state: dict, char_data: dict)
         instance = tool_cls(**arguments)
         return instance.execute(world_state, char_data)
     except Exception as exc:
+        safe_msg = str(exc).replace("\n", " ").strip()[:120]
         return ToolResult(
-            description=f"Tool {name} failed: {exc}",
+            description=f"Tool {name} failed: {safe_msg}",
             world_state=world_state,
             char_data=char_data,
         )

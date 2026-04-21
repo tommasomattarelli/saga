@@ -23,7 +23,7 @@ from app.core.dm.dm_nodes import context_node, dm_node, post_process_node
 from app.core.dm.dm_tools_executor import tools_node
 from app.core.dm.game_state import GameState
 
-_MEANINGFUL_TOOLS = frozenset({"invoke_npc", "request_dice"})
+_MEANINGFUL_TOOLS = frozenset({"invoke_npc", "request_dice", "start_combat", "end_combat"})
 MAX_STEPS: int = getattr(settings, "saga_max_agent_steps", 5)
 
 
@@ -35,7 +35,13 @@ def route_after_dm(state: GameState) -> Literal["tools_node", "post_process_node
 
 
 def route_after_tools(state: GameState) -> Literal["dm_node", "post_process_node"]:
+    from app.ai.router import get_gameplay_config
+
     if state["step_count"] >= MAX_STEPS:
+        return "post_process_node"
+
+    cfg = get_gameplay_config()
+    if state.get("consecutive_empty_steps", 0) >= cfg.consecutive_empty_steps_max:
         return "post_process_node"
 
     ai_msg = last_ai_message(state["messages"])

@@ -133,16 +133,20 @@ class GoogleProvider(AIProvider):
         model: str = "gemini-2.5-pro",
         temperature: float = 0.8,
         max_tokens: int = 2000,
+        json_mode: bool = False,
     ) -> str:
+        config: dict = {
+            "system_instruction": system_prompt,
+            "temperature": temperature,
+            "max_output_tokens": max_tokens,
+        }
+        if json_mode:
+            config["response_mime_type"] = "application/json"
         response = await _with_retry(
             self.client.aio.models.generate_content,
             model=model,
             contents=_to_contents(messages),
-            config={
-                "system_instruction": system_prompt,
-                "temperature": temperature,
-                "max_output_tokens": max_tokens,
-            },
+            config=config,
         )
         _check_safety(response)
         return response.text or ""

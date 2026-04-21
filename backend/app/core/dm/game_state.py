@@ -35,6 +35,7 @@ class GameState(TypedDict):
 
     # ── Control flow ─────────────────────────────────────────────────────────
     step_count: int
+    consecutive_empty_steps: int  # steps with only silent tools + no narration
     death_event: dict[str, Any] | None
 
     # ── Internal (set by context_node, consumed by dm_node) ──────────────────
