@@ -1,307 +1,512 @@
 # Agentic DM Architecture
 
+This document describes the current production architecture of the SAGA AI engine — the LangGraph-based DM agent loop, memory pipeline, NPC system, prompt structure, and provider layer. Sections marked **[Future]** describe planned work not yet implemented.
+
+---
+
 ## Turn Flow
 
-```
-Player sends action via WebSocket
-         |
-         v
-+------------------+
-|  Semantic         |   budget LLM: resolve entity names,
-|  Resolver         |   target NPCs/locations
-+------------------+
-         |
-         v
-+------------------+
-|  Context          |   Assembles: system prompt (XML) +
-|  Builder          |   turn history (8 verbatim + 5 summaries)
-+------------------+
-         |
-         v
-+------------------+       +----------------+
-|  AI Router        | ----> | Model Selection|  importance 0-3: low
-|  (importance      |       | by tier        |  importance 4-6: medium
-|   scoring)        |       |                |  importance 7-10: high
-+------------------+       +----------------+
-         |
-         v
-+===========================================+
-|           AGENTIC LOOP (max 5 steps)      |
-|                                           |
-|   +----------------------------------+    |
-|   | LLM.stream_with_tools()         |    |
-|   |   -> TextChunk  (narration)     |    |
-|   |   -> ToolCallChunk (tool calls) |    |
-|   +----------------------------------+    |
-|          |                  |             |
-|     narration          tool calls         |
-|     streamed           executed           |
-|     to client          (see below)        |
-|          |                  |             |
-|          v                  v             |
-|   +----------------------------------+   |
-|   | Tool results fed back to LLM     |   |
-|   | as messages -> next step         |   |
-|   +----------------------------------+   |
-|                                          |
-|   Break when: no tool calls, or          |
-|   2 consecutive empty-text steps,        |
-|   or max steps reached                   |
-+==========================================+
-         |
-         v
-+------------------+
-|  Post-loop        |   advance_game_clock()
-|  Cleanup          |   check_player_death()
-+------------------+
-         |
-         v
-+------------------+
-|  Persist Turn     |   Turn -> DB, world_state -> campaign,
-|  + Background     |   fact_extraction (async), compression (async)
-+------------------+
-         |
-         v
-    turn_complete -> WebSocket -> Frontend
+Each player turn is a POST request that returns a streaming SSE response. There are no persistent WebSocket connections for turns — each is independent.
+
+```mermaid
+sequenceDiagram
+    participant F as Frontend
+    participant A as FastAPI /turns
+    participant G as dm_graph (LangGraph)
+    participant DB as PostgreSQL
+
+    F->>A: POST /api/v1/turns/{campaign_id}<br/>{player_action: "I push the door"}
+    A->>G: dm_graph.stream(initial_state)
+
+    loop Agent Loop (max 5 steps)
+        G->>DB: context_node — load Campaign, build_context()
+        G->>G: route_ai_call() — select model by importance score
+        G->>G: dm_node — generate_with_tools() → narration + tool_calls
+        G-->>F: SSE: dm_token (narration chunks)
+        opt tool_calls present
+            G->>G: tools_node — sort + execute tools
+            G-->>F: SSE: tool_call (visible tools only)
+            G->>G: route_after_tools() → loop or exit
+        end
+    end
+
+    G->>DB: post_process_node — persist Turn, world_state, char_data
+    G-->>F: SSE: turn_complete {narration, world_state, char_data, ...}
+
+    Note over G,DB: Fire-and-forget background tasks (non-blocking)
+    G-->>DB: compress_turns_batch_llm()
+    G-->>DB: extract_and_store_facts()
+    G-->>DB: update_global_summary() — every 5 turns
 ```
 
-## Dice Roll Flow (click-to-reveal)
+---
 
-```
-LLM calls request_dice
-    |
-    v
-Agent: _prepare_dice() -> events + result_str
-    |
-    v
-Agent yields: dice_roll -> await_player
-    |
-    v
-WebSocket: sends dice:roll, await:dice_reveal
-    |                                    |
-    v                                    v
-WebSocket: clear() + blocking loop   Frontend: shows dice "Roll!" button
-    |                                    |
-    |                              Player clicks
-    |                                    |
-    |                              sends {type: "dice_revealed"}
-    |                                    |
-    v  <---------------------------------+
-WebSocket: set() event, break loop
-    |
-    v
-Agent: wait() returns (event already set)
-    |
-    v
-Dice result_str fed back to LLM as tool result
-LLM narrates outcome in next step
+## LangGraph Graph
+
+```mermaid
+flowchart TD
+    START([START]) --> CN[context_node\nload campaign · build prompt · select model]
+    CN --> DN[dm_node\ncall LLM with tools]
+    DN -->|tool_calls present| TN[tools_node\nsort · pre-hook · execute]
+    DN -->|no tool_calls| PP[post_process_node\nclock · death · segments]
+    TN -->|meaningful tool ran\nOR no narration yet| DN
+    TN -->|narration done\nOR max_steps ≥ 5\nOR consecutive_empty_steps ≥ 2| PP
+    PP --> END([END])
 ```
 
-## Current Tools
+### Node responsibilities
 
-### Visible (frontend events)
+| Node | Reads | Writes |
+|------|-------|--------|
+| `context_node` | Campaign (DB), player_action | messages, world_state, char_data, system_prompt, model_config, importance_score |
+| `dm_node` | messages, system_prompt, model_config, world_state | messages (AI reply), narration, step_count |
+| `tools_node` | messages (last AI msg), world_state, char_data | messages (tool results), world_state, char_data, narration_segments, time_passed_minutes, consecutive_empty_steps |
+| `post_process_node` | narration, world_state, char_data, time_passed_minutes, narration_segments | world_state (clock advanced), death_event, narration_segments |
+
+### Routing logic
+
+**`route_after_dm`**: if last AI message has tool_calls → `tools_node`; else → `post_process_node`.
+
+**`route_after_tools`**:
+1. `step_count ≥ MAX_STEPS (5)` → exit
+2. `consecutive_empty_steps ≥ cfg.consecutive_empty_steps_max (2)` → exit
+3. Last AI message called a **meaningful tool** (`invoke_npc`, `request_dice`, `start_combat`, `end_combat`) → loop back to `dm_node` (DM must narrate the result)
+4. Narration already accumulated → exit
+5. Otherwise → loop back (DM called only silent tools, no narration yet)
+
+---
+
+## LLM Context: What the DM Sees Each Turn
+
+### System Prompt (XML structure)
+
+The system prompt is assembled by `build_dm_system_prompt()` in `app/ai/prompts/dm.py`. Every block except `<instructions>` and `<character>` is conditional.
+
+```
+[optional] <persona>
+  Narrative tone block — sets voice/style without overriding rules.
+  Source: template.persona_preset (grimdark|heroic|dark_fantasy|horror)
+  or template.persona_xml (custom override, takes precedence).
+  Always injected BEFORE <instructions>.
+</persona>
+
+<instructions>
+  BASE_DM_PROMPT — core rules:
+    · Narration style (plain prose, second person, no markdown)
+    · Tool obligations (COMBAT, ITEMS, NPCs, QUESTS, SCENE, DICE, TIME)
+    · BACKSTOP RULE: every world-state change must have a matching tool call
+    · Empty/gibberish input handler (describe scene passively)
+    · Multi-NPC sequential guidance (one invoke_npc at a time)
+    · Multi-step tool loop rules (no re-narration on follow-up steps)
+    · Dice Philosophy (DC scale, nat 20 / nat 1)
+    · Narration style guidelines
+
+  [optional] DEATH_MODE_PROMPT — ironman|destino|cronista rules
+</instructions>
+
+<character name="Eron" hp="12/20" location="Thornhaven">
+  <abilities>STR 16, DEX 12, CON 14, INT 10, WIS 13, CHA 8</abilities>
+  <inventory>Sword, Health Potion x2</inventory>
+</character>
+
+<scene>
+  <location name="Thornhaven">
+    A small village of timber-and-stone buildings.
+    Connected to: Shrine of First Light, Forest Path, North Road.
+  </location>
+
+  [optional] <npcs_present>
+    <npc name="Marta" disposition="neutral" role="Tavern keeper"/>
+    <npc name="Guard" disposition="unfriendly" role="Watch"/>
+    <!-- Only NPCs whose world_state location matches current_location -->
+  </npcs_present>
+
+  [optional] <time>Day 4, evening, autumn</time>
+  [optional] <weather>light rain</weather>
+
+  [optional] <combat active="true" round="2">
+    <combatants>Eron, Goblin Scout, Goblin Brute</combatants>
+  </combat>
+</scene>
+
+[optional] <global_summary>
+  Rolling story arc paragraph (~200 words). Updated every 5 turns.
+  Captures campaign-spanning narrative: who Eron is, what happened,
+  current situation. Never reset — always extended.
+</global_summary>
+
+[optional] <history label="story_so_far">
+  Batch summaries of turns outside the Active Window.
+  Each summary is 2-3 sentences covering a 5-turn block.
+  Up to 5 summaries (= last 25-40 turns before the Active Window).
+  Format: "[Turns N-M] The player verb. First_sentence."
+</history>
+
+[optional] <recalled_memories>
+  - Marta mentioned her son disappeared near the old mine three weeks ago.
+  - The artifact glows when touched by someone with Hollow blood.
+  - Guard Captain Aldric is secretly allied with The Hollow faction.
+  <!-- Top-3 pgvector hits: MemoryFacts semantically similar to player_action -->
+</recalled_memories>
+
+[optional] <quests>
+  <quest name="Who Am I?" status="active"/>
+  <quest name="The Missing Miners" status="active"/>
+</quests>
+```
+
+### Disposition labels (±100 scale)
+
+| Range | Label |
+|-------|-------|
+| > 30 | loyal |
+| > 10 | friendly |
+| ≥ -10 | neutral |
+| ≥ -30 | unfriendly |
+| < -30 | hostile |
+
+### Message History (conversation turns)
+
+```
+messages = [
+  {role: "user",      content: "I ask Marta about the mine"},   # turn N-7
+  {role: "assistant", content: "Marta wipes the counter..."},    # turn N-7 narration
+  ...                                                             # turns N-6 to N-1 (Active Window)
+  {role: "user",      content: "I push open the tavern door"},   # current action
+]
+```
+
+- **Active Window**: last `gameplay.context_window_turns` (default 8) turns verbatim
+- **Token budget**: if total tokens > `gameplay.context_token_cap` (default 12000), oldest user+assistant pairs are dropped until it fits. The current action (last user message) is always preserved.
+- **Older turns**: available as batch summaries in `<history>` (not verbatim)
+
+---
+
+## Memory Pipeline
+
+```mermaid
+flowchart LR
+    T["Turn N\n(player action + narration)"]
+
+    subgraph hot["Active Window (per-turn, synchronous)"]
+        T --> AW["Last 8 verbatim turns\nin messages[]"]
+    end
+
+    subgraph compress["Compression (async, post-turn)"]
+        T -->|fire-and-forget| COMP["compress_turns_batch_llm()\nbatch_id dedup · 3 retries"]
+        COMP --> SUM["Turn.summary\n2-3 prose sentences\n[Turns N-M] prefix"]
+        SUM --> HIST["<history> block\nup to 5 summaries"]
+    end
+
+    subgraph facts["Fact Extraction (async, post-turn)"]
+        T -->|fire-and-forget| FE["extract_and_store_facts()\n1-5 atomic facts per turn"]
+        FE --> MF["memory_facts table\n1536-dim pgvector embedding"]
+    end
+
+    subgraph global["Global Summary (async, every 5 turns)"]
+        SUM -->|interval_turns=5| GS["update_global_summary()\nanchored iterative extension"]
+        GS --> GSD["campaign.global_summary\n≈200 words · always current"]
+    end
+
+    subgraph ctx["build_context() — each turn"]
+        AW --> BC
+        HIST --> BC
+        GSD --> BC
+        MF -->|"search_similar_facts(player_action, limit=3)"| BC["build_context()"]
+        BC --> SP["System Prompt\n<global_summary> + <history>\n+ <recalled_memories>"]
+    end
+```
+
+### Three-tier recall
+
+| Tier | What | How | Depth |
+|------|------|-----|-------|
+| **Active Window** | Full verbatim turns | `messages[]` | Last 8 turns |
+| **Rolling Summary** | Batch summaries + global arc | `<history>` + `<global_summary>` | Last ~40+ turns |
+| **Semantic Search** | Specific facts (names, events, secrets) | pgvector cosine similarity on MemoryFact | All turns ever |
+
+### Compressor behavior
+- Batch: groups of turns with the same `batch_id` are idempotent (re-run produces the same `Turn.summary`)
+- Retry: up to `summarization.max_retries` (3) attempts with exponential backoff `[1s, 5s, 30s]`
+- On final failure: `Turn.summarization_failed = True`, no summary stored (batch summary omitted for that range)
+- Format heuristic: `"[Turns N-M] The player {verb}. {first_sentence}."` — no verbatim NPC dialogue, paraphrase only
+
+---
+
+## NPC Pipeline
+
+```mermaid
+flowchart TD
+    DM["DM calls\ninvoke_npc(name, context)"] --> PH
+
+    subgraph prehook["Pre-Hook (npc_prehook.py)"]
+        PH["validate_or_create_npc()"] --> CHK{Is NPC valid?}
+        CHK -->|"status=dead\nor is_dead=true"| SKIP["Skip — return error\nto LLM: NPC is dead"]
+        CHK -->|"location mismatch\n(both sides set)"| SKIP2["Skip — return error\nto LLM: NPC not present"]
+        CHK -->|"missing from world_state\nauto_create_npcs=true"| CREATE["Auto-create NPC profile\ndetail: minimal|standard|rich"]
+        CHK -->|valid| DIR
+        CREATE --> DIR
+    end
+
+    DIR["NPC Director\nnpc_director.py"] --> PROMPT["Build NPC prompt\n(npc.py)\nname · role · personality\ndisposition · last 3 interactions"]
+    PROMPT --> LLM["Budget LLM call\n(npc_behavior config)\njson_mode=True"]
+    LLM --> RESP["JSON response\n{dialogue, action,\ndisposition_change, reveals_secret}"]
+    RESP --> APPLY["Apply disposition_change\nto world_state.npcs[name]"]
+    APPLY --> TM["ToolMessage → LangGraph\nDialogue shown as NPC bubble\nin frontend"]
+```
+
+### Auto-create detail levels (`npc_auto_create_detail`)
+
+| Level | Fields created |
+|-------|---------------|
+| `minimal` | name, location, disposition=0 |
+| `standard` | + role, personality, motivation, last_interactions=[] |
+| `rich` | + secret, fear |
+
+---
+
+## Persona System
+
+Persona blocks set the DM's narrative tone without overriding tool rules or game mechanics.
+
+```mermaid
+flowchart LR
+    T["template.yaml\npersona_preset: grimdark"] -->|copied at\ncampaign creation| C["Campaign\npersona_preset: grimdark\npersona_xml: null"]
+    C --> BUILD["build_dm_system_prompt()"]
+    BUILD -->|persona_xml set?| XML["Use persona_xml\n(custom override)"]
+    BUILD -->|preset only| PRESET["PERSONA_PRESETS[preset]\n→ <persona>...</persona>"]
+    XML --> INJECT["Inject BEFORE\n<instructions>"]
+    PRESET --> INJECT
+```
+
+### Built-in presets (`app/ai/prompts/presets.py`)
+
+| Preset | Tone |
+|--------|------|
+| `grimdark` | Brutal, cold, every victory has a price |
+| `heroic` | Epic, cinematic, the world responds to courage |
+| `dark_fantasy` | Decaying grandeur, moral ambiguity, corrupted magic |
+| `horror` | Restraint + sensory details, slow dread, visceral when it hits |
+
+Custom `persona_xml` on the template overrides the preset. If neither is set, no `<persona>` block appears.
+
+---
+
+## Tool Loop Mechanics
+
+### Tool groups (dynamic loading)
+
+Tools are loaded per-turn based on world state. The DM never sees more than ~12 tools simultaneously.
+
+| Group | Activation | Tools |
+|-------|-----------|-------|
+| `core` | Always | `move_to`, `advance_time`, `set_scene_mood`, `log_event`, `update_quest` |
+| `combat_entry` | Always | `start_combat` |
+| `combat` | `combat_state.active` | `request_dice`, `apply_damage`, `end_combat`, `update_hp` |
+| `social` | NPCs present at location | `invoke_npc`, `change_npc_disposition` |
+| `inventory` | Always | `add_item`, `remove_item` |
+
+### Tool call ordering (`tools_node`)
+
+Within a single step, tool calls are sorted before execution:
+
+```
+1. request_dice   (sort key: 0) — dice must resolve before NPC reactions
+2. all other tools (sort key: 1)
+3. invoke_npc     (sort key: 2) — NPC speaks last, after world events
+```
+
+### Meaningful tools and loop continuation
+
+`_MEANINGFUL_TOOLS = {invoke_npc, request_dice, start_combat, end_combat}`
+
+When any meaningful tool runs, the loop returns to `dm_node` so the DM can narrate the result (NPC dialogue, dice outcome, combat opening). Silent tools (move_to, set_scene_mood, etc.) alone do not trigger a loop-back.
+
+### `consecutive_empty_steps` guard
+
+Prevents infinite silent-tool loops where the DM calls only fire-and-forget tools and produces no narration:
+
+```
+step 1: DM calls [advance_time, set_scene_mood] — no narration text
+        → consecutive_empty_steps = 1
+step 2: DM calls [log_event] — no narration text
+        → consecutive_empty_steps = 2 → EXIT (≥ consecutive_empty_steps_max)
+```
+
+### All tools
+
+#### Visible (frontend events)
 
 | Tool | Args | Effect | Frontend |
 |------|------|--------|----------|
 | `request_dice` | check, dc, stat, reason | Server-side d20 roll | Dice UI, click-to-reveal |
-| `invoke_npc` | name, context | Calls NPC director LLM | NPC dialogue bubble |
+| `invoke_npc` | name, context | NPC Director LLM call | NPC dialogue bubble |
 | `start_combat` | enemies[] | Init combat state + initiative | CombatTracker overlay |
 | `end_combat` | — | Reset combat state | CombatTracker hides |
-| `apply_damage` | target, amount, damage_type | Damage to combatant HP | CombatTracker update |
+| `apply_damage` | target, amount, damage_type | HP change to combatant | CombatTracker update |
 | `update_hp` | change, reason | Player HP +/- | HP bar flash |
 | `add_item` | name, description, quantity | Add to inventory | Toast notification |
 | `remove_item` | name | Remove from inventory | Toast notification |
 
-### Silent (no frontend event)
+#### Silent (no frontend event)
 
 | Tool | Args | Effect |
 |------|------|--------|
-| `move_to` | location | Updates world_state.location |
-| `update_quest` | name, status, description | Add/complete quest |
-| `change_npc_disposition` | npc, delta, reason | NPC relationship +/- |
-| `log_event` | description | Append to narrative event_log |
-| `set_scene_mood` | mood | CSS mood transition |
-| `advance_time` | minutes | Game clock forward |
+| `move_to` | location | Updates `world_state.meta.current_location` |
+| `update_quest` | name, status, description | Quest lifecycle (active/completed/failed/abandoned) |
+| `change_npc_disposition` | npc, delta, reason | NPC disposition ±100 |
+| `log_event` | description | Append to `world_state.narrative.event_log` |
+| `set_scene_mood` | mood | CSS mood transition on frontend |
+| `advance_time` | minutes | Game clock forward (affects day/season display) |
 
-## What's Missing — Planned Tools & Hooks
-
-### Template-Aware Hooks (auto-inject, no LLM action needed)
-
-```
-invoke_npc("Marta") called by DM
-    |
-    v
-PRE-HOOK: load_npc_profile("Marta")
-    |
-    +-> template.content.npcs where name="Marta"
-    |     -> personality, motivation, secret, role, location
-    |
-    +-> world_state.npcs.Marta
-    |     -> disposition_toward_player, interaction history
-    |
-    +-> MERGE both into enriched context
-    |
-    v
-NPC Director receives full profile -> responds in character
-```
-
-```
-move_to("Thornhaven") called by DM
-    |
-    v
-POST-HOOK: load_location("Thornhaven")
-    |
-    +-> template.content.locations where name="Thornhaven"
-    |     -> description, connections, atmosphere
-    |
-    v
-Tool result includes: "Arrived at Thornhaven: small village...
-  Connected to: Forest Path, North Road, Shrine of First Light."
-DM can narrate using actual location details.
-```
-
-### New Tools to Add
-
-| Tool | Purpose | Priority |
-|------|---------|----------|
-| `suggest_actions` | Suggest 2-4 player options (replaces old DMResponse field) | HIGH |
-| `get_location` | Query location details + connections from template | MEDIUM |
-| `update_npc` | Create or enrich NPC in world_state (personality, role, secret) | MEDIUM |
-| `search_lore` | Semantic search in template/memory_facts (Phase E, needs pgvector) | LOW |
-
-### System Changes Needed
-
-| Change | Description | Priority |
-|--------|-------------|----------|
-| Template init | Seed world_state from template at campaign creation (locations, npcs, companions, quests) | HIGH |
-| XML system prompt | Rewrite prompt format from markdown+JSON to XML tags | MEDIUM |
-| Context slim-down | Pass only relevant fields to system prompt (current location + connections, active NPCs, HP) instead of full JSONB dump | MEDIUM |
-| NPC pre-hook | Auto-load NPC profile from template before invoke_npc | HIGH |
-| Location post-hook | Enrich move_to result with template location data | MEDIUM |
-
-## Context Passed to LLM
-
-### System Prompt (per-turn)
-
-```
-Current structure (markdown + raw JSON):
-
-  BASE_DM_PROMPT (rules, tool guidance, narration style)
-  + DEATH_MODE_PROMPT
-  + ## Player Character -> full character_data JSON
-  + ## Story So Far -> max 5 compressed summaries
-  + ## Current World State -> FULL world_state JSON (too much)
-  + ## Active Quests -> quests JSON
-
-Target structure (XML, selective):
-
-  <instructions> rules, tool guidance </instructions>
-  <character name="Eron" hp="12/20" location="Thornhaven">
-    <abilities> STR 16, DEX 12, CON 14 </abilities>
-    <inventory> Sword, Health Potion x2 </inventory>
-  </character>
-  <scene>
-    <location name="Thornhaven">
-      Small village. Connected to: Forest Path, North Road.
-    </location>
-    <npcs_present> Marta (friendly), Guard (neutral) </npcs_present>
-    <time> Day 3, evening, autumn </time>
-    <mood> tense_anticipation </mood>
-  </scene>
-  <history> compressed summaries </history>
-  <quests> active quest list </quests>
-```
-
-### Messages (conversation history)
-
-- Last 8 turns verbatim: `[{user: action}, {assistant: narration}]`
-- Older turns: up to 5 compressed summaries in system prompt
-- Beyond ~30 turns: only reachable via pgvector semantic search (Phase E)
-
-## Data Flow: Template -> World State -> Context
-
-```
-template.yaml (authored by user)
-    |
-    v
-seed_templates() -> templates table (JSONB content)
-    |
-    v
-create_campaign() -> campaigns table
-    |                  world_state: {} (EMPTY - needs init!)
-    |
-    v [MISSING: should init from template]
-    |
-    v
-Each turn: tools modify world_state
-    |  move_to -> location
-    |  change_npc_disposition -> npcs.X.disposition
-    |  start_combat -> combat_state
-    |  advance_time -> clock
-    |  log_event -> narrative.event_log
-    |
-    v
-world_state persisted to campaigns table (JSONB)
-    |
-    v
-build_context() reads world_state -> system prompt
-```
-
-## Semantic Resolver — Current Status & v1.5 Plan
-
-**Status**: Disabled (`gameplay.semantic_resolver_enabled: false` in `saga.config.yaml`). Code preserved.
-
-**Why disabled**: The resolver ran every turn but its output (`target_npcs`, `target_locations`) was never consumed by the context builder. It was dead code burning a flash model call per turn.
-
-**What it could become in v1.5 — planned uses:**
-
-| Use | How | Cost |
-|-----|-----|------|
-| **NPC context filter** | Location filter (deterministic, zero cost) + name matching from action text → include only relevant NPCs in `<npcs_present>` | Zero — pure string logic |
-| **Intent classification** | Classify action into `social / combat / exploration / stealth / travel` → activates correct tool_groups *before* DM call, more accurately than world_state predicates alone | +1 flash call |
-| **Importance scoring** | Better than keyword heuristics — classify intent → map to importance tier (dialogue=4, boss=9) → better model selection | Reuse intent call above |
-| **Quest thread detection** | Identify which active quest is relevant to the action → pass only that quest to `<quests>` in prompt | Reuse intent call |
-| **pgvector memory retrieval** | Embed the action → query `memory_facts` for top-3 semantically relevant facts → inject as `<memory>` in prompt | +1 embedding call (v2) |
-| **History relevance selection** | Instead of always last-N turns, pick the K most semantically relevant turns for this action | +embedding per turn (v2) |
-
-**Recommended v1.5 implementation — two phases, no extra LLM:**
-```
-Phase 1 (zero cost, rule-based):
-  - NPC filter: location match + name string match in action text
-  - Activates in build_context(), replaces _npcs_at_current_location()
-
-Phase 2 (one flash call, replaces current resolver):
-  - Input: action + world_state summary (no full history)
-  - Output: {intent, importance_score, relevant_quest, target_npcs_not_in_location}
-  - Feeds: tool_groups activation, model routing, prompt NPC list
-```
-
-**v2 addition:**
-```
-Phase 3 (pgvector, on top of phase 2):
-  - Embed action → query memory_facts → top-3 facts → inject as <memory>
-  - Requires fact_extractor having run for N turns (already collecting data)
-```
-
-## Fact Extractor — Current Status
-
-**Status**: Active, fire-and-forget after each turn. Code at `memory/fact_extractor.py`.
-
-**What it does**: Extracts 1-5 atomic facts from the current turn only (not history), stores in `memory_facts` table with pgvector embedding (384d). Each turn adds incrementally.
-
-**What it does NOT do yet**: Nobody reads these facts. The pgvector similarity query is not implemented. This is infrastructure for v2.
-
-**Why keep it running**: It silently builds a semantic memory database. By the time v2 ships, campaigns will have hundreds of queryable facts. Costs ~1 flash call post-turn (non-blocking, doesn't affect latency).
+---
 
 ## Provider Support
 
-| Provider | Tool Calling | Streaming | Notes |
+| Provider | Tool Calling | JSON Mode | Notes |
 |----------|-------------|-----------|-------|
-| Google Gemini | Native | Yes | Use `disable=True, maximum_remote_calls=None` in `AutomaticFunctionCallingConfig`. gemini-2.5-flash broken with streaming+tools; use gemini-2.5-pro for DM. |
-| OpenAI | Native | Yes | Most reliable tool calling |
-| Anthropic | Native | Yes | Best narrative quality |
-| Cohere | Via OpenAI compat | Yes | command-r OK, command-a writes tools as text |
-| Local/OpenRouter | Via OpenAI SDK | Yes | Depends on model |
+| Google Gemini | Native | `response_mime_type: application/json` | gemini-2.5-pro for DM, gemini-2.5-flash for NPC/compression |
+| OpenAI | Native | `response_format: {type: json_object}` | Most reliable tool calling |
+| Anthropic | Native | Prompt-based (no API param) | Best narrative quality |
+| Local/OpenRouter | Via OpenAI SDK | `response_format: {type: json_object}` | Depends on model |
+
+All NPC, companion, and world simulation calls use `json_mode=True`. DM narration calls use `generate_with_tools()` (structured tool calling, not JSON mode).
+
+---
+
+## Data Flow: Template → World State → Context
+
+```mermaid
+flowchart TD
+    TY["template.yaml\n(YAML authored content)"] -->|seed_templates| TDB["templates table\ncontent: JSONB\npersona_preset, persona_xml"]
+    TDB -->|create_campaign| CDB["campaigns table\nworld_state: JSONB (seeded)\ncharacter_data: JSONB\nglobal_summary: Text\npersona_preset, persona_xml"]
+
+    subgraph "Each Turn — Tool Mutations"
+        TN2["tools_node"] -->|"move_to → meta.current_location\nchange_npc_disposition → npcs[X].disposition\nstart_combat → combat_state\nadvance_time → clock.total_minutes\nlog_event → narrative.event_log"| WS["world_state (in GameState)"]
+    end
+
+    WS -->|post_process_node| CDB
+    CDB -->|context_node each turn| BC["build_context()\n→ system_prompt XML"]
+```
+
+### `world_state` schema
+
+```json
+{
+  "meta": {
+    "setting": "dark medieval fantasy",
+    "current_location": "Thornhaven",
+    "current_season": "autumn"
+  },
+  "clock": {
+    "total_minutes": 5220
+  },
+  "time_of_day": "evening",
+  "weather": "light rain",
+  "locations": {
+    "Thornhaven": {
+      "description": "A small village...",
+      "connections": ["Shrine of First Light", "Forest Path"]
+    }
+  },
+  "npcs": {
+    "Marta": {
+      "role": "Tavern keeper",
+      "location": "Thornhaven",
+      "disposition": 15,
+      "last_interactions": ["Turn 3: Player asked about the mine"],
+      "personality": "cautious but kind",
+      "motivation": "protect her family"
+    }
+  },
+  "companions": {},
+  "factions": {},
+  "combat_state": {
+    "active": false,
+    "round": 0,
+    "initiative_order": []
+  },
+  "narrative": {
+    "event_log": []
+  }
+}
+```
+
+---
+
+## Importance Scoring & Model Routing
+
+```mermaid
+flowchart LR
+    PA["player_action"] --> IS["score_importance()\nkeyword heuristics\n+ combat_state check"]
+    IS -->|0-3| LOW["low tier\nglobal provider\nlow model"]
+    IS -->|4-6| MED["medium tier\nglobal provider\nmedium model"]
+    IS -->|7-10| HIGH["high tier\nglobal provider\nhigh model"]
+    LOW & MED & HIGH --> MC["ModelConfig\nprovider · model\ntemperature · max_tokens"]
+```
+
+High-importance keywords (+2): `attack`, `fight`, `confront`, `betray`, `confess`, `reveal`, `final`  
+Low-importance keywords (-2): `look around`, `rest`, `wait`, `inventory`, `check`  
+Active combat: +2
+
+Configured in `saga.config.yaml` under `dm_narration.low|medium|high`.
+
+---
+
+## Security
+
+- **Injection detection**: `sanitize_player_input()` strips dangerous characters; `detect_injection()` replaces prompt-injection attempts with `[The player looks around cautiously]`
+- **Content policy**: `ContentPolicyError` caught per-provider; returns `CONTENT_POLICY_NARRATION` fallback
+- **API keys**: AES-256 encrypted at rest in `user_api_keys` table
+- **Auth**: JWT bearer tokens, bcrypt password hashing
+
+---
+
+## Semantic Resolver — Current Status
+
+**Status**: Disabled (`gameplay.semantic_resolver_enabled: false`). Code preserved.
+
+**What it could become in v1.5:**
+
+| Use | How | Cost |
+|-----|-----|------|
+| NPC context filter | Location filter + name matching → only relevant NPCs in `<npcs_present>` | Zero — pure string logic |
+| Intent classification | Classify action → `social/combat/exploration/stealth/travel` → correct tool_groups | +1 flash call |
+| Importance scoring | Better than keyword heuristics → better model selection | Reuse intent call |
+| Quest thread detection | Which active quest is relevant → pass only that quest to prompt | Reuse intent call |
+
+---
+
+## Architectural Decisions
+
+### Project Constraints
+- **Open source on GitHub**, BYOAK (bring your own API key)
+- **Self-hosted**: each user runs their own instance locally — no scaling concerns
+- **v2 multiplayer**: local instance shared between players (turn flow TBD)
+- **Configurable features**: expensive AI patterns must be opt-in via `saga.config.yaml`
+
+### Key Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Transport | REST + SSE (not WebSocket) | Simpler resumability, no connection state management |
+| Agent framework | LangGraph 1.0 | Explicit graph routing, typed state, conditional edges |
+| Provider routing | Gemini 2.5 Pro for DM (default) | Best tool-calling reliability at cost point |
+| pgvector | Basic (vector only) now, hybrid RRF behind `gameplay.pgvector_hybrid` flag | Hybrid adds complexity; basic cosine is sufficient for v1 |
+| Global summary storage | `Campaign.global_summary` column | Zero-join hot path in `context_node` |
+| NPC auto-create | Config flag + 3 detail levels | Balances world coherence vs token cost |
+| Persona system | `persona_preset` enum + `persona_xml` override | Curated quality (4 presets) with escape hatch for custom campaigns |
+| Tool max in context | ~12 tools max | Empirical limit for reliable tool calling on medium models |
+| Disposition scale | ±100 | Granular enough for meaningful increments (+5 for small favor, +30 for major quest) |
+
+### Anti-Patterns to Avoid
+
+- Loading all 30+ tools into every prompt (degrades model accuracy)
+- Single LLM doing both narration AND world simulation
+- Mutating world_state without event log (loses debuggability)
+- Hardcoding feature toggles in code (breaks BYOAK promise)
+- Stuffing entire template content into system prompt (token waste)
+- Exposing Python stack traces in tool error messages (confuses LLM)
 
 ---
 
@@ -309,16 +514,15 @@ Phase 3 (pgvector, on top of phase 2):
 
 ### Living World — Background Simulation
 
-The world should evolve autonomously between and during player turns.
-
 ```
 Player ends turn N
     |
     v
 Post-turn background jobs (fire-and-forget):
     |
-    +-> fact_extraction (already exists)
-    +-> compression (already exists)
+    +-> fact_extraction (already running)
+    +-> compression (already running)
+    +-> global_summary update (already running, every 5 turns)
     +-> NEW: world_tick()
             |
             +-> For each active faction: evaluate agenda progress
@@ -326,429 +530,68 @@ Post-turn background jobs (fire-and-forget):
             +-> Random events table: check if something triggers
             +-> Weather/season progression
             +-> Store changes in world_state + narrative.event_log
-            |
-            v
-        Next turn: DM sees updated world_state,
-        can reference events that happened "off-screen"
 ```
 
-**Example**: Player ignores the mines for 10 turns. `world_tick()` advances The Hollow faction's agenda. By turn 15, bandits appear near Thornhaven. The DM discovers this in the world_state and narrates it naturally — the player didn't cause it.
-
-**Implementation options**:
-- **Simple**: Rule-based tick (faction.agenda_progress += 1 per turn, trigger at thresholds)
-- **Medium**: Budget LLM decides what happens ("Given these factions and their goals, what changed in 1 day?")
-- **Complex**: Each faction has its own agent running in background (expensive but immersive)
-
-### Memory Architecture — Three-Tier Recall
+### Memory Architecture — Three-Tier Recall (current + future)
 
 ```
-Tier 1: ACTIVE WINDOW (8 turns verbatim)
-    Full player action + DM narration in messages[]
-    The DM "remembers" these perfectly
-
-Tier 2: ROLLING SUMMARY (always in system prompt)
-    Every 5 turns: batch summary compressed into 2-3 sentences
-    These 5-turn summaries are ALSO used to update a GLOBAL SUMMARY
-    Global summary = single paragraph, updated every 5 turns,
-    captures the entire story arc so far
-    Always injected in <history> section
-
-    Example global summary after 30 turns:
-    "Eron awoke at the Shrine with no memory. Lyra guided him to
-    Thornhaven where he learned of the mine threat. After gaining
-    Marta's trust she revealed the artifact. Eron descended into
-    the mines, fought hollow creatures, and discovered Aldric's
-    son alive but corrupted. Currently negotiating with The Hollow."
-
-Tier 3: SEMANTIC SEARCH (on-demand via tool)
-    pgvector memory_facts table
-    DM calls recall_memory("artifact Marta found") -> gets specific facts
-    Used for: "wait, what did Marta say about the artifact 20 turns ago?"
-
-DM has a tool to query Tier 3:
-    recall_memory(query) -> top-K relevant facts from all turns
+Tier 1: ACTIVE WINDOW (8 turns verbatim)                   ← ACTIVE
+Tier 2: ROLLING SUMMARY (batch summaries + global arc)      ← ACTIVE
+Tier 3: SEMANTIC SEARCH (pgvector on MemoryFact corpus)     ← ACTIVE (search_similar_facts wired)
+Tier 4: recall_memory tool (DM-invoked on demand)           ← FUTURE (v2)
 ```
 
-```
-Turn 1-5:   verbatim in window
-Turn 6-10:  compressed to batch summary A
-Turn 11-15: compressed to batch summary B
-            -> summaries A+B used to update global summary
-Turn 16-20: compressed to batch summary C
-            -> summary C merged into global summary
-...
-Global summary stays ~200 words, always in system prompt
-Batch summaries rotate out, global summary persists
-```
+### Companion System [Future]
 
-### Companion System
+Each companion becomes a lightweight agent with loyalty, trust, mood, and their own opinions. Companions can refuse actions, leave the party, or act independently.
 
-```
-Current: companions exist in world_state but have no behavior
-
-Target architecture:
-
-Player action arrives
-    |
-    v
-DM narrates + calls tools
-    |
-    v
-Post-narration hook: companion_react()
-    |
-    +-> For each active companion:
-    |     - Load personality from template
-    |     - Load loyalty, trust, mood from world_state
-    |     - Budget LLM: "Given [personality] and [situation], how does [companion] react?"
-    |     - Output: {dialogue, action, mood_change, loyalty_change}
-    |
-    v
-Companion reactions injected as events
-    |
-    v
-Frontend: companion bubbles in narrative stream
-
-Companion state in world_state:
-{
-  "Lyra": {
-    "loyalty": 6,        // 0-10, affects willingness to follow
-    "trust": 5,          // 0-10, affects what they share
-    "mood": "worried",   // affects tone of dialogue
-    "location": "with_player",  // or "Thornhaven", "scouting"
-    "relationship_summary": "Lyra trusts Eron but worries about his recklessness.",
-    "last_interaction": "Turn 12: argued about entering the mines"
-  }
-}
-
-Companions can:
-    - Refuse actions (loyalty < 3)
-    - Leave the party (loyalty = 0)
-    - Reveal secrets (trust > 8)
-    - Act independently (mood-driven)
-    - Die (if in combat and HP reaches 0)
-```
-
-### Possible New Tools — Brainstorm
+### Possible New Tools
 
 | Tool | Category | Description |
 |------|----------|-------------|
+| `recall_memory` | Memory | DM-invoked semantic search in memory_facts |
 | `suggest_actions` | UX | Suggest 2-4 player options as clickable buttons |
-| `recall_memory` | Memory | Semantic search in memory_facts via pgvector |
-| `get_location` | World Query | Load location details + connections from template |
-| `get_npc` | World Query | Load NPC profile from template + world_state |
 | `update_npc` | World Mutation | Create or update NPC fields (personality, secret, status) |
-| `create_npc` | World Mutation | Invent a new NPC on the fly and add to world_state |
-| `companion_command` | Companion | Tell a companion to do something (scout, guard, wait) |
 | `companion_dialogue` | Companion | Make a companion speak in character |
-| `reveal_secret` | Narrative | Mark a secret as discovered (tracks what player knows) |
-| `trigger_event` | World Sim | Fire a world event from the event table (rebellion, storm, ...) |
-| `check_faction_status` | World Query | See faction agenda progress, disposition, recent actions |
-| `update_faction` | World Mutation | Change faction state (agenda, disposition, active plans) |
-| `describe_environment` | Narration | Load atmospheric details for current location + weather + time |
-| `flashback` | Narrative | Narrate a memory/vision (loads context from early turns via pgvector) |
-| `inner_monologue` | Narration | DM narrates the player's thoughts/feelings (for dramatic moments) |
-| `foreshadow` | Narrative | Plant a narrative seed in the event_log for future payoff |
-| `time_skip` | World Sim | Advance days/weeks. Triggers multiple world_ticks. Major state changes. |
-| `weather_change` | Atmosphere | Set weather (affects mood, travel difficulty, NPC behavior) |
-| `lock_area` | World Mutation | Make a location inaccessible until condition is met |
-| `unlock_area` | World Mutation | Open a previously locked location |
-| `give_xp` | Progression | Award experience points (if leveling system is added) |
-| `level_up` | Progression | Trigger level-up flow (stat increases, new abilities) |
-| `play_sound` | UX | Trigger a sound effect on the frontend (ambient, combat, dramatic) |
-| `show_image` | UX | Display a generated/stored image (location art, NPC portrait) |
-| `show_map` | UX | Reveal or update a map view of known locations |
-| `reputation_change` | Social | Adjust player standing with a faction (affects NPC behavior, prices, access) |
-| `trade` | Economy | Open trade interface with an NPC (buy/sell items) |
-| `craft` | Economy | Combine items to create new ones (if crafting system exists) |
-| `rest` | Survival | Short/long rest mechanics (HP recovery, spell slots, random encounters) |
-| `set_objective_marker` | UX | Highlight a location or NPC on the UI as current objective |
-| `journal_entry` | UX | Add a styled entry to the player's journal (different from log_event — player-facing) |
-
-### Possible System Modifications
-
-| Change | Description |
-|--------|-------------|
-| **Template init at campaign creation** | Seed world_state with template data (locations, NPCs, factions, companions) |
-| **XML system prompt** | Structured tags instead of markdown + raw JSON |
-| **Selective context** | Only pass current location, present NPCs, active combat — not full JSONB |
-| **Global story summary** | Single paragraph updated every 5 turns, always in context |
-| **World tick engine** | Post-turn background job that advances faction agendas and world events |
-| **Companion autonomy** | Companions react to situations, have opinions, can refuse or act independently |
-| **NPC memory** | Each NPC remembers past interactions with the player (stored in world_state) |
-| **Dynamic difficulty** | Adjust DCs and encounter difficulty based on player performance history |
-| **Branching story arcs** | Template defines trigger conditions, system tracks and activates arcs |
-| **Multi-language narration** | DM narrates in player's preferred language (already have default_language setting) |
-| **Turn analytics** | Track: avg narration length, tool calls per turn, dice outcomes, model usage — dashboard |
-| **Player journal** | Auto-generated recap the player can read, separate from DM internal log |
-| **Permadeath consequence** | On ironman death: export campaign story as PDF/markdown keepsake |
-| **Session summaries** | "Last time on your adventure..." recap when player returns after 24h+ |
-| **Parallel NPC actions** | Multiple NPCs act simultaneously in a scene (already supported, needs prompt guidance) |
-| **Emotional state tracking** | Track player character's emotional arc for narrative coherence |
-| **Economy system** | Gold, prices, shops, supply/demand based on world events |
-| **Reputation gates** | Certain areas, quests, or NPC interactions locked behind reputation thresholds |
-| **Dream sequences** | DM can trigger dream/vision scenes that use different prompt rules |
-| **Unreliable narrator mode** | DM occasionally lies or withholds info (horror campaigns) |
+| `companion_command` | Companion | Tell a companion to do something |
+| `trigger_event` | World Sim | Fire a world event from the event table |
+| `check_faction_status` | World Query | Faction agenda progress, disposition, recent actions |
+| `journal_entry` | UX | Styled entry to the player's journal (player-facing) |
+| `flashback` | Narrative | Narrate a memory/vision from early turns via pgvector |
 
 ---
 
-## Architectural Findings & Decisions
+## Roadmap
 
-### Project Constraints
-- **Open source on GitHub**, BYOAK (bring your own API key)
-- **Self-hosted**: each user runs their own instance locally — no scaling concerns
-- **v2 multiplayer**: local instance shared between players (turn flow TBD)
-- **Configurable features**: expensive AI patterns (world sim, NPC enrichment, summary LLM) must be opt-in via config so users with cheap budgets can still play
-
-### Key Decisions Locked In
-
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Global story summary | **Hybrid configurable** — LLM if `enabled: true`, rule-based concatenation fallback | Respects BYOAK budgets, gives quality option to users who can afford it |
-| Tool groups | **Config YAML** — `saga.config.yaml` defines which tools activate per scene state | Mod-friendly, self-documenting, no code changes to extend |
-| NPC pre-hook | **Template + memory + optional LLM enrichment** — base profile from template, last 3 interactions from world_state, LLM enrichment only if enabled | Layered cost: free baseline, premium quality opt-in |
-| Tool max in context | **~12 tools max** | Empirical limit for reliable tool calling on medium models |
-| Tool group strategy | **State-driven**: always-on core + combat tools (if combat) + social tools (if NPCs present) + companion tools (if companion active) | Keeps DM context lean, prevents tool selection confusion |
-| Multiplayer model | **Deferred** — architecture should be flexible enough not to lock decisions | v2 problem, focus v1 on solid single-player |
-
-### Anti-Patterns to Avoid
-
-- Loading all 30+ tools into every prompt (degrades model accuracy)
-- Single LLM doing both narration AND world simulation (bias from player history pollutes world updates)
-- Mutating world_state without event log (loses debug-ability and time-travel)
-- Hardcoding feature toggles in code (breaks BYOAK promise)
-- Stuffing entire template into system prompt (token waste, irrelevant context)
-- LLM-generated content with no fallback (breaks for users with no API key)
-
-### Patterns Adopted from Serious AI Game Architectures
-
-| Pattern | Source | SAGA Application |
-|---------|--------|------------------|
-| **Multi-Agent Hierarchy** | Modern AI agents research | DM agent + World Sim agent (separate LLMs, separate contexts) |
-| **Event Sourcing** | Distributed systems | Turn log as immutable event stream, world_state derivable |
-| **Tool Group Activation** | LangChain, OpenAI Assistants | State-driven dynamic tool loading |
-| **BDI for NPCs** | Game AI / cognitive science | NPC has beliefs/desires/intentions in world_state, drives reactions |
-| **Tension Curve** | Left 4 Dead "AI Director" | Rule-based score adjusts DC and pacing |
-| **Lazy Loading via Tools** | RAG architectures | DM queries world via tools, doesn't dump everything into context |
-
----
-
-## Roadmap — v1 / v2 / v3
-
-### v1 — Solid Single Player Foundation
-
-**Goal**: Make the current agentic loop produce coherent, immersive narrative with the existing 14 tools, fixing the "wrapper around LLM" feeling.
-
-**Tasks (in order)**:
-
-1. **Template world initialization**
-   - At campaign creation, seed `world_state` from `template.content`
-   - Populate: `locations` dict (name → description, connections), `npcs` dict (name → personality, role, location), `factions`, `companions`
-   - Existing migrations stay intact, new template-init runs once at create
-
-2. **Tool groups dynamic loading (config YAML)**
-   - New file: `saga.config.yaml` at project root
-   - Defines `tool_groups` (e.g. `core`, `combat`, `social`, `companion`)
-   - Each group lists tool names and activation conditions
-   - `build_context()` filters tools based on world_state (combat_state.active, npcs_present, companion_active)
-   - DM context never sees more than ~12 tools
-
-3. **NPC pre-hook in `_run_npc`**
-   - Before calling NPC director, load profile from template + world_state
-   - Pass enriched context: personality, motivation, secret, last 3 interactions, current disposition
-   - Optional LLM enrichment if `features.npc_enrichment.enabled`
-
-4. **Location post-hook in `move_to`**
-   - After move_to executes, enrich tool result with location description + connections from template
-   - DM next step has narrative context to describe arrival
-
-5. **Selective context in system prompt**
-   - Drop full world_state JSONB dump
-   - Pass only: current location (description + connections), NPCs present, character vitals, active combat (if any), active quests
-   - Reduces token cost, improves model focus
-
-6. **System prompt rewrite to XML**
-   - Replace markdown headers + JSON blocks with XML tags
-   - `<character>`, `<scene>`, `<history>`, `<quests>`, `<instructions>`
-   - Cleaner, more selective field inclusion
-
-7. **Global story summary (hybrid)**
-   - Every 5 turns: update global summary
-   - LLM mode if `features.global_summary.llm: true`, else rule-based concatenation of batch summaries
-   - Always injected in system prompt `<history>` section
-
-8. **`suggest_actions` tool**
-   - DM calls it to give 2-4 player options as clickable buttons
-   - Recovers the lost feature from old DMResponse
-
-9. **Sprint Phase B playtest bug fixes**
-   - 5 frontend bugs from earlier playtest
-
-**v1 acceptance**: Player can play 30+ turns with command-r or Gemini Flash, narrative is coherent, NPCs feel distinct, locations feel real, no tool hallucination, no soft locks.
+### v1 — Solid Single Player Foundation ✅ (current)
+- LangGraph agent loop with 5-step max
+- XML system prompt with selective context
+- Three-tier memory (active window + summaries + pgvector)
+- Global rolling story summary
+- NPC pre-hook with auto-create
+- JSON-enforced output for all NPC/world calls
+- Dynamic tool loading by world state
+- Persona preset system
+- Consecutive empty steps guard
+- Disposition ±100 scale
 
 ### v1.5 — Companion + Tension + Smarter Context
-
-**Goal**: Add the missing systems that make the world feel populated and dynamic, without yet introducing background simulation.
-
-**Tasks**:
-
-1. **Semantic Resolver — Phase 1+2**
-   - Phase 1 (zero cost): NPC filter by location + name match in action text → replaces `_npcs_at_current_location()`
-   - Phase 2 (one flash call): intent classification → importance score, relevant quest, tool_groups activation
-   - Feed results into `build_context()` and `route_ai_call()`
-   - Toggle via `gameplay.semantic_resolver_enabled: true`
-
-2. **Companion system base**
-   - `world_state.companions` extended with: loyalty, trust, mood, location, last_interaction, relationship_summary
-   - New tools: `companion_dialogue(name, context)`, `companion_command(name, action)`
-   - Companions can refuse actions if loyalty too low
-   - Auto-load companion profile from template (same pattern as NPC pre-hook)
-
-2. **NPC memory (BDI lite)**
-   - Each NPC in world_state gets: `beliefs`, `last_interactions[]` (max 5), `current_intention`
-   - Updated automatically when player interacts (tool calls modify the NPC's beliefs)
-   - Pre-hook includes BDI in NPC director context
-
-3. **Narrative tension score (rule-based, free)**
-   - Calculated post-turn: combat = +20, dice critical_failure = +15, NPC death = +30, rest = -25, victory = -10, dialogue = -5
-   - Stored in `world_state.meta.tension_score` (0-100)
-   - Injected in DM context as a hint for pacing
-   - Optional: rule-based DC adjustment based on score
-
-4. **Player journal (auto-generated)**
-   - Separate from DM internal logs
-   - Player-facing recap, regenerated each turn from event_log
-   - Frontend: dedicated journal panel
-
-5. **Event sourcing (partial)**
-   - All world_state mutations also append to `world_state.narrative.event_log`
-   - Each event is structured: `{turn, type, payload}`
-   - Not yet "rebuild from events" — just append-only audit trail
-   - Sets foundation for v2 event sourcing
-
-**v1.5 acceptance**: Companions feel alive (have opinions, can refuse), NPCs remember the player, scenes have natural pacing, players can read their own story.
+- Semantic Resolver Phase 1+2 (NPC filter + intent classification)
+- Companion system (loyalty, trust, moods, refusal)
+- NPC memory / BDI lite (beliefs, last interactions, current intention)
+- Narrative tension score (rule-based, world_state.meta.tension_score)
+- Player journal (auto-generated, player-facing)
 
 ### v2 — Living World + Multiplayer
-
-**Goal**: World evolves autonomously between turns. Multiple players can share an instance.
-
-**Tasks**:
-
-1. **World Sim Agent (separate LLM)**
-   - New file: `app/core/world_simulator.py`
-   - Triggered every N turns (configurable in `saga.config.yaml`)
-   - Receives: `world_state` (no player history!), days passed
-   - Has restricted tool set: `update_faction`, `trigger_event`, `weather_change`, `update_npc_location`
-   - Output: world delta + narrative log of "what happened in your absence"
-   - DM next turn sees new world state, narrates discoveries naturally
-
-2. **Macro tool `request_world_update()` from DM**
-   - DM can also trigger world sim explicitly (e.g. on time_skip)
-   - Same world simulator, on-demand
-
-3. **Procedural quest generation (rule-based)**
-   - Combine: faction goals + NPC motivations + active conflicts
-   - Output: quest hooks added to world_state
-   - No LLM needed — combinatorial logic
-   - Optional: LLM polish if budget allows
-
-4. **Full event sourcing**
-   - World_state derivable from event log
-   - Time travel to any turn
-   - Replay system for testing/debugging
-
-5. **Multiplayer infrastructure**
-   - WebSocket multi-client per campaign
-   - Turn ordering: TBD (sequential vs real-time decided based on playtests)
-   - Event sourcing makes state sync trivial (broadcast events, not full state)
-   - Per-player view of `character_data`, shared `world_state`
-
-6. **pgvector active**
-   - `recall_memory(query)` tool wired to semantic search
-   - Hybrid search (vector + tsvector)
-   - DM can query "what did Marta say about the artifact?" and get relevant facts
-
-7. **Saved campaign export/import as JSON**
-   - With full event log
-   - Enables sharing campaigns between players
-
-**v2 acceptance**: World feels alive — factions evolve without player input, NPCs have agendas, multiple players can share a campaign, memories from 100+ turns ago can be recalled.
+- World Sim Agent (separate LLM, autonomous faction/NPC progression)
+- Procedural quest generation (rule-based combinatorial)
+- Full event sourcing (world_state derivable from event log)
+- Multiplayer infrastructure (per-player character_data, shared world_state)
+- `recall_memory` tool (DM-invoked pgvector query)
+- Campaign export/import (with full event log)
 
 ### v3 — Multi-Agent Hierarchy
-
-**Goal**: Move from "DM does everything" to a coordinated multi-agent system.
-
-**Tasks**:
-
-1. **Director Agent**
-   - High-level coordinator, runs every 5-10 turns
-   - Decides: pacing, when to invoke world sim, when to escalate to premium model
-   - Uses tension score and player engagement metrics
-
-2. **Per-NPC Agents**
-   - Major NPCs get dedicated agent threads
-   - Each NPC maintains its own conversation memory with the player
-   - Agent persists between turns
-
-3. **Companion Agents**
-   - Each companion is an independent agent
-   - Acts on its own goals, can leave the party autonomously
-
-4. **Procedural content via LLM**
-   - Generate side quests, NPCs, locations on demand
-   - Bounded by template constraints
-
-5. **Visual generation hooks**
-   - Optional tools: `generate_image(scene_description)` via Stable Diffusion API
-   - `generate_npc_portrait(npc_name)` cached per NPC
-
-**v3 acceptance**: SAGA is a serious multi-agent AI game framework, comparable to research projects like SIMA or Voyager-style architectures.
-
----
-
-## Configuration Strategy (BYOAK)
-
-All AI-cost features must be opt-in via `saga.config.yaml`:
-
-```yaml
-features:
-  global_summary:
-    enabled: true
-    mode: "rule_based"      # or "llm"
-    llm_provider: "gemini"
-    llm_model: "gemini-flash"
-    interval_turns: 5
-
-  npc_enrichment:
-    enabled: false          # off by default
-    llm_provider: "gemini"
-    llm_model: "gemini-flash"
-
-  world_sim:
-    enabled: false          # off by default
-    interval_turns: 5
-    llm_provider: "gemini"
-    llm_model: "gemini-flash"
-
-  companion_agent:
-    enabled: true
-    use_llm_dialogue: true  # if false, rule-based snippets
-
-tool_groups:
-  core:
-    always_active: true
-    tools: [move_to, advance_time, set_scene_mood, log_event, suggest_actions]
-  combat:
-    activate_when: "world_state.combat_state.active"
-    tools: [request_dice, apply_damage, end_combat, update_hp]
-  social:
-    activate_when: "len(world_state.npcs_present) > 0"
-    tools: [invoke_npc, change_npc_disposition]
-  companion:
-    activate_when: "len(world_state.companions) > 0"
-    tools: [companion_dialogue, companion_command]
-```
-
-This keeps SAGA accessible to everyone:
-- Free tier: rule-based everywhere, only DM agent uses LLM
-- Medium tier: enable global_summary LLM and one or two enrichment features
-- Premium tier: all features on, world sim active, NPC enrichment running
+- Director Agent (high-level coordinator, pacing decisions)
+- Per-NPC Agents (major NPCs with dedicated agent threads)
+- Companion Agents (independent party members with own goals)
+- Visual generation hooks (Stable Diffusion for location art, NPC portraits)

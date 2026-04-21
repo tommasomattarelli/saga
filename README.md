@@ -4,19 +4,22 @@ An open-source, AI-powered single-player tabletop RPG with an expert AI Dungeon 
 
 ## Features
 
-- **Multi-provider AI**: Intelligent routing between OpenAI, Anthropic, Google Gemini — budget models for background tasks, premium models for narrative peaks
-- **Semantic memory**: The DM remembers your story through pgvector embeddings, recalling thematically relevant events even hundreds of turns later
-- **Living world**: Factions plot, NPCs act, weather changes, rumors spread — all independently of the player. GameClock tracks in-game time (minutes, hours, days, seasons) and advances every turn
-- **Structured DM output**: Pydantic-validated JSON schema with JSON healing (`json-repair`) for robust parsing. Content policy violations are caught per-provider and returned as readable messages
-- **6-level dice outcomes**: natural 1 (critical failure) → hard failure → soft failure → partial success → full success → natural 20 (critical success). Dice are rolled server-side; frontend shows click-to-reveal animation
-- **Narrative character creation**: No separate form — the DM guides character creation through conversation on first play
-- **Scene moods**: 11 mood states mapped to CSS custom properties for smooth UI transitions
-- **Classless progression**: No classes. Your character improves the skills they actually use
-- **Companion AI**: Companions with loyalty, trust, moods, and their own opinions — they may disagree with you
-- **Three death modes**: Ironman (permadeath), Destino (death with narrative cost), Cronista (story mode)
-- **Campaign templates**: Extensible YAML-based template system for community-created adventures
-- **Data portability**: Export/import your campaigns as JSON
-- **Self-hostable**: Run entirely on your own hardware with your own API keys
+- **Multi-provider AI routing**: Intelligent routing between OpenAI, Anthropic, Google Gemini — budget models (Gemini Flash) for NPC/compression, premium models (Gemini Pro, Claude Opus) for narrative peaks. All configurable in `saga.config.yaml`
+- **Three-tier semantic memory**: Active Window (8 verbatim turns) + rolling summaries + pgvector recall (top-3 semantically relevant MemoryFacts injected per turn). The DM remembers plot details from hundreds of turns ago without them being in context
+- **Global story summary**: A ~200-word rolling campaign arc paragraph, updated every 5 turns via anchored iterative LLM summarization. Always in the DM's context — no memory amnesia after turn 8
+- **LangGraph agent loop**: DM runs as a stateful LangGraph graph (context → DM → tools → DM → ...) with max 5 steps, meaningful-tool detection, and consecutive-empty-step guard to prevent silent loops
+- **NPC psychology system**: Each NPC has personality, motivation, secret, fear, and disposition (±100 scale). `invoke_npc` calls a dedicated NPC Director LLM — NPCs respond in-character, not as the DM. Disposition changes persist across turns
+- **NPC auto-creation**: If the DM calls `invoke_npc` for an untracked NPC, the system auto-creates a profile with configurable detail (minimal/standard/rich). No broken tool calls
+- **JSON-enforced output**: All NPC, companion, and world simulation calls use provider JSON mode (`response_mime_type`, `response_format`). No silent parse failures
+- **Persona presets**: Campaign templates ship with a DM voice preset (grimdark/heroic/dark_fantasy/horror) injected as a `<persona>` XML block before the rules. Custom `persona_xml` override available
+- **Dynamic tool loading**: 5 tool groups (core/combat/social/inventory + combat_entry) activated by world state. DM never sees more than ~12 tools simultaneously
+- **Living world**: Factions, NPCs, weather, and game clock advance independently. Full world state persisted as JSONB per turn
+- **6-level dice outcomes**: natural 1 (critical failure) → hard failure → soft failure → partial success → full success → natural 20 (critical success). Dice rolled server-side, click-to-reveal on frontend
+- **Scene moods**: 11 mood states (`combat_fury`, `tense_anticipation`, `eerie`, ...) mapped to CSS custom properties for smooth UI transitions
+- **Three death modes**: Ironman (permadeath), Destino (death with escalating narrative cost), Cronista (story mode, no death)
+- **Campaign templates**: Extensible YAML-based template system. Ships with 3 built-in scenarios
+- **Data portability**: Export/import campaigns as JSON
+- **Self-hostable, BYOAK**: Run on your own hardware with your own API keys. No cloud dependency
 
 ## Quick Start (Docker)
 
@@ -117,18 +120,25 @@ Copy `.env.example` to `.env` and configure:
 ## Running Tests
 
 ```bash
-# Backend unit tests
-cd backend && pytest tests/unit
+# Backend unit tests (no infra required)
+cd backend && uv run python -m pytest tests/unit --noconftest
 
-# Backend integration tests
-cd backend && pytest tests/integration
+# Backend integration tests (requires PostgreSQL + Redis)
+make test-infra-up
+cd backend && uv run python -m pytest tests/integration
 
 # Automated playtest (AI plays the game)
-cd backend && python -m tests.playtest.bot --turns 100 --template tutorial
+cd backend && uv run python -m tests.playtest.bot --turns 100 --template tutorial
 
 # Frontend tests
 cd frontend && npm run test
 ```
+
+## Architecture
+
+See [AGENTIC_ARCHITECTURE.md](AGENTIC_ARCHITECTURE.md) for the full AI engine design: LangGraph graph, memory pipeline, system prompt structure, tool loop mechanics, and roadmap.
+
+See [docs/CONFIG.md](docs/CONFIG.md) for complete `saga.config.yaml` reference.
 
 ## Contributing
 

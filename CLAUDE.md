@@ -13,7 +13,8 @@ SAGA/Wyrd is an AI-driven tabletop RPG engine designed to replicate the infinite
 ### Backend (uv based)
 - **Install**: `cd backend && uv sync`
 - **Run**: `cd backend && uv run uvicorn app.main:app --reload`
-- **Test**: `cd backend && uv run pytest tests/unit tests/integration tests/playtest`
+- **Test (unit, no infra)**: `cd backend && uv run python -m pytest tests/unit --noconftest -q`
+- **Test (all)**: `cd backend && uv run python -m pytest tests/unit tests/integration tests/playtest`
 - **Lint/Format**: `cd backend && uv run ruff check . && uv run ruff format .`
 - **Migrations**: `cd backend && alembic upgrade head`
 
@@ -40,6 +41,8 @@ SAGA/Wyrd is an AI-driven tabletop RPG engine designed to replicate the infinite
 10. **Commits**: Conventional Commits only (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`).
 11. **Workflow**: Always `test-infra-up` -> Write failing Integration Test -> Implementation -> Refactor.
 12. **NO GOD CLASSES** . no files with multiple logics, and files with 300+ liness
+13. **LLM-readable errors**: Tool error messages must never expose Python stack traces, exception types, or internal paths. Sanitize to a short human-readable sentence before feeding back to the LLM (see `execute_tool` in `dm_tools.py`).
+14. **Config-first for new behavior**: Any new gameplay parameter, feature toggle, or AI cost knob goes in `saga.config.yaml` with a sensible default. Never hardcode tunable values in Python.
 
 ## File Locations
 - **Game Engine**: `backend/app/core/`
