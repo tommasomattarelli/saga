@@ -84,7 +84,12 @@ def _disposition_label(value: int) -> str:
     return "neutral"
 
 
-def build_dm_system_prompt(campaign: Campaign, summary_context: str = "") -> str:
+def build_dm_system_prompt(
+    campaign: Campaign,
+    summary_context: str = "",
+    global_summary: str = "",
+    recalled_memories: list[str] | None = None,
+) -> str:
     world_state = campaign.world_state or {}
     char_data = campaign.character_data or {}
 
@@ -179,9 +184,21 @@ def build_dm_system_prompt(campaign: Campaign, summary_context: str = "") -> str
 
     lines.append("</scene>")
 
-    # <history>
+    # <global_summary> — rolling story arc (campaign-spanning)
+    if global_summary and global_summary.strip():
+        lines.append(f"\n<global_summary>\n{global_summary.strip()}\n</global_summary>")
+
+    # <history> — batch summaries of recent turns outside the Active Window
     if summary_context:
         lines.append(f"\n<history>\n{summary_context}\n</history>")
+
+    # <recalled_memories> — targeted pgvector retrieval for current action
+    if recalled_memories:
+        lines.append("\n<recalled_memories>")
+        for memory in recalled_memories:
+            if memory and memory.strip():
+                lines.append(f"  - {memory.strip()}")
+        lines.append("</recalled_memories>")
 
     # <quests>
     active_quests = campaign.quests.get("active", []) if campaign.quests else []
