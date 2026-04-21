@@ -82,11 +82,15 @@ def _npcs_at_current_location(world_state: dict) -> dict[str, dict]:
 
 
 def _disposition_label(value: int) -> str:
-    if value >= 20:
+    if value > 30:
+        return "loyal"
+    if value > 10:
         return "friendly"
-    if value <= -20:
-        return "hostile"
-    return "neutral"
+    if value >= -10:
+        return "neutral"
+    if value >= -30:
+        return "unfriendly"
+    return "hostile"
 
 
 def build_dm_system_prompt(

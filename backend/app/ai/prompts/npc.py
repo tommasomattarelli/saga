@@ -10,7 +10,7 @@ NPC_BASE_PROMPT = """You are an NPC in a tabletop RPG. You have your own life, g
 - Motivation: {motivation}
 - Fear: {fear}
 - Secret: {secret}
-- Disposition toward player: {disposition}/100
+- Disposition toward player: {disposition} (scale: -100 hostile → 0 neutral → +100 loyal)
 
 ## What just happened
 The player did: "{player_action}"
