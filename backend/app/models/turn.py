@@ -1,7 +1,7 @@
 import uuid
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,6 +34,7 @@ class Turn(Base, UUIDMixin, TimestampMixin):
 
     # Compressed summary for memory
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    summarization_failed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Vector embedding for semantic search
     embedding: Mapped[list | None] = mapped_column(Vector(384), nullable=True)

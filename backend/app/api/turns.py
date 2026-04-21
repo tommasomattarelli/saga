@@ -11,11 +11,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.embeddings import generate_embedding
+from app.ai.router import get_gameplay_config
 from app.core.dm.dm_graph import dm_graph
 from app.core.dm.game_state import GameState
 from app.dependencies import get_db
 from app.memory.compressor import compress_turn_to_summary, ensure_compression
 from app.memory.fact_extractor import extract_and_store_facts
+from app.memory.global_summary import update_global_summary
 from app.memory.world_state import migrate_world_state
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.save import Save
@@ -159,6 +161,14 @@ async def submit_action(
     )
     asyncio.create_task(_background_compression(campaign.id, turn_number))
 
+    gp_cfg = get_gameplay_config()
+    if (
+        gp_cfg.global_summary_enabled
+        and turn_number > 0
+        and turn_number % max(1, gp_cfg.global_summary_update_every) == 0
+    ):
+        asyncio.create_task(_background_global_summary(campaign.id, turn_number))
+
     combat_state = campaign.world_state.get("combat_state") if campaign.world_state else None
 
     return TurnResponse(
@@ -191,3 +201,14 @@ async def _background_compression(campaign_id: uuid.UUID, current_turn: int) -> 
             await db.commit()
     except Exception:
         logger.exception("background_compression_failed", campaign_id=str(campaign_id))
+
+
+async def _background_global_summary(campaign_id: uuid.UUID, current_turn: int) -> None:
+    from app.dependencies import get_db_context
+
+    try:
+        async with get_db_context() as db:
+            await update_global_summary(campaign_id, current_turn, db)
+            await db.commit()
+    except Exception:
+        logger.exception("background_global_summary_failed", campaign_id=str(campaign_id))

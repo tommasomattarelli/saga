@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -52,6 +52,9 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
 
     # Active quests
     quests: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+    # Rolling story summary — updated every N turns (see gameplay.global_summary_update_every)
+    global_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
     user: Mapped[User] = relationship(back_populates="campaigns")

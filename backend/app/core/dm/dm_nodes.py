@@ -33,7 +33,6 @@ MAX_STEPS: int = getattr(settings, "saga_max_agent_steps", 5)
 async def context_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
     from sqlalchemy import select
 
-    from app.ai.prompts.dm import build_dm_system_prompt
     from app.dependencies import get_db_context
     from app.models.campaign import Campaign
 
@@ -50,7 +49,6 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
         context = await build_context(campaign, player_action, db)
         model_cfg = await route_ai_call(AICallType.DM_NARRATION, context)
 
-    system_prompt = build_dm_system_prompt(campaign, summary_context="")
     lc_messages = raw_history_to_lc(context.messages[:-1])
     lc_messages.append(HumanMessage(content=player_action))
 
@@ -60,7 +58,7 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
         "char_data": campaign.character_data or {},
         "model_used": model_cfg.model,
         "importance_score": context.importance_score,
-        "system_prompt": system_prompt,
+        "system_prompt": context.system_prompt,
         "model_config": {
             "provider": model_cfg.provider,
             "model": model_cfg.model,
