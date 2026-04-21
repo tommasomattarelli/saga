@@ -91,6 +91,8 @@ async def create_campaign(db: AsyncSession, user: User, body: CampaignCreate) ->
         character_data=body.character_data,
         world_state=seeded_world_state,
         quests=initial_quests,
+        persona_preset=template.persona_preset,
+        persona_xml=template.persona_xml,
     )
     db.add(campaign)
     await db.commit()

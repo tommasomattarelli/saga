@@ -401,7 +401,15 @@ class MoveTo(DmTool):
 @_register
 class UpdateQuest(DmTool):
     name: str = Field(description="Quest name")
-    status: str = Field(description="'active' to start/update a quest, 'completed' to finish it")
+    status: str = Field(
+        description=(
+            "Quest status. Valid values: "
+            "'active' (start or update progress), "
+            "'completed' (finished successfully), "
+            "'failed' (failed permanently), "
+            "'abandoned' (player gave up)."
+        )
+    )
     description: str = Field(default="", description="Quest description or update notes")
 
     @classmethod
