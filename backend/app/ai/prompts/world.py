@@ -26,7 +26,9 @@ Respond as JSON:
     ],
     "world_updates": {{"key": "updated_value"}},
     "new_rumors": ["Rumor text 1", "Rumor text 2"]
-}}"""
+}}
+
+IMPORTANT: respond with valid JSON only. No markdown fences, no explanation."""
 
 
 def build_world_sim_prompt(world_state: dict, turn_number: int) -> str:

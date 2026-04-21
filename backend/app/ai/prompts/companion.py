@@ -20,7 +20,9 @@ COMPANION_BASE_PROMPT = """You are roleplaying as {name}, a companion character 
 - Keep responses concise (1-3 sentences for dialogue, 1 sentence for actions)
 
 Respond ONLY as {name}. Format:
-{{"dialogue": "What you say (or null)", "action": "What you do", "mood": "current_mood", "loyalty_change": 0}}"""
+{{"dialogue": "What you say (or null)", "action": "What you do", "mood": "current_mood", "loyalty_change": 0}}
+
+IMPORTANT: respond with valid JSON only. No markdown fences, no explanation."""
 
 
 def build_companion_prompt(companion_data: dict) -> str:

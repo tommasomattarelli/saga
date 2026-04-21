@@ -23,6 +23,7 @@ class AIProvider(ABC):
         model: str,
         temperature: float = 0.8,
         max_tokens: int = 2000,
+        json_mode: bool = False,
     ) -> str:
         """Generate a response from the AI model."""
         ...
@@ -78,6 +79,7 @@ async def logged_generate(
     model: str,
     temperature: float = 0.8,
     max_tokens: int = 2000,
+    json_mode: bool = False,
 ) -> str:
     """Wrap provider.generate() with full I/O logging to llm_io.log."""
     _llm_io.info(
@@ -102,6 +104,7 @@ async def logged_generate(
         model=model,
         temperature=temperature,
         max_tokens=max_tokens,
+        json_mode=json_mode,
     )
 
     _llm_io.info(

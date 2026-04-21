@@ -8,12 +8,20 @@ import structlog
 from langchain_core.messages import ToolMessage
 
 from app.ai.npc_director import invoke_npcs_parallel
+from app.ai.router import get_gameplay_config
 from app.ai.tools.dm_tools import execute_tool, get_tool
 from app.core.combat.combat_graph import combat_graph
 from app.core.dice import ability_check
 from app.core.dm.dm_helpers import get_or_create_segment, sync_narration_to_segment
 from app.core.dm.game_state import GameState
+from app.core.dm.npc_prehook import validate_or_create_npc
 from app.memory.updater import apply_typed_updates
+
+_TOOL_SORT_KEY: dict[str, int] = {"request_dice": 0, "invoke_npc": 2}
+
+
+def _sort_tool_calls(tool_calls: list[dict]) -> list[dict]:
+    return sorted(tool_calls, key=lambda tc: _TOOL_SORT_KEY.get(tc["name"], 1))
 
 logger = structlog.get_logger()
 
@@ -30,7 +38,7 @@ async def tools_node(state: GameState) -> dict[str, Any]:
     if not ai_msg:
         return {}
 
-    tool_calls = tool_calls_from_ai_message(ai_msg)
+    tool_calls = _sort_tool_calls(tool_calls_from_ai_message(ai_msg))
     if not tool_calls:
         return {}
 
@@ -95,6 +103,12 @@ async def tools_node(state: GameState) -> dict[str, Any]:
                 tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
                 continue
 
+            npc_config = get_gameplay_config()
+            ok, error_msg = validate_or_create_npc(npc_name, world_state, npc_config)
+            if not ok:
+                tool_messages.append(ToolMessage(content=error_msg, tool_call_id=tc_id, name=name))
+                continue
+
             called_npcs.append(npc_name)
 
             async with get_db_context() as db:
@@ -140,6 +154,10 @@ async def tools_node(state: GameState) -> dict[str, Any]:
 
     sync_narration_to_segment(narration_segments, step, state["narration"])
 
+    has_narration = bool(state["narration"].strip())
+    prev_empty = state.get("consecutive_empty_steps", 0)
+    consecutive_empty_steps = 0 if has_narration else prev_empty + 1
+
     return {
         "messages": tool_messages,
         "world_state": world_state,
@@ -151,6 +169,7 @@ async def tools_node(state: GameState) -> dict[str, Any]:
         "scene_mood": scene_mood,
         "time_passed_minutes": time_passed,
         "narration_segments": narration_segments,
+        "consecutive_empty_steps": consecutive_empty_steps,
     }
 
 

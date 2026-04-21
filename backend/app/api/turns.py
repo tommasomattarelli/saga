@@ -70,6 +70,7 @@ async def submit_action(
         "model_used": "",
         "importance_score": 5,
         "step_count": 0,
+        "consecutive_empty_steps": 0,
         "death_event": None,
         "system_prompt": "",
         "model_config": {},
