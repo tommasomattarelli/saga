@@ -634,3 +634,7 @@ class InvokeNpc(DmTool):
 VISIBLE_TOOLS: frozenset[str] = frozenset(
     cls.tool_name() for cls in _TOOLS.values() if cls.visible()
 )
+
+MEANINGFUL_TOOLS: frozenset[str] = frozenset(
+    {"invoke_npc", "request_dice", "start_combat", "end_combat"}
+)
