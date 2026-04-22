@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from langchain_core.messages import AIMessage
 
 
@@ -136,10 +137,10 @@ class TestDmNodeUnit:
 
         state = _make_state(step_count=1)
 
-        with patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider):
-            with patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()):
-                with patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]):
-                    result = await dm_node(state, config={})
+        with patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider), \
+             patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()), \
+             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]):
+            result = await dm_node(state, config={})
 
         assert result["step_count"] == 2
 
@@ -156,27 +157,29 @@ class TestDmNodeUnit:
 
         state = _make_state(step_count=1, narration="Previously: ")
 
-        with patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider):
-            with patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()):
-                with patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]):
-                    result = await dm_node(state, config={})
+        with patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider), \
+             patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()), \
+             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]):
+            result = await dm_node(state, config={})
 
         assert result["narration"] == "Previously: A dragon appears!"
 
     @pytest.mark.asyncio
     async def test_dm_node_handles_content_policy_error(self):
-        from app.core.dm.dm_nodes import dm_node
         from app.ai.exceptions import ContentPolicyError
+        from app.core.dm.dm_nodes import dm_node
 
         mock_provider = MagicMock()
         mock_provider.generate_with_tools = AsyncMock(side_effect=ContentPolicyError("blocked"))
 
         state = _make_state(step_count=1)
 
-        with patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider):
-            with patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()):
-                with patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]):
-                    result = await dm_node(state, config={})
+        with (
+            patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider),
+            patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
+            patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
+        ):
+            result = await dm_node(state, config={})
 
         assert result["step_count"] == 2
         assert len(result["messages"]) == 1
@@ -199,10 +202,12 @@ class TestDmNodeUnit:
 
         state = _make_state(step_count=1)
 
-        with patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider):
-            with patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()):
-                with patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]):
-                    result = await dm_node(state, config={})
+        with (
+            patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider),
+            patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
+            patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
+        ):
+            result = await dm_node(state, config={})
 
         ai_msg = result["messages"][0]
         assert isinstance(ai_msg, AIMessage)

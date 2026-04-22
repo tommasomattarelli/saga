@@ -83,9 +83,11 @@ class TestConsecutiveEmptySteps:
 
         state = _make_state(messages=[ai_msg], narration="", consecutive_empty_steps=0)
 
-        with patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_result):
-            with patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls):
-                result = await tools_node(state)
+        with (
+            patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_result),
+            patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls),
+        ):
+            result = await tools_node(state)
 
         assert result["consecutive_empty_steps"] == 1
 
@@ -113,9 +115,11 @@ class TestConsecutiveEmptySteps:
             consecutive_empty_steps=2,
         )
 
-        with patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_result):
-            with patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls):
-                result = await tools_node(state)
+        with (
+            patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_result),
+            patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls),
+        ):
+            result = await tools_node(state)
 
         assert result["consecutive_empty_steps"] == 0
 

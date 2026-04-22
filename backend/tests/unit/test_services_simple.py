@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
-from app.services.character_service import CLASS_PRESETS, BASE_HP, create_default_character
-from app.services.export_service import format_campaign_export
+import pytest
+
 from app.services.analytics_service import track_event
+from app.services.character_service import BASE_HP, CLASS_PRESETS, create_default_character
+from app.services.export_service import format_campaign_export
 
 
 class TestCreateDefaultCharacter:
