@@ -27,7 +27,7 @@ from app.ai.npc_director import invoke_npcs_parallel
 from app.ai.providers.schemas import TextChunk, ToolCallChunk
 from app.ai.router import AICallType, route_ai_call
 from app.ai.semantic_resolver import resolve_player_action
-from app.ai.tools.dm_tools import execute_tool, get_tool, get_tool_schemas
+from app.ai.tools.dm_tools import MEANINGFUL_TOOLS, execute_tool, get_tool, get_tool_schemas
 from app.ai.tools.tool_groups import resolve_active_tools
 from app.config import settings
 from app.config_loader import load_saga_config
@@ -105,10 +105,6 @@ class DmAgent:
             tool_count=len(tool_schemas),
             tools=sorted(allowed_tools),
         )
-
-        # Tools that return meaningful content the DM needs to narrate around.
-        # Steps following only silent tools tend to re-narrate — suppress those.
-        _meaningful_tools = {"invoke_npc", "request_dice"}
 
         empty_text_steps = 0
         for step in range(settings.saga_max_agent_steps):
@@ -225,7 +221,7 @@ class DmAgent:
             # Skip next LLM step only if the DM already produced narration AND all tools
             # are silent (no meaningful results to react to). If the model called tools
             # without any text, we still need a follow-up step to get the narration.
-            if step_text and not any(tc.name in _meaningful_tools for tc in step_tool_calls):
+            if step_text and not any(tc.name in MEANINGFUL_TOOLS for tc in step_tool_calls):
                 break
 
             # Guard: if the model keeps calling tools without any narration,

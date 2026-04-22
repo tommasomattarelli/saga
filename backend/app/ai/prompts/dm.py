@@ -188,7 +188,7 @@ def build_dm_system_prompt(
     if npcs_present:
         lines.append("  <npcs_present>")
         for npc_name, npc in npcs_present.items():
-            disp = _disposition_label(npc.get("disposition", 0))
+            disp = _disposition_label(npc.get("disposition_toward_player", npc.get("disposition", 0)))
             role = npc.get("role", "")
             lines.append(f'    <npc name="{npc_name}" disposition="{disp}" role="{role}"/>')
         lines.append("  </npcs_present>")

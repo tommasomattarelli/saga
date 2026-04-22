@@ -173,7 +173,7 @@ def score_importance(player_action: str, campaign: Campaign) -> int:
     if any(kw in action_lower for kw in low_keywords):
         score -= 2
 
-    if campaign.world_state.get("in_combat"):
+    if (campaign.world_state or {}).get("in_combat"):
         score += 2
 
     return max(0, min(10, score))
