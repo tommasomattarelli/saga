@@ -1,11 +1,10 @@
 """Tests for gameplay and summarization configuration."""
 
-import pytest
 
 from app.ai.router import (
+    _NPC_VERBOSITY_MAP,
     GameplayConfig,
     SummarizationConfig,
-    _NPC_VERBOSITY_MAP,
     get_gameplay_config,
     get_summarization_config,
 )

@@ -89,7 +89,6 @@ async def test_delete_campaign_403_if_not_owner(client, db_session):
     user_a = _make_user()
     db_session.add(user_a)
     await db_session.commit()
-    token_a = create_access_token(user_a.id)
 
     campaign = Campaign(
         user_id=user_a.id,

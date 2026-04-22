@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from langchain_core.messages import AIMessage
 
 
@@ -142,9 +143,11 @@ class TestToolsNodeRegularTool:
 
         state = _make_state(messages=[ai_msg])
 
-        with patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_tool_result):
-            with patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls):
-                result = await tools_node(state)
+        with (
+            patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_tool_result),
+            patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls),
+        ):
+            result = await tools_node(state)
 
         assert result["world_state"] == {"weather": "rainy"}
         messages = result["messages"]
@@ -168,9 +171,11 @@ class TestToolsNodeRegularTool:
 
         state = _make_state(messages=[ai_msg])
 
-        with patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_tool_result):
-            with patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls):
-                result = await tools_node(state)
+        with (
+            patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_tool_result),
+            patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls),
+        ):
+            result = await tools_node(state)
 
         assert result["scene_mood"] == "tense"
 
@@ -192,9 +197,11 @@ class TestToolsNodeRegularTool:
 
         state = _make_state(messages=[ai_msg], time_passed_minutes=10)
 
-        with patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_tool_result):
-            with patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls):
-                result = await tools_node(state)
+        with (
+            patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_tool_result),
+            patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls),
+        ):
+            result = await tools_node(state)
 
         assert result["time_passed_minutes"] == 40
 
@@ -216,9 +223,11 @@ class TestToolsNodeRegularTool:
 
         state = _make_state(messages=[ai_msg])
 
-        with patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_tool_result):
-            with patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls):
-                result = await tools_node(state)
+        with (
+            patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_tool_result),
+            patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls),
+        ):
+            result = await tools_node(state)
 
         assert len(result["tool_events"]) == 1
         assert result["tool_events"][0]["tool"] == "give_item"
