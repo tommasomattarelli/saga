@@ -489,7 +489,7 @@ Configured in `saga.config.yaml` under `dm_narration.low|medium|high`.
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Transport | REST + SSE (not WebSocket) | Simpler resumability, no connection state management |
+| Transport | REST + SSE (not WebSocket) | Simpler resumability, no connection state management. Validated by 2026 consensus: SSE is the preferred pattern for token streaming in agentic narrative systems. |
 | Agent framework | LangGraph 1.0 | Explicit graph routing, typed state, conditional edges |
 | Provider routing | Gemini 2.5 Pro for DM (default) | Best tool-calling reliability at cost point |
 | pgvector | Basic (vector only) now, hybrid RRF behind `gameplay.pgvector_hybrid` flag | Hybrid adds complexity; basic cosine is sufficient for v1 |
@@ -507,6 +507,102 @@ Configured in `saga.config.yaml` under `dm_narration.low|medium|high`.
 - Hardcoding feature toggles in code (breaks BYOAK promise)
 - Stuffing entire template content into system prompt (token waste)
 - Exposing Python stack traces in tool error messages (confuses LLM)
+- Reflection / agent loops without a hard `max_iterations` termination guard
+- Holding a DB session open across an LLM call (blocks connection pool for seconds to minutes)
+
+---
+
+## LangGraph Patterns
+
+### Correct patterns (LangGraph 1.0)
+
+- **TypedDict + Annotated reducers**: Graph state must be a `TypedDict` with `Annotated[T, reducer]` fields. Custom reducers (e.g. `operator.add` for list accumulation) prevent state merge conflicts when multiple nodes write the same key.
+- **Durable checkpointing**: Use LangGraph's built-in checkpointer (Postgres or SQLite backend) so that interrupted turns can resume from the last completed node rather than restarting from scratch.
+- **Send API for fan-out**: When multiple NPC calls or world-sim tasks must run in parallel, use `Send` to dispatch sub-graph invocations as independent edges. Do not iterate with `invoke_npc` calls in a Python loop inside a single node.
+- **Hard `max_iterations` cap**: The coordinator `route_after_tools` MUST exit at `MAX_STEPS` (currently 5). This is non-negotiable — uncapped loops cause runaway costs and LLM timeouts.
+
+### Anti-patterns
+
+- Reflection loops without termination: a loop that re-runs `dm_node` until "quality is good enough" with no hard cap will eventually hang.
+- Passing mutable dicts directly through state: use `dict.copy()` or model `model_copy()` before mutating to avoid cross-step bleed.
+
+---
+
+## DB Session Pattern
+
+DB sessions must never be held open across LLM calls. An LLM call can take 5–30 seconds; holding a session open for that duration exhausts the connection pool under concurrent load.
+
+**Correct pattern:**
+```
+open session → read campaign + world_state → close session
+→ call LLM (potentially slow)
+→ open session → write Turn + updated world_state → close session
+```
+
+**Current known violations (audit 2026-04-22):**
+- `app/api/websocket.py:47,251` — session held open for the full turn duration
+- `app/core/dm/dm_tools_executor.py:114` — new session opened per NPC call inside a turn
+- `app/core/dm/dm_nodes.py:42` — two concurrent sessions on the same Campaign row
+
+---
+
+## Refactor Candidates
+
+| File | Lines | Issue | Priority |
+|------|-------|-------|----------|
+| `app/ai/tools/dm_tools.py` | 636 | God file: tool registry + 14 tool implementations + dispatcher. Planned split: `tool_registry.py` + per-group `tools_*.py` + `tool_dispatcher.py`. `_meaningful_tools` set must move here as the single source of truth imported by all callers. | HIGH |
+| `app/core/agent.py` | 493 | God class: streaming + dice + NPC + tool dispatch + death check. | HIGH |
+| `app/core/streaming.py` | 294 | Dead code post-LangGraph migration. No live callers. Pending deletion. | HIGH |
+| `app/core/dm/dm_tools_executor.py` | — | Opens a new DB session per NPC call inside a turn. Fix: receive the already-fetched campaign object via LangGraph state instead of re-querying. | HIGH |
+| `app/core/dm/dm_nodes.py` | — | Two concurrent sessions on the same Campaign row (race condition on `turn_number`). Fix: pass campaign data through state, open one write session only in `post_process_node`. | HIGH |
+
+### `_meaningful_tools` — Planned Consolidation
+
+`_meaningful_tools = {invoke_npc, request_dice, start_combat, end_combat}` is currently duplicated between `app/core/agent.py` and `app/core/dm/dm_graph.py` with diverging values. This causes routing inconsistencies when one copy is updated without the other.
+
+**Planned fix**: define the set once in `app/ai/tools/dm_tools.py` (the tool authority file) and import it in both callers. No logic change — single source of truth only.
+
+---
+
+## Security Hardening — Planned
+
+These are confirmed vulnerabilities from the 2026-04-22 audit, with the agreed architectural fix for each.
+
+### 1. Config secrets startup validation (`app/config.py`) — [PLANNED]
+
+`jwt_secret` and `api_key_encryption_key` currently default to the literal string `"change-me-to-a-random-256-bit-key"`. An operator who forgets to set the env var runs a production instance with a publicly known JWT secret — any token can be forged.
+
+**Fix**: add a Pydantic `@model_validator(mode="after")` in `AppConfig` that raises `ValueError` on startup if either field matches the sentinel prefix `"change-me"`. The app must refuse to start, not log a warning.
+
+```python
+@model_validator(mode="after")
+def reject_sentinel_secrets(self) -> "AppConfig":
+    for field in ("jwt_secret", "api_key_encryption_key"):
+        if getattr(self, field).startswith("change-me"):
+            raise ValueError(f"{field} must be set to a random secret before starting")
+    return self
+```
+
+### 2. JWT not in query parameters (`app/api/websocket.py:27-32`) — [PLANNED]
+
+JWT passed as `?token=...` is logged by every reverse proxy, appears in browser history, and leaks via `Referer` headers. This affects the WebSocket upgrade endpoint.
+
+**Fix**: migrate to one of two options (coordination required between frontend and backend):
+- **Option A** (preferred): send the JWT in an initial text message after WS connection is established; backend validates before accepting turns.
+- **Option B**: use a short-lived one-time token issued by a dedicated `/auth/ws-token` endpoint, passed as query param (token expires in 30s, single use).
+
+### 3. DB session lifecycle — campaign object via LangGraph state — [PLANNED]
+
+The root cause of B-H4 and B-H5 is that `dm_tools_executor` and inner nodes re-fetch the Campaign from DB mid-turn instead of reusing the object already loaded by `context_node`.
+
+**Fix**: `context_node` loads Campaign and stores the needed fields (world_state, char_data, campaign_id) into `GameState`. Downstream nodes read from state — no additional DB queries during the LLM phase. Only `post_process_node` opens a new session to write the final Turn + updated campaign columns.
+
+```
+context_node: open session → load Campaign → store fields in state → close session
+dm_node:      read from state (no DB)
+tools_node:   read/mutate state (no DB)
+post_process_node: open session → write Turn + Campaign → close session
+```
 
 ---
 
@@ -540,6 +636,17 @@ Tier 2: ROLLING SUMMARY (batch summaries + global arc)      ← ACTIVE
 Tier 3: SEMANTIC SEARCH (pgvector on MemoryFact corpus)     ← ACTIVE (search_similar_facts wired)
 Tier 4: recall_memory tool (DM-invoked on demand)           ← FUTURE (v2)
 ```
+
+**Planned evolution — Dual-Memory Architecture (v1.5)**
+
+Research on agentic narrative systems shows that combining a compact rolling summary with episodic vector RAG increases long-term recall accuracy from ~41% to ~87% on topic-specific queries. The planned upgrade separates the two concerns explicitly:
+
+| Component | Mechanism | Update frequency |
+|-----------|-----------|-----------------|
+| **Compact rolling summary** | Single ≈200-word paragraph, iteratively extended via anchored LLM summarization | Every 5 turns (already active as `global_summary`) |
+| **Episodic pgvector RAG** | Atomic `MemoryFact` rows, 1536-dim embeddings, cosine similarity retrieval | Post-turn async (already active) |
+
+Additional planned improvement: migrate from basic `vector` (float32) to `halfvec` (float16) with BM25 hybrid search for keyword anchoring. Keyword anchoring is critical for proper nouns (NPC names, location names, item names) that pure cosine similarity misses. Controlled by `gameplay.pgvector_hybrid` flag.
 
 ### Companion System [Future]
 

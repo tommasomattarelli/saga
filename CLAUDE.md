@@ -43,6 +43,11 @@ SAGA/Wyrd is an AI-driven tabletop RPG engine designed to replicate the infinite
 12. **NO GOD CLASSES** . no files with multiple logics, and files with 300+ liness
 13. **LLM-readable errors**: Tool error messages must never expose Python stack traces, exception types, or internal paths. Sanitize to a short human-readable sentence before feeding back to the LLM (see `execute_tool` in `dm_tools.py`).
 14. **Config-first for new behavior**: Any new gameplay parameter, feature toggle, or AI cost knob goes in `saga.config.yaml` with a sensible default. Never hardcode tunable values in Python.
+15. **DB sessions must not span LLM calls**: Open session → read data → close → call LLM → open session → write result. Never hold a DB session open across an LLM invocation.
+16. **Validate credentials at startup**: `jwt_secret` and any security credential MUST be validated at startup — a `"change-me"` default is not acceptable in production. Use a Pydantic validator or fail-fast check in `config.py`.
+17. **JWT not in query parameters**: JWT tokens must never be passed as query parameters (exposed in logs and browser history). Use `Authorization: Bearer` header or an initial WS handshake.
+18. **Auth tokens not in localStorage**: Frontend auth tokens (access + refresh) must not be stored in localStorage (XSS vulnerable). Use httpOnly cookies or a memory-only store.
+19. **Hard cap on agent loops**: Every LangGraph coordinator loop MUST have a `max_iterations` hard cap. No open-ended loops.
 
 ## File Locations
 - **Game Engine**: `backend/app/core/`
