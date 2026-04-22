@@ -111,6 +111,8 @@ async def extract_and_store_facts(
 
         async with async_session() as db:
             for fact_data in facts[:5]:  # cap at 5
+                if not isinstance(fact_data, dict):
+                    continue
                 entity_name = fact_data.get("entity_name", "").strip()
                 entity_type = fact_data.get("entity_type", "event").strip()
                 content = fact_data.get("content", "").strip()

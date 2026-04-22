@@ -27,6 +27,7 @@ interface GameState {
   currentMood: string;
   combatState: CombatState | null;
   freshTurnNumber: number | null; // turn_number of the turn just submitted in this session
+  hasPendingDice: boolean; // true when latest turn has unclicked dice
 
   setCampaign: (campaign: Campaign) => void;
   setTurnHistory: (turns: TurnResponse[]) => void;
@@ -35,6 +36,7 @@ interface GameState {
   setPendingAction: (action: string | null) => void;
   setCurrentMood: (mood: string) => void;
   setCombatState: (state: CombatState | null) => void;
+  clearPendingDice: () => void;
   updateWorldState: (updates: Partial<WorldState>) => void;
   updateCharacter: (updates: Partial<CharacterData>) => void;
   updateTurnNumber: (n: number) => void;
@@ -49,18 +51,25 @@ export const useGameStore = create<GameState>()((set) => ({
   currentMood: "neutral",
   combatState: null,
   freshTurnNumber: null,
+  hasPendingDice: false,
 
   setCampaign: (campaign) => set({ campaign }),
   setTurnHistory: (turns) => set({ turnHistory: turns, freshTurnNumber: null }),
-  addTurn: (turn) =>
+  addTurn: (turn) => {
+    const hasDice =
+      (turn.dice_results && turn.dice_results.length > 0) ||
+      !!(turn.dice_rolls && Object.keys(turn.dice_rolls).length > 0);
     set((state) => ({
       turnHistory: [...state.turnHistory, turn],
       freshTurnNumber: turn.turn_number,
-    })),
+      hasPendingDice: hasDice,
+    }));
+  },
   setLoading: (loading) => set({ isLoading: loading }),
   setPendingAction: (action) => set({ pendingAction: action }),
   setCurrentMood: (mood) => set({ currentMood: mood }),
   setCombatState: (combatState) => set({ combatState }),
+  clearPendingDice: () => set({ hasPendingDice: false }),
 
   updateWorldState: (updates) =>
     set((state) => {
@@ -105,5 +114,6 @@ export const useGameStore = create<GameState>()((set) => ({
       currentMood: "neutral",
       combatState: null,
       freshTurnNumber: null,
+      hasPendingDice: false,
     }),
 }));
