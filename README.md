@@ -63,9 +63,41 @@ Requires PostgreSQL 16+ with pgvector and Redis running locally.
 | Frontend | React 18, TypeScript, Tailwind CSS, Zustand, React Query, Vite |
 | Backend | Python 3.12+, FastAPI, SQLAlchemy 2.0 (async), Pydantic v2 |
 | Database | PostgreSQL 16 + pgvector, Redis |
-| AI | OpenAI, Anthropic Claude, Google Gemini, with intelligent routing |
+| AI | OpenAI, Anthropic Claude, Google Gemini — intelligent routing via `ai/router.py`; agent loop via **LangGraph 1.0** |
+| Transport | **REST + SSE** (not WebSocket) — each turn is an independent POST returning a streaming SSE response |
 | Auth | JWT + bcrypt, AES-256 encrypted API key storage |
 | Infra | Docker Compose, GitHub Actions |
+
+## Known Issues / In Progress
+
+The items below are confirmed findings from a code audit (2026-04-22). They are tracked for the next sprint.
+
+### Backend
+
+| Severity | Location | Issue |
+|----------|----------|-------|
+| HIGH | `app/ai/tools/dm_tools.py` (636 lines) | God file: tool registry + 14 tool implementations + dispatcher in one file. Splitting planned. |
+| HIGH | `app/core/agent.py` (493 lines) | God class: streaming + dice + NPC + tool dispatch + death check. Refactor planned. |
+| HIGH | `app/core/streaming.py` (294 lines) | Dead code post-LangGraph migration — no live callers. Pending deletion. |
+| HIGH | `app/core/dm/dm_tools_executor.py:114` | Opens a new DB session per NPC call inside a turn (N extra sessions). |
+| HIGH | `app/core/dm/dm_nodes.py:42` | Two concurrent sessions on the same Campaign row → race condition on `turn_number`. |
+| HIGH | `app/api/websocket.py:47,251` | DB session held open for the full duration of a turn (seconds to minutes). |
+| HIGH | `app/services/campaign_service.py:28` vs `app/memory/updater.py:35` | Disposition key diverges: `"disposition"` vs `"disposition_toward_player"` from turn 1. |
+| HIGH | `app/config.py:8,12` | `jwt_secret` and `api_key_encryption_key` default to literal `"change-me-to-a-random-256-bit-key"` with no startup validation — JWT forgery risk if operator forgets env var. |
+| HIGH | `app/api/websocket.py:27-32` | JWT token passed as query parameter (exposed in server logs and browser history). |
+
+### Frontend
+
+| Severity | Location | Issue |
+|----------|----------|-------|
+| HIGH | `shared/stores/auth-store.ts` | `accessToken` + `refreshToken` stored in localStorage in plaintext — XSS vulnerable. |
+| HIGH | `features/game/components/game-view.tsx:39` | Race condition: `submitScrollRef.current` mutated in component body, can be null between `onMutate` and `requestAnimationFrame`. |
+| HIGH | `features/character/components/character-sheet.tsx:181` | `archetype` not in `CharacterData` interface; used via `as unknown as Record<string, unknown>` cast. |
+
+### Lint
+
+- Backend ruff: 14 residual errors (SIM117 nested `with`, fix in progress)
+- Frontend eslint: 1 residual error (`revealedCount` in `dice-roller.tsx`, fix in progress)
 
 ## Project Structure
 
