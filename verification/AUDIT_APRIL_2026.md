@@ -11,11 +11,13 @@
 
 | Area | HIGH | MED | LOW | Stato |
 |------|------|-----|-----|-------|
-| Backend | 9 | 12 | 9 | open |
-| Frontend | 3 | 7 | 10 | open |
+| Backend | 7 | 11 | 9 | parziale |
+| Frontend | 3 | 7 | 10 | parziale |
 | Test & Lint | — | 2 | 1 | parziale |
-| Arch. decisions | — | 4 | — | pending |
-| **Totale** | **12** | **25** | **20** | |
+| Arch. decisions | — | 3 | — | pending |
+| **Totale** | **10** | **23** | **20** | |
+
+> ~~B-H6, B-H9, A-2~~ rimossi: `websocket.py` era dead code (eliminato 2026-04-22). ~~B-H3~~ eliminato: `streaming.py` rimosso. ~~B-H7, B-M12, F-M3~~ fixati in sessione.
 
 ---
 
@@ -27,13 +29,13 @@
 |---|-----------|-------------|-------|
 | B-H1 | `app/ai/tools/dm_tools.py` (636 righe) | God file: tool registry + 14 implementazioni tool + dispatcher tutto nello stesso file. Viola regola 12. | `[ ]` |
 | B-H2 | `app/core/agent.py` (493 righe) | God class: streaming + dice + NPC + tool dispatch + death check. Viola regola 12. | `[ ]` |
-| B-H3 | `app/core/streaming.py` (294 righe) | Dead code post-migrazione LangGraph. Nessun caller vivo. Da eliminare. | `[ ]` |
+| B-H3 | `app/core/streaming.py` (294 righe) | Dead code post-migrazione LangGraph. Nessun caller vivo. Da eliminare. | `[x]` ✅ eliminato |
 | B-H4 | `app/core/dm/dm_tools_executor.py:114` | Apre una nuova DB session per ogni NPC call dentro il turn → N sessioni extra per turn. **Fix architetturale**: ricevere il campaign object già fetchato via LangGraph state invece di riaprire sessione. Vedi AGENTIC_ARCHITECTURE.md §"Security Hardening — Planned" punto 3. | `[ ]` |
 | B-H5 | `app/core/dm/dm_nodes.py:42` | Due sessioni concorrenti sullo stesso Campaign row → race condition su `turn_number`. **Fix architetturale**: `context_node` carica e chiude; solo `post_process_node` scrive. Vedi AGENTIC_ARCHITECTURE.md §"Security Hardening — Planned" punto 3. | `[ ]` |
-| B-H6 | `app/api/websocket.py:47,251` | DB session tenuta aperta per tutta la durata di una turn (secondi/minuti). Esaurisce il connection pool. | `[ ]` |
-| B-H7 | `app/services/campaign_service.py:28` vs `app/memory/updater.py:35` | Chiave disposition diverge: `"disposition"` vs `"disposition_toward_player"` dal turn 1. Corruzione silenziosa dello world_state. | `[ ]` |
+| ~~B-H6~~ | ~~`app/api/websocket.py:47,251`~~ | ~~DB session tenuta aperta per tutta la durata di una turn.~~ | N/A — `websocket.py` era dead code, eliminato |
+| B-H7 | `app/services/campaign_service.py:28` vs `app/memory/updater.py:35` | Chiave disposition diverge: `"disposition"` vs `"disposition_toward_player"` dal turn 1. Corruzione silenziosa dello world_state. | `[x]` ✅ fixato in `prompts/dm.py:191` |
 | B-H8 | `app/config.py:8,12` | `jwt_secret` e `api_key_encryption_key` hanno default letterale `"change-me-to-a-random-256-bit-key"` senza startup validation. JWT forgery in produzione se l'operatore dimentica di impostare l'env var. **Fix**: `@model_validator(mode="after")` in `AppConfig` che lancia `ValueError` se il campo inizia con `"change-me"`. Vedi AGENTIC_ARCHITECTURE.md §"Security Hardening — Planned" punto 1. | `[ ]` |
-| B-H9 | `app/api/websocket.py:27-32` | JWT token passato come query parameter. Esposto nei log del server, nella browser history, e nei referrer header. **Fix**: migrare a handshake via messaggio iniziale WS o token one-time dal backend. Richiede coordinazione frontend/backend. Vedi AGENTIC_ARCHITECTURE.md §"Security Hardening — Planned" punto 2. | `[ ]` |
+| ~~B-H9~~ | ~~`app/api/websocket.py:27-32`~~ | ~~JWT token passato come query parameter.~~ | N/A — `websocket.py` era dead code, eliminato |
 
 ---
 
@@ -52,7 +54,7 @@
 | B-M9 | `app/api/` (generale) | Nessun rate limiting sugli endpoint `/turns`. Un client può inondare il backend con LLM calls. Aggiungere rate limit per `user_id` (es. 10 req/min). | `[ ]` |
 | B-M10 | `app/security/encryption.py` | AES-256 key derivata da `api_key_encryption_key` senza salt per-user. Se la chiave viene compromessa, tutti i record sono decifrabili in bulk. | `[ ]` |
 | B-M11 | `app/core/dm/dm_nodes.py` | `route_after_tools` non ha test di integrazione end-to-end sul percorso `consecutive_empty_steps ≥ 2 → exit`. Solo test unitari sul routing. | `[ ]` |
-| B-M12 | `app/core/agent.py` vs `app/core/dm/dm_graph.py` | `_meaningful_tools` duplicata in entrambi i file con valori divergenti. Fix: definire una volta sola in `app/ai/tools/dm_tools.py` e importare da entrambi i caller. Vedi AGENTIC_ARCHITECTURE.md §"Refactor Candidates — `_meaningful_tools` Planned Consolidation". | `[ ]` |
+| B-M12 | `app/core/agent.py` vs `app/core/dm/dm_graph.py` | `_meaningful_tools` duplicata in entrambi i file con valori divergenti. Fix: definire una volta sola in `app/ai/tools/dm_tools.py` e importare da entrambi i caller. Vedi AGENTIC_ARCHITECTURE.md §"Refactor Candidates — `_meaningful_tools` Planned Consolidation". | `[x]` ✅ fixato |
 
 ---
 
@@ -90,7 +92,7 @@
 |---|-----------|-------------|-------|
 | F-M1 | `shared/stores/game-store.ts` | Store Zustand non ha reset esplicito al logout. Dati di campagna precedente possono persistere in memoria dopo il cambio utente. | `[ ]` |
 | F-M2 | `features/narrative/components/narrative-stream.tsx` | SSE event listener non viene rimosso su unmount del componente. Memoria leak su navigazione veloce. | `[ ]` |
-| F-M3 | `features/narrative/components/dice-roller.tsx` | `revealedCount` usato ma non dichiarato correttamente — causa errore ESLint residuo. | `[ ]` |
+| F-M3 | `features/narrative/components/dice-roller.tsx` | `revealedCount` usato ma non dichiarato correttamente — causa errore ESLint residuo. | `[x]` ✅ fixato |
 | F-M4 | `features/game/components/action-input.tsx` | Input non sanitizzato lato client prima dell'invio. Il backend sanitizza (`sanitize_player_input`) ma il frontend non dà feedback immediato su input troppo lunghi o caratteri non validi. | `[ ]` |
 | F-M5 | `features/character/` | Nessun loading skeleton su `CharacterSheet` durante il fetch iniziale. Flash di contenuto vuoto visibile su connessioni lente. | `[ ]` |
 | F-M6 | `shared/services/` | Client API non gestisce il caso di token scaduto durante una SSE stream in corso. L'utente vede uno stream interrotto senza messaggio di errore. | `[ ]` |
@@ -124,8 +126,8 @@
 | Backend unit tests (516) | PASS | `pytest tests/unit --noconftest -q` |
 | Backend integration tests | PASS | Richiedono infra Docker |
 | Frontend tests | PASS | |
-| Backend ruff | 14 errori residui | `[ ]` SIM117 nested `with` — fix in corso |
-| Frontend ESLint | 1 errore residuo | `[ ]` `revealedCount` non dichiarato in `dice-roller.tsx` — fix in corso |
+| Backend ruff | **0 errori** | `[x]` ✅ SIM117 nested `with` fixati |
+| Frontend ESLint | **0 errori** | `[x]` ✅ `revealedCount` rimosso da `dice-roller.tsx` |
 
 ### Copertura gap
 
@@ -183,7 +185,7 @@ Queste decisioni sono state concordate dall'audit team e documentate in `AGENTIC
 | # | Decisione | File coinvolti | Stato |
 |---|-----------|---------------|-------|
 | A-1 | **Config secrets startup validation**: `@model_validator` in `AppConfig` che fallisce a startup se `jwt_secret` o `api_key_encryption_key` iniziano con `"change-me"`. | `app/config.py` | `[ ]` |
-| A-2 | **JWT WS handshake**: spostare JWT da query param a messaggio iniziale WS (opzione A) o token one-time da `/auth/ws-token` (opzione B). Richiede coordinazione frontend/backend. | `app/api/websocket.py`, `frontend/src/shared/services/` | `[ ]` |
+| ~~A-2~~ | ~~**JWT WS handshake**~~ | ~~`app/api/websocket.py`~~ | N/A — `websocket.py` era dead code, eliminato |
 | A-3 | **DB session lifecycle via LangGraph state**: `context_node` carica Campaign e chiude sessione; downstream nodes leggono da `GameState`; solo `post_process_node` apre sessione di scrittura. | `app/core/dm/dm_nodes.py`, `app/core/dm/dm_tools_executor.py` | `[ ]` |
 | A-4 | **`_meaningful_tools` unica source of truth**: spostare il set in `app/ai/tools/dm_tools.py` e importare da `agent.py` e `dm_graph.py`. | `app/ai/tools/dm_tools.py`, `app/core/agent.py`, `app/core/dm/dm_graph.py` | `[ ]` |
 
@@ -193,7 +195,8 @@ Queste decisioni sono state concordate dall'audit team e documentate in `AGENTIC
 
 | File | Motivo | Priorità |
 |------|--------|----------|
-| `app/core/streaming.py` | Dead code post-LangGraph migration, nessun caller vivo | ALTA — eliminare |
+| ~~`app/core/streaming.py`~~ | Dead code post-LangGraph migration | ✅ eliminato 2026-04-22 |
+| ~~`app/api/websocket.py`~~ | Dead code post-migrazione REST+SSE | ✅ eliminato 2026-04-22 |
 | `app/ai/tools/dm_tools.py` | 636 righe, god file. Split pianificato: `tool_registry.py` + `tools_core.py` + `tools_combat.py` + `tools_social.py` + `tools_inventory.py` + `tool_dispatcher.py` | ALTA — refactorare |
 | `app/core/agent.py` | 493 righe, god class. Responsabilità da distribuire tra i nodi LangGraph esistenti | MEDIA — refactorare |
 | `app/core/dm/dm_helpers.py` | `build_context()` supera 150 righe. Split in builder per segmento | MEDIA — refactorare |
