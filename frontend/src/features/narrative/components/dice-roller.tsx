@@ -2,7 +2,6 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import type { DiceRollResult, DiceOutcome } from "../../../shared/types";
 import { useUIStore } from "../../../shared/stores/ui-store";
-import { useGameStore } from "../../../shared/stores/game-store";
 
 interface DiceRollerProps {
   rolls: Record<string, DiceRollResult>;
@@ -197,8 +196,8 @@ function SingleDice({
 }
 
 export default function DiceRoller({ rolls, alwaysRevealed = false, onAllRevealed, step = 0 }: DiceRollerProps) {
-  const [revealedCount, setRevealedCount] = useState(alwaysRevealed ? Object.keys(rolls).length : 0);
   const total = Object.keys(rolls).length;
+  const [, setRevealedCount] = useState(alwaysRevealed ? total : 0);
 
   const handleReveal = useCallback(() => {
     setRevealedCount((c) => {
