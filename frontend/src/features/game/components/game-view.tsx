@@ -76,7 +76,10 @@ export default function GameView() {
       {/* CombatTracker handles its own AnimatePresence — always render when state exists */}
       {combatState && <CombatTracker combatState={combatState} />}
 
-      <div className="mood-container flex flex-1 flex-col">
+      <div
+        className="mood-container flex flex-1 flex-col"
+        style={combatState ? { paddingBottom: "150px" } : undefined}
+      >
         {/* Ornamental banner header */}
         <header
           className="relative px-6 pt-3 pb-1"

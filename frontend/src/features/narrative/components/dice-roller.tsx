@@ -2,10 +2,13 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import type { DiceRollResult, DiceOutcome } from "../../../shared/types";
 import { useUIStore } from "../../../shared/stores/ui-store";
+import { useGameStore } from "../../../shared/stores/game-store";
 
 interface DiceRollerProps {
   rolls: Record<string, DiceRollResult>;
   alwaysRevealed?: boolean;
+  onAllRevealed?: (step: number) => void;
+  step?: number;
 }
 
 const OUTCOME_LABELS: Record<DiceOutcome, string> = {
@@ -30,10 +33,12 @@ function SingleDice({
   name,
   result,
   alwaysRevealed = false,
+  onReveal,
 }: {
   name: string;
   result: DiceRollResult;
   alwaysRevealed?: boolean;
+  onReveal?: () => void;
 }) {
   const [displayValue, setDisplayValue] = useState<number | null>(
     alwaysRevealed ? result.total : null,
@@ -70,8 +75,9 @@ function SingleDice({
       setDisplayValue(result.total);
       setRevealed(true);
       setAnimating(false);
+      onReveal?.();
     }, COUNTER_DURATION_MS);
-  }, [animating, revealed, result.total, playSound]);
+  }, [animating, revealed, result.total, playSound, onReveal]);
 
   useEffect(() => {
     return () => {
@@ -190,12 +196,28 @@ function SingleDice({
   );
 }
 
-export default function DiceRoller({ rolls, alwaysRevealed = false }: DiceRollerProps) {
+export default function DiceRoller({ rolls, alwaysRevealed = false, onAllRevealed, step = 0 }: DiceRollerProps) {
+  const [revealedCount, setRevealedCount] = useState(alwaysRevealed ? Object.keys(rolls).length : 0);
+  const total = Object.keys(rolls).length;
+
+  const handleReveal = useCallback(() => {
+    setRevealedCount((c) => {
+      const next = c + 1;
+      if (next >= total) onAllRevealed?.(step);
+      return next;
+    });
+  }, [total, onAllRevealed, step]);
+
   return (
     <div className="my-4 flex flex-wrap gap-2">
       {Object.entries(rolls).map(([name, result]) => (
         <div key={name} className="relative">
-          <SingleDice name={name} result={result} alwaysRevealed={alwaysRevealed} />
+          <SingleDice
+            name={name}
+            result={result}
+            alwaysRevealed={alwaysRevealed}
+            onReveal={handleReveal}
+          />
         </div>
       ))}
     </div>

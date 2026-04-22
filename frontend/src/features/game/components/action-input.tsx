@@ -22,6 +22,7 @@ export default function ActionInput({ onAction }: ActionInputProps) {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isLoading = useGameStore((s) => s.isLoading);
+  const hasPendingDice = useGameStore((s) => s.hasPendingDice);
   const lastTurn = useGameStore((s) => s.turnHistory[s.turnHistory.length - 1]);
 
   const showContinue = lastTurn && !lastTurn.requires_player_action;
@@ -44,13 +45,15 @@ export default function ActionInput({ onAction }: ActionInputProps) {
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
   }, [action]);
 
+  const blocked = isLoading || hasPendingDice;
+
   const sendAction = useCallback(
     (text: string) => {
-      if (isLoading) return;
+      if (blocked) return;
       onAction(text);
       setAction("");
     },
-    [isLoading, onAction],
+    [blocked, onAction],
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -88,7 +91,7 @@ export default function ActionInput({ onAction }: ActionInputProps) {
               <button
                 key={i}
                 onClick={() => sendAction(suggestion)}
-                disabled={isLoading}
+                disabled={blocked}
                 className="px-3 py-1 font-body text-sm italic transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
                 style={{
                   color: "var(--ink-secondary)",
@@ -132,7 +135,7 @@ export default function ActionInput({ onAction }: ActionInputProps) {
             onChange={(e) => setAction(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={ROTATING_PLACEHOLDERS[placeholderIdx]}
-            disabled={isLoading}
+            disabled={blocked}
             rows={1}
             autoFocus
             className="w-full resize-none bg-transparent px-5 pt-4 pb-12 font-body text-lg italic placeholder:opacity-40 focus:outline-none disabled:opacity-50"
@@ -160,7 +163,7 @@ export default function ActionInput({ onAction }: ActionInputProps) {
               <button
                 type="button"
                 onClick={() => sendAction("wait")}
-                disabled={isLoading}
+                disabled={blocked}
                 className="font-display text-xs uppercase tracking-grimoire-wide px-4 py-1 transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
                 style={{
                   color: "var(--gold-bright)",
@@ -172,7 +175,7 @@ export default function ActionInput({ onAction }: ActionInputProps) {
             ) : (
               <button
                 type="submit"
-                disabled={isLoading || !action.trim()}
+                disabled={blocked || !action.trim()}
                 className="font-display text-xs uppercase tracking-grimoire-wide px-4 py-1 transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright active:scale-95"
                 style={{
                   color: "var(--gold-bright)",
@@ -182,7 +185,7 @@ export default function ActionInput({ onAction }: ActionInputProps) {
                   background: "rgba(212, 175, 55, 0.1)",
                 }}
               >
-                {isLoading ? "…" : "Seal"}
+                {isLoading ? "…" : hasPendingDice ? "Cast the die…" : "Seal"}
               </button>
             )}
           </div>
