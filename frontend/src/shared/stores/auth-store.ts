@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { User, TokenPair } from "../types";
+import { useGameStore } from "./game-store";
 
 interface AuthState {
   user: User | null;
@@ -49,6 +50,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
   setUser: (user) => set({ user }),
   logout: () => {
     saveRefreshToken(null);
+    useGameStore.getState().reset();
     set({
       user: null,
       accessToken: null,
