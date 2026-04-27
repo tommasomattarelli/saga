@@ -62,7 +62,7 @@ export class ErrorBoundary extends Component<Props, State> {
             className="font-body italic text-lg mb-8 text-center max-w-sm"
             style={{ color: "var(--ink-secondary)" }}
           >
-            Something has gone awry in the fabric of the tale.
+            Something went wrong.
           </p>
 
           {/* Ornate button */}
@@ -77,7 +77,7 @@ export class ErrorBoundary extends Component<Props, State> {
               background: "rgba(212, 175, 55, 0.08)",
             }}
           >
-            Restore
+            Reload
           </button>
         </div>
       );
