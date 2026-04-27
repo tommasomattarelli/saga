@@ -98,6 +98,13 @@ gameplay:
   consecutive_empty_steps_max: 2  # max tool-only steps with no narration before forcing loop exit
 
 # ---------------------------------------------------------------------------
+# API — rate limiting
+# ---------------------------------------------------------------------------
+api:
+  rate_limit:
+    turns_per_minute: 10     # max /turns requests per user_id per minute
+
+# ---------------------------------------------------------------------------
 # Summarization — retry + deduplication settings
 # ---------------------------------------------------------------------------
 summarization:
