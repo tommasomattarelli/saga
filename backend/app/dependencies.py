@@ -33,6 +33,15 @@ async def seed_templates() -> None:
                 with open(template_file, encoding="utf-8") as f:
                     data = yaml.safe_load(f)
 
+                if not data.get("schema_version"):
+                    from structlog import get_logger
+
+                    get_logger().error(
+                        "template_missing_schema_version",
+                        file=str(template_file),
+                    )
+                    continue
+
                 meta = data.get("meta", {})
                 slug = meta.get("slug")
                 if not slug:
