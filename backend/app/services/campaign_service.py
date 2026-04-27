@@ -25,7 +25,7 @@ def build_initial_world_state(template: Template) -> dict:
     npcs = {
         npc["name"]: {
             **{k: v for k, v in npc.items() if k != "name"},
-            "disposition": 0,
+            "disposition_toward_player": 0,
             "last_interactions": [],
         }
         for npc in world.get("npcs", [])
