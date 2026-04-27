@@ -6,12 +6,13 @@ import asyncio
 import uuid
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.embeddings import generate_embedding
 from app.ai.router import get_gameplay_config
+from app.api.rate_limit import limiter, turns_limit
 from app.core.dm.dm_graph import dm_graph
 from app.core.dm.game_state import GameState
 from app.dependencies import get_db
@@ -33,13 +34,16 @@ _MAX_RECURSION = 30  # LangGraph recursion limit (covers up to 5 DM steps × 2 n
 
 
 @router.post("/{campaign_id}/action", response_model=TurnResponse)
+@limiter.limit(turns_limit)
 async def submit_action(
+    request: Request,
     campaign_id: uuid.UUID,
     body: TurnSubmit,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> TurnResponse:
     """Process a player action and return the complete turn result."""
+    request.state.rate_limit_user_id = str(user.id)
     result = await db.execute(
         select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user.id)
     )
