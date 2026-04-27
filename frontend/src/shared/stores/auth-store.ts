@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import type { User, TokenPair } from "../types";
 
 interface AuthState {
@@ -12,28 +11,49 @@ interface AuthState {
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
+function loadRefreshToken(): string | null {
+  try {
+    return sessionStorage.getItem("saga-refresh-token");
+  } catch {
+    return null;
+  }
+}
+
+function saveRefreshToken(token: string | null): void {
+  try {
+    if (token) {
+      sessionStorage.setItem("saga-refresh-token", token);
+    } else {
+      sessionStorage.removeItem("saga-refresh-token");
+    }
+  } catch {
+    // sessionStorage unavailable (e.g. private browsing restriction) — degrade gracefully
+  }
+}
+
+export const useAuthStore = create<AuthState>()((set) => ({
+  user: null,
+  // accessToken is memory-only: never persisted, cleared on page reload
+  accessToken: null,
+  // refreshToken survives tab reload via sessionStorage, not across browser closes
+  refreshToken: loadRefreshToken(),
+  isAuthenticated: false,
+  setTokens: (tokens) => {
+    saveRefreshToken(tokens.refresh_token);
+    set({
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      isAuthenticated: true,
+    });
+  },
+  setUser: (user) => set({ user }),
+  logout: () => {
+    saveRefreshToken(null);
+    set({
       user: null,
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
-      setTokens: (tokens) =>
-        set({
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token,
-          isAuthenticated: true,
-        }),
-      setUser: (user) => set({ user }),
-      logout: () =>
-        set({
-          user: null,
-          accessToken: null,
-          refreshToken: null,
-          isAuthenticated: false,
-        }),
-    }),
-    { name: "saga-auth" },
-  ),
-);
+    });
+  },
+}));
