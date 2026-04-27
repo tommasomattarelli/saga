@@ -1,13 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
-import { useRef } from "react";
+import type { RefObject } from "react";
 import { submitAction } from "../../../shared/api/client";
 import { useGameStore } from "../../../shared/stores/game-store";
 import { TurnResponseSchema } from "../../../shared/schemas/turn";
 import type { CombatState, TurnResponse, WorldState, CharacterData } from "../../../shared/types";
 
-export function useSubmitAction(campaignId: string) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-
+export function useSubmitAction(campaignId: string, scrollRef: RefObject<HTMLDivElement | null>) {
   const mutation = useMutation({
     mutationFn: (action: string) => submitAction(campaignId, action).then((r) => r.data),
 
@@ -15,9 +13,9 @@ export function useSubmitAction(campaignId: string) {
       const { setLoading, setPendingAction } = useGameStore.getState();
       setLoading(true);
       setPendingAction(action);
+      const el = scrollRef.current;
       requestAnimationFrame(() => {
-        if (scrollRef.current)
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        if (el) el.scrollTop = el.scrollHeight;
       });
     },
 
@@ -50,5 +48,5 @@ export function useSubmitAction(campaignId: string) {
     },
   });
 
-  return { mutation, scrollRef };
+  return { mutation };
 }
