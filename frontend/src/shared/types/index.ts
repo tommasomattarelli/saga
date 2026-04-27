@@ -34,6 +34,7 @@ export interface CharacterData {
   equipped: EquippedItems;
   gold: number;
   background: string;
+  archetype?: string;
   notes: string;
   reputation: Record<string, number>;
   active_quests: string[];
