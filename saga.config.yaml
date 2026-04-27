@@ -96,6 +96,7 @@ gameplay:
   auto_create_npcs: true          # if true, invoke_npc auto-creates missing NPCs
   npc_auto_create_detail: standard # detail level for auto-created NPCs: minimal|standard|rich
   consecutive_empty_steps_max: 2  # max tool-only steps with no narration before forcing loop exit
+  dice_animation_enabled: true      # frontend dice roll animation; user preference persisted in ui-store
 
 # ---------------------------------------------------------------------------
 # Summarization — retry + deduplication settings
