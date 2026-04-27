@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { login, register, getMe } from "../../../shared/api/client";
 import { useAuthStore } from "../../../shared/stores/auth-store";
 import type { AxiosError } from "axios";
@@ -16,12 +17,12 @@ interface AuthFields {
   email?: string;
 }
 
-function classifyError(err: unknown): string {
+function classifyErrorKey(err: unknown): string {
   const status = (err as AxiosError)?.response?.status;
-  if (!status) return "Network error. Check your connection.";
-  if (status === 401 || status === 422) return "Invalid credentials.";
-  if (status >= 400 && status < 500) return "Request failed. Check your details.";
-  return "Server error. Please try again later.";
+  if (!status) return "errors.network";
+  if (status === 401 || status === 422) return "errors.invalid_credentials";
+  if (status >= 400 && status < 500) return "errors.request_failed";
+  return "errors.server_error";
 }
 
 export function useAuthFlow(mode: "login" | "register"): AuthFlowResult {
@@ -29,6 +30,7 @@ export function useAuthFlow(mode: "login" | "register"): AuthFlowResult {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { setTokens, setUser } = useAuthStore();
+  const { t } = useTranslation();
 
   const submit = async (fields: AuthFields) => {
     setError(null);
@@ -43,7 +45,7 @@ export function useAuthFlow(mode: "login" | "register"): AuthFlowResult {
       setUser(user);
       navigate("/campaigns");
     } catch (err) {
-      setError(classifyError(err));
+      setError(t(classifyErrorKey(err)));
     } finally {
       setIsPending(false);
     }
