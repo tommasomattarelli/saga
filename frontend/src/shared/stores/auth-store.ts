@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User, TokenPair } from "../types";
-import { useGameStore } from "./game-store";
 
 interface AuthState {
   user: User | null;
@@ -27,15 +26,13 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
         }),
       setUser: (user) => set({ user }),
-      logout: () => {
-        useGameStore.getState().reset();
+      logout: () =>
         set({
           user: null,
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false,
-        });
-      },
+        }),
     }),
     { name: "saga-auth" },
   ),
