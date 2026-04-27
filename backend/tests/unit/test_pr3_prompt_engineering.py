@@ -30,7 +30,7 @@ class TestPersonaPresets:
         prompt = build_dm_system_prompt(campaign)
 
         assert "<persona>" in prompt
-        assert "brutal" in prompt.lower() or "price" in prompt.lower()
+        assert "cruelty" in prompt.lower() or "futility" in prompt.lower()
 
     def test_persona_preset_heroic_injects_block(self):
         """heroic preset produces a <persona> block mentioning courage/epic."""
