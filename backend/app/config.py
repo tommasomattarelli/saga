@@ -1,3 +1,6 @@
+from typing import Literal
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -10,6 +13,27 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_days: int = 30
     api_key_encryption_key: str = "change-me-to-a-random-256-bit-key"
+
+    saga_environment: Literal["dev", "prod", "test"] = "dev"
+
+    @model_validator(mode="after")
+    def _validate_secrets_in_prod(self) -> "Settings":
+        if self.saga_environment != "prod":
+            return self
+        insecure = [
+            name
+            for name, value in [
+                ("jwt_secret", self.jwt_secret),
+                ("api_key_encryption_key", self.api_key_encryption_key),
+            ]
+            if value.startswith("change-me")
+        ]
+        if insecure:
+            raise ValueError(
+                f"Insecure default values detected in prod for: {', '.join(insecure)}. "
+                "Set proper secrets via environment variables."
+            )
+        return self
 
     openai_api_key: str = ""
     anthropic_api_key: str = ""
