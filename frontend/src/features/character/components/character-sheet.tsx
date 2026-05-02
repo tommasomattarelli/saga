@@ -178,7 +178,7 @@ export default function CharacterSheet() {
                                 {char.name}
                               </h2>
                               <p className="font-body italic text-sm" style={{ color: "var(--ink-secondary)" }}>
-                                {(char as unknown as Record<string, unknown>).archetype as string ?? ""} · Level {char.level}
+                                {char.archetype ?? ""} · Level {char.level}
                               </p>
                             </div>
 
