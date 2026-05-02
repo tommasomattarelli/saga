@@ -4,6 +4,10 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // Warn at 500 kB per chunk; target is keeping the main bundle under 300 kB gzipped
+    chunkSizeWarningLimit: 500,
+  },
   server: {
     port: 3000,
     proxy: {

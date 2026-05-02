@@ -7,12 +7,14 @@ interface UIState {
   sidePanel: "character" | "inventory" | "quests" | "map" | "settings" | null;
   showCompanionBar: boolean;
   soundEnabled: boolean;
+  diceAnimationEnabled: boolean;
   themeOverride: ThemeOverride;
   fontSize: number; // px, range 14-24
   setSidePanel: (panel: UIState["sidePanel"]) => void;
   toggleSidePanel: (panel: NonNullable<UIState["sidePanel"]>) => void;
   setShowCompanionBar: (show: boolean) => void;
   setSoundEnabled: (enabled: boolean) => void;
+  setDiceAnimationEnabled: (enabled: boolean) => void;
   setThemeOverride: (theme: ThemeOverride) => void;
   setFontSize: (size: number) => void;
 }
@@ -23,6 +25,7 @@ export const useUIStore = create<UIState>()(
       sidePanel: null,
       showCompanionBar: true,
       soundEnabled: true,
+      diceAnimationEnabled: true,
       themeOverride: "auto",
       fontSize: 18,
       setSidePanel: (panel) => set({ sidePanel: panel }),
@@ -32,6 +35,7 @@ export const useUIStore = create<UIState>()(
         })),
       setShowCompanionBar: (show) => set({ showCompanionBar: show }),
       setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
+      setDiceAnimationEnabled: (enabled) => set({ diceAnimationEnabled: enabled }),
       setThemeOverride: (theme) => set({ themeOverride: theme }),
       setFontSize: (size) => set({ fontSize: Math.min(24, Math.max(14, size)) }),
     }),
@@ -39,6 +43,7 @@ export const useUIStore = create<UIState>()(
       name: "saga-ui",
       partialize: (state) => ({
         soundEnabled: state.soundEnabled,
+        diceAnimationEnabled: state.diceAnimationEnabled,
         themeOverride: state.themeOverride,
         fontSize: state.fontSize,
       }),
