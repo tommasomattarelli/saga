@@ -15,6 +15,8 @@ from app.models.memory_fact import MemoryFact
 
 logger = structlog.get_logger()
 
+_MAX_FACT_RAW_CHARS = 4000
+
 FACT_EXTRACTION_PROMPT = """You are a fact extractor for a tabletop RPG game. Extract 1-5 atomic facts from this game turn.
 
 Each fact should be a single, self-contained piece of information about a named entity.
@@ -88,6 +90,15 @@ async def extract_and_store_facts(
         )
 
         # Parse the facts
+        if len(raw) > _MAX_FACT_RAW_CHARS:
+            logger.warning(
+                "fact_extraction_anomalous_output",
+                campaign_id=str(campaign_id),
+                turn=turn_number,
+                raw_length=len(raw),
+            )
+            return
+
         cleaned = _strip_fences(raw)
         if not cleaned.strip():
             return
@@ -104,6 +115,14 @@ async def extract_and_store_facts(
                 return
 
         facts = data if isinstance(data, list) else data.get("facts", [])
+        if not isinstance(facts, list):
+            logger.warning(
+                "fact_extraction_anomalous_output",
+                campaign_id=str(campaign_id),
+                turn=turn_number,
+                raw_preview=cleaned[:200],
+            )
+            return
         if not facts:
             return
 

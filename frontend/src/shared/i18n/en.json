@@ -35,5 +35,12 @@
     "save": "Save",
     "load": "Load",
     "auto_save": "Auto-save"
+  },
+  "errors": {
+    "network": "Network error. Check your connection.",
+    "invalid_credentials": "Invalid credentials.",
+    "request_failed": "Request failed. Check your details.",
+    "server_error": "Server error. Please try again later.",
+    "action_failed": "The DM's quill falters. Try thy action anew."
   }
 }

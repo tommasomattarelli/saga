@@ -44,7 +44,8 @@ def roll_initiative(combatants: list[Combatant]) -> list[Combatant]:
     for c in combatants:
         result = roll_dice("1d20")
         c.initiative = result.total
-    return sorted(combatants, key=lambda c: c.initiative, reverse=True)
+    # Tiebreak: higher DEX modifier first, then alphabetical name (deterministic)
+    return sorted(combatants, key=lambda c: (-c.initiative, -getattr(c, "dex_modifier", 0), c.name))
 
 
 def attack_roll(attacker_modifier: int, target_ac: int) -> dict:

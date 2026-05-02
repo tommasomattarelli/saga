@@ -108,7 +108,7 @@ class TestGetSummarizationConfig:
         config = get_summarization_config()
         assert isinstance(config, SummarizationConfig)
         assert config.max_retries == 3
-        assert config.retry_delays_seconds == [1, 5, 30]
+        assert config.retry_delays_seconds == [1, 3, 10]
 
     def test_env_override_max_retries(self, monkeypatch):
         monkeypatch.setenv("SAGA_SUMMARIZATION_MAX_RETRIES", "5")

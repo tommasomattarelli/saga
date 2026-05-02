@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
 from app.models.campaign import Campaign
+from app.models.memory_fact import MemoryFact
 from app.models.turn import Turn
 from app.models.user import User
 from app.security.auth import get_current_user
@@ -32,6 +33,13 @@ async def export_campaign(
     )
     turns = turns_result.scalars().all()
 
+    facts_result = await db.execute(
+        select(MemoryFact)
+        .where(MemoryFact.campaign_id == campaign_id)
+        .order_by(MemoryFact.turn_number)
+    )
+    memory_facts = facts_result.scalars().all()
+
     return {
         "campaign": {
             "name": campaign.name,
@@ -50,5 +58,14 @@ async def export_campaign(
                 "scene_mood": t.scene_mood,
             }
             for t in turns
+        ],
+        "memory_facts": [
+            {
+                "turn_number": f.turn_number,
+                "entity_name": f.entity_name,
+                "entity_type": f.entity_type,
+                "content": f.content,
+            }
+            for f in memory_facts
         ],
     }

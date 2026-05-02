@@ -47,7 +47,15 @@ def test_export_campaign(mocker, mock_user_dependency):
 
             return MockAll()
 
-    mock_db.execute.side_effect = [MockCampaignResult(), MockTurnsResult()]
+    class MockFactsResult:
+        def scalars(self):
+            class MockAll:
+                def all(self):
+                    return []
+
+            return MockAll()
+
+    mock_db.execute.side_effect = [MockCampaignResult(), MockTurnsResult(), MockFactsResult()]
 
     async def override_get_db():
         yield mock_db
@@ -60,6 +68,8 @@ def test_export_campaign(mocker, mock_user_dependency):
     assert data["campaign"]["name"] == "Epic Quest"
     assert len(data["turns"]) == 1
     assert data["turns"][0]["player_action"] == "Go"
+    assert "memory_facts" in data
+    assert data["memory_facts"] == []
 
     app.dependency_overrides.clear()
 

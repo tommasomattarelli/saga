@@ -96,6 +96,7 @@ gameplay:
   auto_create_npcs: true          # if true, invoke_npc auto-creates missing NPCs
   npc_auto_create_detail: standard # detail level for auto-created NPCs: minimal|standard|rich
   consecutive_empty_steps_max: 2  # max tool-only steps with no narration before forcing loop exit
+  dice_animation_enabled: true      # frontend dice roll animation; user preference persisted in ui-store
 
 # ---------------------------------------------------------------------------
 # API — rate limiting
@@ -109,7 +110,7 @@ api:
 # ---------------------------------------------------------------------------
 summarization:
   max_retries: 3                    # retries on LLM failure before marking turn.summarization_failed
-  retry_delays_seconds: [1, 5, 30]  # exponential backoff delays between retries
+  retry_delays_seconds: [1, 3, 10]  # backoff capped at 10s — background task cycle is ~30s
 
 # ---------------------------------------------------------------------------
 # Feature Toggles — opt-in AI features (BYOAK — off by default)

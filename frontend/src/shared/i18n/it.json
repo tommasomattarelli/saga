@@ -1,0 +1,46 @@
+{
+  "app": {
+    "title": "SAGA",
+    "subtitle": "AI Dungeon Master"
+  },
+  "auth": {
+    "login": "Accedi",
+    "register": "Crea Account",
+    "logout": "Esci",
+    "username": "Nome utente",
+    "email": "Email",
+    "password": "Password"
+  },
+  "game": {
+    "action_placeholder": "Cosa fai?",
+    "act": "Agisci",
+    "processing": "Il Dungeon Master considera la tua azione...",
+    "turn": "Turno",
+    "character": "Personaggio",
+    "quests": "Missioni",
+    "inventory": "Inventario",
+    "settings": "Impostazioni"
+  },
+  "campaign": {
+    "new": "Inizia una Nuova Saga",
+    "select_death_mode": "Scegli il Tuo Destino",
+    "ironman": "Ironman",
+    "ironman_desc": "Una vita. Una possibilità. Morte permanente.",
+    "destino": "Destino",
+    "destino_desc": "La morte ha un prezzo. 2-3 possibilità.",
+    "cronista": "Cronista",
+    "cronista_desc": "Modalità storia. Il racconto deve continuare."
+  },
+  "saves": {
+    "save": "Salva",
+    "load": "Carica",
+    "auto_save": "Salvataggio automatico"
+  },
+  "errors": {
+    "network": "Errore di rete. Controlla la connessione.",
+    "invalid_credentials": "Credenziali non valide.",
+    "request_failed": "Richiesta fallita. Controlla i dati inseriti.",
+    "server_error": "Errore del server. Riprova più tardi.",
+    "action_failed": "La penna del Dungeon Master vacilla. Riprova la tua azione."
+  }
+}
