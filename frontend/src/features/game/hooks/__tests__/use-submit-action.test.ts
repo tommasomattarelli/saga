@@ -5,6 +5,8 @@ import { createWrapper } from "../../../../shared/utils/test-utils";
 import * as client from "../../../../shared/api/client";
 import { useGameStore } from "../../../../shared/stores/game-store";
 
+const nullScrollRef = { current: null } as { current: HTMLDivElement | null };
+
 vi.mock("../../../../shared/api/client", () => ({
   submitAction: vi.fn(),
 }));
@@ -27,7 +29,7 @@ describe("useSubmitAction", () => {
   it("adds the turn to store on success", async () => {
     mockSubmitAction.mockResolvedValue({ data: baseTurn } as never);
 
-    const { result } = renderHook(() => useSubmitAction("campaign-1"), {
+    const { result } = renderHook(() => useSubmitAction("campaign-1", nullScrollRef), {
       wrapper: createWrapper(),
     });
 
@@ -60,7 +62,7 @@ describe("useSubmitAction", () => {
 
     mockSubmitAction.mockResolvedValue({ data: { ...baseTurn, turn_number: 5 } } as never);
 
-    const { result } = renderHook(() => useSubmitAction("campaign-1"), {
+    const { result } = renderHook(() => useSubmitAction("campaign-1", nullScrollRef), {
       wrapper: createWrapper(),
     });
 
@@ -83,7 +85,7 @@ describe("useSubmitAction", () => {
       data: { ...baseTurn, combat_state: combatState },
     } as never);
 
-    const { result } = renderHook(() => useSubmitAction("campaign-1"), {
+    const { result } = renderHook(() => useSubmitAction("campaign-1", nullScrollRef), {
       wrapper: createWrapper(),
     });
 
@@ -103,7 +105,7 @@ describe("useSubmitAction", () => {
       data: { ...baseTurn, combat_state: { active: false, round: 0, initiative_order: [], current_turn_index: 0 } },
     } as never);
 
-    const { result } = renderHook(() => useSubmitAction("campaign-1"), {
+    const { result } = renderHook(() => useSubmitAction("campaign-1", nullScrollRef), {
       wrapper: createWrapper(),
     });
 
@@ -117,7 +119,7 @@ describe("useSubmitAction", () => {
   it("clears loading state on error", async () => {
     mockSubmitAction.mockRejectedValue(new Error("Backend down"));
 
-    const { result } = renderHook(() => useSubmitAction("campaign-1"), {
+    const { result } = renderHook(() => useSubmitAction("campaign-1", nullScrollRef), {
       wrapper: createWrapper(),
     });
 

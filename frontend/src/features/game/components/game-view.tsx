@@ -34,9 +34,7 @@ export default function GameView() {
   }, []);
 
   const { isLoading: isDataLoading } = useCampaignData(campaignId);
-  const { mutation, scrollRef: submitScrollRef } = useSubmitAction(campaignId!);
-
-  submitScrollRef.current = scrollRef.current;
+  const { mutation } = useSubmitAction(campaignId!, scrollRef);
 
   const [actionError, setActionError] = useState<string | null>(null);
 
