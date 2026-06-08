@@ -67,6 +67,29 @@ def _is_uuid(value: str) -> bool:
         return False
 
 
+def _validate_template_content(template: Template) -> None:
+    """Fail fast (422) if a template lacks the structure create_campaign relies on."""
+    content = template.content or {}
+    if not isinstance(content.get("world"), dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Template '{template.slug}' is malformed: missing 'world' section",
+        )
+    opening = content.get("opening")
+    if not isinstance(opening, dict) or not opening.get("location"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Template '{template.slug}' is malformed: missing 'opening.location'",
+        )
+    for key in ("locations", "npcs", "companions", "factions"):
+        for entry in content["world"].get(key, []):
+            if not isinstance(entry, dict) or not entry.get("name"):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Template '{template.slug}' is malformed: an entry in world.{key} has no 'name'",
+                )
+
+
 async def create_campaign(db: AsyncSession, user: User, body: CampaignCreate) -> Campaign:
     if _is_uuid(body.template_id):
         result = await db.execute(select(Template).where(Template.id == uuid.UUID(body.template_id)))
@@ -78,6 +101,8 @@ async def create_campaign(db: AsyncSession, user: User, body: CampaignCreate) ->
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Template '{body.template_id}' not found",
         )
+
+    _validate_template_content(template)
 
     initial_state = build_initial_world_state(template)
     seeded_world_state = migrate_world_state(initial_state)
