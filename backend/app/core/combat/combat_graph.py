@@ -40,6 +40,7 @@ def init_combat_node(state: GameState) -> dict[str, Any]:
         {
             "name": char_data.get("name", "Player"),
             "initiative": player_init,
+            "dex_mod": dex_mod,
             "hp": char_data.get("hp", {}).get("current", 10),
             "max_hp": char_data.get("hp", {}).get("max", 10),
             "type": "player",
@@ -54,13 +55,15 @@ def init_combat_node(state: GameState) -> dict[str, Any]:
             {
                 "name": name,
                 "initiative": roll_dice("1d20").total,
+                "dex_mod": enemy.get("dex_mod", 0) if isinstance(enemy, dict) else 0,
                 "hp": hp,
                 "max_hp": max_hp,
                 "type": "enemy",
             }
         )
 
-    initiative_order.sort(key=lambda c: c["initiative"], reverse=True)
+    # Deterministic order: initiative desc, then DEX modifier desc, then name (B-L5)
+    initiative_order.sort(key=lambda c: (-c["initiative"], -c.get("dex_mod", 0), c["name"]))
 
     world_state["combat_state"] = {
         "active": True,

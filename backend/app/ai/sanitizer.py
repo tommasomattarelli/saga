@@ -15,6 +15,14 @@ INJECTION_PATTERNS = [
 
 _compiled = [re.compile(p, re.IGNORECASE) for p in INJECTION_PATTERNS]
 
+_FENCE_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)```")
+
+
+def strip_code_fences(raw: str) -> str:
+    """Strip a leading/trailing markdown code fence from LLM output."""
+    match = _FENCE_RE.search(raw)
+    return match.group(1).strip() if match else raw.strip()
+
 
 TEMPLATE_CONTENT_START = "<<COMMUNITY_TEMPLATE_CONTENT_BEGIN>>"
 TEMPLATE_CONTENT_END = "<<COMMUNITY_TEMPLATE_CONTENT_END>>"
