@@ -9,7 +9,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.api import auth, campaigns, characters, export, journal, saves, templates, turns
 from app.api import settings as settings_api
 from app.api.rate_limit import limiter, rate_limit_exceeded_handler
-from app.dependencies import close_db, close_redis, init_db, init_redis
+from app.dependencies import close_db, init_db
 from app.logging_setup import setup_logging
 
 setup_logging()
@@ -18,9 +18,7 @@ setup_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await init_db()
-    await init_redis()
     yield
-    await close_redis()
     await close_db()
 
 

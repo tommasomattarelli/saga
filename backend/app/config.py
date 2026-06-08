@@ -6,7 +6,6 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://saga:saga@localhost:5432/saga"
-    redis_url: str = "redis://localhost:6379/0"
 
     jwt_secret: str = "change-me-to-a-random-256-bit-key"
     jwt_algorithm: str = "HS256"

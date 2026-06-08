@@ -123,18 +123,3 @@ async def invoke_npcs_parallel(
 
     logger.info("npcs_invoked", count=len(dialogues), names=[d.npc_name for d in dialogues])
     return dialogues
-
-
-def format_npc_dialogues_for_turn(dialogues: list[NPCDialogue]) -> str:
-    """Format NPC dialogues for appending to the turn narration."""
-    if not dialogues:
-        return ""
-
-    parts = []
-    for d in dialogues:
-        line = f'**{d.npc_name}:** "{d.dialogue}"'
-        if d.action:
-            line += f" *({d.action})*"
-        parts.append(line)
-
-    return "\n\n---\n\n" + "\n\n".join(parts)

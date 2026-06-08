@@ -6,35 +6,9 @@ import pytest
 
 from app.ai.npc_director import (
     NPCDialogue,
-    format_npc_dialogues_for_turn,
     invoke_npcs_parallel,
     invoke_single_npc,
 )
-
-
-class TestNPCDialogue:
-    def test_format_single_dialogue(self):
-        dialogues = [NPCDialogue(npc_name="Grenda", dialogue="Welcome, traveler.")]
-        result = format_npc_dialogues_for_turn(dialogues)
-        assert '**Grenda:** "Welcome, traveler."' in result
-
-    def test_format_with_action(self):
-        dialogues = [NPCDialogue(npc_name="Grenda", dialogue="Stop!", action="draws sword")]
-        result = format_npc_dialogues_for_turn(dialogues)
-        assert "*(draws sword)*" in result
-
-    def test_format_multiple_dialogues(self):
-        dialogues = [
-            NPCDialogue(npc_name="Grenda", dialogue="Hello."),
-            NPCDialogue(npc_name="Aldric", dialogue="Greetings."),
-        ]
-        result = format_npc_dialogues_for_turn(dialogues)
-        assert "Grenda" in result
-        assert "Aldric" in result
-        assert "---" in result
-
-    def test_format_empty(self):
-        assert format_npc_dialogues_for_turn([]) == ""
 
 
 class TestInvokeSingleNPC:

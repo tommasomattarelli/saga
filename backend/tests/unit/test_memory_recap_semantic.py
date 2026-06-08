@@ -1,90 +1,10 @@
-"""Unit tests for app/memory/recap.py and app/memory/semantic.py."""
+"""Unit tests for app/memory/semantic.py."""
 
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-
-class TestGenerateRecap:
-    @pytest.mark.asyncio
-    async def test_returns_begin_message_when_no_turns(self):
-        from app.memory.recap import generate_recap
-
-        mock_db = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = []
-        mock_db.execute.return_value = mock_result
-
-        mock_campaign = MagicMock()
-        mock_campaign.id = "campaign-1"
-
-        result = await generate_recap(mock_campaign, mock_db)
-        assert result == "Your adventure is about to begin..."
-
-    @pytest.mark.asyncio
-    async def test_includes_turn_summaries(self):
-        from app.memory.recap import generate_recap
-
-        mock_turn = MagicMock()
-        mock_turn.summary = "The hero slew the goblin."
-        mock_turn.narration = "Long narration text here..."
-
-        mock_db = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [mock_turn]
-        mock_db.execute.return_value = mock_result
-
-        mock_campaign = MagicMock()
-        mock_campaign.id = "campaign-1"
-
-        result = await generate_recap(mock_campaign, mock_db)
-        assert "When last we left our story" in result
-        assert "The hero slew the goblin." in result
-
-    @pytest.mark.asyncio
-    async def test_falls_back_to_narration_when_no_summary(self):
-        from app.memory.recap import generate_recap
-
-        mock_turn = MagicMock()
-        mock_turn.summary = None
-        mock_turn.narration = "The player entered the cave and found treasure."
-
-        mock_db = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [mock_turn]
-        mock_db.execute.return_value = mock_result
-
-        mock_campaign = MagicMock()
-        mock_campaign.id = "campaign-1"
-
-        result = await generate_recap(mock_campaign, mock_db)
-        assert "The player entered the cave" in result
-
-    @pytest.mark.asyncio
-    async def test_multiple_turns_all_included(self):
-        from app.memory.recap import generate_recap
-
-        turns = []
-        for i in range(3):
-            t = MagicMock()
-            t.summary = f"Summary {i}"
-            t.narration = f"Narration {i}"
-            turns.append(t)
-
-        mock_db = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = turns
-        mock_db.execute.return_value = mock_result
-
-        mock_campaign = MagicMock()
-        mock_campaign.id = "campaign-1"
-
-        result = await generate_recap(mock_campaign, mock_db)
-        assert "Summary 0" in result
-        assert "Summary 1" in result
-        assert "Summary 2" in result
 
 
 class TestSearchSimilarFacts:
