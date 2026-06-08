@@ -30,5 +30,9 @@ predating this file live in `docs/archive/changelog/`.
   embedding API call runs inside an open session (B-M1, rule 15).
 
 ### Removed
+- Residual function-level dead code: `ProcessedTurn`/`StreamEvent`
+  (`core/engine.py`, pre-LangGraph leftovers), `get_user_campaigns`/
+  `get_active_campaign` (`services/campaign_service.py`), and `register_provider`
+  (`ai/providers/base.py`) — all with zero callers.
 
 ### Security

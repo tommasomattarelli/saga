@@ -215,6 +215,8 @@ Queste decisioni sono state concordate dall'audit team e documentate in `AGENTIC
 Stato dopo la sessione del 2026-06-08. **Tutto il backlog backend (HIGH/MEDIA/LOW) è chiuso o consapevolmente deferito.** Resta solo il frontend + research opzionale. Ordinato per priorità.
 
 > **Chiuse il 2026-06-08**: A-3 (ADR 0001), B-M1, B-M5, B-M6, B-M7 (risolto da A-3), B-M8, B-M11, B-L2, B-L3, B-L8, B-L9, rimozione pipeline di turno legacy (`turn_service` + `core/turn.py` + `stream_extractor` + `parser.py`). **Deferito con motivazione**: B-M10 (premessa errata + feature non cablata).
+>
+> **Dead-code sweep a livello funzione (2026-06-08)**: l'analisi precedente era a livello modulo. Rimossi simboli vivi solo nominalmente: `ProcessedTurn`/`StreamEvent` (`core/engine.py`), `get_user_campaigns`/`get_active_campaign` (`campaign_service.py`), `register_provider` (`providers/base.py`). Tenuto `decrypt_api_key` (scaffolding BYOAK). vulture@80 = 0 finding; i residui @60 sono falsi positivi (route handler FastAPI, membri enum, campi Pydantic/TypedDict, metodi astratti).
 
 ### 🟢 Backend — priorità MEDIA (tutte chiuse o deferite)
 - ~~**B-M5**~~ — ✅ fatto 2026-06-08: `build_context()` splittato in `_load_history`, `_load_batch_summaries`, `_recall_memories`; l'orchestratore ora è ~40 righe, file 199 righe.
