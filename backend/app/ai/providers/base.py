@@ -111,10 +111,6 @@ async def logged_generate(
 _providers: dict[str, AIProvider] = {}
 
 
-def register_provider(name: str, provider: AIProvider) -> None:
-    _providers[name] = provider
-
-
 def get_provider(name: str) -> AIProvider:
     """Get a registered AI provider by name (lazy initialization)."""
     if name not in _providers:
