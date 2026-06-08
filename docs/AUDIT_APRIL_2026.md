@@ -212,15 +212,15 @@ Queste decisioni sono state concordate dall'audit team e documentate in `AGENTIC
 
 ## Cosa manca da fare (snapshot 2026-06-08)
 
-Stato dopo la sessione del 2026-06-08 (A-3 DB session lifecycle, B-M8, LOW config knobs, rimozione pipeline legacy, split `dm_tools`, rimozione `agent.py`). Ordinato per priorità.
+Stato dopo la sessione del 2026-06-08. **Tutto il backlog backend (HIGH/MEDIA/LOW) è chiuso o consapevolmente deferito.** Resta solo il frontend + research opzionale. Ordinato per priorità.
 
-> **Chiuse il 2026-06-08**: A-3 (ADR 0001), B-M8, B-L2, B-L3, B-L8, B-L9, rimozione pipeline di turno legacy (`turn_service` + `core/turn.py` + `stream_extractor` + `parser.py`).
+> **Chiuse il 2026-06-08**: A-3 (ADR 0001), B-M1, B-M5, B-M6, B-M7 (risolto da A-3), B-M8, B-M11, B-L2, B-L3, B-L8, B-L9, rimozione pipeline di turno legacy (`turn_service` + `core/turn.py` + `stream_extractor` + `parser.py`). **Deferito con motivazione**: B-M10 (premessa errata + feature non cablata).
 
-### 🟡 Backend — priorità MEDIA (rinviate a sessione dedicata)
+### 🟢 Backend — priorità MEDIA (tutte chiuse o deferite)
 - ~~**B-M5**~~ — ✅ fatto 2026-06-08: `build_context()` splittato in `_load_history`, `_load_batch_summaries`, `_recall_memories`; l'orchestratore ora è ~40 righe, file 199 righe.
 - ~~**B-M6**~~ — ✅ fatto 2026-06-08: `BASE_DM_PROMPT` + `DEATH_MODE_PROMPTS` esternalizzati in `app/ai/prompts/dm.yaml`, caricati all'import. `dm.py` resta solo logica di assemblaggio XML. Output del prompt verificato byte-identico al precedente.
 - ~~**B-M7**~~ — ✅ risolto da A-3 (2026-06-08): la diagnosi era pre-A-3. Oggi `post_process_node` è una funzione **pura** (nessun DB) che calcola world_state/death_event/segments in memoria; la persistenza è un singolo `commit()` atomico nella Session 2 di `turns.py`. Se un passo fallisce il graph fallisce e non viene scritto nulla (solo un gap di `turn_number`). Nessuna scrittura parziale possibile → niente da aggiungere.
-- **B-M10** — `encryption.py`: AES-256 senza salt per-user (compromissione chiave = decrypt in bulk). **SECURITY — sessione dedicata.**
+- **B-M10** — ⏸️ **DEFERRED (premessa corretta 2026-06-08).** La diagnosi originale ("AES-256 senza salt per-user → compromissione chiave = decrypt in bulk") è **criptograficamente errata**: il salt HKDF è non-segreto per design (RFC 5869); la sicurezza dipende solo dall'IKM (la master key). Un salt per-utente NON protegge dal furto della master key — l'attaccante deriva comunque ogni chiave. Il salt dà solo *domain separation*, non la protezione dichiarata. L'unico fix reale per quella minaccia è **envelope encryption / KMS** (decisione di design a livello progetto). Inoltre la feature BYOAK è **non cablata**: `decrypt_api_key` non è chiamato da nessuna parte (le chiavi si scrivono cifrate ma non si rileggono mai). Qualunque modifica crypto ora sarebbe lavoro speculativo su un path non testabile end-to-end. **Da rivedere quando BYOAK viene effettivamente cablato**, valutando envelope/KMS. `encrypt/decrypt_api_key` restano come scaffolding.
 - ~~**B-M11**~~ — ✅ fatto 2026-06-08: test su `route_after_tools` per il cap `consecutive_empty_steps` (unit deterministico in `test_dm_routing.py`; il path è una funzione pura, un integration test richiederebbe di forzare loop a vuoto con LLM mockato — coperto meglio a livello unit).
 - ~~**B-M1**~~ — ✅ fatto 2026-06-08: l'embedding di recall è precalcolato in `context_node` PRIMA di aprire la sessione e passato a `build_context → search_similar_facts` (param `query_embedding`). Nessuna chiamata embedding API in-sessione.
 
