@@ -8,9 +8,9 @@ import uuid
 import structlog
 
 from app.ai.embeddings import generate_embedding
-from app.ai.parser import _strip_fences
 from app.ai.providers.base import get_provider, logged_generate
 from app.ai.router import AICallType, get_gameplay_config, route_ai_call
+from app.ai.sanitizer import strip_code_fences
 from app.models.memory_fact import MemoryFact
 
 logger = structlog.get_logger()
@@ -99,7 +99,7 @@ async def extract_and_store_facts(
             )
             return
 
-        cleaned = _strip_fences(raw)
+        cleaned = strip_code_fences(raw)
         if not cleaned.strip():
             return
 

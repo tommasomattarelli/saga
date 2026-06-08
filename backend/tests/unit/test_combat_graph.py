@@ -123,3 +123,34 @@ class TestInitCombatNode:
         result = init_combat_node(state)
         order = result["world_state"]["combat_state"]["initiative_order"]
         assert len(order) == 1  # just player
+
+    def test_tiebreak_prefers_higher_dex_modifier(self, mocker):
+        # Player rolls 8 + DEX mod 2 = 10; Goblin rolls 10 → tie at 10 (B-L5).
+        mocker.patch(
+            "app.core.combat.combat_graph.roll_dice",
+            side_effect=[mocker.Mock(total=8), mocker.Mock(total=10)],
+        )
+        state = _make_state(
+            world_state={"_pending_combat_enemies": [{"name": "Goblin", "hp": 7, "max_hp": 7}]},
+            char_data={"name": "Hero", "abilities": {"DEX": 14}},
+        )
+        order = init_combat_node(state)["world_state"]["combat_state"]["initiative_order"]
+        assert [c["name"] for c in order] == ["Hero", "Goblin"]
+
+    def test_tiebreak_falls_back_to_alphabetical_name(self, mocker):
+        # Player 5+0=5; both enemies roll 5 → three-way tie, no DEX → alphabetical name.
+        mocker.patch(
+            "app.core.combat.combat_graph.roll_dice",
+            side_effect=[mocker.Mock(total=5), mocker.Mock(total=5), mocker.Mock(total=5)],
+        )
+        state = _make_state(
+            world_state={
+                "_pending_combat_enemies": [
+                    {"name": "Wolf", "hp": 5, "max_hp": 5},
+                    {"name": "Bandit", "hp": 6, "max_hp": 6},
+                ]
+            },
+            char_data={"name": "Zara", "abilities": {"DEX": 10}},
+        )
+        order = init_combat_node(state)["world_state"]["combat_state"]["initiative_order"]
+        assert [c["name"] for c in order] == ["Bandit", "Wolf", "Zara"]

@@ -8,10 +8,10 @@ from dataclasses import dataclass
 
 import structlog
 
-from app.ai.parser import _strip_fences
 from app.ai.prompts.npc import build_npc_prompt
 from app.ai.providers.base import get_provider, logged_generate
 from app.ai.router import AICallType, get_gameplay_config, route_ai_call
+from app.ai.sanitizer import strip_code_fences
 from app.models.campaign import Campaign
 
 logger = structlog.get_logger()
@@ -59,7 +59,7 @@ async def invoke_single_npc(
             json_mode=True,
         )
 
-        cleaned = _strip_fences(raw)
+        cleaned = strip_code_fences(raw)
         try:
             data = json.loads(cleaned)
         except json.JSONDecodeError:
