@@ -95,6 +95,7 @@ gameplay:
   pgvector_hybrid: false          # enable hybrid RRF search (vector + tsvector) — v1.1 feature flag
   auto_create_npcs: true          # if true, invoke_npc auto-creates missing NPCs
   npc_auto_create_detail: standard # detail level for auto-created NPCs: minimal|standard|rich
+  npc_last_interactions_kept: 3   # recent NPC lines kept in world_state per NPC
   consecutive_empty_steps_max: 2  # max tool-only steps with no narration before forcing loop exit
   dice_animation_enabled: true      # frontend dice roll animation; user preference persisted in ui-store
 
@@ -120,6 +121,7 @@ features:
     enabled: true                # rolling story summary, updated every interval_turns
     mode: llm                    # "rule_based" or "llm"
     interval_turns: 5            # update every N turns
+    max_input_chars: 4000        # cap on the existing summary fed back into the update prompt
   npc_enrichment:
     enabled: false               # v1.5+: LLM-enriched NPC profiles before invoke_npc
   world_sim:

@@ -27,6 +27,7 @@ def _mock_cfg(enabled=True, interval=5):
     cfg = MagicMock()
     cfg.global_summary_enabled = enabled
     cfg.global_summary_update_every = interval
+    cfg.global_summary_max_input_chars = 4000
     return cfg
 
 

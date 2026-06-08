@@ -107,6 +107,8 @@ class GameplayConfig:
     auto_create_npcs: bool = True
     npc_auto_create_detail: str = "standard"
     consecutive_empty_steps_max: int = 2
+    npc_last_interactions_kept: int = 3
+    global_summary_max_input_chars: int = 4000
 
     @property
     def max_npc_calls(self) -> int:
@@ -174,6 +176,18 @@ def get_gameplay_config() -> GameplayConfig:
             os.getenv(
                 "SAGA_GAMEPLAY_CONSECUTIVE_EMPTY_STEPS_MAX",
                 gp.get("consecutive_empty_steps_max", 2),
+            )
+        ),
+        npc_last_interactions_kept=int(
+            os.getenv(
+                "SAGA_GAMEPLAY_NPC_LAST_INTERACTIONS_KEPT",
+                gp.get("npc_last_interactions_kept", 3),
+            )
+        ),
+        global_summary_max_input_chars=int(
+            os.getenv(
+                "SAGA_GLOBAL_SUMMARY_MAX_INPUT_CHARS",
+                gs.get("max_input_chars", 4000),
             )
         ),
     )
