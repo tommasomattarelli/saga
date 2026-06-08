@@ -156,3 +156,12 @@ def test_npcs_at_current_location_empty_location_returns_all():
     ws = {**_WORLD_STATE, "meta": {}}
     result = _npcs_at_current_location(ws)
     assert len(result) == 3  # fallback: all NPCs
+
+
+def test_prompts_loaded_from_yaml():
+    # B-M6: prompt content is externalized to dm.yaml and loaded at import.
+    from app.ai.prompts.dm import BASE_DM_PROMPT, DEATH_MODE_PROMPTS
+
+    assert BASE_DM_PROMPT.startswith("You are an expert Dungeon Master")
+    assert set(DEATH_MODE_PROMPTS) == {"ironman", "destino", "cronista"}
+    assert all(v.strip() for v in DEATH_MODE_PROMPTS.values())

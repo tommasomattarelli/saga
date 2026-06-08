@@ -218,7 +218,7 @@ Stato dopo la sessione del 2026-06-08 (A-3 DB session lifecycle, B-M8, LOW confi
 
 ### 🟡 Backend — priorità MEDIA (rinviate a sessione dedicata)
 - ~~**B-M5**~~ — ✅ fatto 2026-06-08: `build_context()` splittato in `_load_history`, `_load_batch_summaries`, `_recall_memories`; l'orchestratore ora è ~40 righe, file 199 righe.
-- **B-M6** — prompt DM come stringhe letterali → valutare migrazione a template YAML (regola 14).
+- ~~**B-M6**~~ — ✅ fatto 2026-06-08: `BASE_DM_PROMPT` + `DEATH_MODE_PROMPTS` esternalizzati in `app/ai/prompts/dm.yaml`, caricati all'import. `dm.py` resta solo logica di assemblaggio XML. Output del prompt verificato byte-identico al precedente.
 - ~~**B-M7**~~ — ✅ risolto da A-3 (2026-06-08): la diagnosi era pre-A-3. Oggi `post_process_node` è una funzione **pura** (nessun DB) che calcola world_state/death_event/segments in memoria; la persistenza è un singolo `commit()` atomico nella Session 2 di `turns.py`. Se un passo fallisce il graph fallisce e non viene scritto nulla (solo un gap di `turn_number`). Nessuna scrittura parziale possibile → niente da aggiungere.
 - **B-M10** — `encryption.py`: AES-256 senza salt per-user (compromissione chiave = decrypt in bulk). **SECURITY — sessione dedicata.**
 - ~~**B-M11**~~ — ✅ fatto 2026-06-08: test su `route_after_tools` per il cap `consecutive_empty_steps` (unit deterministico in `test_dm_routing.py`; il path è una funzione pura, un integration test richiederebbe di forzare loop a vuoto con LLM mockato — coperto meglio a livello unit).
