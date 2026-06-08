@@ -190,7 +190,7 @@ Queste decisioni sono state concordate dall'audit team e documentate in `AGENTIC
 |---|-----------|---------------|-------|
 | A-1 | **Config secrets startup validation**: `@model_validator` in `AppConfig` che fallisce a startup se `jwt_secret` o `api_key_encryption_key` iniziano con `"change-me"`. | `app/config.py` | `[x]` ✅ fixato (commit 1f95ac5) |
 | ~~A-2~~ | ~~**JWT WS handshake**~~ | ~~`app/api/websocket.py`~~ | N/A — `websocket.py` era dead code, eliminato |
-| A-3 | **DB session lifecycle via LangGraph state**: `context_node` carica Campaign e chiude sessione; downstream nodes leggono da `GameState`; solo `post_process_node` apre sessione di scrittura. | `app/core/dm/dm_nodes.py`, `app/core/dm/dm_tools_executor.py` | `[ ]` |
+| A-3 | **DB session lifecycle**: due sessioni brevi in `submit_action` (claim atomico `UPDATE ... RETURNING turn_number` → close → graph senza sessione → re-fetch + write). Nessuna sessione attraverso le LLM call, niente race su `turn_number`. | `app/api/turns.py` | `[x]` ✅ fixato 2026-06-08 (ADR 0001), integration test concorrenza |
 | A-4 | **`_meaningful_tools` unica source of truth**: spostare il set in `app/ai/tools/dm_tools.py` e importare da `agent.py` e `dm_graph.py`. | `app/ai/tools/dm_tools.py`, `app/core/agent.py`, `app/core/dm/dm_graph.py` | `[x]` ✅ `MEANINGFUL_TOOLS` in `tools_base`, `agent.py` eliminato |
 
 ---
@@ -204,34 +204,25 @@ Queste decisioni sono state concordate dall'audit team e documentate in `AGENTIC
 | ~~`app/ai/tools/dm_tools.py`~~ | 636 righe, god file. Splittato in `tools_base` + `tools_combat` + `tools_inventory` + `tools_world` + `tools_special` + facade | ✅ fatto 2026-06-08 |
 | ~~`app/core/agent.py`~~ | 493 righe, god class — in realtà dead code post-LangGraph (nessun importer) | ✅ eliminato 2026-06-08 |
 | `app/ai/context.py` | `build_context()` (ex `dm_helpers.py`, ora 179 righe in `context.py`). Split in builder per segmento (history, recalled_memories, scene) — B-M5 | MEDIA — refactorare |
-| `app/services/turn_service.py` + `app/core/turn.py` + `app/ai/stream_extractor.py` | **Pipeline di turno legacy pre-LangGraph (dead code)**. `turn_service.process_game_turn` non è chiamato da nessun endpoint vivo; `core/turn.py` lo usa + un test; `stream_extractor.py` ha zero importer in `app/`. Parallela ad `agent.py` già eliminato. | ALTA — verificare ed eliminare (con i relativi test) |
-| `app/ai/parser.py` (parziale) | `parse_dm_response` usato solo dalla pipeline legacy sopra → eliminabile con essa. **`_strip_fences` NON eliminabile**: vivo in `npc_director`, `semantic_resolver`, `fact_extractor`. Slimmare il file a `_strip_fences` dopo aver rimosso la pipeline legacy. | MEDIA — slim, non delete |
+| ~~`turn_service.py` + `core/turn.py` + `stream_extractor.py`~~ | Pipeline di turno legacy pre-LangGraph (dead code). | ✅ eliminata 2026-06-08 (commit 58f70a9) |
+| ~~`app/ai/parser.py`~~ | `parse_dm_response` eliminato con la pipeline legacy; `_strip_fences` spostato in `app/ai/sanitizer.py` come `strip_code_fences`. | ✅ rimosso 2026-06-08 |
 | `app/ai/prompts/dm.py` | Prompt come stringhe letterali. Candidato a migrazione YAML per versionabilità | BASSA — valutare |
 
 ---
 
 ## Cosa manca da fare (snapshot 2026-06-08)
 
-Stato dopo la sessione del 2026-06-08 (split `dm_tools`, rimozione `agent.py`, consolidamento docs). Ordinato per priorità.
+Stato dopo la sessione del 2026-06-08 (A-3 DB session lifecycle, B-M8, LOW config knobs, rimozione pipeline legacy, split `dm_tools`, rimozione `agent.py`). Ordinato per priorità.
 
-### 🔴 Architetturale — priorità ALTA
-- **A-3 / B-H4 / B-H5 — DB session lifecycle** (`app/api/turns.py`): la sessione di richiesta resta aperta attraverso le LLM call e `turn_number` ha una finestra di race condition. **Richiede `make test-infra-up` + integration test di concorrenza prima dell'implementazione** (regole 1 e 11). È il prossimo pezzo "da sessione dedicata".
-- **Rimozione pipeline di turno legacy** (dead code pre-LangGraph): `turn_service.py` + `core/turn.py` + `parse_dm_response` + `stream_extractor.py`, poi slim di `parser.py` a `_strip_fences`. Verificare che nessun endpoint vivo li usi, eliminare con i relativi test.
+> **Chiuse il 2026-06-08**: A-3 (ADR 0001), B-M8, B-L2, B-L3, B-L8, B-L9, rimozione pipeline di turno legacy (`turn_service` + `core/turn.py` + `stream_extractor` + `parser.py`).
 
-### 🟡 Backend — priorità MEDIA
+### 🟡 Backend — priorità MEDIA (rinviate a sessione dedicata)
 - **B-M5** — `build_context()` (ora in `app/ai/context.py`, 179 righe) da splittare in builder per segmento.
 - **B-M6** — prompt DM come stringhe letterali → valutare migrazione a template YAML (regola 14).
 - **B-M7** — `post_process_node`: clock advance + death check + segment split senza transazione esplicita → stato inconsistente se uno step fallisce.
-- **B-M8** — `create_campaign` valida solo l'esistenza del template, non i campi obbligatori di `world_state` → errore runtime al primo turn con template malformato.
-- **B-M10** — `encryption.py`: AES-256 senza salt per-user (compromissione chiave = decrypt in bulk).
+- **B-M10** — `encryption.py`: AES-256 senza salt per-user (compromissione chiave = decrypt in bulk). **SECURITY — sessione dedicata.**
 - **B-M11** — manca integration test su `route_after_tools` (path `consecutive_empty_steps ≥ 2 → exit`).
-- **B-M1** — verificare se il pattern session di `context_node` è già conforme (probabilmente sì dopo la diagnosi di oggi); chiudere o declassare.
-
-### 🟢 Backend — priorità BASSA
-- **B-L2** — tool sort con chiave numerica hardcoded `{0,1,2}` → usare enum.
-- **B-L3** — `last_interactions` troncato a 3, non configurabile → `saga.config.yaml`.
-- **B-L8** — `AppConfig` non espone la versione dell'app.
-- **B-L9** — `update_global_summary()` senza limite token sul `global_summary` in ingresso.
+- **B-M1** — `build_context` chiama `search_similar_facts → generate_embedding` dentro la sessione aperta di `context_node` (violazione regola 15, ma minore: ~200ms embedding vs i secondi del graph). Verificato REAL il 2026-06-08; declassabile o da chiudere insieme a B-M5.
 
 ### 🟡 Frontend — priorità MEDIA
 - **F-M2** — SSE event listener non rimosso su unmount di `narrative-stream.tsx` (verificato: nessun cleanup) → memory leak.
@@ -250,4 +241,4 @@ Stato dopo la sessione del 2026-06-08 (split `dm_tools`, rimozione `agent.py`, c
 - BM25 hybrid search (`gameplay.pgvector_hybrid`) per anchoring su nomi propri.
 - Documentare come `global_summary` + `search_similar_facts` realizzano già il dual-memory pattern.
 
-> **Prossimo consigliato**: A-3 (DB session lifecycle) come pezzo da imparare con calma + infra su, oppure la rimozione della pipeline legacy come task a basso rischio da sera.
+> **Prossimo consigliato**: B-M5 (split `build_context`) + B-M1 insieme, oppure B-M11 (integration test del routing) come task a basso rischio. B-M10 (salt per-user) merita una sessione dedicata di security.

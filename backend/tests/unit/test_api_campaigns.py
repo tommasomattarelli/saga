@@ -1,4 +1,5 @@
 import uuid
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 import pytest
@@ -80,10 +81,8 @@ def test_create_campaign(mocker, mock_user_dependency):
         difficulty=3,
         tags=["fantasy"],
         content={
-            "initial_system_prompt": "prompt",
-            "initial_campaign_context": "context",
-            "initial_world_state": {},
-            "encounters": {},
+            "world": {"locations": [{"name": "Town"}], "npcs": []},
+            "opening": {"location": "Town"},
         },
     )
 
@@ -232,14 +231,16 @@ def test_post_action(mocker, mock_user_dependency):
             return camp
 
         def scalar_one(self):
-            return camp
+            # Used only by the atomic turn-number claim (UPDATE ... RETURNING).
+            return 2
 
     mock_db.execute.return_value = MockCampaignResult()
 
-    async def override_get_db():
+    @asynccontextmanager
+    async def fake_db_ctx():
         yield mock_db
 
-    app.dependency_overrides[get_db] = override_get_db
+    mocker.patch("app.api.turns.get_db_context", side_effect=fake_db_ctx)
 
     # Mock dm_graph.ainvoke to avoid real LLM calls
     fake_state = {
