@@ -39,32 +39,6 @@ class TestCompressTurnToSummary:
         assert "x" * 100 in result
 
 
-class TestShouldCompress:
-    def test_active_window_returns_0(self):
-        from app.memory.compressor import should_compress
-
-        with patch("app.memory.compressor.get_gameplay_config") as mock_cfg:
-            mock_cfg.return_value.context_window_turns = 10
-            result = should_compress(turn_number=95, current_turn=100)
-            assert result == 0
-
-    def test_recent_outside_window_returns_1(self):
-        from app.memory.compressor import should_compress
-
-        with patch("app.memory.compressor.get_gameplay_config") as mock_cfg:
-            mock_cfg.return_value.context_window_turns = 10
-            result = should_compress(turn_number=60, current_turn=100)
-            assert result == 1
-
-    def test_old_turn_returns_2(self):
-        from app.memory.compressor import should_compress
-
-        with patch("app.memory.compressor.get_gameplay_config") as mock_cfg:
-            mock_cfg.return_value.context_window_turns = 10
-            result = should_compress(turn_number=1, current_turn=100)
-            assert result == 2
-
-
 class TestEnsureCompression:
     @pytest.mark.asyncio
     async def test_early_return_when_cutoff_zero(self):

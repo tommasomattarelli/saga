@@ -6,10 +6,8 @@ import copy
 from collections.abc import Callable
 
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.memory.world_state import merge_world_state, migrate_world_state
-from app.models.campaign import Campaign
+from app.memory.world_state import merge_world_state
 
 logger = structlog.get_logger()
 
@@ -271,19 +269,3 @@ def apply_typed_updates(
                 )
 
     return state, char_data
-
-
-async def apply_typed_updates_to_campaign(
-    campaign: Campaign,
-    updates: list[dict],
-    db: AsyncSession,
-) -> None:
-    """Apply typed updates directly to a campaign and flush."""
-    current_state = migrate_world_state(campaign.world_state or {})
-    current_char = campaign.character_data or {}
-
-    new_state, new_char = apply_typed_updates(current_state, current_char, updates)
-
-    campaign.world_state = new_state
-    campaign.character_data = new_char
-    await db.flush()

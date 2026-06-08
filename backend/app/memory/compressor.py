@@ -193,21 +193,3 @@ async def ensure_compression(
 
     await db.flush()
     logger.info("turns_compressed", campaign_id=campaign_id, count=len(uncompressed))
-
-
-def should_compress(turn_number: int, current_turn: int) -> int:
-    """Determine compression tier for a turn.
-
-    Returns:
-        0: full data (active window)
-        1: summary only
-        2: embedding only
-    """
-    config = get_gameplay_config()
-    age = current_turn - turn_number
-    if age <= config.context_window_turns:
-        return 0
-    elif age <= 50:
-        return 1
-    else:
-        return 2

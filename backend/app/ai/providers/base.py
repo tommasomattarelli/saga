@@ -7,7 +7,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 
-from app.ai.providers.schemas import AgentChunk, AgentResponse
+from app.ai.providers.schemas import AgentResponse
 
 _llm_io = logging.getLogger("llm_io")
 
@@ -50,23 +50,6 @@ class AIProvider(ABC):
         max_tokens: int = 2000,
     ) -> AgentResponse:
         """Generate a response with tool-calling support."""
-        raise NotImplementedError(f"{self.__class__.__name__} does not support tool calling")
-
-    async def stream_with_tools(
-        self,
-        system_prompt: str,
-        messages: list[dict],
-        tools: list[dict],
-        model: str,
-        temperature: float = 0.8,
-        max_tokens: int = 2000,
-    ) -> AsyncIterator[AgentChunk]:
-        """Stream a response, yielding text chunks and tool call chunks."""
-        raise NotImplementedError(f"{self.__class__.__name__} does not support tool calling")
-        yield  # make it a generator
-
-    def format_tool_result(self, tool_call_id: str, tool_name: str, result: str) -> dict:
-        """Format a tool result message to append to the conversation."""
         raise NotImplementedError(f"{self.__class__.__name__} does not support tool calling")
 
 
