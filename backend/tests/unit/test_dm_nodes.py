@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -121,6 +122,46 @@ class TestPostProcessNode:
         result = post_process_node(state)
         # Time should not change
         assert result["world_state"].get("time", {}).get("hour") == 10
+
+
+class TestContextNode:
+    @pytest.mark.asyncio
+    async def test_precomputes_embedding_outside_session(self):
+        # B-M1: the recall embedding is generated before the DB session opens and
+        # forwarded to build_context, so no embedding API call runs in-session.
+        from app.core.dm.dm_nodes import context_node
+
+        campaign = MagicMock()
+        campaign.world_state = {}
+        campaign.character_data = {}
+
+        db_result = MagicMock()
+        db_result.scalar_one.return_value = campaign
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(return_value=db_result)
+
+        @asynccontextmanager
+        async def fake_ctx():
+            yield mock_db
+
+        game_ctx = MagicMock(messages=[], importance_score=5, system_prompt="sys")
+        model_cfg = MagicMock(provider="openai", model="gpt-4o", temperature=0.7, max_tokens=100)
+
+        state = _make_state(player_action="I attack the guard", campaign_id="cid")
+
+        with (
+            patch("app.ai.embeddings.generate_embedding", new=AsyncMock(return_value=[0.3] * 384)) as mock_embed,
+            patch("app.dependencies.get_db_context", side_effect=fake_ctx),
+            patch("app.core.dm.dm_nodes.build_context", new=AsyncMock(return_value=game_ctx)) as mock_bc,
+            patch("app.core.dm.dm_nodes.route_ai_call", new=AsyncMock(return_value=model_cfg)),
+            patch("app.core.dm.dm_nodes.sanitize_player_input", side_effect=lambda x: x),
+            patch("app.core.dm.dm_nodes.detect_injection", return_value=False),
+        ):
+            result = await context_node(state, config={})
+
+        mock_embed.assert_awaited_once()
+        assert mock_bc.call_args.kwargs["query_embedding"] == [0.3] * 384
+        assert result["model_used"] == "gpt-4o"
 
 
 class TestDmNodeUnit:

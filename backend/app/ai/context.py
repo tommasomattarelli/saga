@@ -70,12 +70,16 @@ async def build_context(
     player_action: str,
     db: AsyncSession,
     max_history_turns: int | None = None,
+    query_embedding: list[float] | None = None,
 ) -> GameContext:
     """Build the full context for a DM AI call.
 
     Loads verbatim turns (Active Window), batch summaries for older turns,
     injects rolling global_summary and top-K pgvector recalled_memories,
     and enforces a token budget by dropping oldest verbatim pairs.
+
+    `query_embedding` (when provided) is reused for semantic recall so the
+    embedding API call happens outside this DB session (rule 15).
     """
     from app.ai.prompts.dm import build_dm_system_prompt
 
@@ -131,7 +135,11 @@ async def build_context(
     recalled: list[str] = []
     try:
         facts = await search_similar_facts(
-            campaign_id=campaign.id, query=player_action, db=db, limit=3
+            campaign_id=campaign.id,
+            query=player_action,
+            db=db,
+            limit=3,
+            query_embedding=query_embedding,
         )
         recalled = [f.content for f in facts if f.content]
     except Exception:
