@@ -116,6 +116,8 @@ async def update_global_summary(
 
     turns_text = _format_turns(batch)
     existing = (campaign.global_summary or "").strip()
+    if len(existing) > config.global_summary_max_input_chars:
+        existing = existing[-config.global_summary_max_input_chars :]
 
     if existing:
         prompt = UPDATE_PROMPT.format(existing=existing, turns_text=turns_text)

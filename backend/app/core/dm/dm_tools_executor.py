@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from enum import IntEnum
 from typing import Any
 
 import structlog
@@ -17,11 +18,21 @@ from app.core.dm.game_state import GameState
 from app.core.dm.npc_prehook import validate_or_create_npc
 from app.memory.updater import apply_typed_updates
 
-_TOOL_SORT_KEY: dict[str, int] = {"request_dice": 0, "invoke_npc": 2}
+
+class _ToolPriority(IntEnum):
+    FIRST = 0  # resolved before others (e.g. request_dice)
+    NORMAL = 1
+    LAST = 2  # resolved after others (e.g. invoke_npc)
+
+
+_TOOL_PRIORITY: dict[str, _ToolPriority] = {
+    "request_dice": _ToolPriority.FIRST,
+    "invoke_npc": _ToolPriority.LAST,
+}
 
 
 def _sort_tool_calls(tool_calls: list[dict]) -> list[dict]:
-    return sorted(tool_calls, key=lambda tc: _TOOL_SORT_KEY.get(tc["name"], 1))
+    return sorted(tool_calls, key=lambda tc: _TOOL_PRIORITY.get(tc["name"], _ToolPriority.NORMAL))
 
 logger = structlog.get_logger()
 
@@ -227,6 +238,7 @@ def _handle_npc_results(
     char_data: dict,
 ) -> tuple[str, dict, dict]:
     dialogue_parts: list[str] = []
+    kept = get_gameplay_config().npc_last_interactions_kept
 
     for npc in npc_results:
         evt = {"npc_name": npc.npc_name, "dialogue": npc.dialogue, "action": npc.action}
@@ -244,8 +256,8 @@ def _handle_npc_results(
         if npc_ws is not None:
             history: list[str] = npc_ws.setdefault("last_interactions", [])
             history.append(f'"{npc.dialogue}"')
-            if len(history) > 3:
-                history[:] = history[-3:]
+            if len(history) > kept:
+                history[:] = history[-kept:]
 
         if npc.disposition_change != 0:
             world_state, char_data = apply_typed_updates(

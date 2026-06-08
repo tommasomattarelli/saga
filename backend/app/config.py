@@ -5,6 +5,8 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    app_version: str = "0.1.0"
+
     database_url: str = "postgresql+asyncpg://saga:saga@localhost:5432/saga"
 
     jwt_secret: str = "change-me-to-a-random-256-bit-key"

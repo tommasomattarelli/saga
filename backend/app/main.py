@@ -9,6 +9,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.api import auth, campaigns, characters, export, journal, saves, templates, turns
 from app.api import settings as settings_api
 from app.api.rate_limit import limiter, rate_limit_exceeded_handler
+from app.config import settings
 from app.dependencies import close_db, init_db
 from app.logging_setup import setup_logging
 
@@ -26,7 +27,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="SAGA",
         description="AI-Driven Tabletop RPG",
-        version="0.1.0",
+        version=settings.app_version,
         lifespan=lifespan,
     )
 
