@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from unittest.mock import patch
+
 from langchain_core.messages import AIMessage, HumanMessage
 
 from app.core.dm.dm_graph import MAX_STEPS, route_after_dm, route_after_tools
@@ -97,3 +100,26 @@ class TestRouteAfterTools:
         ai_msg = AIMessage(content="", tool_calls=[tc])
         state = _make_state(messages=[ai_msg], step_count=1, narration="   ")
         assert route_after_tools(state) == "dm_node"
+
+    def test_routes_to_post_process_when_empty_steps_cap_reached(self):
+        # B-M11: a meaningful tool would normally loop back to dm_node, but the
+        # consecutive_empty_steps cap takes precedence and ends the turn.
+        tc = {"id": "1", "name": "invoke_npc", "args": {}, "type": "tool_call"}
+        ai_msg = AIMessage(content="", tool_calls=[tc])
+        state = _make_state(
+            messages=[ai_msg], step_count=1, narration="", consecutive_empty_steps=2
+        )
+        cfg = SimpleNamespace(consecutive_empty_steps_max=2)
+        with patch("app.ai.router.get_gameplay_config", return_value=cfg):
+            assert route_after_tools(state) == "post_process_node"
+
+    def test_loops_when_empty_steps_below_cap(self):
+        # Same meaningful-tool state, but one empty step below the cap → still loops.
+        tc = {"id": "1", "name": "invoke_npc", "args": {}, "type": "tool_call"}
+        ai_msg = AIMessage(content="", tool_calls=[tc])
+        state = _make_state(
+            messages=[ai_msg], step_count=1, narration="", consecutive_empty_steps=1
+        )
+        cfg = SimpleNamespace(consecutive_empty_steps_max=2)
+        with patch("app.ai.router.get_gameplay_config", return_value=cfg):
+            assert route_after_tools(state) == "dm_node"
