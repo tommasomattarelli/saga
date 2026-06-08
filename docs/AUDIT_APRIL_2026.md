@@ -222,7 +222,7 @@ Stato dopo la sessione del 2026-06-08 (A-3 DB session lifecycle, B-M8, LOW confi
 - **B-M7** — `post_process_node`: clock advance + death check + segment split senza transazione esplicita → stato inconsistente se uno step fallisce.
 - **B-M10** — `encryption.py`: AES-256 senza salt per-user (compromissione chiave = decrypt in bulk). **SECURITY — sessione dedicata.**
 - ~~**B-M11**~~ — ✅ fatto 2026-06-08: test su `route_after_tools` per il cap `consecutive_empty_steps` (unit deterministico in `test_dm_routing.py`; il path è una funzione pura, un integration test richiederebbe di forzare loop a vuoto con LLM mockato — coperto meglio a livello unit).
-- **B-M1** — `build_context` chiama `search_similar_facts → generate_embedding` dentro la sessione aperta di `context_node` (violazione regola 15, ma minore: ~200ms embedding vs i secondi del graph). Verificato REAL il 2026-06-08; declassabile o da chiudere insieme a B-M5.
+- ~~**B-M1**~~ — ✅ fatto 2026-06-08: l'embedding di recall è precalcolato in `context_node` PRIMA di aprire la sessione e passato a `build_context → search_similar_facts` (param `query_embedding`). Nessuna chiamata embedding API in-sessione.
 
 ### 🟡 Frontend — priorità MEDIA
 - **F-M2** — SSE event listener non rimosso su unmount di `narrative-stream.tsx` (verificato: nessun cleanup) → memory leak.

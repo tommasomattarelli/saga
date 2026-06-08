@@ -33,20 +33,24 @@ MAX_STEPS: int = getattr(settings, "saga_max_agent_steps", 5)
 async def context_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
     from sqlalchemy import select
 
+    from app.ai.embeddings import generate_embedding
     from app.dependencies import get_db_context
     from app.models.campaign import Campaign
 
     campaign_id = state["campaign_id"]
 
+    player_action = sanitize_player_input(state["player_action"])
+    if detect_injection(player_action):
+        player_action = "[The player looks around cautiously]"
+
+    # Rule 15: compute the recall embedding before opening the session.
+    query_embedding = await generate_embedding(player_action)
+
     async with get_db_context() as db:
         result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
         campaign: Campaign = result.scalar_one()
 
-        player_action = sanitize_player_input(state["player_action"])
-        if detect_injection(player_action):
-            player_action = "[The player looks around cautiously]"
-
-        context = await build_context(campaign, player_action, db)
+        context = await build_context(campaign, player_action, db, query_embedding=query_embedding)
         model_cfg = await route_ai_call(AICallType.DM_NARRATION, context)
 
     lc_messages = raw_history_to_lc(context.messages[:-1])

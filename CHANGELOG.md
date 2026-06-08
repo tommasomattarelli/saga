@@ -22,6 +22,8 @@ predating this file live in `docs/archive/changelog/`.
 ### Added
 
 ### Fixed
+- Recall embedding is now computed before the turn's DB session opens, so no
+  embedding API call runs inside an open session (B-M1, rule 15).
 
 ### Removed
 

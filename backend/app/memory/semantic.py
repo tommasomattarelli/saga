@@ -16,9 +16,15 @@ async def search_similar_facts(
     query: str,
     db: AsyncSession,
     limit: int = 3,
+    query_embedding: list[float] | None = None,
 ) -> list[MemoryFact]:
-    """Find MemoryFacts semantically similar to the query via pgvector cosine distance."""
-    query_embedding = await generate_embedding(query)
+    """Find MemoryFacts semantically similar to the query via pgvector cosine distance.
+
+    Pass `query_embedding` to reuse an embedding computed outside the DB session
+    (rule 15) and skip the embedding API call here.
+    """
+    if query_embedding is None:
+        query_embedding = await generate_embedding(query)
     if query_embedding is None:
         return []
 
