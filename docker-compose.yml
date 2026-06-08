@@ -16,18 +16,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: ./backend
@@ -38,8 +26,6 @@ services:
       - .env
     depends_on:
       db:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     environment:
       - UV_LINK_MODE=copy
@@ -67,5 +53,4 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
   backend_venv:
