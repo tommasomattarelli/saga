@@ -25,10 +25,22 @@ SAGA/Wyrd is an AI-driven tabletop RPG engine designed to replicate the infinite
 - **Lint/Format**: `cd frontend && npm run lint && npm run format`
 
 ### Infrastructure (Docker)
-- **Up**: `make test-infra-up` (Test DB/Redis) | `docker-compose up -d` (Prod-like)
+- **Up**: `make test-infra-up` (Test DB) | `docker-compose up -d` (Prod-like)
 - **Down**: `make test-infra-down` | `docker-compose down`
 
-## Coding Rules & SOTA Standards
+## How We Work
+
+Four principles that bias toward caution over speed. For trivial tasks, use judgment.
+
+1. **Think before coding.** State assumptions explicitly. If multiple interpretations exist, surface them — don't pick silently. If a simpler approach exists, say so and push back when warranted. When something is genuinely unclear, stop and ask (use the question tool) *before* writing, not after the mistake.
+2. **Simplicity first.** The minimum code that solves the problem, nothing speculative. No features beyond what was asked, no abstractions for single-use code, no unrequested configurability, no error handling for impossible scenarios. If 200 lines could be 50, rewrite. Test: "would a senior engineer call this overcomplicated?"
+3. **Surgical changes.** Every changed line must trace to the request. Don't "improve" adjacent code, comments, or formatting; match existing style even if you'd do it differently. Remove only the orphans *your* change created. If you spot pre-existing dead code, mention it — don't delete it unasked.
+4. **Verify before "done".** Turn the task into a checkable goal (a failing test made green, a passing suite) and loop until verified. Never claim done without running the check. Consult the `advisor` before substantial or architectural work and at checkpoints — but only when a second opinion genuinely changes the outcome, not as a reflex on trivial tasks.
+
+## Engineering Standards
+
+Non-negotiable technical constraints. Referenced elsewhere by number — keep the numbering stable.
+
 1. **TDD First**: Write failing integration/unit tests before implementation. Use 100% real DB for core flows.
 2. **No Verbose Comments**: Code must be self-documenting. Comment ONLY "Why", never "What". No docstrings for internal logic.
 3. **Type Safety**: Mandatory Python type hints and TypeScript interfaces. Zero `any` tolerance.
@@ -38,9 +50,9 @@ SAGA/Wyrd is an AI-driven tabletop RPG engine designed to replicate the infinite
 7. **Clean Architecture**: Services handle logic, Models handle schema, API handlers are thin wrappers.
 8. **AI Engine**: All calls must go through `ai/router.py` for cost/importance scoring.
 9. **Naming**: snake_case for Python (all files/vars/funcs), camelCase for TS (vars/funcs) and PascalCase for Components/Types.
-10. **Commits**: Conventional Commits only (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`).
+10. **Commits**: Conventional Commits only (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`). One logical change per commit.
 11. **Workflow**: Always `test-infra-up` -> Write failing Integration Test -> Implementation -> Refactor.
-12. **NO GOD CLASSES** . no files with multiple logics, and files with 300+ liness
+12. **No god classes**: No files mixing multiple responsibilities, and no files over ~300 lines.
 13. **LLM-readable errors**: Tool error messages must never expose Python stack traces, exception types, or internal paths. Sanitize to a short human-readable sentence before feeding back to the LLM (see `execute_tool` in `dm_tools.py`).
 14. **Config-first for new behavior**: Any new gameplay parameter, feature toggle, or AI cost knob goes in `saga.config.yaml` with a sensible default. Never hardcode tunable values in Python.
 15. **DB sessions must not span LLM calls**: Open session → read data → close → call LLM → open session → write result. Never hold a DB session open across an LLM invocation.
@@ -48,6 +60,34 @@ SAGA/Wyrd is an AI-driven tabletop RPG engine designed to replicate the infinite
 17. **JWT not in query parameters**: JWT tokens must never be passed as query parameters (exposed in logs and browser history). Use `Authorization: Bearer` header or an initial WS handshake.
 18. **Auth tokens not in localStorage**: Frontend auth tokens (access + refresh) must not be stored in localStorage (XSS vulnerable). Use httpOnly cookies or a memory-only store.
 19. **Hard cap on agent loops**: Every LangGraph coordinator loop MUST have a `max_iterations` hard cap. No open-ended loops.
+
+## Session Protocol
+
+Every working session follows the same ritual so state is never lost between them.
+
+- **Start**: reconstruct state — skim `CHANGELOG.md` `[Unreleased]`, the open items in `docs/AUDIT_APRIL_2026.md`, and the latest ADRs. Confirm the tree is green before changing anything.
+- **During**: one commit per logical change (standard 10). Add a `CHANGELOG.md` `[Unreleased]` entry in the same commit. Any architectural decision → a new ADR in `docs/adr/` in that same commit (docs-as-code).
+- **End**: ensure `[Unreleased]` reflects what shipped, tick off the corresponding `AUDIT` items, and leave the suite green. Run unit + integration/playtest before declaring the session done.
+
+## Commit Convention
+
+[Conventional Commits](https://www.conventionalcommits.org/) with a **mandatory scope**. Keep messages short.
+
+- **Format**: `type(scope): subject (BACKLOG-ID)` — e.g. `refactor(api): split DB session lifecycle (A-3)`.
+- **Type**: one of `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`, `build`, `ci`.
+- **Scope**: always present — the area touched (`api`, `core`, `dm`, `combat`, `memory`, `ai`, `auth`, `config`, `frontend`, `docs`, …).
+- **Subject**: imperative mood, lowercase, no trailing period, ~50 chars.
+- **Backlog ID**: when a commit closes an `AUDIT` item, suffix it in parens — `(A-3)`, `(B-M11)`, `(F-L10)`.
+- **Body**: only when the *why* isn't obvious from the subject — 1–3 short lines. Substantial rationale goes in an ADR, not the commit body.
+- **Never** add co-author trailers (`Co-Authored-By`, tool attribution, etc.). Plain messages only.
+- One logical change per commit (standard 10).
+
+## Documentation
+
+- **Where things go**: see [`docs/README.md`](docs/README.md) for the full map. Active docs use `UPPER_SNAKE_CASE.md`; ADRs use `NNNN-kebab-title.md`.
+- **CHANGELOG.md**: hand-curated, [Keep a Changelog](https://keepachangelog.com/) + SemVer. Not a `git log` dump. Entries accrue under `[Unreleased]`.
+- **ADRs are append-only**: never edit an accepted decision — write a new one that supersedes it.
+- **Archive, don't delete**: superseded docs move to `docs/archive/`, keeping naming and history.
 
 ## File Locations
 - **Game Engine**: `backend/app/core/`
