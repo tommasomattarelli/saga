@@ -13,6 +13,8 @@ predating this file live in `docs/archive/changelog/`.
 ## [Unreleased]
 
 ### Changed
+- DM prompts (`BASE_DM_PROMPT`, `DEATH_MODE_PROMPTS`) externalized to
+  `app/ai/prompts/dm.yaml`; assembly logic stays in Python, output unchanged (B-M6).
 - `build_context()` split into focused helpers (`_load_history`,
   `_load_batch_summaries`, `_recall_memories`); behaviour unchanged (B-M5).
 - Documentation and contribution conventions established: hand-curated
