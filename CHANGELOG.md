@@ -13,6 +13,8 @@ predating this file live in `docs/archive/changelog/`.
 ## [Unreleased]
 
 ### Changed
+- `build_context()` split into focused helpers (`_load_history`,
+  `_load_batch_summaries`, `_recall_memories`); behaviour unchanged (B-M5).
 - Documentation and contribution conventions established: hand-curated
   `CHANGELOG.md`, append-only ADRs in `docs/adr/`, a `docs/README.md` index, and a
   Session Protocol + Commit Convention in `CLAUDE.md`. `CLAUDE.md` rules

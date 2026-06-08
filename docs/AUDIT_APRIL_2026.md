@@ -217,7 +217,7 @@ Stato dopo la sessione del 2026-06-08 (A-3 DB session lifecycle, B-M8, LOW confi
 > **Chiuse il 2026-06-08**: A-3 (ADR 0001), B-M8, B-L2, B-L3, B-L8, B-L9, rimozione pipeline di turno legacy (`turn_service` + `core/turn.py` + `stream_extractor` + `parser.py`).
 
 ### 🟡 Backend — priorità MEDIA (rinviate a sessione dedicata)
-- **B-M5** — `build_context()` (ora in `app/ai/context.py`, 179 righe) da splittare in builder per segmento.
+- ~~**B-M5**~~ — ✅ fatto 2026-06-08: `build_context()` splittato in `_load_history`, `_load_batch_summaries`, `_recall_memories`; l'orchestratore ora è ~40 righe, file 199 righe.
 - **B-M6** — prompt DM come stringhe letterali → valutare migrazione a template YAML (regola 14).
 - **B-M7** — `post_process_node`: clock advance + death check + segment split senza transazione esplicita → stato inconsistente se uno step fallisce.
 - **B-M10** — `encryption.py`: AES-256 senza salt per-user (compromissione chiave = decrypt in bulk). **SECURITY — sessione dedicata.**
