@@ -36,6 +36,13 @@ predating this file live in `docs/archive/changelog/`.
   DM-graph failure → clean 500 with no half-written turn, missing/inactive
   campaign guards, dice-roll flattening, and the background helpers'
   commit/error-swallow behaviour (`turns.py` coverage 80% → 99%).
+- ADRs 0002-0006 from the multi-repo research session (NeverEndingQuest + 6 OS
+  projects): relationship graph + recall enrichment, deterministic combat
+  resolution (fixed thresholds + server-side damage + symmetric enemy/hero),
+  dm_core/game_system separation, multi-axis NPC psychology, and the v2.5 AI
+  Director layer. All `Proposed` (direction-setting, pre-implementation).
+  `TODO.md` restructured with the derived backlog (keepers, fork follow-ups,
+  deferred secondaries).
 
 ### Fixed
 - Recall embedding is now computed before the turn's DB session opens, so no
