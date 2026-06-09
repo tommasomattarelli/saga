@@ -1,3 +1,4 @@
+name: saga-test
 services:
   db_test:
     image: pgvector/pgvector:pg16
