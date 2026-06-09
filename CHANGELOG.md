@@ -41,5 +41,7 @@ predating this file live in `docs/archive/changelog/`.
   (`ai/providers/base.py`) — all with zero callers.
 - Stale WebSocket integration tests (`test_websocket_sync.py`): the WS transport
   was replaced by REST, and the tests only asserted tautological status codes.
+- Dead config fields with zero readers (`config.py` + `.env.example`):
+  `cloudflare_r2_*`, `app_mode`, `default_language`, `telemetry_enabled`.
 
 ### Security
