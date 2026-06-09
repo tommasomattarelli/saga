@@ -27,6 +27,9 @@ predating this file live in `docs/archive/changelog/`.
   Session Protocol + Commit Convention in `CLAUDE.md`. `CLAUDE.md` rules
   restructured into behavioral principles + numbered engineering standards.
   Market/production research moved to `docs/archive/research/`.
+- Unit tests reorganized into `app/`-mirroring subpackages
+  (`tests/unit/{api,ai,core,memory,security,services}/`); pure relocation, no
+  logic change. Legacy `test_pr2_*`/`test_pr3_*` names dropped for descriptive ones.
 
 ### Added
 - Integration tests for the player-action endpoint's previously untested paths:
