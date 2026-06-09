@@ -29,6 +29,10 @@ predating this file live in `docs/archive/changelog/`.
   Market/production research moved to `docs/archive/research/`.
 
 ### Added
+- Integration tests for the player-action endpoint's previously untested paths:
+  DM-graph failure → clean 500 with no half-written turn, missing/inactive
+  campaign guards, dice-roll flattening, and the background helpers'
+  commit/error-swallow behaviour (`turns.py` coverage 80% → 99%).
 
 ### Fixed
 - Recall embedding is now computed before the turn's DB session opens, so no
