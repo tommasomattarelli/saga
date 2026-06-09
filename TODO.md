@@ -1,25 +1,121 @@
-[ ] fare i template e world building fatti bene (yaml indentati vari per aggiungere profondita e dettaglio al mondo). tanti yaml. capire come non saturare il contesto pero. analissi dettagliata
+# TODO — SAGA
 
-[ ] refactor e analisi del frontend, come fatto per il backend
+## roadmap / release
+[ ] companion: implementarli
+[ ] versioning: al lancio si parte da 0.2.5? (allineare ai docs)
+[ ] pipeline GitHub (CI) + release
+[ ] passare in rassegna le funzioni marcate #TODO nel codice (capire se servono)
 
-[ ] verificare con repo https://github.com/MoonlightByte/NeverEndingQuest, cosa diverge, cosa no e cosa prendere spunto
+## frontend
+[ ] refactor + analisi del frontend (come fatto per il backend)
 
-[ ] aggiungere i companion
-
+## infra / distribuzione
 [ ] debug con docker
+[ ] nginx: serve davvero?
+[ ] installer .bat/.sh che wrappano docker-compose: check Docker -> copia .env.template -> dialog API-key (PowerShell InputBox) -> up -> apri browser. key in .env gitignored, MAI plaintext (std 14/16). NB: zero-Docker puro non e' fattibile (serve Postgres+pgvector). [copre il vecchio "dual boot per utenti non tecnici"] [spunto: NEQ installer .bat, dnd-llm-game launcher]
+[ ] verificare che i push al frontend in dm_tools_executor siano fail-silent (un FE down non deve bloccare il loop DM) [spunto: open-tabletop-gm]
 
-[ ] verificare alcune funzioni se servono, alcune marcate con #TODO
+## world-building / template
+[ ] template + world-building fatti bene (tanti yaml indentati per profondita'/dettaglio del mondo). attenzione a non saturare il contesto -> analisi dettagliata
 
-[ ] init.sql serve? ù
+# ============================================================
+# da analisi multi-repo (giu 2026): NEQ, ai_rpg, dnd-llm-game,
+# aidm, llm-rpg, open-tabletop-gm, Friends&Fables.
+# keeper indipendenti dai fork.
+# ============================================================
 
+## router / costi
+[ ] ATTIVARE il tiering del router: oggi importance_score e' hardcoded =5 (turns.py:91), quindi tutto il routing low/med/high di router.py e' inerte e paghi sempre il tier di default. aggiungere un pre-classificatore (mini-LLM o euristica) che deriva importance_score dall'azione del player. [spunto: NEQ action_predictor]
 
----
+## memoria
+[ ] recall pgvector: usare come query "azione + ultimi N turni" invece della sola query nuda (semantic.py) [spunto: dnd-llm-game]
+[ ] summarization per "scena" (cambio location/combat) invece che a finestra fissa di turni; conservare i quotes[] dei dialoghi chiave [spunto: ai_rpg]
+[ ] idempotency guard sui background task (turns.py): campo chronicled_at su Turn per non rieseguire fact-extraction/compression [spunto: aidm]
+[ ] continuity_checklist: flag booleani machine-readable per NPC/location ("vivo: true", "sa_di_X: false") accanto alla prosa, per coerenza multi-sessione [spunto: aidm]
 
+## combat
+[ ] timeout esplicito per singola tool-call LLM in combat (oltre al recursion cap), con fallback "il turno prosegue" [spunto: llm-rpg]
+[ ] formalizzare il circumstance modifier nel roll tool: {amount: -10..+10, reason: str}, mostrato al player [spunto: ai_rpg]
+[ ] effetti temporizzati: tick per round su combat_state con auto-expire + annuncio (verificare se gia' in dm_tools_executor) [spunto: open-tabletop-gm]
 
-[ ]  poi versione 2.5 marcata dai docs (al lancio bo farei ancora 0.2.5? non so)
+## prosa / output
+[ ] slop-buster: lista parole/n-gram in saga.config.yaml + check post-prosa nel DM (qualita' prosa = pillar) [spunto: ai_rpg]
+[ ] popolare suggested_actions (oggi None) con blocklist di placeholder per filtrare scelte malformate [spunto: dnd-llm-game]
 
-[ ] mettere pipeline github, release poi
+## world / player agency
+[ ] override strutturati player->DM: NPC_PROTECTION / CONTENT_CONSTRAINT / TONE / NARRATIVE_DEMAND con scope (campaign/session/arc), persistiti e iniettati nel prompt ogni turno [spunto: aidm]
+[ ] DM hidden notes / "mystery box": campo JSONB dm_notes (pensieri NPC nascosti, misteri decisi in anticipo, tensioni) aggiornato ogni N turni, per coerenza narrativa [spunto: ai_rpg]
+[ ] narrative arc: blocco narrative_arc nel JSONB (beat "what_changes" + world_pressure) che il coordinator consulta per calibrare la pressione (NON plot rigido) [spunto: open-tabletop-gm, aidm]
+[ ] WorldBuilder accept-not-reject: il DM accetta le asserzioni del player come canon salvo ambiguita' fisica (player co-autore), niente REJECT [spunto: aidm]
+[ ] faction_moves: log esplicito delle azioni fazioni off-screen tra sessioni (verificare se il living-world gia' lo fa) [spunto: open-tabletop-gm]
+[ ] living world: trigger su transizione oraria (dawn/dusk via GameClock gia' presente) oltre al counter turni [spunto: ai_rpg]
+[ ] meta-channel: intent /meta che NON consuma un turno di gioco (feedback al DM fuori dalla narrativa) [spunto: aidm]
 
-[ ] aggiungere possibilita di dual boot, sia con docker che in locale per utenti non tecnici
+## homebrew / custom
+[ ] upload PDF lore homebrew -> chunking + embedding su pgvector, associato a campagna, recuperato nel recall (riusa pgvector, non LanceDB) [spunto: dnd-llm-game]
+[ ] formalizzare lo schema "pacchetto campagna" export/import (aree/NPC/mostri/plot): estende export.py + pillar data-sovereignty [spunto: NEQ moduli drop-in]
 
-[ ] verificare i test, manca qualcosa? qualche integration? playwright? magari rendero meno falt la cartelle degli unit se serve?
+## concorrenza (minore)
+[ ] advisory lock per campagna sul turn handler: turn_number e' gia' atomico ma world_state ha una race last-writer-wins su turni concorrenti (stretta: e' single-user REST) [spunto: aidm]
+
+# ============================================================
+# FORK DECISI (giu 2026) -> vedi docs/adr/. follow-up implementativi.
+# ============================================================
+
+## fork A -> ADR 0002 (relationship graph + recall enrichment)
+[ ] recall pgvector: aggiungere recency-weighting/decay + boost-on-access (oltre al top-K cosine puro) [spunto: aidm heat decay]
+[ ] relationship graph: grafo relazioni NPC/fazioni/luoghi (tabella Postgres o JSONB) con query scene_context(place, present_npcs) BFS 2-hop; popolamento semi-auto dal session log via estrazione deterministica (verb-table); complementare al pgvector (tema vs scena) [spunto: open-tabletop-gm]
+
+## fork B -> ADR 0003 (risoluzione a soglie fisse + danno server-side)
+[ ] sostituire il DC deciso dall'LLM con soglie fisse stile PbtA: d20 + mod vs bande fisse (niente DC arbitrario), mantenendo i 6 outcome tier di dice.py
+[ ] mappare outcome_tier -> danno lato server (FULL=pieno, PARTIAL=meta'+conseguenza, ...); l'LLM non tocca piu' gli HP
+[ ] bande di risoluzione e mappature tier->danno in saga.config.yaml (std 14)
+
+## fork C -> ADR 0004 (dm_core / game_system + tono per campagna)
+[ ] separare dm_core (principi GM universali, immutabili) da game_system (regole D&D) caricabile -> predispone multi-TTRPG (Pathfinder/VtM) [spunto: open-tabletop-gm]
+[ ] parametri di tono per campagna (darkness/pacing/lethality/magic) iniettati nel prompt DM [spunto: aidm DNA, ai_rpg]
+[ ] system_prompt_addendum + writing_style_notes per campagna; config_override (JSONB) per-campagna mergiato con saga.config.yaml [spunto: NEQ, ai_rpg]
+
+## fork D -> ADR 0005 (psicologia NPC multi-asse)
+[ ] ridisegnare npc_psychology JSONB come multi-asse (trust / respect / affection / fear / ... 5-6 assi) con soglie nominate + first_impression_multiplier x3; sostituisce disposition_change scalare [spunto: ai_rpg dispositions, NEQ emotional vectors]
+
+# ============================================================
+# SECONDARI / deferred (giu 2026) — promossi dal long-tail multi-repo.
+# bassa priorita'; alcuni legati a versioni future.
+# ============================================================
+
+## secondari — combat / gioco
+[ ] toggle prompt combat full/compresso, CONFIGURABILE in saga.config.yaml [NEQ]
+[ ] op_dominant: reframe narrativo su tier-gap forte (combattente molto superiore) [aidm]
+[ ] focus-budget: limite caratteri dell'azione come stat di gioco [llm-rpg]
+[ ] enemy come agente LLM autonomo / pipeline simmetrica hero-enemy [llm-rpg]
+
+## secondari — memoria / world
+[ ] lorebook "constant entries" sempre iniettate (regole mondo/magia) [ai_rpg]
+[ ] foreshadowing-seeds con lifecycle (PLANTED->RESOLVED) + ratifica -> di competenza dell'AI Director (vedi ADR 0006) [aidm]
+[ ] tool di ricerca keyword/fulltext sul log di campagna [otgm]
+
+## secondari — world-gen / template (alimentano la riga "template fatti bene" sopra)
+[ ] Three Truths per elemento: Obvious / Discoverable / Secret [otgm]
+[ ] Threat-Arc table a 5 stadi (Now -> No Return) con trigger e reversal [otgm]
+[ ] faction inbound-relationships generator (come le fazioni esistenti vedono la nuova) [ai_rpg]
+[ ] word-steering per nemici tematici (liste parole) [llm-rpg]
+[ ] GM-player-calibration notes (stile del player, persistente, letto a inizio sessione) [otgm]
+# nota: calendario fantasy (mesi/stagioni/festivita') = gia' coperto dalla riga "template fatti bene"
+
+## secondari — infra / dev
+[ ] narrative-probe v2 per calibrare quali modelli nei tier del router [otgm]
+[ ] LLM-fixture-file per test end-to-end deterministici [ai_rpg]
+[ ] subprocess isolation per generazione modulo AI lunga [NEQ]
+[ ] cached_property per il config loader [llm-rpg]
+[ ] mod-system con scope isolato + route namespaced -- SCOPE DEFERRED, molto in fondo (ADR quando si progetta l'estensibilita') [ai_rpg]
+
+## secondari — v3
+[ ] TLS self-signed + distribuzione cert per LAN [otgm]
+[ ] Hero globali riusabili tra campagne (Hero vs Character) [dnd-llm-game]
+
+## v2.5 — AI Director (vedi ADR 0006)
+[ ] AI Director: background ogni N turni, autorita' SOLO off-screen (fazioni/NPC assenti/clock/arc/semi), DM owns on-screen
+[ ] coda pending_world_changes applicata dal turn path al turno successivo (single writer, niente race) + validazione consistenza all'apply (scarta/riconcilia se la precondizione non regge)
+[ ] output = world data (fatti=hard ground-truth, pressione narrativa=soft advisory che il DM interpreta)
+[ ] nuovo AICallType.DIRECTOR (thinking tier) + max_iterations cap (std 19) + disciplina sessioni rule-15
