@@ -6,37 +6,38 @@ This document describes the current production architecture of the SAGA AI engin
 
 ## Turn Flow
 
-Each player turn is a POST request that returns a streaming SSE response. There are no persistent WebSocket connections for turns — each is independent.
+Each player turn is a single POST request that returns the complete turn result as JSON (the frontend renders narration with a typewriter effect). There are no WebSocket connections — each turn is independent. The endpoint never holds a DB session across the LLM/graph call (rule 15): a short session claims the turn number, the graph runs with no session held, and a second short session persists the result.
 
 ```mermaid
 sequenceDiagram
     participant F as Frontend
-    participant A as FastAPI /turns
+    participant A as FastAPI (submit_action)
     participant G as dm_graph (LangGraph)
     participant DB as PostgreSQL
 
-    F->>A: POST /api/v1/turns/{campaign_id}<br/>{player_action: "I push the door"}
-    A->>G: dm_graph.stream(initial_state)
+    F->>A: POST /api/campaigns/{campaign_id}/action<br/>{action: "I push the door"}
+    A->>DB: Session 1 — validate + atomic claim turn_number (UPDATE...RETURNING) — then CLOSE
+    A->>G: dm_graph.ainvoke(initial_state)  (no DB session held — rule 15)
 
     loop Agent Loop (max 5 steps)
-        G->>DB: context_node — load Campaign, build_context()
-        G->>G: route_ai_call() — select model by importance score
+        G->>G: context_node — build_context(), route_ai_call() (own short session, closed before LLM)
         G->>G: dm_node — generate_with_tools() → narration + tool_calls
-        G-->>F: SSE: dm_token (narration chunks)
         opt tool_calls present
             G->>G: tools_node — sort + execute tools
-            G-->>F: SSE: tool_call (visible tools only)
-            G->>G: route_after_tools() → loop or exit
+            G->>G: route_after_tools() → loop back or exit
         end
     end
+    G->>G: post_process_node — clock, death check, segments (pure, no DB)
+    G-->>A: final GameState
 
-    G->>DB: post_process_node — persist Turn, world_state, char_data
-    G-->>F: SSE: turn_complete {narration, world_state, char_data, ...}
+    A->>A: compress_turn_to_summary() + generate_embedding()
+    A->>DB: Session 2 — persist Turn + campaign world/char + auto-save — then CLOSE
+    A-->>F: TurnResponse JSON {narration, world_state, char_data, dice, ...}
 
-    Note over G,DB: Fire-and-forget background tasks (non-blocking)
-    G-->>DB: compress_turns_batch_llm()
-    G-->>DB: extract_and_store_facts()
-    G-->>DB: update_global_summary() — every 5 turns
+    Note over A,DB: Fire-and-forget background tasks (non-blocking)
+    A-->>DB: ensure_compression()
+    A-->>DB: extract_and_store_facts()
+    A-->>DB: update_global_summary() — every N turns
 ```
 
 ---
@@ -200,7 +201,7 @@ flowchart LR
 
     subgraph facts["Fact Extraction (async, post-turn)"]
         T -->|fire-and-forget| FE["extract_and_store_facts()\n1-5 atomic facts per turn"]
-        FE --> MF["memory_facts table\n1536-dim pgvector embedding"]
+        FE --> MF["memory_facts table\n384-dim pgvector embedding"]
     end
 
     subgraph global["Global Summary (async, every 5 turns)"]
@@ -489,7 +490,7 @@ Configured in `saga.config.yaml` under `dm_narration.low|medium|high`.
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Transport | REST + SSE (not WebSocket) | Simpler resumability, no connection state management. Validated by 2026 consensus: SSE is the preferred pattern for token streaming in agentic narrative systems. |
+| Transport | REST + JSON (not WebSocket/SSE) | Each turn is an independent POST returning the full result; no connection state to manage. The frontend renders narration with a typewriter effect, so token-level streaming isn't required. |
 | Agent framework | LangGraph 1.0 | Explicit graph routing, typed state, conditional edges |
 | Provider routing | Gemini 2.5 Pro for DM (default) | Best tool-calling reliability at cost point |
 | pgvector | Basic (vector only) now, hybrid RRF behind `gameplay.pgvector_hybrid` flag | Hybrid adds complexity; basic cosine is sufficient for v1 |
@@ -539,70 +540,31 @@ open session → read campaign + world_state → close session
 → open session → write Turn + updated world_state → close session
 ```
 
-**Current known violations (audit 2026-04-22):**
-- `app/api/websocket.py:47,251` — session held open for the full turn duration
-- `app/core/dm/dm_tools_executor.py:114` — new session opened per NPC call inside a turn
-- `app/core/dm/dm_nodes.py:42` — two concurrent sessions on the same Campaign row
+**Status: enforced (2026-06).** The endpoint and every node now follow this pattern — short
+sessions around the graph, no session held across the LLM call. The former WebSocket handler that
+violated it has been removed. See ADR [`adr/0001-db-session-lifecycle.md`](adr/0001-db-session-lifecycle.md).
 
 ---
 
-## Refactor Candidates
+## Refactor Candidates — Resolved (2026-06)
 
-| File | Lines | Issue | Priority |
-|------|-------|-------|----------|
-| `app/ai/tools/dm_tools.py` | 636 | God file: tool registry + 14 tool implementations + dispatcher. Planned split: `tool_registry.py` + per-group `tools_*.py` + `tool_dispatcher.py`. `_meaningful_tools` set must move here as the single source of truth imported by all callers. | HIGH |
-| `app/core/agent.py` | 493 | God class: streaming + dice + NPC + tool dispatch + death check. | HIGH |
-| `app/core/streaming.py` | 294 | Dead code post-LangGraph migration. No live callers. Pending deletion. | HIGH |
-| `app/core/dm/dm_tools_executor.py` | — | Opens a new DB session per NPC call inside a turn. Fix: receive the already-fetched campaign object via LangGraph state instead of re-querying. | HIGH |
-| `app/core/dm/dm_nodes.py` | — | Two concurrent sessions on the same Campaign row (race condition on `turn_number`). Fix: pass campaign data through state, open one write session only in `post_process_node`. | HIGH |
+The structural debt previously tracked here was cleared in the June 2026 refactor:
+- `dm_tools.py` was split into `tools_base` + per-group `tools_combat/inventory/world/special` modules behind a facade.
+- The pre-LangGraph `core/agent.py` and `core/streaming.py` were deleted as dead code (the live turn path is `api/turns.py → dm_graph`).
+- The DB session lifecycle was fixed — short sessions only, none spanning the LLM call (see ADR 0001).
+- `MEANINGFUL_TOOLS` now lives once in `app/ai/tools/dm_tools.py` and is imported by the graph (single source of truth).
 
-### `_meaningful_tools` — Planned Consolidation
-
-`_meaningful_tools = {invoke_npc, request_dice, start_combat, end_combat}` is currently duplicated between `app/core/agent.py` and `app/core/dm/dm_graph.py` with diverging values. This causes routing inconsistencies when one copy is updated without the other.
-
-**Planned fix**: define the set once in `app/ai/tools/dm_tools.py` (the tool authority file) and import it in both callers. No logic change — single source of truth only.
+See [`../CHANGELOG.md`](../CHANGELOG.md) and [`AUDIT_APRIL_2026.md`](AUDIT_APRIL_2026.md) for the full record.
 
 ---
 
-## Security Hardening — Planned
+## Security Hardening — Resolved (2026-06)
 
-These are confirmed vulnerabilities from the 2026-04-22 audit, with the agreed architectural fix for each.
+The confirmed vulnerabilities from the 2026-04-22 audit have been addressed:
 
-### 1. Config secrets startup validation (`app/config.py`) — [PLANNED]
-
-`jwt_secret` and `api_key_encryption_key` currently default to the literal string `"change-me-to-a-random-256-bit-key"`. An operator who forgets to set the env var runs a production instance with a publicly known JWT secret — any token can be forged.
-
-**Fix**: add a Pydantic `@model_validator(mode="after")` in `AppConfig` that raises `ValueError` on startup if either field matches the sentinel prefix `"change-me"`. The app must refuse to start, not log a warning.
-
-```python
-@model_validator(mode="after")
-def reject_sentinel_secrets(self) -> "AppConfig":
-    for field in ("jwt_secret", "api_key_encryption_key"):
-        if getattr(self, field).startswith("change-me"):
-            raise ValueError(f"{field} must be set to a random secret before starting")
-    return self
-```
-
-### 2. JWT not in query parameters (`app/api/websocket.py:27-32`) — [PLANNED]
-
-JWT passed as `?token=...` is logged by every reverse proxy, appears in browser history, and leaks via `Referer` headers. This affects the WebSocket upgrade endpoint.
-
-**Fix**: migrate to one of two options (coordination required between frontend and backend):
-- **Option A** (preferred): send the JWT in an initial text message after WS connection is established; backend validates before accepting turns.
-- **Option B**: use a short-lived one-time token issued by a dedicated `/auth/ws-token` endpoint, passed as query param (token expires in 30s, single use).
-
-### 3. DB session lifecycle — campaign object via LangGraph state — [PLANNED]
-
-The root cause of B-H4 and B-H5 is that `dm_tools_executor` and inner nodes re-fetch the Campaign from DB mid-turn instead of reusing the object already loaded by `context_node`.
-
-**Fix**: `context_node` loads Campaign and stores the needed fields (world_state, char_data, campaign_id) into `GameState`. Downstream nodes read from state — no additional DB queries during the LLM phase. Only `post_process_node` opens a new session to write the final Turn + updated campaign columns.
-
-```
-context_node: open session → load Campaign → store fields in state → close session
-dm_node:      read from state (no DB)
-tools_node:   read/mutate state (no DB)
-post_process_node: open session → write Turn + Campaign → close session
-```
+1. **Config secrets startup validation** — `app/config.py` has a Pydantic `@model_validator(mode="after")` that refuses to start in `prod` if `jwt_secret` or `api_key_encryption_key` still hold the `change-me` sentinel.
+2. **JWT not in query parameters** — the WebSocket upgrade endpoint that passed the token as a query param has been removed; turns are REST and auth uses the `Authorization: Bearer` header.
+3. **DB session lifecycle** — sessions no longer span the LLM call (A-3); `context_node` opens and closes its own short session before the LLM phase, and the endpoint writes in a final short session. See ADR [`adr/0001-db-session-lifecycle.md`](adr/0001-db-session-lifecycle.md).
 
 ---
 
@@ -644,7 +606,7 @@ Research on agentic narrative systems shows that combining a compact rolling sum
 | Component | Mechanism | Update frequency |
 |-----------|-----------|-----------------|
 | **Compact rolling summary** | Single ≈200-word paragraph, iteratively extended via anchored LLM summarization | Every 5 turns (already active as `global_summary`) |
-| **Episodic pgvector RAG** | Atomic `MemoryFact` rows, 1536-dim embeddings, cosine similarity retrieval | Post-turn async (already active) |
+| **Episodic pgvector RAG** | Atomic `MemoryFact` rows, 384-dim embeddings, cosine similarity retrieval | Post-turn async (already active) |
 
 Additional planned improvement: migrate from basic `vector` (float32) to `halfvec` (float16) with BM25 hybrid search for keyword anchoring. Keyword anchoring is critical for proper nouns (NPC names, location names, item names) that pure cosine similarity misses. Controlled by `gameplay.pgvector_hybrid` flag.
 

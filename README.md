@@ -12,13 +12,13 @@ An open-source, AI-powered single-player tabletop RPG with an expert AI Dungeon 
 - **NPC auto-creation**: If the DM calls `invoke_npc` for an untracked NPC, the system auto-creates a profile with configurable detail (minimal/standard/rich). No broken tool calls
 - **JSON-enforced output**: All NPC, companion, and world simulation calls use provider JSON mode (`response_mime_type`, `response_format`). No silent parse failures
 - **Persona presets**: Campaign templates ship with a DM voice preset (grimdark/heroic/dark_fantasy/horror) injected as a `<persona>` XML block before the rules. Custom `persona_xml` override available
-- **Dynamic tool loading**: 5 tool groups (core/combat/social/inventory + combat_entry) activated by world state. DM never sees more than ~12 tools simultaneously
+- **Dynamic tool loading**: 5 tool groups (core/combat_entry/combat/social/inventory) activated by world state. DM never sees more than ~12 tools simultaneously
 - **Living world**: Factions, NPCs, weather, and game clock advance independently. Full world state persisted as JSONB per turn
 - **6-level dice outcomes**: natural 1 (critical failure) → hard failure → soft failure → partial success → full success → natural 20 (critical success). Dice rolled server-side, click-to-reveal on frontend
-- **Scene moods**: 11 mood states (`combat_fury`, `tense_anticipation`, `eerie`, ...) mapped to CSS custom properties for smooth UI transitions
+- **Scene moods**: 11 mood states (`calm_exploration`, `tense_anticipation`, `combat_fury`, `dread_horror`, ...) mapped to CSS custom properties for smooth UI transitions
 - **Three death modes**: Ironman (permadeath), Destino (death with escalating narrative cost), Cronista (story mode, no death)
 - **Campaign templates**: Extensible YAML-based template system. Ships with 3 built-in scenarios
-- **Data portability**: Export/import campaigns as JSON
+- **Data portability**: Export campaigns as JSON
 - **Self-hostable, BYOAK**: Run on your own hardware with your own API keys. No cloud dependency
 
 ## Quick Start (Docker)
@@ -54,7 +54,7 @@ npm install
 npm run dev
 ```
 
-Requires PostgreSQL 16+ with pgvector and Redis running locally.
+Requires PostgreSQL 16+ with the pgvector extension running locally.
 
 ## Tech Stack
 
@@ -62,42 +62,15 @@ Requires PostgreSQL 16+ with pgvector and Redis running locally.
 |-------|-----------|
 | Frontend | React 18, TypeScript, Tailwind CSS, Zustand, React Query, Vite |
 | Backend | Python 3.12+, FastAPI, SQLAlchemy 2.0 (async), Pydantic v2 |
-| Database | PostgreSQL 16 + pgvector, Redis |
+| Database | PostgreSQL 16 + pgvector |
 | AI | OpenAI, Anthropic Claude, Google Gemini — intelligent routing via `ai/router.py`; agent loop via **LangGraph 1.0** |
-| Transport | **REST + SSE** (not WebSocket) — each turn is an independent POST returning a streaming SSE response |
+| Transport | **REST + JSON** — each turn is an independent POST that returns the complete turn result (the frontend renders narration with a typewriter effect). No WebSocket, no persistent connection state |
 | Auth | JWT + bcrypt, AES-256 encrypted API key storage |
 | Infra | Docker Compose, GitHub Actions |
 
-## Known Issues / In Progress
+## Project Status
 
-The items below are confirmed findings from a code audit (2026-04-22). They are tracked for the next sprint.
-
-### Backend
-
-| Severity | Location | Issue |
-|----------|----------|-------|
-| HIGH | `app/ai/tools/dm_tools.py` (636 lines) | God file: tool registry + 14 tool implementations + dispatcher in one file. Splitting planned. |
-| HIGH | `app/core/agent.py` (493 lines) | God class: streaming + dice + NPC + tool dispatch + death check. Refactor planned. |
-| HIGH | `app/core/streaming.py` (294 lines) | Dead code post-LangGraph migration — no live callers. Pending deletion. |
-| HIGH | `app/core/dm/dm_tools_executor.py:114` | Opens a new DB session per NPC call inside a turn (N extra sessions). |
-| HIGH | `app/core/dm/dm_nodes.py:42` | Two concurrent sessions on the same Campaign row → race condition on `turn_number`. |
-| HIGH | `app/api/websocket.py:47,251` | DB session held open for the full duration of a turn (seconds to minutes). |
-| HIGH | `app/services/campaign_service.py:28` vs `app/memory/updater.py:35` | Disposition key diverges: `"disposition"` vs `"disposition_toward_player"` from turn 1. |
-| HIGH | `app/config.py:8,12` | `jwt_secret` and `api_key_encryption_key` default to literal `"change-me-to-a-random-256-bit-key"` with no startup validation — JWT forgery risk if operator forgets env var. |
-| HIGH | `app/api/websocket.py:27-32` | JWT token passed as query parameter (exposed in server logs and browser history). |
-
-### Frontend
-
-| Severity | Location | Issue |
-|----------|----------|-------|
-| HIGH | `shared/stores/auth-store.ts` | `accessToken` + `refreshToken` stored in localStorage in plaintext — XSS vulnerable. |
-| HIGH | `features/game/components/game-view.tsx:39` | Race condition: `submitScrollRef.current` mutated in component body, can be null between `onMutate` and `requestAnimationFrame`. |
-| HIGH | `features/character/components/character-sheet.tsx:181` | `archetype` not in `CharacterData` interface; used via `as unknown as Record<string, unknown>` cast. |
-
-### Lint
-
-- Backend ruff: 14 residual errors (SIM117 nested `with`, fix in progress)
-- Frontend eslint: 1 residual error (`revealedCount` in `dice-roller.tsx`, fix in progress)
+SAGA is in active single-player development (**v1**, see the [Roadmap](docs/AGENTIC_ARCHITECTURE.md#roadmap)). The backend has been through a refactor and audit pass — current open items and resolved findings are tracked in [`docs/AUDIT_APRIL_2026.md`](docs/AUDIT_APRIL_2026.md), and shipped changes are curated in [`CHANGELOG.md`](CHANGELOG.md). The frontend polish pass (Phase D) is ongoing.
 
 ## Project Structure
 
@@ -105,19 +78,18 @@ The items below are confirmed findings from a code audit (2026-04-22). They are 
 saga/
 ├── frontend/          # React + TypeScript + Vite
 │   └── src/
-│       ├── components/    # UI components (narrative, character, combat, etc.)
-│       ├── stores/        # Zustand state management
-│       ├── services/      # API client, WebSocket client
-│       └── i18n/          # Internationalization
+│       ├── features/       # Feature modules (game, character, combat, auth)
+│       ├── shared/         # Stores (Zustand), API client, UI primitives
+│       └── i18n/           # Internationalization
 │
 ├── backend/           # Python + FastAPI
 │   └── app/
-│       ├── api/           # REST + WebSocket endpoints
-│       ├── core/          # Game engine (dice, combat, world sim, progression)
-│       ├── ai/            # Multi-provider AI engine, prompts, routing
-│       ├── memory/        # Semantic search, compression, recaps
+│       ├── api/           # REST endpoints
+│       ├── core/          # Game engine (dice, combat, death, DM graph)
+│       ├── ai/            # Multi-provider AI engine, prompts, routing, tools
+│       ├── memory/        # Semantic search, compression, summaries, world state
 │       ├── models/        # SQLAlchemy models
-│       ├── security/      # JWT auth, encryption, RBAC
+│       ├── security/      # JWT auth, encryption
 │       └── services/      # Business logic layer
 │
 ├── templates/         # Campaign templates (YAML)
@@ -142,12 +114,12 @@ Create your own templates following the [Template SDK schema](templates/schema.j
 
 ## Configuration
 
-Copy `.env.example` to `.env` and configure:
+Two configuration sources, kept separate:
 
-- **Database**: PostgreSQL + Redis connection strings
-- **Auth**: JWT secret keys
-- **AI Providers**: API keys for OpenAI, Anthropic, Google (users can also configure their own via the UI)
-- **App mode**: `community` (self-hosted) or `cloud` (hosted premium)
+- **`.env`** — secrets and infrastructure: PostgreSQL connection string, JWT secret, API encryption key, AI provider API keys, optional global provider/model overrides. Copy from `.env.example`.
+- **`saga.config.yaml`** — gameplay knobs and AI cost tuning: model tiers per call type, tool groups, memory settings, rate limits. See [docs/CONFIG.md](docs/CONFIG.md) for the complete reference.
+
+Users can also configure their own AI keys via the UI (BYOAK), stored AES-256 encrypted.
 
 ## Running Tests
 
@@ -155,7 +127,7 @@ Copy `.env.example` to `.env` and configure:
 # Backend unit tests (no infra required)
 cd backend && uv run python -m pytest tests/unit --noconftest
 
-# Backend integration tests (requires PostgreSQL + Redis)
+# Backend integration tests (requires PostgreSQL + pgvector)
 make test-infra-up
 cd backend && uv run python -m pytest tests/integration
 
@@ -168,9 +140,9 @@ cd frontend && npm run test
 
 ## Architecture
 
-See [AGENTIC_ARCHITECTURE.md](AGENTIC_ARCHITECTURE.md) for the full AI engine design: LangGraph graph, memory pipeline, system prompt structure, tool loop mechanics, and roadmap.
+See [docs/AGENTIC_ARCHITECTURE.md](docs/AGENTIC_ARCHITECTURE.md) for the full AI engine design: LangGraph graph, memory pipeline, system prompt structure, tool loop mechanics, and roadmap.
 
-See [docs/CONFIG.md](docs/CONFIG.md) for complete `saga.config.yaml` reference.
+See [docs/CONFIG.md](docs/CONFIG.md) for the complete `saga.config.yaml` reference.
 
 ## Contributing
 
