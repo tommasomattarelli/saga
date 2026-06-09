@@ -39,5 +39,7 @@ predating this file live in `docs/archive/changelog/`.
   (`core/engine.py`, pre-LangGraph leftovers), `get_user_campaigns`/
   `get_active_campaign` (`services/campaign_service.py`), and `register_provider`
   (`ai/providers/base.py`) — all with zero callers.
+- Stale WebSocket integration tests (`test_websocket_sync.py`): the WS transport
+  was replaced by REST, and the tests only asserted tautological status codes.
 
 ### Security
