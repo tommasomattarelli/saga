@@ -46,7 +46,6 @@ docker-compose.override.yml
 # Logs
 *.log
 
-
 # Coverage
 htmlcov/
 .coverage
@@ -63,3 +62,6 @@ coverage/
 
 # ruff
 .ruff_cache/
+
+# scratch
+scratch/
