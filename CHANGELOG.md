@@ -13,6 +13,11 @@ predating this file live in `docs/archive/changelog/`.
 ## [Unreleased]
 
 ### Changed
+- Documentation synced to the post-refactor reality: root `README.md` and
+  `docs/AGENTIC_ARCHITECTURE.md` corrected — turn transport is REST+JSON (not SSE/WebSocket),
+  Redis removed, embedding dimension fixed to 384, and resolved audit items (god-file split,
+  dead-code removal, DB session lifecycle A-3, security hardening) reframed from
+  "planned / known violations" to done.
 - DM prompts (`BASE_DM_PROMPT`, `DEATH_MODE_PROMPTS`) externalized to
   `app/ai/prompts/dm.yaml`; assembly logic stays in Python, output unchanged (B-M6).
 - `build_context()` split into focused helpers (`_load_history`,
