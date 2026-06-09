@@ -55,14 +55,7 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     saga_max_agent_steps: int = 5
 
-    app_mode: str = "community"             # TBD       tutte variabili marcate come TBD sono anche nel .env, residui. verificare
-    default_language: str = "en"            # variable inutilizzata --> TBD 
-    telemetry_enabled: bool = False         # TBD
     log_level: str = "info"
-
-    cloudflare_r2_access_key: str = ""      # TODO: all claudeflare as TBD, vedere se usarle davvero.
-    cloudflare_r2_secret_key: str = ""
-    cloudflare_r2_bucket: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
