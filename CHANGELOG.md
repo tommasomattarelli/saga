@@ -13,6 +13,11 @@ predating this file live in `docs/archive/changelog/`.
 ## [Unreleased]
 
 ### Changed
+- `CharacterSheet` split: presentational body + `StatSigil`/`HpBar` extracted to
+  `character-sheet-parts.tsx`, dropping the component from 306 to 88 lines (rule 12).
+  Ability sigils now derive from the character's own `abilities` map, including
+  non-core entries, instead of a hardcoded six-stat list (F-L3); redundant
+  `Record<string, number>` casts dropped.
 - Documentation synced to the post-refactor reality: root `README.md` and
   `docs/AGENTIC_ARCHITECTURE.md` corrected — turn transport is REST+JSON (not SSE/WebSocket),
   Redis removed, embedding dimension fixed to 384, and resolved audit items (god-file split,
