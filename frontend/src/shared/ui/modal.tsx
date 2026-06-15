@@ -12,7 +12,7 @@ interface ModalProps {
   maxWidth?: string;
 }
 
-export function Modal({
+function Modal({
   open,
   onClose,
   title,

@@ -80,6 +80,8 @@ predating this file live in `docs/archive/changelog/`.
   helper deleted, narrowing each module's public surface to what is actually imported.
 - Frontend `schemas/turn.ts` sub-schemas un-exported (only `TurnResponseSchema`
   is consumed externally); unused `TurnResponseParsed` and `DeathEvent` types removed.
+- `Modal` un-exported (used only internally by `ConfirmModal`). Frontend `knip`
+  now reports zero unused files/exports/dependencies.
 - Dead `diceAnimationEnabled` wiring removed (ui-store field/setter, dice-roller
   branch, `saga.config.yaml` key): the F-L4 toggle was never given a UI control, so
   the setter had zero callers and the skip-animation branch was unreachable. Dice
