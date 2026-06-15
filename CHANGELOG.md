@@ -78,6 +78,8 @@ predating this file live in `docs/archive/changelog/`.
 - Frontend module-private symbols un-exported (`CLASS_SPINE_COLORS`, `AuthLabel`,
   `ClassPreset`, `clampPercent`, `JournalTurn`, i18n default), unused `abilityModNum`
   helper deleted, narrowing each module's public surface to what is actually imported.
+- Frontend `schemas/turn.ts` sub-schemas un-exported (only `TurnResponseSchema`
+  is consumed externally); unused `TurnResponseParsed` and `DeathEvent` types removed.
 - Dead `diceAnimationEnabled` wiring removed (ui-store field/setter, dice-roller
   branch, `saga.config.yaml` key): the F-L4 toggle was never given a UI control, so
   the setter had zero callers and the skip-animation branch was unreachable. Dice
