@@ -75,6 +75,9 @@ predating this file live in `docs/archive/changelog/`.
   never-called save/settings/export client functions (`getSaves`, `createSave`,
   `loadSave`, `getSettings`, `updateApiKeys`, `exportCampaign`) and the orphaned
   `SavePoint` interface.
+- Frontend module-private symbols un-exported (`CLASS_SPINE_COLORS`, `AuthLabel`,
+  `ClassPreset`, `clampPercent`, `JournalTurn`, i18n default), unused `abilityModNum`
+  helper deleted, narrowing each module's public surface to what is actually imported.
 - Residual function-level dead code: `ProcessedTurn`/`StreamEvent`
   (`core/engine.py`, pre-LangGraph leftovers), `get_user_campaigns`/
   `get_active_campaign` (`services/campaign_service.py`), and `register_provider`
