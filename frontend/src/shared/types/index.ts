@@ -191,16 +191,6 @@ export interface TurnResponse {
   suggested_actions?: string[] | null;
 }
 
-export interface SavePoint {
-  id: string;
-  campaign_id: string;
-  name: string;
-  turn_number: number;
-  scene_summary: string;
-  is_auto: boolean;
-  created_at: string;
-}
-
 export interface TokenPair {
   access_token: string;
   refresh_token: string;
