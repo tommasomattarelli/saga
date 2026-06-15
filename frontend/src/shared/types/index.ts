@@ -83,14 +83,6 @@ export interface CombatantInfo {
   type: "player" | "companion" | "enemy";
 }
 
-export interface DeathEvent {
-  is_dead: boolean;
-  action: "alive" | "near_death" | "fate_intervention" | "dead";
-  death_mode: DeathMode;
-  narrative_instruction: string;
-  destino_lives_remaining: number | null;
-}
-
 export interface WorldState {
   meta?: { schema_version: number; world_name: string; current_season: string };
   clock?: {
