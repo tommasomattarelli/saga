@@ -58,6 +58,8 @@ predating this file live in `docs/archive/changelog/`.
   deferred secondaries).
 
 ### Fixed
+- Frontend `tsc -b` (and `npm run build`) restored: `tsconfig.json`
+  `ignoreDeprecations` was set to the invalid `"6.0"` for TS 5.7 → `"5.0"`.
 - Recall embedding is now computed before the turn's DB session opens, so no
   embedding API call runs inside an open session (B-M1, rule 15).
 
