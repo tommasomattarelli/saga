@@ -6,7 +6,7 @@ interface AuthLabelProps {
   children: React.ReactNode;
 }
 
-export function AuthLabel({ htmlFor, children }: AuthLabelProps) {
+function AuthLabel({ htmlFor, children }: AuthLabelProps) {
   return (
     <label
       htmlFor={htmlFor}
