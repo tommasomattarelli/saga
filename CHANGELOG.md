@@ -78,6 +78,10 @@ predating this file live in `docs/archive/changelog/`.
 - Frontend module-private symbols un-exported (`CLASS_SPINE_COLORS`, `AuthLabel`,
   `ClassPreset`, `clampPercent`, `JournalTurn`, i18n default), unused `abilityModNum`
   helper deleted, narrowing each module's public surface to what is actually imported.
+- Dead `diceAnimationEnabled` wiring removed (ui-store field/setter, dice-roller
+  branch, `saga.config.yaml` key): the F-L4 toggle was never given a UI control, so
+  the setter had zero callers and the skip-animation branch was unreachable. Dice
+  animation is now unconditional; re-add with a real settings toggle when wanted.
 - Residual function-level dead code: `ProcessedTurn`/`StreamEvent`
   (`core/engine.py`, pre-LangGraph leftovers), `get_user_campaigns`/
   `get_active_campaign` (`services/campaign_service.py`), and `register_provider`
