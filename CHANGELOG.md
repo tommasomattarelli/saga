@@ -71,6 +71,10 @@ predating this file live in `docs/archive/changelog/`.
 ### Removed
 - Frontend unused dependencies dropped: `@radix-ui/react-popover`, `clsx`,
   `lucide-react` (zero imports in `src/`).
+- Frontend dead API/type surface removed: unused `schemas/campaign.ts`, the
+  never-called save/settings/export client functions (`getSaves`, `createSave`,
+  `loadSave`, `getSettings`, `updateApiKeys`, `exportCampaign`) and the orphaned
+  `SavePoint` interface.
 - Residual function-level dead code: `ProcessedTurn`/`StreamEvent`
   (`core/engine.py`, pre-LangGraph leftovers), `get_user_campaigns`/
   `get_active_campaign` (`services/campaign_service.py`), and `register_provider`
