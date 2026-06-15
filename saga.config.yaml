@@ -97,7 +97,6 @@ gameplay:
   npc_auto_create_detail: standard # detail level for auto-created NPCs: minimal|standard|rich
   npc_last_interactions_kept: 3   # recent NPC lines kept in world_state per NPC
   consecutive_empty_steps_max: 2  # max tool-only steps with no narration before forcing loop exit
-  dice_animation_enabled: true      # frontend dice roll animation; user preference persisted in ui-store
 
 # ---------------------------------------------------------------------------
 # API — rate limiting

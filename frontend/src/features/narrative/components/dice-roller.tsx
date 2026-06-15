@@ -45,7 +45,6 @@ function SingleDice({
   const [revealed, setRevealed] = useState(alwaysRevealed);
   const [animating, setAnimating] = useState(false);
   const soundEnabled = useUIStore((s) => s.soundEnabled);
-  const diceAnimationEnabled = useUIStore((s) => s.diceAnimationEnabled);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -63,13 +62,6 @@ function SingleDice({
   const handleClick = useCallback(() => {
     if (animating || revealed) return;
 
-    if (!diceAnimationEnabled) {
-      setDisplayValue(result.total);
-      setRevealed(true);
-      onReveal?.();
-      return;
-    }
-
     setAnimating(true);
     playSound();
 
@@ -84,7 +76,7 @@ function SingleDice({
       setAnimating(false);
       onReveal?.();
     }, COUNTER_DURATION_MS);
-  }, [animating, revealed, result.total, playSound, onReveal, diceAnimationEnabled]);
+  }, [animating, revealed, result.total, playSound, onReveal]);
 
   useEffect(() => {
     return () => {
