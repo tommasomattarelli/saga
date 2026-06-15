@@ -32,6 +32,13 @@ predating this file live in `docs/archive/changelog/`.
   logic change. Legacy `test_pr2_*`/`test_pr3_*` names dropped for descriptive ones.
 
 ### Added
+- ADRs 0007-0010 from the Voyage (Latitude/AI Dungeon) competitive analysis:
+  adopted directions in 0007 (hybrid state-audit pass — not full two-pass — and
+  maximum configurability of memory + per-subsystem models); WIP direction-setting
+  records for the multi-layer YAML world model + in-game editor (0008), NPC
+  enrichment (0009), and player-character customization (0010). 0008-0010 are WIP
+  (nothing decided, pending deep analysis); the source analysis is kept locally in
+  `scratch/research/`.
 - Integration tests for the player-action endpoint's previously untested paths:
   DM-graph failure → clean 500 with no half-written turn, missing/inactive
   campaign guards, dice-roll flattening, and the background helpers'
