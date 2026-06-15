@@ -63,6 +63,8 @@ predating this file live in `docs/archive/changelog/`.
 - Frontend test setup now bootstraps the i18n instance and a `window.matchMedia`
   stub in `setupTests.ts`, unblocking i18n-dependent and `SettingsDrawer`-mounting
   suites (and the V8 coverage reporter that previously crashed on `matchMedia`).
+- Stale frontend test assertions realigned to the sprint-2 UI copy (login-form,
+  new-campaign, campaign-select, game-view); test-only, components unchanged.
 - Recall embedding is now computed before the turn's DB session opens, so no
   embedding API call runs inside an open session (B-M1, rule 15).
 
