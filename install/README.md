@@ -36,12 +36,14 @@ Assemble and publish it once per Postgres/pgvector bump:
 
 ```powershell
 install\build_bundle.ps1 `
-  -PgBinariesUrl "<EDB Postgres 16.x binaries-only zip>" `
-  -PgvectorZipUrl "<precompiled pgvector for PG 16>" `
+  -PgBinaries "<EDB Postgres 16.x binaries-only zip — URL or local path>" `
+  -Pgvector "<precompiled pgvector for PG 16 — URL or local path>" `
   -OutZip saga-pg-bundle-pg16.zip
 ```
 
 Then upload `saga-pg-bundle-pg16.zip` as a GitHub Release asset and use its URL.
+Known-good sources (June 2026): PG 16.14 binaries from EDB, pgvector v0.8.2 for
+PG16 (`vector.v0.8.2-pg16.zip`).
 
 ### Bundle manifest (pinned)
 
