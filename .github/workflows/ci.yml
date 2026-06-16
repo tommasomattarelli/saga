@@ -95,11 +95,11 @@ jobs:
       - run: docker compose build
 
   installer-scripts:
-    name: Installer scripts parse-check
+    name: Installer scripts check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Parse-check PowerShell installer scripts
+      - name: Parse-check PowerShell installer scripts (Windows)
         shell: pwsh
         run: |
           $bad = $false
@@ -110,3 +110,7 @@ jobs:
             else { Write-Host "[OK] $($_.Name)" }
           }
           if ($bad) { exit 1 }
+      - name: Syntax + lint sh installer scripts (Linux/macOS)
+        run: |
+          for f in install/*.sh; do bash -n "$f" && echo "[OK] $f"; done
+          shellcheck -S error install/*.sh

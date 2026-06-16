@@ -21,6 +21,10 @@ predating this file live in `docs/archive/changelog/`.
   exit); `uninstall_saga.ps1` removes everything; `build_bundle.ps1` assembles the
   Postgres+pgvector bundle for maintainers. Consumes the bundle from a configurable
   URL; the published Release asset is a prerequisite to run it end-to-end (ADR 0000).
+  Linux/macOS counterparts (`install_saga.sh`, `start_saga.sh`, `uninstall_saga.sh`)
+  mirror the flow, sourcing Postgres+pgvector from the OS package manager. CI
+  syntax/lint-checks both the PowerShell and the sh scripts; end-to-end smoke is
+  deferred until the bundle is published.
 - GitHub Actions CI (`.github/workflows/ci.yml`), runs on PR + push to `main`:
   backend lint (`ruff check`/`format --check`) + unit tests; backend integration
   + playtest against a `pgvector/pgvector:pg16` service container; the full
