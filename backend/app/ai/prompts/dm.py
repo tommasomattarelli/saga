@@ -59,18 +59,20 @@ def build_dm_system_prompt(
     hp = char_data.get("hp", "?")
     max_hp = char_data.get("max_hp", "?")
 
-    ability_keys = [("STR", "str"), ("DEX", "dex"), ("CON", "con"),
-                    ("INT", "int"), ("WIS", "wis"), ("CHA", "cha")]
+    ability_keys = [
+        ("STR", "str"),
+        ("DEX", "dex"),
+        ("CON", "con"),
+        ("INT", "int"),
+        ("WIS", "wis"),
+        ("CHA", "cha"),
+    ]
     ability_parts = [
-        f"{label} {char_data[key]}"
-        for label, key in ability_keys
-        if key in char_data
+        f"{label} {char_data[key]}" for label, key in ability_keys if key in char_data
     ]
 
     inventory = char_data.get("inventory", [])
-    inventory_str = (
-        ", ".join(str(i) for i in inventory) if inventory else "nothing notable"
-    )
+    inventory_str = ", ".join(str(i) for i in inventory) if inventory else "nothing notable"
 
     # Location data from world_state
     loc_data = world_state.get("locations", {}).get(current_location, {})

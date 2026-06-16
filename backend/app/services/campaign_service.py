@@ -92,7 +92,9 @@ def _validate_template_content(template: Template) -> None:
 
 async def create_campaign(db: AsyncSession, user: User, body: CampaignCreate) -> Campaign:
     if _is_uuid(body.template_id):
-        result = await db.execute(select(Template).where(Template.id == uuid.UUID(body.template_id)))
+        result = await db.execute(
+            select(Template).where(Template.id == uuid.UUID(body.template_id))
+        )
     else:
         result = await db.execute(select(Template).where(Template.slug == body.template_id))
     template = result.scalar_one_or_none()

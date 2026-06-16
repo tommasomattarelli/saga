@@ -51,7 +51,6 @@ async def get_campaign(
     return campaign
 
 
-
 @router.patch("/{campaign_id}/status")
 async def update_campaign_status(
     campaign_id: uuid.UUID,

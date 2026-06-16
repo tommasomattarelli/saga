@@ -6,7 +6,9 @@ from app.ai.prompts.dm import _npcs_at_current_location, build_dm_system_prompt
 from app.models.campaign import DeathMode
 
 
-def _make_campaign(world_state: dict, character_data: dict, quests: dict | None = None) -> MagicMock:
+def _make_campaign(
+    world_state: dict, character_data: dict, quests: dict | None = None
+) -> MagicMock:
     c = MagicMock()
     c.world_state = world_state
     c.character_data = character_data
@@ -62,7 +64,7 @@ def test_no_json_dumps_in_prompt():
     prompt = build_dm_system_prompt(campaign)
 
     assert "json.dumps" not in prompt
-    assert '```json' not in prompt
+    assert "```json" not in prompt
     assert '"meta":' not in prompt  # no raw JSON dump
 
 
@@ -130,7 +132,10 @@ def test_quests_section():
 
 
 def test_combat_block_only_when_active():
-    ws_combat = {**_WORLD_STATE, "combat_state": {"active": True, "round": 2, "initiative_order": ["Eron", "Goblin"]}}
+    ws_combat = {
+        **_WORLD_STATE,
+        "combat_state": {"active": True, "round": 2, "initiative_order": ["Eron", "Goblin"]},
+    }
     campaign = _make_campaign(ws_combat, _CHAR_DATA)
     prompt = build_dm_system_prompt(campaign)
 

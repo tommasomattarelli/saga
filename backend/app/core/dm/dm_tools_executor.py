@@ -34,6 +34,7 @@ _TOOL_PRIORITY: dict[str, _ToolPriority] = {
 def _sort_tool_calls(tool_calls: list[dict]) -> list[dict]:
     return sorted(tool_calls, key=lambda tc: _TOOL_PRIORITY.get(tc["name"], _ToolPriority.NORMAL))
 
+
 logger = structlog.get_logger()
 
 
@@ -83,16 +84,22 @@ async def tools_node(state: GameState) -> dict[str, Any]:
             tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
             tool_cls = get_tool(name)
             if tool_cls and tool_cls.visible():
-                tool_events.append({
-                    "tool": name, "args": args, "result": result_str,
-                    "extra": {"combat_state": world_state.get("combat_state", {})},
-                })
+                tool_events.append(
+                    {
+                        "tool": name,
+                        "args": args,
+                        "result": result_str,
+                        "extra": {"combat_state": world_state.get("combat_state", {})},
+                    }
+                )
             continue
 
         if name == "end_combat":
             world_state["combat_state"] = {
-                "active": False, "round": 0,
-                "initiative_order": [], "current_turn_index": 0,
+                "active": False,
+                "round": 0,
+                "initiative_order": [],
+                "current_turn_index": 0,
             }
             result_str = "Combat ended."
             tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
@@ -111,7 +118,9 @@ async def tools_node(state: GameState) -> dict[str, Any]:
             npc_name = args.get("name", "")
             if npc_name in called_npcs:
                 result_str = f"{npc_name} has already spoken this turn."
-                tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
+                tool_messages.append(
+                    ToolMessage(content=result_str, tool_call_id=tc_id, name=name)
+                )
                 continue
 
             npc_config = get_gameplay_config()
@@ -136,8 +145,13 @@ async def tools_node(state: GameState) -> dict[str, Any]:
             )
 
             result_str, world_state, char_data = _handle_npc_results(
-                npc_name, npc_results, npc_dialogues, narration_segments,
-                step, world_state, char_data,
+                npc_name,
+                npc_results,
+                npc_dialogues,
+                narration_segments,
+                step,
+                world_state,
+                char_data,
             )
             tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
             continue
@@ -154,10 +168,14 @@ async def tools_node(state: GameState) -> dict[str, Any]:
 
         tool_cls = get_tool(name)
         if tool_cls and tool_cls.visible():
-            tool_events.append({
-                "tool": name, "args": args,
-                "result": tool_result.description, "extra": tool_result.extra,
-            })
+            tool_events.append(
+                {
+                    "tool": name,
+                    "args": args,
+                    "result": tool_result.description,
+                    "extra": tool_result.extra,
+                }
+            )
 
         tool_messages.append(
             ToolMessage(content=tool_result.description, tool_call_id=tc_id, name=name)
@@ -222,8 +240,7 @@ def _handle_dice(
     outcome = dice_result.get("outcome", "partial_success")
     result_str = (
         f"{check.title()} check (DC {dc}): rolled {roll_obj.total} "
-        f"({modifier:+d} modifier) → {outcome}."
-        + (f" Context: {reason}" if reason else "")
+        f"({modifier:+d} modifier) → {outcome}." + (f" Context: {reason}" if reason else "")
     )
     return result_str, roll_data
 
@@ -261,11 +278,16 @@ def _handle_npc_results(
 
         if npc.disposition_change != 0:
             world_state, char_data = apply_typed_updates(
-                world_state, char_data,
-                [{"key": "npc_disposition", "target": npc.npc_name, "change": npc.disposition_change}],
+                world_state,
+                char_data,
+                [
+                    {
+                        "key": "npc_disposition",
+                        "target": npc.npc_name,
+                        "change": npc.disposition_change,
+                    }
+                ],
             )
 
-    result_str = (
-        " | ".join(dialogue_parts) if dialogue_parts else f"{npc_name} does not respond."
-    )
+    result_str = " | ".join(dialogue_parts) if dialogue_parts else f"{npc_name} does not respond."
     return result_str, world_state, char_data

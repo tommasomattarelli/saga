@@ -37,7 +37,9 @@ class TestUpdateGlobalSummary:
         from app.memory.global_summary import update_global_summary
 
         db = AsyncMock()
-        with patch("app.memory.global_summary.get_gameplay_config", return_value=_mock_cfg(enabled=False)):
+        with patch(
+            "app.memory.global_summary.get_gameplay_config", return_value=_mock_cfg(enabled=False)
+        ):
             result = await update_global_summary(uuid.uuid4(), 5, db)
 
         assert result is None
@@ -66,8 +68,12 @@ class TestUpdateGlobalSummary:
         turn = MagicMock(turn_number=1, player_action="start", narration="You begin.")
         db = _mock_db_chain(campaign, [turn])
 
-        with patch("app.memory.global_summary.get_gameplay_config", return_value=_mock_cfg()), \
-             patch("app.memory.global_summary._generate_summary", new_callable=AsyncMock) as mock_gen:
+        with (
+            patch("app.memory.global_summary.get_gameplay_config", return_value=_mock_cfg()),
+            patch(
+                "app.memory.global_summary._generate_summary", new_callable=AsyncMock
+            ) as mock_gen,
+        ):
             mock_gen.return_value = "The hero's adventure begins."
             result = await update_global_summary(uuid.uuid4(), 5, db)
 
@@ -86,8 +92,12 @@ class TestUpdateGlobalSummary:
         turn = MagicMock(turn_number=6, player_action="attack", narration="Blades clash.")
         db = _mock_db_chain(campaign, [turn])
 
-        with patch("app.memory.global_summary.get_gameplay_config", return_value=_mock_cfg()), \
-             patch("app.memory.global_summary._generate_summary", new_callable=AsyncMock) as mock_gen:
+        with (
+            patch("app.memory.global_summary.get_gameplay_config", return_value=_mock_cfg()),
+            patch(
+                "app.memory.global_summary._generate_summary", new_callable=AsyncMock
+            ) as mock_gen,
+        ):
             mock_gen.return_value = "Extended summary covering the new battle."
             result = await update_global_summary(uuid.uuid4(), 10, db)
 
@@ -105,8 +115,12 @@ class TestUpdateGlobalSummary:
         turn = MagicMock(turn_number=1, player_action="x", narration="y")
         db = _mock_db_chain(campaign, [turn])
 
-        with patch("app.memory.global_summary.get_gameplay_config", return_value=_mock_cfg()), \
-             patch("app.memory.global_summary._generate_summary", new_callable=AsyncMock) as mock_gen:
+        with (
+            patch("app.memory.global_summary.get_gameplay_config", return_value=_mock_cfg()),
+            patch(
+                "app.memory.global_summary._generate_summary", new_callable=AsyncMock
+            ) as mock_gen,
+        ):
             mock_gen.return_value = None
             result = await update_global_summary(uuid.uuid4(), 5, db)
 
@@ -135,7 +149,9 @@ class TestUpdateGlobalSummary:
                     return r
                 # Turns lookup
                 scalars = MagicMock()
-                scalars.all.return_value = [MagicMock(turn_number=10, player_action="a", narration="b")]
+                scalars.all.return_value = [
+                    MagicMock(turn_number=10, player_action="a", narration="b")
+                ]
                 r = MagicMock()
                 r.scalars.return_value = scalars
                 return r
@@ -144,8 +160,14 @@ class TestUpdateGlobalSummary:
                 pass
 
         db = FakeDb()
-        with patch("app.memory.global_summary.get_gameplay_config", return_value=_mock_cfg(interval=5)), \
-             patch("app.memory.global_summary._generate_summary", new_callable=AsyncMock) as mock_gen:
+        with (
+            patch(
+                "app.memory.global_summary.get_gameplay_config", return_value=_mock_cfg(interval=5)
+            ),
+            patch(
+                "app.memory.global_summary._generate_summary", new_callable=AsyncMock
+            ) as mock_gen,
+        ):
             mock_gen.return_value = "ok"
             await update_global_summary(uuid.uuid4(), 10, db)
 
