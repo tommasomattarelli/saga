@@ -16,6 +16,9 @@ predating this file live in `docs/archive/changelog/`.
 - The `data-theme` forcing effect duplicated across four pages
   (game-view, campaign-select, new-campaign, auth) collapsed into a single
   `useForcedTheme` hook that restores the previous theme on unmount (R-03).
+- Redundant types/casts dropped: the `CampaignWithClass` intersection (the base
+  `CharacterData` already carries `archetype`) and the inline companion cast in
+  `CompanionBar` (`world_state.companions` is already typed `CompanionData`) (R-05, R-08).
 - `ActionInput` gained a client-side length guard: native `maxLength` caps the
   textarea at 500 chars with a live counter near the limit (F-M4); the unused
   `campaignId` prop was dropped (R-10). Backend `sanitize_player_input` remains

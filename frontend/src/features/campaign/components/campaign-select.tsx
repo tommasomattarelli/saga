@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useForcedTheme } from "../../../shared/hooks/use-forced-theme";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -13,16 +14,12 @@ import { OrnamentDivider } from "../../../shared/ui/ornament-divider";
 import { ConfirmModal } from "../../../shared/ui/modal";
 import { SagaSeal } from "../../../assets/ornaments/saga-seal";
 
-type CampaignWithClass = Campaign & {
-  character_data: Campaign["character_data"] & { archetype?: string };
-};
-
 function TomeCard({
   campaign,
   onOpen,
   onDelete,
 }: {
-  campaign: CampaignWithClass;
+  campaign: Campaign;
   onOpen: () => void;
   onDelete: () => void;
 }) {
@@ -141,11 +138,7 @@ export default function CampaignSelect() {
   const deleteMutation = useDeleteCampaign();
   const [toDelete, setToDelete] = useState<Campaign | null>(null);
 
-  // Force DARK theme on the shelf page
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", "dark");
-    return () => document.documentElement.removeAttribute("data-theme");
-  }, []);
+  useForcedTheme("dark");
 
   const { data: campaigns, isLoading } = useQuery({
     queryKey: ["campaigns"],
@@ -210,7 +203,7 @@ export default function CampaignSelect() {
                 {campaigns?.map((c) => (
                   <TomeCard
                     key={c.id}
-                    campaign={c as CampaignWithClass}
+                    campaign={c}
                     onOpen={() => navigate(`/game/${c.id}`)}
                     onDelete={() => setToDelete(c)}
                   />

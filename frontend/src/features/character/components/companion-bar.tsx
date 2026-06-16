@@ -11,14 +11,7 @@ export default function CompanionBar() {
 
   return (
     <div className="flex gap-2 border-b border-parchment-700/20 bg-parchment-900/80 px-4 py-2">
-      {Object.entries(companions).map(([key, companion]) => {
-        const c = companion as {
-          name: string;
-          hp: number;
-          max_hp: number;
-          mood: string;
-          loyalty: number;
-        };
+      {Object.entries(companions).map(([key, c]) => {
         const hpPercent = (c.hp / c.max_hp) * 100;
 
         return (
