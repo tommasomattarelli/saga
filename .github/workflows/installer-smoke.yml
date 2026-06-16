@@ -27,10 +27,15 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Download bundle (gh — works on private repo)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download bundle-pg16-v1 -p saga-pg-bundle-pg16.zip -D "$env:TEMP"
       - name: Provision (install, no launch)
         shell: pwsh
         run: |
-          install\windows\install_saga.ps1 -FromLocal -NoLaunch -BundleUrl "$env:BUNDLE_URL"
+          install\windows\install_saga.ps1 -FromLocal -NoLaunch -BundleUrl "$env:TEMP\saga-pg-bundle-pg16.zip"
       - name: Smoke - start backend and probe /
         shell: pwsh
         run: |

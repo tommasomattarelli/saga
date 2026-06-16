@@ -25,7 +25,8 @@ PG_BIN="$(find_pg_bin)"
 open_url() { command -v xdg-open >/dev/null 2>&1 && xdg-open "$1" || (command -v open >/dev/null 2>&1 && open "$1"); }
 
 echo "Starting Postgres..."
-"$PG_BIN/pg_ctl" -D "$PGDATA" -o "-p $PG_PORT" -l "$INSTALL_ROOT/pg.log" -w start
+# -k /tmp: writable unix_socket dir; backend connects over TCP (localhost) anyway.
+"$PG_BIN/pg_ctl" -D "$PGDATA" -o "-p $PG_PORT -k /tmp" -l "$INSTALL_ROOT/pg.log" -w start
 trap '"$PG_BIN/pg_ctl" -D "$PGDATA" -m fast -w stop >/dev/null 2>&1 || true' EXIT
 
 # Open the browser once the app answers (uvicorn blocks below).

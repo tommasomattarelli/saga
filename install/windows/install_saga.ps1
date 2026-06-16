@@ -90,9 +90,12 @@ if (-not (Test-Path $PgBin)) {
   if (-not $BundleUrl) {
     throw "No Postgres bundle URL. Set -BundleUrl or `$env:SAGA_BUNDLE_URL to the published bundle (see install/README.md)."
   }
-  Write-Step "Downloading Postgres+pgvector bundle..."
+  Write-Step "Fetching Postgres+pgvector bundle..."
   $zip = Join-Path $env:TEMP "saga-pg-bundle.zip"
-  Invoke-WebRequest -Uri $BundleUrl -OutFile $zip
+  # $BundleUrl may be a URL (public repo) or a local file (CI pre-downloads the
+  # asset with gh, since a private repo's Release 404s for unauthenticated GETs).
+  if (Test-Path $BundleUrl) { Copy-Item -LiteralPath $BundleUrl -Destination $zip -Force }
+  else { Invoke-WebRequest -Uri $BundleUrl -OutFile $zip }
   Write-Step "Unpacking bundle..."
   New-Item -ItemType Directory -Force -Path $PgDir | Out-Null
   Expand-Archive -Path $zip -DestinationPath $PgDir -Force

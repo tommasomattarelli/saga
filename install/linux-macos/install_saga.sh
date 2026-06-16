@@ -89,10 +89,12 @@ ok "Postgres binaries: $PG_BIN"
 if [ ! -f "$PGDATA/PG_VERSION" ]; then
   step "Initialising database cluster..."
   "$PG_BIN/initdb" -D "$PGDATA" -U saga -E UTF8 --auth=trust >/dev/null
-  "$PG_BIN/pg_ctl" -D "$PGDATA" -o "-p $PG_PORT" -l "$INSTALL_ROOT/pg-init.log" -w start
+  # -k /tmp: the default unix_socket dir (/var/run/postgresql) is not writable by
+  # a non-root user on CI/most boxes; createdb/psql then connect over TCP.
+  "$PG_BIN/pg_ctl" -D "$PGDATA" -o "-p $PG_PORT -k /tmp" -l "$INSTALL_ROOT/pg-init.log" -w start
   trap '"$PG_BIN/pg_ctl" -D "$PGDATA" -m fast -w stop >/dev/null 2>&1 || true' EXIT
-  "$PG_BIN/createdb" -p "$PG_PORT" -U saga saga
-  "$PG_BIN/psql" -p "$PG_PORT" -U saga -d saga -c "CREATE EXTENSION IF NOT EXISTS vector;"
+  "$PG_BIN/createdb" -h localhost -p "$PG_PORT" -U saga saga
+  "$PG_BIN/psql" -h localhost -p "$PG_PORT" -U saga -d saga -c "CREATE EXTENSION IF NOT EXISTS vector;"
   "$PG_BIN/pg_ctl" -D "$PGDATA" -m fast -w stop
   trap - EXIT
   ok "Database initialised"
