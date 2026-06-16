@@ -24,8 +24,9 @@ predating this file live in `docs/archive/changelog/`.
 - GitHub Actions CI (`.github/workflows/ci.yml`), runs on PR + push to `main`:
   backend lint (`ruff check`/`format --check`) + unit tests; backend integration
   + playtest against a `pgvector/pgvector:pg16` service container; the full
-  frontend pipeline (lint, vitest, knip, build); and a Docker build smoke. No AI
-  keys are needed — every LLM call on the test path is mocked (ADR 0000).
+  frontend pipeline (lint, vitest, knip, build); a Docker build smoke; and a
+  parse-check of the installer PowerShell scripts. No AI keys are needed — every
+  LLM call on the test path is mocked (ADR 0000).
 - Backend can serve the built frontend SPA itself (FastAPI `StaticFiles` with an
   index.html fallback for client routes), enabled via `SAGA_FRONTEND_DIST` and
   mounted last so `/api` keeps precedence. Off by default, so dev and Docker
