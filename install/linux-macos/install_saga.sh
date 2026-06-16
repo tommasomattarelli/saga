@@ -70,19 +70,19 @@ find_pg_bin() {
     [ -n "$d" ] && [ -x "$d/initdb" ] && { echo "$d"; return; }
   done
 }
-PG_BIN="$(find_pg_bin || true)"
-if [ -z "${PG_BIN:-}" ]; then
-  step "Installing Postgres 16 + pgvector via package manager..."
-  if command -v brew >/dev/null 2>&1; then
-    brew install postgresql@16 pgvector
-  elif command -v apt-get >/dev/null 2>&1; then
-    sudo apt-get update
-    sudo apt-get install -y postgresql-16 postgresql-16-pgvector
-  else
-    echo "No supported package manager (brew/apt). Install Postgres 16 + pgvector manually."; exit 1
-  fi
-  PG_BIN="$(find_pg_bin)"
+# Install both unconditionally (idempotent): pgvector is a separate package and
+# may be missing even when Postgres itself is already present.
+step "Ensuring Postgres 16 + pgvector..."
+if command -v brew >/dev/null 2>&1; then
+  brew install postgresql@16 pgvector
+elif command -v apt-get >/dev/null 2>&1; then
+  sudo apt-get update
+  sudo apt-get install -y postgresql-16 postgresql-16-pgvector
+else
+  echo "No supported package manager (brew/apt). Install Postgres 16 + pgvector manually."; exit 1
 fi
+PG_BIN="$(find_pg_bin)"
+[ -n "${PG_BIN:-}" ] || { echo "Postgres binaries not found after install."; exit 1; }
 ok "Postgres binaries: $PG_BIN"
 
 # --- init cluster (once) ----------------------------------------------------

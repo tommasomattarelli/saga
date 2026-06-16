@@ -39,11 +39,15 @@ jobs:
       - name: Smoke - start backend and probe /
         shell: pwsh
         run: |
+          # uv is on PATH only within the install step; re-add it here.
+          $env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
           # -FromLocal puts pg/pgdata in the checkout's parent.
           $pgBin = Join-Path (Split-Path $PWD -Parent) "pg\pgsql\bin"
           $pgData = Join-Path (Split-Path $PWD -Parent) "pgdata"
           & "$pgBin\pg_ctl.exe" -D $pgData -o "-p 54320" -l "$env:TEMP\pg.log" -w start
+          $out = "$env:TEMP\uvicorn.out"; $err = "$env:TEMP\uvicorn.err"
           $proc = Start-Process uv -WorkingDirectory backend -PassThru `
+            -RedirectStandardOutput $out -RedirectStandardError $err `
             -ArgumentList 'run','uvicorn','app.main:app','--host','127.0.0.1','--port','8000'
           try {
             $ok = $false
@@ -51,7 +55,13 @@ jobs:
               try { Invoke-WebRequest http://localhost:8000 -UseBasicParsing -TimeoutSec 2 | Out-Null; $ok = $true; break }
               catch { Start-Sleep -Seconds 2 }
             }
-            if (-not $ok) { throw "Backend did not serve the SPA at http://localhost:8000" }
+            if (-not $ok) {
+              try { Invoke-WebRequest http://localhost:8000/openapi.json -UseBasicParsing -TimeoutSec 2 | Out-Null; Write-Host "(/openapi.json OK -> backend up, SPA not mounted)" }
+              catch { Write-Host "(/openapi.json also failed -> backend down)" }
+              Write-Host "--- uvicorn stdout ---"; Get-Content $out -ErrorAction SilentlyContinue
+              Write-Host "--- uvicorn stderr ---"; Get-Content $err -ErrorAction SilentlyContinue
+              throw "Backend did not serve the SPA at http://localhost:8000"
+            }
             Write-Host "[OK] backend served the SPA"
           } finally {
             Stop-Process $proc.Id -Force -ErrorAction SilentlyContinue
@@ -78,7 +88,7 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           PGBIN=/usr/lib/postgresql/16/bin
           PGDATA="$HOME/.local/share/saga/pgdata"  # SAGA_INSTALL_ROOT default
-          "$PGBIN/pg_ctl" -D "$PGDATA" -o "-p 54320" -l /tmp/pg.log -w start
+          "$PGBIN/pg_ctl" -D "$PGDATA" -o "-p 54320 -k /tmp" -l /tmp/pg.log -w start
           ( cd backend && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 ) &
           UVPID=$!
           ok=0
