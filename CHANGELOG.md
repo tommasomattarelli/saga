@@ -13,6 +13,10 @@ predating this file live in `docs/archive/changelog/`.
 ## [Unreleased]
 
 ### Added
+- Backend can serve the built frontend SPA itself (FastAPI `StaticFiles` with an
+  index.html fallback for client routes), enabled via `SAGA_FRONTEND_DIST` and
+  mounted last so `/api` keeps precedence. Off by default, so dev and Docker
+  (Vite dev server) are unaffected — used only by the native installer (ADR 0000).
 - ADR 0000 (distribution & deployment architecture): the foundational,
   pre-first-release deployment decision. Two-tier distribution — Docker
   `compose up --build` for technical users, and a native no-Docker casual
