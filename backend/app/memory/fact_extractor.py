@@ -59,8 +59,7 @@ async def extract_and_store_facts(
         npc_section = "NPC dialogues:\n" + "\n".join(f"- {d}" for d in npc_dialogues)
 
     prompt_text = (
-        FACT_EXTRACTION_PROMPT
-        .replace("{player_action}", player_action)
+        FACT_EXTRACTION_PROMPT.replace("{player_action}", player_action)
         .replace("{narration}", narration)
         .replace("{npc_section}", npc_section)
     )

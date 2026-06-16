@@ -147,18 +147,14 @@ def get_gameplay_config() -> GameplayConfig:
         context_token_cap=int(
             os.getenv("SAGA_GAMEPLAY_CONTEXT_TOKEN_CAP", gp.get("context_token_cap", 12000))
         ),
-        npc_verbosity=os.getenv(
-            "SAGA_GAMEPLAY_NPC_VERBOSITY", gp.get("npc_verbosity", "medium")
-        ),
+        npc_verbosity=os.getenv("SAGA_GAMEPLAY_NPC_VERBOSITY", gp.get("npc_verbosity", "medium")),
         compression_enabled=_bool_env(
             "SAGA_GAMEPLAY_COMPRESSION_ENABLED", gp.get("compression_enabled", True)
         ),
         fact_extraction_enabled=_bool_env(
             "SAGA_GAMEPLAY_FACT_EXTRACTION_ENABLED", gp.get("fact_extraction_enabled", True)
         ),
-        global_summary_enabled=_bool_env(
-            "SAGA_GLOBAL_SUMMARY_ENABLED", gs.get("enabled", True)
-        ),
+        global_summary_enabled=_bool_env("SAGA_GLOBAL_SUMMARY_ENABLED", gs.get("enabled", True)),
         global_summary_update_every=int(
             os.getenv("SAGA_GLOBAL_SUMMARY_INTERVAL_TURNS", gs.get("interval_turns", 5))
         ),

@@ -18,6 +18,7 @@ class TestEncryption:
 
     def test_encrypted_is_base64_string(self):
         import base64
+
         plaintext = "test-key"
         encrypted = encrypt_api_key(plaintext)
         # Should not raise

@@ -21,6 +21,7 @@ def _make_campaign(**overrides) -> MagicMock:
 
 # ── I1 — Persona presets ──────────────────────────────────────────────────────
 
+
 class TestPersonaPresets:
     def test_persona_preset_grimdark_injects_block(self):
         """grimdark preset produces a <persona> block in the system prompt."""
@@ -40,7 +41,9 @@ class TestPersonaPresets:
         prompt = build_dm_system_prompt(campaign)
 
         assert "<persona>" in prompt
-        assert "epic" in prompt.lower() or "courage" in prompt.lower() or "heroic" in prompt.lower()
+        assert (
+            "epic" in prompt.lower() or "courage" in prompt.lower() or "heroic" in prompt.lower()
+        )
 
     def test_persona_preset_horror_injects_block(self):
         """horror preset produces a <persona> block mentioning dread."""
@@ -61,7 +64,9 @@ class TestPersonaPresets:
         prompt = build_dm_system_prompt(campaign)
 
         assert "pirate narrator" in prompt
-        assert "brutal" not in prompt.lower() or prompt.index("pirate") < prompt.index("<instructions>")
+        assert "brutal" not in prompt.lower() or prompt.index("pirate") < prompt.index(
+            "<instructions>"
+        )
 
     def test_no_preset_injects_no_persona_block(self):
         """Without a preset, no <persona> block appears."""
@@ -93,6 +98,7 @@ class TestPersonaPresets:
 
 # ── C4 — history label ────────────────────────────────────────────────────────
 
+
 class TestHistoryLabel:
     def test_history_block_has_story_so_far_label(self):
         """<history> tag includes label='story_so_far' attribute."""
@@ -116,6 +122,7 @@ class TestHistoryLabel:
 
 # ── I3 — Empty/gibberish handler ─────────────────────────────────────────────
 
+
 class TestEmptyInputHandler:
     def test_base_prompt_contains_gibberish_instruction(self):
         """BASE_DM_PROMPT contains instruction for empty/incoherent player input."""
@@ -133,6 +140,7 @@ class TestEmptyInputHandler:
 
 # ── I4 — Multi-NPC sequential guidance ───────────────────────────────────────
 
+
 class TestMultiNpcGuidance:
     def test_base_prompt_contains_one_npc_at_a_time_rule(self):
         """BASE_DM_PROMPT mandates sequential invoke_npc calls."""
@@ -143,6 +151,7 @@ class TestMultiNpcGuidance:
 
 
 # ── I5 — update_quest status enum ────────────────────────────────────────────
+
 
 class TestUpdateQuestEnum:
     def test_update_quest_tool_documents_all_statuses(self):
@@ -163,6 +172,7 @@ class TestUpdateQuestEnum:
 
 
 # ── I6 — Backstop rule ───────────────────────────────────────────────────────
+
 
 class TestBackstopRule:
     def test_backstop_rule_present_in_base_prompt(self):
