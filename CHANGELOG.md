@@ -13,6 +13,14 @@ predating this file live in `docs/archive/changelog/`.
 ## [Unreleased]
 
 ### Added
+- Native Windows installer under `install/` (no Docker, no admin): `install_saga.bat`
+  bootstrapper (ensures Git, clones) hands off to `install_saga.ps1` (portable
+  Node + user-scope uv + a pinned portable Postgres+pgvector bundle, generated
+  secrets, `uv sync` + `npm build`, desktop shortcut). `start_saga.ps1` is the
+  coupled launcher (Postgres up → backend serving API + SPA → Postgres down on
+  exit); `uninstall_saga.ps1` removes everything; `build_bundle.ps1` assembles the
+  Postgres+pgvector bundle for maintainers. Consumes the bundle from a configurable
+  URL; the published Release asset is a prerequisite to run it end-to-end (ADR 0000).
 - GitHub Actions CI (`.github/workflows/ci.yml`), runs on PR + push to `main`:
   backend lint (`ruff check`/`format --check`) + unit tests; backend integration
   + playtest against a `pgvector/pgvector:pg16` service container; the full
