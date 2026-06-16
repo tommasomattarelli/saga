@@ -93,12 +93,12 @@
 | # | File:Linea | Descrizione | Stato |
 |---|-----------|-------------|-------|
 | F-M1 | `shared/stores/game-store.ts` | Store Zustand non ha reset esplicito al logout. Dati di campagna precedente possono persistere in memoria dopo il cambio utente. | `[x]` ✅ reset al logout in `auth-store` (commit d667176) |
-| F-M2 | `features/narrative/components/narrative-stream.tsx` | SSE event listener non viene rimosso su unmount del componente. Memoria leak su navigazione veloce. | `[ ]` |
+| F-M2 | `features/narrative/components/narrative-stream.tsx` | SSE event listener non viene rimosso su unmount del componente. Memoria leak su navigazione veloce. | `[x]` ✅ N/A — premessa errata: nessun `EventSource`/SSE nel codice. `NarrativeStream` usa subscription Zustand, nessun listener da rimuovere. |
 | F-M3 | `features/narrative/components/dice-roller.tsx` | `revealedCount` usato ma non dichiarato correttamente — causa errore ESLint residuo. | `[x]` ✅ fixato |
-| F-M4 | `features/game/components/action-input.tsx` | Input non sanitizzato lato client prima dell'invio. Il backend sanitizza (`sanitize_player_input`) ma il frontend non dà feedback immediato su input troppo lunghi o caratteri non validi. | `[ ]` |
-| F-M5 | `features/character/` | Nessun loading skeleton su `CharacterSheet` durante il fetch iniziale. Flash di contenuto vuoto visibile su connessioni lente. | `[ ]` |
-| F-M6 | `shared/services/` | Client API non gestisce il caso di token scaduto durante una SSE stream in corso. L'utente vede uno stream interrotto senza messaggio di errore. | `[ ]` |
-| F-M7 | `features/narrative/` | Nessun test unitario sui componenti narrativi (NarrativeStream, DiceRoller). Regressioni di rendering non rilevabili con il solo ESLint. | `[ ]` |
+| F-M4 | `features/game/components/action-input.tsx` | Input non sanitizzato lato client prima dell'invio. Il backend sanitizza (`sanitize_player_input`) ma il frontend non dà feedback immediato su input troppo lunghi o caratteri non validi. | `[x]` ✅ `maxLength` nativo (500) + contatore live vicino al limite. |
+| F-M5 | `features/character/` | Nessun loading skeleton su `CharacterSheet` durante il fetch iniziale. Flash di contenuto vuoto visibile su connessioni lente. | `[x]` ✅ N/A — moot: `CharacterSheet` montato solo dopo il loading di `GameView`, mai durante il fetch. |
+| F-M6 | `shared/services/` | Client API non gestisce il caso di token scaduto durante una SSE stream in corso. L'utente vede uno stream interrotto senza messaggio di errore. | `[x]` ✅ N/A — premessa errata: nessun SSE; 401 gestito da interceptor axios + `refresh-mutex` per tutte le chiamate HTTP. |
+| F-M7 | `features/narrative/` | Nessun test unitario sui componenti narrativi (NarrativeStream, DiceRoller). Regressioni di rendering non rilevabili con il solo ESLint. | `[x]` ✅ test `NarrativeStream` riallineati e verdi (DiceRoller già coperto); `data-testid` su `DmLoading`. |
 
 ---
 
@@ -107,9 +107,9 @@
 | # | File:Linea | Descrizione | Stato |
 |---|-----------|-------------|-------|
 | F-L1 | `features/game/components/game-view.tsx` | Mood CSS transitions non hanno `prefers-reduced-motion` media query. Accessibilità. | `[x]` ✅ `prefers-reduced-motion` in `App.tsx` + toggle in `settings-drawer` |
-| F-L2 | `shared/stores/` | Nessun middleware di logging su Zustand in development mode. Difficile debuggare sequenze di azione. | `[ ]` |
-| F-L3 | `features/character/components/character-sheet.tsx` | Valori ability score (STR, DEX, ...) hardcoded nel componente invece di essere derivati dall'interface `CharacterData`. | `[ ]` |
-| F-L4 | `features/narrative/components/dice-roller.tsx` | Animazione click-to-reveal non disabilitabile da `saga.config.yaml`. Nessun modo per l'utente di disattivarla. | `[x]` ✅ toggle `diceAnimationEnabled` (commit d30a844) |
+| F-L2 | `shared/stores/` | Nessun middleware di logging su Zustand in development mode. Difficile debuggare sequenze di azione. | `[x]` ✅ `devtools` middleware sui 3 store, gated `import.meta.env.DEV` |
+| F-L3 | `features/character/components/character-sheet.tsx` | Valori ability score (STR, DEX, ...) hardcoded nel componente invece di essere derivati dall'interface `CharacterData`. | `[x]` ✅ sigilli derivati da `char.abilities` (ordine canonico + extra), in `character-sheet-parts.tsx` |
+| F-L4 | `features/narrative/components/dice-roller.tsx` | Animazione click-to-reveal non disabilitabile da `saga.config.yaml`. Nessun modo per l'utente di disattivarla. | `[~]` ⚠️ **revert**: `diceAnimationEnabled` (commit d30a844) era dead wiring — setter mai cablato a UI, branch irraggiungibile. Rimosso (store + dice-roller + config). Ri-aggiungere con toggle UI reale quando serve. |
 | F-L5 | `src/i18n/` | Stringhe di errore dell'API non sono localizzate — vengono mostrate in inglese anche in locale non-EN. | `[x]` ✅ chiavi i18n + locale IT (commit be2da5b, 4526701) |
 | F-L6 | `shared/` | Nessun global error boundary React. Un'eccezione non gestita in un componente smonta l'intera app. | `[x]` ✅ ErrorBoundary in `App.tsx` (commit 6209252) |
 | F-L7 | `features/` | Bundle size non monitorato. Nessun budget configurato in Vite. | `[x]` ✅ warning limit 500 kB in `vite.config.ts` (commit 484f4ab) |
@@ -226,17 +226,23 @@ Stato dopo la sessione del 2026-06-08. **Tutto il backlog backend (HIGH/MEDIA/LO
 - ~~**B-M11**~~ — ✅ fatto 2026-06-08: test su `route_after_tools` per il cap `consecutive_empty_steps` (unit deterministico in `test_dm_routing.py`; il path è una funzione pura, un integration test richiederebbe di forzare loop a vuoto con LLM mockato — coperto meglio a livello unit).
 - ~~**B-M1**~~ — ✅ fatto 2026-06-08: l'embedding di recall è precalcolato in `context_node` PRIMA di aprire la sessione e passato a `build_context → search_similar_facts` (param `query_embedding`). Nessuna chiamata embedding API in-sessione.
 
-### 🟡 Frontend — priorità MEDIA
-- **F-M2** — SSE event listener non rimosso su unmount di `narrative-stream.tsx` (verificato: nessun cleanup) → memory leak.
-- **F-M4** — input non sanitizzato lato client (nessun feedback immediato su input troppo lunghi).
-- **F-M5** — nessun loading skeleton su `CharacterSheet`.
-- **F-M6** — token scaduto durante SSE stream non gestito.
-- **F-M7** — nessun test unitario sui componenti narrativi (`NarrativeStream`, `DiceRoller`).
+> **Update sessione frontend 2026-06-16**: chiuso tutto il backlog frontend aperto.
+> Suite verde (102 test), `tsc`/`eslint`/`knip` puliti, coverage reale **~82%**
+> (floor 80/80/70/80 in `vite.config.ts`). Componenti >300 righe splittati
+> (`CharacterSheet`, `NarrativeStream`), dead code rimosso (deps, file, export,
+> funzioni). **Premesse errate chiuse**: F-M2/F-M6 (nessun SSE/EventSource nel
+> codice), F-M5 (moot). **Revert**: F-L4 (dead wiring). **Deferiti con motivazione
+> tecnica** (non dead code, indeboliscono o over-ingegnerizzano): R-02 (`Modal`
+> impone header), R-06 (HpBar over-abstract), R-07 (Zod-derived indebolisce i tipi
+> annidati), R-04 (alias, churn alto), R-11.
 
-### 🟢 Frontend — priorità BASSA
-- **F-L2** — nessun middleware di logging Zustand in dev.
-- **F-L3** — ability score hardcoded nel componente invece che derivati da `CharacterData`.
-- **F-L9** — nessun test E2E (Playwright/Cypress) sul golden path.
+### ✅ Frontend — MEDIA (chiuse)
+- ~~**F-M2**~~ — N/A, premessa errata (nessun SSE). ~~**F-M4**~~ — `maxLength` + contatore.
+  ~~**F-M5**~~ — moot. ~~**F-M6**~~ — N/A (interceptor + refresh-mutex). ~~**F-M7**~~ — test narrativi verdi.
+
+### ✅ Frontend — BASSA (chiuse)
+- ~~**F-L2**~~ — `devtools` zustand (DEV). ~~**F-L3**~~ — sigilli derivati da `abilities`.
+  **F-L9** — E2E Playwright mockato (no Docker; da validare con backend reale + Docker).
 
 ### 🔬 SOTA Research (opzionale, da valutare)
 - Migrazione `memory_facts` da `vector` (float32) a `halfvec` (float16).
