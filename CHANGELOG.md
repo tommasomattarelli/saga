@@ -13,6 +13,11 @@ predating this file live in `docs/archive/changelog/`.
 ## [Unreleased]
 
 ### Changed
+- `NarrativeStream` (338 lines) split into `player-action.tsx`, `turn-block.tsx`
+  (segment + progressive dice-reveal logic) and a thin `narrative-stream.tsx`
+  shell (81 lines, rule 12). Stale tests realigned to current copy; `DmLoading`
+  given a `data-testid` so the loading state asserts on the component, not its
+  rotating flavour text (F-M7).
 - `CharacterSheet` split: presentational body + `StatSigil`/`HpBar` extracted to
   `character-sheet-parts.tsx`, dropping the component from 306 to 88 lines (rule 12).
   Ability sigils now derive from the character's own `abilities` map, including
