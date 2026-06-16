@@ -1,12 +1,15 @@
-# SAGA installer (Windows, no Docker)
+# SAGA installer (no Docker)
 
 For **casual users** who want to run SAGA without Docker. Technical users should
 just `docker compose up --build` (see the root README). Rationale and the full
 design are in [`docs/adr/0000-distribution-and-deployment-architecture.md`](../docs/adr/0000-distribution-and-deployment-architecture.md).
 
-## For players
+Per-platform scripts live in `windows/` and `linux-macos/`; the maintainer bundle
+recipe (`build_bundle.ps1`) stays at the `install/` root.
 
-1. Download **`install_saga.bat`** and double-click it.
+## For players (Windows)
+
+1. Download **`windows/install_saga.bat`** and double-click it.
 2. It installs Git (if missing), clones SAGA into `%LOCALAPPDATA%\SAGA\app`, then
    installs uv + Node, provisions a portable Postgres+pgvector, builds the app,
    and creates a **SAGA** desktop shortcut.
@@ -17,16 +20,23 @@ The app opens at `http://localhost:8000`. Add your AI provider key later from th
 in-app settings (the installer never asks for it).
 
 Requirements: Windows 10/11, an internet connection on first run, ~3–4 GB free.
-No admin rights needed. To remove everything, run `install\uninstall_saga.ps1`.
+No admin rights needed. To remove everything, run `windows\uninstall_saga.ps1`.
+
+## For players (Linux/macOS)
+
+Run `linux-macos/install_saga.sh`. It provisions uv + Node and installs
+Postgres 16 + pgvector via the OS package manager (brew on macOS, apt on Debian/
+Ubuntu), then builds and launches via `linux-macos/start_saga.sh`.
 
 ## Files
 
 | File | Role |
 |---|---|
-| `install_saga.bat` | Downloadable bootstrapper: ensures Git, clones, hands off to the `.ps1`. |
-| `install_saga.ps1` | Provisioning: uv/Node, Postgres bundle, DB init, `.env`, build, shortcut. Use `-FromLocal` to run against a checkout (CI/dev). |
-| `start_saga.ps1` | Launcher: starts Postgres → runs the backend (serves API + frontend) → stops Postgres on exit. |
-| `uninstall_saga.ps1` | Stops Postgres and removes `%LOCALAPPDATA%\SAGA`. |
+| `windows/install_saga.bat` | Downloadable bootstrapper: ensures Git, clones, hands off to the `.ps1`. |
+| `windows/install_saga.ps1` | Provisioning: uv/Node, Postgres bundle, DB init, `.env`, build, shortcut. Use `-FromLocal` to run against a checkout (CI/dev). |
+| `windows/start_saga.ps1` | Launcher: starts Postgres → runs the backend (serves API + frontend) → stops Postgres on exit. |
+| `windows/uninstall_saga.ps1` | Stops Postgres and removes `%LOCALAPPDATA%\SAGA`. |
+| `linux-macos/*.sh` | The same three scripts for Linux/macOS. |
 | `build_bundle.ps1` | Maintainer-only: assembles the Postgres+pgvector bundle zip. |
 
 ## For maintainers — the Postgres+pgvector bundle

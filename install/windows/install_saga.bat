@@ -42,6 +42,6 @@ if exist "%APP_DIR%\.git" (
 
 echo.
 echo Running the provisioning step...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%APP_DIR%\install\install_saga.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%APP_DIR%\install\windows\install_saga.ps1"
 
 pause

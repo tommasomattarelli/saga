@@ -17,7 +17,7 @@ ok()   { printf '[OK] %s\n' "$1"; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="${SAGA_INSTALL_ROOT:-$HOME/.local/share/saga}"
 if [ "$FROM_LOCAL" = "1" ]; then
-  APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+  APP_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 else
   APP_DIR="$INSTALL_ROOT/app"
   if [ ! -d "$APP_DIR/.git" ]; then
@@ -126,5 +126,5 @@ ok "Build complete"
 
 ok "Installation complete. Start SAGA with: install/start_saga.sh"
 if [ "$NO_LAUNCH" != "1" ]; then
-  SAGA_PG_PORT="$PG_PORT" SAGA_APP_PORT="$APP_PORT" "$APP_DIR/install/start_saga.sh"
+  SAGA_PG_PORT="$PG_PORT" SAGA_APP_PORT="$APP_PORT" "$APP_DIR/install/linux-macos/start_saga.sh"
 fi

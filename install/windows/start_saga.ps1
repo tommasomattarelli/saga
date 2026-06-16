@@ -20,7 +20,7 @@ $ErrorActionPreference = "Stop"
 # uv installs to the user profile; make sure a fresh launcher shell sees it.
 $env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
 
-$AppDir = (Resolve-Path "$PSScriptRoot\..").Path
+$AppDir = (Resolve-Path "$PSScriptRoot\..\..").Path
 $InstallRoot = Split-Path $AppDir -Parent
 $PgBin  = Join-Path $InstallRoot "pg\pgsql\bin"
 $PgData = Join-Path $InstallRoot "pgdata"

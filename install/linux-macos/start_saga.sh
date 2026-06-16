@@ -7,7 +7,7 @@ PG_PORT="${SAGA_PG_PORT:-54320}"
 APP_PORT="${SAGA_APP_PORT:-8000}"
 export PATH="$HOME/.local/bin:$PATH"
 
-APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 INSTALL_ROOT="${SAGA_INSTALL_ROOT:-$HOME/.local/share/saga}"
 PGDATA="$INSTALL_ROOT/pgdata"
 

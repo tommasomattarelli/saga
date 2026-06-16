@@ -16,8 +16,9 @@
 param(
   # Use the current checkout instead of %LOCALAPPDATA%\SAGA\app (CI / dev testing).
   [switch]$FromLocal,
-  # Pinned Postgres+pgvector bundle (zip of a `pgsql` dir). Published as a Release asset.
-  [string]$BundleUrl = $env:SAGA_BUNDLE_URL,
+  # Pinned Postgres+pgvector bundle (zip of a `pgsql` dir), published as a Release asset.
+  # $env:SAGA_BUNDLE_URL overrides; otherwise the published default below.
+  [string]$BundleUrl = $(if ($env:SAGA_BUNDLE_URL) { $env:SAGA_BUNDLE_URL } else { "https://github.com/tommasomattarelli/saga/releases/download/bundle-pg16-v1/saga-pg-bundle-pg16.zip" }),
   [int]$PgPort = 54320,
   [int]$AppPort = 8000,
   # Pinned portable Node.js LTS (downloaded from nodejs.org, no admin).
@@ -45,7 +46,7 @@ function New-Secret {
 
 # --- Resolve install layout -------------------------------------------------
 $AppDir = if ($FromLocal) {
-  (Resolve-Path "$PSScriptRoot\..").Path
+  (Resolve-Path "$PSScriptRoot\..\..").Path
 } else {
   Join-Path $env:LOCALAPPDATA "SAGA\app"
 }
@@ -158,10 +159,10 @@ $shortcut = Join-Path ([Environment]::GetFolderPath("Desktop")) "SAGA.lnk"
 $ws = New-Object -ComObject WScript.Shell
 $lnk = $ws.CreateShortcut($shortcut)
 $lnk.TargetPath = "powershell.exe"
-$lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $AppDir 'install\start_saga.ps1')`""
+$lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $AppDir 'install\windows\start_saga.ps1')`""
 $lnk.WorkingDirectory = $AppDir
 $lnk.Description = "Launch SAGA"
-$ico = Join-Path $AppDir "install\saga.ico"
+$ico = Join-Path $AppDir "install\windows\saga.ico"
 if (Test-Path $ico) { $lnk.IconLocation = $ico }
 $lnk.Save()
 Write-Ok "Desktop shortcut 'SAGA' created"
@@ -171,5 +172,5 @@ Write-Ok "Installation complete. Launch SAGA from the desktop shortcut."
 Write-Host "    The app opens at http://localhost:$AppPort" -ForegroundColor Gray
 
 if (-not $NoLaunch) {
-  & (Join-Path $AppDir "install\start_saga.ps1") -PgPort $PgPort -AppPort $AppPort
+  & (Join-Path $AppDir "install\windows\start_saga.ps1") -PgPort $PgPort -AppPort $AppPort
 }

@@ -9,7 +9,7 @@ param([switch]$Yes)
 
 $ErrorActionPreference = "Stop"
 
-$AppDir = (Resolve-Path "$PSScriptRoot\..").Path
+$AppDir = (Resolve-Path "$PSScriptRoot\..\..").Path
 $InstallRoot = Split-Path $AppDir -Parent
 $PgBin  = Join-Path $InstallRoot "pg\pgsql\bin"
 $PgData = Join-Path $InstallRoot "pgdata"

@@ -13,6 +13,11 @@ predating this file live in `docs/archive/changelog/`.
 ## [Unreleased]
 
 ### Added
+- `installer-smoke.yml` workflow (manual `workflow_dispatch` + weekly schedule):
+  end-to-end installer smoke on `windows-latest` (provisions the published bundle,
+  starts the backend, probes `/`) and `ubuntu-latest` (PGDG apt + the sh installer).
+  Kept off the PR path because it is slow and downloads the bundle. Installer
+  scripts are organized under `install/windows/` and `install/linux-macos/`.
 - Native Windows installer under `install/` (no Docker, no admin): `install_saga.bat`
   bootstrapper (ensures Git, clones) hands off to `install_saga.ps1` (portable
   Node + user-scope uv + a pinned portable Postgres+pgvector bundle, generated
