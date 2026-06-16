@@ -52,6 +52,9 @@ predating this file live in `docs/archive/changelog/`.
   editor; open TODOs catalogued. Research kept locally in `scratch/research/`.
 
 ### Added
+- Zustand stores (`game`, `auth`, `ui`) wrapped in the `devtools` middleware,
+  gated on `import.meta.env.DEV` (F-L2). `ThemeOverride` is now exported once from
+  `ui-store` and imported by `settings-drawer` instead of being re-declared (R-12).
 - ADRs 0007-0010 from the Voyage (Latitude/AI Dungeon) competitive analysis:
   adopted directions in 0007 (hybrid state-audit pass — not full two-pass — and
   maximum configurability of memory + per-subsystem models); WIP direction-setting
