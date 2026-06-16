@@ -12,6 +12,7 @@ from app.api.rate_limit import limiter, rate_limit_exceeded_handler
 from app.config import settings
 from app.dependencies import close_db, init_db
 from app.logging_setup import setup_logging
+from app.static_serving import mount_frontend
 
 setup_logging()
 
@@ -52,6 +53,8 @@ def create_app() -> FastAPI:
     app.include_router(settings_api.router, prefix="/api/settings", tags=["settings"])
     app.include_router(export.router, prefix="/api/export", tags=["export"])
     app.include_router(turns.router, prefix="/api/campaigns", tags=["turns"])
+
+    mount_frontend(app)
 
     return app
 

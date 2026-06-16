@@ -34,6 +34,7 @@ def _make_state(**overrides) -> dict:
 
 # ── C3 — consecutive_empty_steps ─────────────────────────────────────────────
 
+
 class TestConsecutiveEmptySteps:
     def test_loop_exits_after_consecutive_empty_steps_max(self):
         """route_after_tools exits when counter >= configured max (default 2)."""
@@ -126,6 +127,7 @@ class TestConsecutiveEmptySteps:
 
 # ── I8 — _MEANINGFUL_TOOLS includes start_combat + end_combat ────────────────
 
+
 class TestMeaningfulTools:
     def test_start_combat_triggers_loop_back(self):
         """start_combat is treated as meaningful → loop back to dm_node."""
@@ -133,7 +135,9 @@ class TestMeaningfulTools:
 
         tc = {"id": "1", "name": "start_combat", "args": {}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
-        state = _make_state(messages=[ai_msg], step_count=1, narration="", consecutive_empty_steps=0)
+        state = _make_state(
+            messages=[ai_msg], step_count=1, narration="", consecutive_empty_steps=0
+        )
         assert route_after_tools(state) == "dm_node"
 
     def test_end_combat_triggers_loop_back(self):
@@ -142,11 +146,14 @@ class TestMeaningfulTools:
 
         tc = {"id": "1", "name": "end_combat", "args": {}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
-        state = _make_state(messages=[ai_msg], step_count=1, narration="", consecutive_empty_steps=0)
+        state = _make_state(
+            messages=[ai_msg], step_count=1, narration="", consecutive_empty_steps=0
+        )
         assert route_after_tools(state) == "dm_node"
 
 
 # ── C6 — NPC pre-hook ─────────────────────────────────────────────────────────
+
 
 class TestNpcPrehook:
     def test_invoke_npc_absent_auto_creates_with_standard_detail(self):
@@ -239,6 +246,7 @@ class TestNpcPrehook:
 
 # ── I9 — tool call sort order ────────────────────────────────────────────────
 
+
 class TestToolCallSortOrder:
     def test_request_dice_sorted_before_invoke_npc(self):
         """_sort_tool_calls places request_dice before invoke_npc."""
@@ -269,6 +277,7 @@ class TestToolCallSortOrder:
 
 
 # ── I10 — sanitize tool error messages ───────────────────────────────────────
+
 
 class TestToolErrorSanitized:
     def test_error_has_no_newlines(self):

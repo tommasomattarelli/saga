@@ -150,9 +150,13 @@ class TestContextNode:
         state = _make_state(player_action="I attack the guard", campaign_id="cid")
 
         with (
-            patch("app.ai.embeddings.generate_embedding", new=AsyncMock(return_value=[0.3] * 384)) as mock_embed,
+            patch(
+                "app.ai.embeddings.generate_embedding", new=AsyncMock(return_value=[0.3] * 384)
+            ) as mock_embed,
             patch("app.dependencies.get_db_context", side_effect=fake_ctx),
-            patch("app.core.dm.dm_nodes.build_context", new=AsyncMock(return_value=game_ctx)) as mock_bc,
+            patch(
+                "app.core.dm.dm_nodes.build_context", new=AsyncMock(return_value=game_ctx)
+            ) as mock_bc,
             patch("app.core.dm.dm_nodes.route_ai_call", new=AsyncMock(return_value=model_cfg)),
             patch("app.core.dm.dm_nodes.sanitize_player_input", side_effect=lambda x: x),
             patch("app.core.dm.dm_nodes.detect_injection", return_value=False),
@@ -178,9 +182,11 @@ class TestDmNodeUnit:
 
         state = _make_state(step_count=1)
 
-        with patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider), \
-             patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()), \
-             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]):
+        with (
+            patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider),
+            patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
+            patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
+        ):
             result = await dm_node(state, config={})
 
         assert result["step_count"] == 2
@@ -198,9 +204,11 @@ class TestDmNodeUnit:
 
         state = _make_state(step_count=1, narration="Previously: ")
 
-        with patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider), \
-             patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()), \
-             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]):
+        with (
+            patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider),
+            patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
+            patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
+        ):
             result = await dm_node(state, config={})
 
         assert result["narration"] == "Previously: A dragon appears!"

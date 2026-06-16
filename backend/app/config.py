@@ -17,6 +17,10 @@ class Settings(BaseSettings):
 
     saga_environment: Literal["dev", "prod", "test"] = "dev"
 
+    # Path to the built frontend (dist/). Set only by the native installer so the
+    # backend serves the SPA itself; empty in dev/Docker, where Vite serves it.
+    saga_frontend_dist: str = ""
+
     @model_validator(mode="after")
     def _validate_secrets_in_prod(self) -> "Settings":
         if self.saga_environment != "prod":

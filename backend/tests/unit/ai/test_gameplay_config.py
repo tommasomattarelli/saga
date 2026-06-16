@@ -1,6 +1,5 @@
 """Tests for gameplay and summarization configuration."""
 
-
 from app.ai.router import (
     _NPC_VERBOSITY_MAP,
     GameplayConfig,
@@ -73,6 +72,7 @@ class TestGetGameplayConfig:
     def test_env_override_context_token_cap(self, monkeypatch):
         monkeypatch.setenv("SAGA_GAMEPLAY_CONTEXT_TOKEN_CAP", "8000")
         from app.config_loader import load_saga_config
+
         load_saga_config.cache_clear()
         config = get_gameplay_config()
         assert config.context_token_cap == 8000

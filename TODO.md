@@ -3,7 +3,7 @@
 ## roadmap / release
 [ ] companion: implementarli
 [ ] versioning: al lancio si parte da 0.2.5? (allineare ai docs)
-[ ] pipeline GitHub (CI) + release
+[x] pipeline GitHub (CI) — fatto (`.github/workflows/ci.yml`: lint, unit, integration+playtest con service container pgvector, frontend, docker build-smoke, parse-check installer; nessuna API key, tutto mockato). CD/release ancora da fare (sarà `release.yml`)
 [ ] passare in rassegna le funzioni marcate #TODO nel codice (capire se servono)
 
 ## frontend
@@ -12,7 +12,15 @@
 ## infra / distribuzione
 [ ] debug con docker
 [ ] nginx: serve davvero?
-[ ] installer .bat/.sh che wrappano docker-compose: check Docker -> copia .env.template -> dialog API-key (PowerShell InputBox) -> up -> apri browser. key in .env gitignored, MAI plaintext (std 14/16). NB: zero-Docker puro non e' fattibile (serve Postgres+pgvector). [copre il vecchio "dual boot per utenti non tecnici"] [spunto: NEQ installer .bat, dnd-llm-game launcher]
+[~] installer casual NATIVO (no-Docker) — fatto (vedi ADR 0000, dir `install/`). Scelta rivista vs la riga originale: NON wrappa docker-compose (l'utente tecnico fa `docker compose up --build`); il casual provisiona un bundle Postgres+pgvector portatile (Release asset), uv user-scope + Node portatile, NO admin, secret auto-generati nel `.env` (std 16). Niente dialog API-key: le key si mettono dalla UI (BYOAK). Usa `.env.example` (non `.env.template`). Windows .bat+.ps1 + launcher accoppiato; controparti Linux/Mac .sh (PG da package manager). Backend invariato (FastAPI serve la SPA, mount guardato). FATTO: bundle pubblicato come Release (`bundle-pg16-v1`, PG 16.14 + pgvector 0.8.2) + URL reale cablato in `install/windows/install_saga.ps1` e `installer-smoke.yml`. [spunto: NEQ installer .bat, dnd-llm-game launcher]
+
+# ---- installer/CI: follow-up rimasti (giu 2026) ----
+[x] smoke E2E installer VERDE su Windows + Linux (`installer-smoke.yml`): bundle scaricato (gh), PG+pgvector provisionati, DB creato, backend su, SPA servita. Trigger TEMP gia' rimossi.
+[ ] NON ancora testato: il ramo "auto-installa git/node/uv se mancanti" (i runner CI e il PC di dev li hanno gia') -> serve una VM/PC Windows VERGINE per validarlo
+[ ] merge del branch su `main` (squash). Solo dopo `workflow_dispatch` mostra il bottone "Run" per lo smoke
+[ ] icona custom `saga.ico` per la shortcut desktop (polish; la shortcut funziona anche senza)
+[ ] CD: `release.yml` (build+publish immagini Docker su GHCR) quando ci sara una versione stabile
+
 [ ] verificare che i push al frontend in dm_tools_executor siano fail-silent (un FE down non deve bloccare il loop DM) [spunto: open-tabletop-gm]
 
 ## world-building / template

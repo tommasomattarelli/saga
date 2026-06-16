@@ -1,12 +1,26 @@
-# Makefile for SAGA 
+# Makefile for SAGA
 
 .PHONY: help lint lint-backend lint-frontend knip format format-backend format-frontend \
         test test-backend test-frontend test-all \
         test-infra-up test-infra-down check clean
 
-# Default shell for Windows/PowerShell
-SHELL := powershell.exe
-.SHELLFLAGS := -Command
+# Cross-platform shell selection: PowerShell on Windows, sh elsewhere.
+TEST_DB_URL := postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_test
+
+ifeq ($(OS),Windows_NT)
+	SHELL := powershell.exe
+	.SHELLFLAGS := -Command
+	# Call operator + quotes: $(MAKE) resolves to a path with spaces/parens that
+	# PowerShell cannot invoke bare.
+	SUBMAKE := & "$(MAKE)"
+	RUN_FULL_SUITE := cd backend; $$env:TEST_DATABASE_URL='$(TEST_DB_URL)'; uv run python -m pytest tests/unit tests/integration tests/playtest
+	CLEAN_CACHES := if (Test-Path backend/__pycache__) { Remove-Item -Recurse -Force backend/__pycache__ }; if (Test-Path backend/.pytest_cache) { Remove-Item -Recurse -Force backend/.pytest_cache }; if (Test-Path backend/.ruff_cache) { Remove-Item -Recurse -Force backend/.ruff_cache }
+else
+	SHELL := /bin/sh
+	SUBMAKE := $(MAKE)
+	RUN_FULL_SUITE := cd backend; TEST_DATABASE_URL='$(TEST_DB_URL)' uv run python -m pytest tests/unit tests/integration tests/playtest
+	CLEAN_CACHES := rm -rf backend/__pycache__ backend/.pytest_cache backend/.ruff_cache
+endif
 
 help:
 	@echo "Saga Project Management Commands:"
@@ -65,15 +79,13 @@ test-infra-down:
 
 test-all:
 	@echo "Running full test suite (Unit + Integration + Playtest)..."
-	- & "$(MAKE)" test-infra-up
-	cd backend; $$env:TEST_DATABASE_URL='postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_test'; uv run python -m pytest tests/unit tests/integration tests/playtest
-	- & "$(MAKE)" test-infra-down
+	-$(SUBMAKE) test-infra-up
+	$(RUN_FULL_SUITE)
+	-$(SUBMAKE) test-infra-down
 
 # Comprehensive CI Check
 check: format lint test-all
 
 clean:
 	@echo "Cleaning up caches..."
-	if (Test-Path backend/__pycache__) { Remove-Item -Recurse -Force backend/__pycache__ }
-	if (Test-Path backend/.pytest_cache) { Remove-Item -Recurse -Force backend/.pytest_cache }
-	if (Test-Path backend/.ruff_cache) { Remove-Item -Recurse -Force backend/.ruff_cache }
+	$(CLEAN_CACHES)

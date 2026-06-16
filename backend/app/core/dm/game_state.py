@@ -24,9 +24,9 @@ class GameState(TypedDict):
     narration_segments: list[dict[str, Any]]  # [{step, text, dice, npc_dialogues}]
     scene_mood: str
     tool_events: list[dict[str, Any]]
-    dice_results: list[dict[str, Any]]    # pre-rolled, sent to frontend as-is
-    npc_dialogues: list[dict[str, Any]]   # [{npc_name, dialogue, action}]
-    called_npcs: list[str]                # dedup: NPC names already invoked this turn
+    dice_results: list[dict[str, Any]]  # pre-rolled, sent to frontend as-is
+    npc_dialogues: list[dict[str, Any]]  # [{npc_name, dialogue, action}]
+    called_npcs: list[str]  # dedup: NPC names already invoked this turn
     time_passed_minutes: int
 
     # ── Metadata ─────────────────────────────────────────────────────────────
