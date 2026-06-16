@@ -178,7 +178,7 @@ export default function GameView() {
           </div>
         </main>
 
-        <ActionInput campaignId={campaign.id} onAction={handleAction} />
+        <ActionInput onAction={handleAction} />
       </div>
 
       {/* Character sheet — fullscreen modal (self-contained) */}
