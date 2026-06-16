@@ -1,4 +1,4 @@
-export interface ClassPreset {
+interface ClassPreset {
   label: string;
   abilities: Record<string, number>;
   baseHp: number;

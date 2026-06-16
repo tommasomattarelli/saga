@@ -13,7 +13,6 @@ and decision logs in the same file.
 | [`../CHANGELOG.md`](../CHANGELOG.md) | Change log | See what changed and when (curated, SemVer) |
 | [`AGENTIC_ARCHITECTURE.md`](AGENTIC_ARCHITECTURE.md) | Explanation | Understand *why* the agentic DM / LangGraph design is shaped this way |
 | [`CONFIG.md`](CONFIG.md) | Reference | Look up a config knob in `saga.config.yaml` |
-| [`AUDIT_APRIL_2026.md`](AUDIT_APRIL_2026.md) | Living backlog | See the open findings and what's been fixed |
 | [`adr/`](adr/) | Decision records | Understand a specific architectural decision and its rationale |
 | [`archive/`](archive/) | Historical | Read past sprint notes, verification reports, and research (frozen) |
 

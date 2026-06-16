@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import type { Campaign, TurnResponse, WorldState, CharacterData, CombatState } from "../types";
 
 const ALLOWED_WORLD_STATE_KEYS = new Set([
@@ -43,7 +44,8 @@ interface GameState {
   reset: () => void;
 }
 
-export const useGameStore = create<GameState>()((set) => ({
+export const useGameStore = create<GameState>()(
+  devtools((set) => ({
   campaign: null,
   turnHistory: [],
   isLoading: false,
@@ -116,4 +118,5 @@ export const useGameStore = create<GameState>()((set) => ({
       freshTurnNumber: null,
       hasPendingDice: false,
     }),
-}));
+  }), { name: "game-store", enabled: import.meta.env.DEV }),
+);

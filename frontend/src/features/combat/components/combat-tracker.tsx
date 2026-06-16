@@ -45,9 +45,8 @@ function CombatantCard({
   isCurrent: boolean;
 }) {
   const isPlayer = combatant.type === "player";
-  const isCompanion = combatant.type === "companion";
   const isDead = combatant.hp <= 0;
-  const glyph = isPlayer ? "❖" : isCompanion ? "✦" : "▲";
+  const glyph = isPlayer ? "❖" : "▲";
 
   return (
     <div
@@ -64,7 +63,7 @@ function CombatantCard({
       <div className="flex items-center gap-1 mb-0.5">
         <span
           className="font-display text-xs"
-          style={{ color: isPlayer ? "var(--gold-bright)" : isCompanion ? "var(--gold-deep)" : "var(--blood)" }}
+          style={{ color: isPlayer ? "var(--gold-bright)" : "var(--blood)" }}
         >
           {glyph}
         </span>

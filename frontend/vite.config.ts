@@ -22,6 +22,7 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./src/setupTests.ts"],
+    exclude: ["**/node_modules/**", "**/dist/**", "e2e/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
@@ -32,6 +33,13 @@ export default defineConfig({
         "src/setupTests.ts",
         "src/types/**",
       ],
+      // Anti-regression floor (current ~95/85/83/95); raise as coverage grows.
+      thresholds: {
+        statements: 90,
+        branches: 82,
+        functions: 78,
+        lines: 90,
+      },
     },
   },
 });

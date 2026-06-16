@@ -83,7 +83,7 @@ describe("GameView Component", () => {
   it("should show loading state initially", () => {
     vi.mocked(getCampaign).mockReturnValue(new Promise(() => {}));
     renderComponent();
-    expect(screen.getByText("Loading your adventure…")).toBeInTheDocument();
+    expect(screen.getByText("The chronicler retrieves thy tale…")).toBeInTheDocument();
   });
 
   it("should render campaign name when loaded", async () => {

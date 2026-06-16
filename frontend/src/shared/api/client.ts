@@ -1,9 +1,9 @@
 import axios from "axios";
 import { useAuthStore } from "../stores/auth-store";
-import type { Campaign, TokenPair, TurnResponse, User, SavePoint } from "../types";
+import type { Campaign, TokenPair, TurnResponse, User } from "../types";
 import { refreshMutex } from "./refresh-mutex";
 
-export type JournalTurn = Pick<
+type JournalTurn = Pick<
   TurnResponse,
   "turn_number" | "player_action" | "narration" | "dice_rolls" | "scene_mood"
 >;
@@ -79,21 +79,7 @@ export interface TemplateOption {
 
 export const getTemplates = () => api.get<TemplateOption[]>("/templates");
 
-export const getSaves = (campaignId: string) => api.get<SavePoint[]>(`/saves/${campaignId}`);
-
-export const createSave = (campaignId: string, name: string) =>
-  api.post<SavePoint>(`/saves/${campaignId}`, { name });
-
-export const loadSave = (campaignId: string, saveId: string) =>
-  api.post(`/saves/${campaignId}/load/${saveId}`);
-
 export const getTurns = (campaignId: string) =>
   api.get<JournalTurn[]>(`/journal/${campaignId}`, { params: { limit: 200, offset: 0 } });
-
-export const getSettings = () => api.get("/settings");
-
-export const updateApiKeys = (keys: Record<string, string>) => api.put("/settings/api-keys", keys);
-
-export const exportCampaign = (campaignId: string) => api.get(`/export/${campaignId}`);
 
 export default api;
