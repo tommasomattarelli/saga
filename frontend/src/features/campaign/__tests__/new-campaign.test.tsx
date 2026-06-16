@@ -65,7 +65,7 @@ describe("NewCampaign Component", () => {
 
     renderComponent();
 
-    expect(screen.getByText("Choose your world")).toBeInTheDocument();
+    expect(screen.getByText("The World Awaits")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("Classic Fantasy")).toBeInTheDocument());
   });
 
@@ -89,7 +89,7 @@ describe("NewCampaign Component", () => {
     const templateBtn = await screen.findByText("Classic Fantasy");
     fireEvent.click(templateBtn);
 
-    expect(screen.getByText("Name your hero")).toBeInTheDocument();
+    expect(screen.getByText("The Hero")).toBeInTheDocument();
   });
 
   it("should go back from step 2 to step 1", async () => {
@@ -111,10 +111,10 @@ describe("NewCampaign Component", () => {
     const templateBtn = await screen.findByText("Classic Fantasy");
     fireEvent.click(templateBtn);
 
-    const backBtn = screen.getByText("Back");
+    const backBtn = await screen.findByText("← Back");
     fireEvent.click(backBtn);
 
-    expect(screen.getByText("Choose your world")).toBeInTheDocument();
+    expect(await screen.findByText("The World Awaits")).toBeInTheDocument();
   });
 
   it("should call createCampaign on submit", async () => {
@@ -138,11 +138,11 @@ describe("NewCampaign Component", () => {
     const templateBtn = await screen.findByText("Classic Fantasy");
     fireEvent.click(templateBtn);
 
-    const nameInput = screen.getByPlaceholderText(/Leave blank/i);
+    const nameInput = await screen.findByPlaceholderText(/Leave blank/i);
     fireEvent.change(nameInput, { target: { value: "Durin" } });
-    fireEvent.click(screen.getByText(/Next: Create Character/));
+    fireEvent.click(screen.getByText(/Name thy Fate/));
 
-    const submitBtn = await screen.findByText("Begin the Saga");
+    const submitBtn = await screen.findByText("Let the Tale Begin");
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -172,9 +172,9 @@ describe("NewCampaign Component", () => {
     const templateBtn = await screen.findByText("Classic Fantasy");
     fireEvent.click(templateBtn);
 
-    fireEvent.click(screen.getByText(/Next: Create Character/));
+    fireEvent.click(await screen.findByText(/Name thy Fate/));
 
-    const submitBtn = await screen.findByText("Begin the Saga");
+    const submitBtn = await screen.findByText("Let the Tale Begin");
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -185,7 +185,7 @@ describe("NewCampaign Component", () => {
   it("should navigate back to campaigns when clicking top back link", async () => {
     vi.mocked(getTemplates).mockResolvedValue(createMockResponse<TemplateOption[]>([]));
     renderComponent();
-    fireEvent.click(screen.getByText("← Back"));
+    fireEvent.click(screen.getByText("← Return to the shelf"));
     expect(mockNavigate).toHaveBeenCalledWith("/campaigns");
   });
 });

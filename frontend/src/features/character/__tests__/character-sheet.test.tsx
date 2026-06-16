@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import CharacterSheet from "../components/character-sheet";
 import { useGameStore } from "../../../shared/stores/game-store";
+import { useUIStore } from "../../../shared/stores/ui-store";
 import "@testing-library/jest-dom";
 import type { Campaign, CharacterData } from "../../../shared/types";
 
@@ -41,12 +42,13 @@ describe("CharacterSheet Component", () => {
     useGameStore.setState({
       campaign: createMockCampaign(mockChar),
     });
+    useUIStore.setState({ sidePanel: "character" });
 
     render(<CharacterSheet />);
 
     expect(screen.getByText(/Grog/i)).toBeInTheDocument();
     expect(screen.getByText(/Level 5/i)).toBeInTheDocument();
-    expect(screen.getByText("45/50")).toBeInTheDocument();
+    expect(screen.getByText("45 / 50")).toBeInTheDocument();
     expect(screen.getByText(/STR/i)).toBeInTheDocument();
     expect(screen.getByText("18")).toBeInTheDocument();
     expect(screen.getByText("+4")).toBeInTheDocument();
@@ -57,8 +59,9 @@ describe("CharacterSheet Component", () => {
   it("should render empty inventory correctly", () => {
     const emptyChar = { ...mockChar, inventory: [], gold: 0 };
     useGameStore.setState({ campaign: createMockCampaign(emptyChar) });
+    useUIStore.setState({ sidePanel: "character" });
     render(<CharacterSheet />);
-    expect(screen.getByText("Empty")).toBeInTheDocument();
+    expect(screen.getByText("Empty satchel.")).toBeInTheDocument();
     expect(screen.getByText("0")).toBeInTheDocument();
   });
 
@@ -66,6 +69,7 @@ describe("CharacterSheet Component", () => {
     useGameStore.setState({
       campaign: createMockCampaign({ ...mockChar, abilities: { dexterity: 8 } }),
     });
+    useUIStore.setState({ sidePanel: "character" });
     render(<CharacterSheet />);
     expect(screen.getByText(/DEX/i)).toBeInTheDocument();
     expect(screen.getByText("8")).toBeInTheDocument();
@@ -74,8 +78,9 @@ describe("CharacterSheet Component", () => {
 
   it("should show empty state if no character data", () => {
     useGameStore.setState({ campaign: createMockCampaign(null as unknown as CharacterData) });
+    useUIStore.setState({ sidePanel: "character" });
     render(<CharacterSheet />);
-    expect(screen.getByText("No character data")).toBeInTheDocument();
+    expect(screen.getByText("No character data.")).toBeInTheDocument();
   });
 
   it("should show empty state if no campaign", () => {

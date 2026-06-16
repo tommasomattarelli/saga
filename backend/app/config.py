@@ -1,15 +1,40 @@
+from typing import Literal
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    app_version: str = "0.1.0"
+
     database_url: str = "postgresql+asyncpg://saga:saga@localhost:5432/saga"
-    redis_url: str = "redis://localhost:6379/0"
 
     jwt_secret: str = "change-me-to-a-random-256-bit-key"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_days: int = 30
     api_key_encryption_key: str = "change-me-to-a-random-256-bit-key"
+
+    saga_environment: Literal["dev", "prod", "test"] = "dev"
+
+    @model_validator(mode="after")
+    def _validate_secrets_in_prod(self) -> "Settings":
+        if self.saga_environment != "prod":
+            return self
+        insecure = [
+            name
+            for name, value in [
+                ("jwt_secret", self.jwt_secret),
+                ("api_key_encryption_key", self.api_key_encryption_key),
+            ]
+            if value.startswith("change-me")
+        ]
+        if insecure:
+            raise ValueError(
+                f"Insecure default values detected in prod for: {', '.join(insecure)}. "
+                "Set proper secrets via environment variables."
+            )
+        return self
 
     openai_api_key: str = ""
     anthropic_api_key: str = ""
@@ -30,14 +55,7 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     saga_max_agent_steps: int = 5
 
-    app_mode: str = "community"
-    default_language: str = "en"
-    telemetry_enabled: bool = False
     log_level: str = "info"
-
-    cloudflare_r2_access_key: str = ""
-    cloudflare_r2_secret_key: str = ""
-    cloudflare_r2_bucket: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

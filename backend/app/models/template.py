@@ -20,5 +20,10 @@ class Template(Base, UUIDMixin, TimestampMixin):
     difficulty: Mapped[int] = mapped_column(Integer, default=5)
     tags: Mapped[list] = mapped_column(JSONB, default=list)
 
+    # Persona preset — drives DM tone (grimdark|heroic|dark_fantasy|horror)
+    persona_preset: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # Free-form XML override; if set, wins over persona_preset
+    persona_xml: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Template content
     content: Mapped[dict] = mapped_column(JSONB)

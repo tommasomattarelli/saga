@@ -8,10 +8,10 @@ from dataclasses import dataclass
 
 import structlog
 
-from app.ai.parser import _strip_fences
 from app.ai.prompts.npc import build_npc_prompt
 from app.ai.providers.base import get_provider, logged_generate
 from app.ai.router import AICallType, get_gameplay_config, route_ai_call
+from app.ai.sanitizer import strip_code_fences
 from app.models.campaign import Campaign
 
 logger = structlog.get_logger()
@@ -56,9 +56,10 @@ async def invoke_single_npc(
             model=model_config.model,
             temperature=model_config.temperature,
             max_tokens=300,
+            json_mode=True,
         )
 
-        cleaned = _strip_fences(raw)
+        cleaned = strip_code_fences(raw)
         try:
             data = json.loads(cleaned)
         except json.JSONDecodeError:
@@ -122,18 +123,3 @@ async def invoke_npcs_parallel(
 
     logger.info("npcs_invoked", count=len(dialogues), names=[d.npc_name for d in dialogues])
     return dialogues
-
-
-def format_npc_dialogues_for_turn(dialogues: list[NPCDialogue]) -> str:
-    """Format NPC dialogues for appending to the turn narration."""
-    if not dialogues:
-        return ""
-
-    parts = []
-    for d in dialogues:
-        line = f'**{d.npc_name}:** "{d.dialogue}"'
-        if d.action:
-            line += f" *({d.action})*"
-        parts.append(line)
-
-    return "\n\n---\n\n" + "\n\n".join(parts)

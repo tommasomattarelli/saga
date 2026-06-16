@@ -69,9 +69,8 @@ describe("CampaignSelect Component", () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText("Your Sagas")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText("The Dragon Raid")).toBeInTheDocument());
-    expect(screen.getByText("Turn 5")).toBeInTheDocument();
+    expect(screen.getByText("The Shelf of Tales")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Open The Dragon Raid")).toBeInTheDocument());
   });
 
   it("should show empty state if no campaigns", async () => {
@@ -86,7 +85,7 @@ describe("CampaignSelect Component", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByText("No campaigns yet. Start a new adventure!")).toBeInTheDocument(),
+      expect(screen.getByText("The shelf is empty. Begin thy first saga.")).toBeInTheDocument(),
     );
   });
 });

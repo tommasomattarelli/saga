@@ -46,7 +46,6 @@ docker-compose.override.yml
 # Logs
 *.log
 
-
 # Coverage
 htmlcov/
 .coverage
@@ -54,6 +53,10 @@ htmlcov/
 coverage.*
 coverage/
 *.lcov
+
+# Playwright (frontend e2e)
+test-results/
+playwright-report/
 
 # pytest
 .pytest_cache/
@@ -63,3 +66,6 @@ coverage/
 
 # ruff
 .ruff_cache/
+
+# scratch
+scratch/

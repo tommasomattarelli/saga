@@ -1,10 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { useUIStore } from "../../../shared/stores/ui-store";
+import { useUIStore, type ThemeOverride } from "../../../shared/stores/ui-store";
 import { useAuthStore } from "../../../shared/stores/auth-store";
 import { Drawer } from "../../../shared/ui/drawer";
 import { OrnamentDivider } from "../../../shared/ui/ornament-divider";
-
-type ThemeOverride = "auto" | "dark" | "light";
 
 function Toggle({
   label,

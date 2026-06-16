@@ -7,9 +7,6 @@ from collections.abc import Callable
 
 import structlog
 from pydantic import BaseModel, computed_field
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models.campaign import Campaign
 
 logger = structlog.get_logger()
 
@@ -197,15 +194,3 @@ def advance_game_clock(world_state: dict, minutes: int) -> dict:
     if "meta" in state:
         state["meta"]["current_season"] = clock.current_season
     return state
-
-
-async def apply_world_updates(
-    campaign: Campaign,
-    updates: dict,
-    db: AsyncSession,
-) -> dict:
-    """Apply world state updates to a campaign."""
-    current = migrate_world_state(campaign.world_state)
-    campaign.world_state = merge_world_state(current, updates)
-    await db.flush()
-    return campaign.world_state

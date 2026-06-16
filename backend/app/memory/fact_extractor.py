@@ -8,12 +8,14 @@ import uuid
 import structlog
 
 from app.ai.embeddings import generate_embedding
-from app.ai.parser import _strip_fences
 from app.ai.providers.base import get_provider, logged_generate
 from app.ai.router import AICallType, get_gameplay_config, route_ai_call
+from app.ai.sanitizer import strip_code_fences
 from app.models.memory_fact import MemoryFact
 
 logger = structlog.get_logger()
+
+_MAX_FACT_RAW_CHARS = 4000
 
 FACT_EXTRACTION_PROMPT = """You are a fact extractor for a tabletop RPG game. Extract 1-5 atomic facts from this game turn.
 
@@ -56,10 +58,11 @@ async def extract_and_store_facts(
     if npc_dialogues:
         npc_section = "NPC dialogues:\n" + "\n".join(f"- {d}" for d in npc_dialogues)
 
-    prompt_text = FACT_EXTRACTION_PROMPT.format(
-        player_action=player_action,
-        narration=narration,
-        npc_section=npc_section,
+    prompt_text = (
+        FACT_EXTRACTION_PROMPT
+        .replace("{player_action}", player_action)
+        .replace("{narration}", narration)
+        .replace("{npc_section}", npc_section)
     )
 
     try:
@@ -87,7 +90,16 @@ async def extract_and_store_facts(
         )
 
         # Parse the facts
-        cleaned = _strip_fences(raw)
+        if len(raw) > _MAX_FACT_RAW_CHARS:
+            logger.warning(
+                "fact_extraction_anomalous_output",
+                campaign_id=str(campaign_id),
+                turn=turn_number,
+                raw_length=len(raw),
+            )
+            return
+
+        cleaned = strip_code_fences(raw)
         if not cleaned.strip():
             return
 
@@ -103,6 +115,14 @@ async def extract_and_store_facts(
                 return
 
         facts = data if isinstance(data, list) else data.get("facts", [])
+        if not isinstance(facts, list):
+            logger.warning(
+                "fact_extraction_anomalous_output",
+                campaign_id=str(campaign_id),
+                turn=turn_number,
+                raw_preview=cleaned[:200],
+            )
+            return
         if not facts:
             return
 
@@ -111,6 +131,8 @@ async def extract_and_store_facts(
 
         async with async_session() as db:
             for fact_data in facts[:5]:  # cap at 5
+                if not isinstance(fact_data, dict):
+                    continue
                 entity_name = fact_data.get("entity_name", "").strip()
                 entity_type = fact_data.get("entity_type", "event").strip()
                 content = fact_data.get("content", "").strip()

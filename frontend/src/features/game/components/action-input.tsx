@@ -2,9 +2,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useGameStore } from "../../../shared/stores/game-store";
 
 interface ActionInputProps {
-  campaignId: string;
   onAction: (action: string) => void;
 }
+
+// ponytail: backend sanitize_player_input is the real guard; this is just UX feedback
+const MAX_ACTION_LENGTH = 500;
 
 const ROTATING_PLACEHOLDERS = [
   "I draw my sword and step forward…",
@@ -22,6 +24,7 @@ export default function ActionInput({ onAction }: ActionInputProps) {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isLoading = useGameStore((s) => s.isLoading);
+  const hasPendingDice = useGameStore((s) => s.hasPendingDice);
   const lastTurn = useGameStore((s) => s.turnHistory[s.turnHistory.length - 1]);
 
   const showContinue = lastTurn && !lastTurn.requires_player_action;
@@ -44,13 +47,15 @@ export default function ActionInput({ onAction }: ActionInputProps) {
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
   }, [action]);
 
+  const blocked = isLoading || hasPendingDice;
+
   const sendAction = useCallback(
     (text: string) => {
-      if (isLoading) return;
+      if (blocked) return;
       onAction(text);
       setAction("");
     },
-    [isLoading, onAction],
+    [blocked, onAction],
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -74,35 +79,6 @@ export default function ActionInput({ onAction }: ActionInputProps) {
         borderTop: "1px solid var(--gold-deep)",
       }}
     >
-      {/* Suggested action pills — "Possibilities:" label */}
-      {lastTurn?.suggested_actions && lastTurn.suggested_actions.length > 0 && (
-        <div className="mb-3">
-          <span
-            className="block mb-1.5 font-display text-[9px] uppercase"
-            style={{ color: "var(--ink-faded)", letterSpacing: "0.25em" }}
-          >
-            Possibilities:
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {lastTurn.suggested_actions.map((suggestion, i) => (
-              <button
-                key={i}
-                onClick={() => sendAction(suggestion)}
-                disabled={isLoading}
-                className="px-3 py-1 font-body text-sm italic transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
-                style={{
-                  color: "var(--ink-secondary)",
-                  border: "1px solid var(--gold-deep)",
-                  background: "rgba(244, 232, 208, 0.4)",
-                }}
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Cartiglio rituale — OrnateFrame-styled container */}
       <form onSubmit={handleSubmit}>
         <div
@@ -132,7 +108,8 @@ export default function ActionInput({ onAction }: ActionInputProps) {
             onChange={(e) => setAction(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={ROTATING_PLACEHOLDERS[placeholderIdx]}
-            disabled={isLoading}
+            disabled={blocked}
+            maxLength={MAX_ACTION_LENGTH}
             rows={1}
             autoFocus
             className="w-full resize-none bg-transparent px-5 pt-4 pb-12 font-body text-lg italic placeholder:opacity-40 focus:outline-none disabled:opacity-50"
@@ -149,18 +126,29 @@ export default function ActionInput({ onAction }: ActionInputProps) {
             className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 py-2"
             style={{ borderTop: "1px solid rgba(139, 105, 20, 0.2)" }}
           >
-            <span
-              className="font-display text-[9px] uppercase"
-              style={{ color: "var(--ink-faded)", letterSpacing: "0.2em", opacity: 0.7 }}
-            >
-              Ctrl+↵ to seal
-            </span>
+            <div className="flex items-center gap-3">
+              <span
+                className="font-display text-[9px] uppercase"
+                style={{ color: "var(--ink-faded)", letterSpacing: "0.2em", opacity: 0.7 }}
+              >
+                Ctrl+↵ to seal
+              </span>
+              {action.length > MAX_ACTION_LENGTH - 50 && (
+                <span
+                  aria-live="polite"
+                  className="font-display text-[9px]"
+                  style={{ color: action.length >= MAX_ACTION_LENGTH ? "var(--blood)" : "var(--ink-faded)" }}
+                >
+                  {action.length}/{MAX_ACTION_LENGTH}
+                </span>
+              )}
+            </div>
 
             {showContinue && !action.trim() ? (
               <button
                 type="button"
                 onClick={() => sendAction("wait")}
-                disabled={isLoading}
+                disabled={blocked}
                 className="font-display text-xs uppercase tracking-grimoire-wide px-4 py-1 transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
                 style={{
                   color: "var(--gold-bright)",
@@ -172,7 +160,7 @@ export default function ActionInput({ onAction }: ActionInputProps) {
             ) : (
               <button
                 type="submit"
-                disabled={isLoading || !action.trim()}
+                disabled={blocked || !action.trim()}
                 className="font-display text-xs uppercase tracking-grimoire-wide px-4 py-1 transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright active:scale-95"
                 style={{
                   color: "var(--gold-bright)",
@@ -182,7 +170,7 @@ export default function ActionInput({ onAction }: ActionInputProps) {
                   background: "rgba(212, 175, 55, 0.1)",
                 }}
               >
-                {isLoading ? "…" : "Seal"}
+                {isLoading ? "…" : hasPendingDice ? "Cast the die…" : "Seal"}
               </button>
             )}
           </div>

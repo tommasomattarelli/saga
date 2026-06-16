@@ -7,7 +7,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 
-from app.ai.providers.schemas import AgentChunk, AgentResponse
+from app.ai.providers.schemas import AgentResponse
 
 _llm_io = logging.getLogger("llm_io")
 
@@ -23,6 +23,7 @@ class AIProvider(ABC):
         model: str,
         temperature: float = 0.8,
         max_tokens: int = 2000,
+        json_mode: bool = False,
     ) -> str:
         """Generate a response from the AI model."""
         ...
@@ -51,23 +52,6 @@ class AIProvider(ABC):
         """Generate a response with tool-calling support."""
         raise NotImplementedError(f"{self.__class__.__name__} does not support tool calling")
 
-    async def stream_with_tools(
-        self,
-        system_prompt: str,
-        messages: list[dict],
-        tools: list[dict],
-        model: str,
-        temperature: float = 0.8,
-        max_tokens: int = 2000,
-    ) -> AsyncIterator[AgentChunk]:
-        """Stream a response, yielding text chunks and tool call chunks."""
-        raise NotImplementedError(f"{self.__class__.__name__} does not support tool calling")
-        yield  # make it a generator
-
-    def format_tool_result(self, tool_call_id: str, tool_name: str, result: str) -> dict:
-        """Format a tool result message to append to the conversation."""
-        raise NotImplementedError(f"{self.__class__.__name__} does not support tool calling")
-
 
 async def logged_generate(
     provider: AIProvider,
@@ -78,6 +62,7 @@ async def logged_generate(
     model: str,
     temperature: float = 0.8,
     max_tokens: int = 2000,
+    json_mode: bool = False,
 ) -> str:
     """Wrap provider.generate() with full I/O logging to llm_io.log."""
     _llm_io.info(
@@ -102,6 +87,7 @@ async def logged_generate(
         model=model,
         temperature=temperature,
         max_tokens=max_tokens,
+        json_mode=json_mode,
     )
 
     _llm_io.info(
@@ -123,10 +109,6 @@ async def logged_generate(
 
 # Provider registry
 _providers: dict[str, AIProvider] = {}
-
-
-def register_provider(name: str, provider: AIProvider) -> None:
-    _providers[name] = provider
 
 
 def get_provider(name: str) -> AIProvider:

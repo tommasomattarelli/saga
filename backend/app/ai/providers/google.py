@@ -11,7 +11,7 @@ from google.genai import types as genai_types
 
 from app.ai.exceptions import ContentPolicyError
 from app.ai.providers.base import AIProvider
-from app.ai.providers.schemas import AgentChunk, AgentResponse, TextChunk, ToolCall, ToolCallChunk
+from app.ai.providers.schemas import AgentResponse, ToolCall
 from app.config import settings
 
 logger = structlog.get_logger()
@@ -133,16 +133,20 @@ class GoogleProvider(AIProvider):
         model: str = "gemini-2.5-pro",
         temperature: float = 0.8,
         max_tokens: int = 2000,
+        json_mode: bool = False,
     ) -> str:
+        config: dict = {
+            "system_instruction": system_prompt,
+            "temperature": temperature,
+            "max_output_tokens": max_tokens,
+        }
+        if json_mode:
+            config["response_mime_type"] = "application/json"
         response = await _with_retry(
             self.client.aio.models.generate_content,
             model=model,
             contents=_to_contents(messages),
-            config={
-                "system_instruction": system_prompt,
-                "temperature": temperature,
-                "max_output_tokens": max_tokens,
-            },
+            config=config,
         )
         _check_safety(response)
         return response.text or ""
@@ -212,69 +216,3 @@ class GoogleProvider(AIProvider):
                         )
                     )
         return AgentResponse(text=text, tool_calls=tool_calls)
-
-    async def stream_with_tools(
-        self,
-        system_prompt: str,
-        messages: list[dict],
-        tools: list[dict],
-        model: str = "gemini-2.5-pro",
-        temperature: float = 0.8,
-        max_tokens: int = 2000,
-    ) -> AsyncIterator[AgentChunk]:
-        # Gemini streaming with tools: accumulate and emit at end
-        # (function_call parts don't stream incrementally)
-        google_tools = [
-            genai_types.Tool(function_declarations=[_openai_tool_to_google(t) for t in tools])
-        ]
-        config = genai_types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            temperature=temperature,
-            max_output_tokens=max_tokens,
-            tools=google_tools,
-            automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
-                disable=True, maximum_remote_calls=None
-            ),
-        )
-        contents = _to_contents(messages)
-
-        for attempt, delay in enumerate([0] + _RETRY_DELAYS):
-            if delay:
-                await asyncio.sleep(delay)
-            try:
-                response = await self.client.aio.models.generate_content_stream(
-                    model=model, contents=contents, config=config
-                )
-                async for chunk in response:
-                    if not chunk.candidates:
-                        continue
-                    candidate = chunk.candidates[0]
-                    content = candidate.content
-                    if not content or not content.parts:
-                        continue
-                    for part in content.parts:
-                        if hasattr(part, "text") and part.text:
-                            yield TextChunk(text=part.text)
-                        elif hasattr(part, "function_call") and part.function_call:
-                            fc = part.function_call
-                            yield ToolCallChunk(
-                                tool_call=ToolCall(
-                                    id=fc.id if hasattr(fc, "id") and fc.id else fc.name,
-                                    name=fc.name,
-                                    arguments=dict(fc.args) if fc.args else {},
-                                )
-                            )
-                return
-            except Exception as e:
-                if "503" in str(e) or "UNAVAILABLE" in str(e):
-                    logger.warning("google_503_retry_stream", attempt=attempt + 1, error=str(e)[:100])
-                else:
-                    raise
-        raise RuntimeError(f"Google streaming failed after {len(_RETRY_DELAYS) + 1} attempts (503)")
-
-    def format_tool_result(self, tool_call_id: str, tool_name: str, result: str) -> dict:
-        # Google uses function_response inside a user turn
-        return {
-            "role": "user",
-            "parts": [{"function_response": {"name": tool_name, "response": {"result": result}}}],
-        }

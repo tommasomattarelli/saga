@@ -25,7 +25,7 @@ async def test_create_campaign_seeds_world_state(auth_client, test_user):
     marta = world_state["npcs"]["Marta"]
     assert marta["personality"] == "Warm but shrewd. Knows everyone's business."
     assert marta["role"] == "Tavern keeper"
-    assert marta["disposition"] == 0
+    assert marta["disposition_toward_player"] == 0
     assert marta["last_interactions"] == []
 
     assert "Aldric" in world_state["npcs"]

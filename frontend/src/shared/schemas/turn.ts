@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const DiceOutcomeSchema = z.enum([
+const DiceOutcomeSchema = z.enum([
   "critical_failure",
   "hard_failure",
   "soft_failure",
@@ -9,7 +9,7 @@ export const DiceOutcomeSchema = z.enum([
   "critical_success",
 ]);
 
-export const DiceRollResultSchema = z.object({
+const DiceRollResultSchema = z.object({
   expression: z.string(),
   rolls: z.array(z.number()),
   modifier: z.number(),
@@ -20,33 +20,33 @@ export const DiceRollResultSchema = z.object({
   is_critical: z.boolean(),
 });
 
-export const NPCDialogueSchema = z.object({
+const NPCDialogueSchema = z.object({
   npc_name: z.string(),
   dialogue: z.string(),
   action: z.string().nullable().optional(),
 });
 
-export const NarrationSegmentSchema = z.object({
+const NarrationSegmentSchema = z.object({
   step: z.number(),
   text: z.string(),
   dice: z.record(z.string(),DiceRollResultSchema).nullable(),
   npc_dialogues: z.array(NPCDialogueSchema),
 });
 
-export const DiceResultSchema = z.object({
+const DiceResultSchema = z.object({
   step: z.number(),
   rolls: z.record(z.string(),DiceRollResultSchema),
 });
 
-export const CombatantInfoSchema = z.object({
+const CombatantInfoSchema = z.object({
   name: z.string(),
   initiative: z.number(),
   hp: z.number(),
   max_hp: z.number(),
-  type: z.enum(["player", "companion", "enemy"]),
+  type: z.enum(["player", "enemy"]),
 });
 
-export const CombatStateSchema = z.object({
+const CombatStateSchema = z.object({
   active: z.boolean(),
   round: z.number(),
   initiative_order: z.array(CombatantInfoSchema),
@@ -80,7 +80,4 @@ export const TurnResponseSchema = z.object({
   importance_score: z.number().optional(),
   time_passed_minutes: z.number().optional(),
   requires_player_action: z.boolean().optional(),
-  suggested_actions: z.array(z.string()).nullable().optional(),
 });
-
-export type TurnResponseParsed = z.infer<typeof TurnResponseSchema>;

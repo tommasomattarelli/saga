@@ -1,14 +1,11 @@
 from collections.abc import AsyncIterator
 
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
 
 engine = create_async_engine(settings.database_url, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-redis_client: Redis | None = None
 
 
 async def seed_templates() -> None:
@@ -32,6 +29,15 @@ async def seed_templates() -> None:
             try:
                 with open(template_file, encoding="utf-8") as f:
                     data = yaml.safe_load(f)
+
+                if not data.get("schema_version"):
+                    from structlog import get_logger
+
+                    get_logger().error(
+                        "template_missing_schema_version",
+                        file=str(template_file),
+                    )
+                    continue
 
                 meta = data.get("meta", {})
                 slug = meta.get("slug")
@@ -87,16 +93,6 @@ async def close_db() -> None:
     await engine.dispose()
 
 
-async def init_redis() -> None:
-    global redis_client
-    redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
-
-
-async def close_redis() -> None:
-    if redis_client:
-        await redis_client.aclose()
-
-
 async def get_db() -> AsyncIterator[AsyncSession]:
     async with async_session() as session:
         yield session
@@ -104,9 +100,3 @@ async def get_db() -> AsyncIterator[AsyncSession]:
 
 def get_db_context():
     return async_session()
-
-
-async def get_redis() -> Redis:
-    if redis_client is None:
-        raise RuntimeError("Redis not initialized")
-    return redis_client

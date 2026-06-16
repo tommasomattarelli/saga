@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.memory.world_state import migrate_world_state
-from app.models.campaign import Campaign, CampaignStatus
+from app.models.campaign import Campaign
 from app.models.template import Template
 from app.models.user import User
 from app.schemas.campaign import CampaignCreate
@@ -25,7 +25,7 @@ def build_initial_world_state(template: Template) -> dict:
     npcs = {
         npc["name"]: {
             **{k: v for k, v in npc.items() if k != "name"},
-            "disposition": 0,
+            "disposition_toward_player": 0,
             "last_interactions": [],
         }
         for npc in world.get("npcs", [])
@@ -67,6 +67,29 @@ def _is_uuid(value: str) -> bool:
         return False
 
 
+def _validate_template_content(template: Template) -> None:
+    """Fail fast (422) if a template lacks the structure create_campaign relies on."""
+    content = template.content or {}
+    if not isinstance(content.get("world"), dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Template '{template.slug}' is malformed: missing 'world' section",
+        )
+    opening = content.get("opening")
+    if not isinstance(opening, dict) or not opening.get("location"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Template '{template.slug}' is malformed: missing 'opening.location'",
+        )
+    for key in ("locations", "npcs", "companions", "factions"):
+        for entry in content["world"].get(key, []):
+            if not isinstance(entry, dict) or not entry.get("name"):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Template '{template.slug}' is malformed: an entry in world.{key} has no 'name'",
+                )
+
+
 async def create_campaign(db: AsyncSession, user: User, body: CampaignCreate) -> Campaign:
     if _is_uuid(body.template_id):
         result = await db.execute(select(Template).where(Template.id == uuid.UUID(body.template_id)))
@@ -78,6 +101,8 @@ async def create_campaign(db: AsyncSession, user: User, body: CampaignCreate) ->
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Template '{body.template_id}' not found",
         )
+
+    _validate_template_content(template)
 
     initial_state = build_initial_world_state(template)
     seeded_world_state = migrate_world_state(initial_state)
@@ -91,27 +116,10 @@ async def create_campaign(db: AsyncSession, user: User, body: CampaignCreate) ->
         character_data=body.character_data,
         world_state=seeded_world_state,
         quests=initial_quests,
+        persona_preset=template.persona_preset,
+        persona_xml=template.persona_xml,
     )
     db.add(campaign)
     await db.commit()
     await db.refresh(campaign)
     return campaign
-
-
-async def get_user_campaigns(user_id: uuid.UUID, db: AsyncSession) -> list[Campaign]:
-    """Get all campaigns for a user."""
-    result = await db.execute(
-        select(Campaign).where(Campaign.user_id == user_id).order_by(Campaign.updated_at.desc())
-    )
-    return list(result.scalars().all())
-
-
-async def get_active_campaign(user_id: uuid.UUID, db: AsyncSession) -> Campaign | None:
-    """Get the user's most recently updated active campaign."""
-    result = await db.execute(
-        select(Campaign)
-        .where(Campaign.user_id == user_id, Campaign.status == CampaignStatus.ACTIVE)
-        .order_by(Campaign.updated_at.desc())
-        .limit(1)
-    )
-    return result.scalar_one_or_none()
