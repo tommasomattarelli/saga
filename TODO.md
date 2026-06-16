@@ -7,7 +7,7 @@
 [ ] passare in rassegna le funzioni marcate #TODO nel codice (capire se servono)
 
 ## frontend
-[ ] refactor + analisi del frontend (come fatto per il backend)
+[x] refactor + analisi del frontend (come fatto per il backend) — fatto giu 2026 (branch refactor/frontend): god-file split, dead code 0, coverage ~95%, E2E mockato, guida in scratch/frontend/
 
 ## infra / distribuzione
 [ ] debug con docker
