@@ -33,12 +33,12 @@ export default defineConfig({
         "src/setupTests.ts",
         "src/types/**",
       ],
-      // Anti-regression floor (current ~82/84/73/82); raise as coverage grows.
+      // Anti-regression floor (current ~95/85/83/95); raise as coverage grows.
       thresholds: {
-        statements: 80,
-        branches: 80,
-        functions: 70,
-        lines: 80,
+        statements: 90,
+        branches: 82,
+        functions: 78,
+        lines: 90,
       },
     },
   },
