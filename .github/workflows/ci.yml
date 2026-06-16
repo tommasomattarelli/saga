@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # TEMP: feat branch added to validate CI without opening a PR.
+    # Revert to `branches: [main]` before merging.
+    branches: [main, feat/casual-installer-ci]
   pull_request:
 
 concurrency:
