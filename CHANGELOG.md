@@ -58,6 +58,8 @@ predating this file live in `docs/archive/changelog/`.
   editor; open TODOs catalogued. Research kept locally in `scratch/research/`.
 
 ### Added
+- Coverage floor in `vite.config.ts` (`thresholds`: 80/80/70/80) as an
+  anti-regression gate; current frontend coverage is ~82/84/73/82.
 - Zustand stores (`game`, `auth`, `ui`) wrapped in the `devtools` middleware,
   gated on `import.meta.env.DEV` (F-L2). `ThemeOverride` is now exported once from
   `ui-store` and imported by `settings-drawer` instead of being re-declared (R-12).
