@@ -92,7 +92,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cp .env.example .env
-      - run: docker compose build
+      # Retry once: esbuild's postinstall can hit a transient ETXTBSY race on
+      # Docker overlayfs during `npm ci`.
+      - run: docker compose build || docker compose build
 
   installer-scripts:
     name: Installer scripts check
