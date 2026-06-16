@@ -58,6 +58,9 @@ predating this file live in `docs/archive/changelog/`.
   editor; open TODOs catalogued. Research kept locally in `scratch/research/`.
 
 ### Added
+- Frontend E2E golden path via Playwright (`e2e/golden-path.spec.ts`,
+  login → campaigns → game) with `/api` mocked in-browser — no backend/Docker
+  (F-L9, ADR 0011). A backend-real + Docker variant is deferred.
 - Coverage floor in `vite.config.ts` (`thresholds`: 80/80/70/80) as an
   anti-regression gate; current frontend coverage is ~82/84/73/82.
 - Zustand stores (`game`, `auth`, `ui`) wrapped in the `devtools` middleware,
