@@ -61,8 +61,12 @@ predating this file live in `docs/archive/changelog/`.
 - Frontend E2E golden path via Playwright (`e2e/golden-path.spec.ts`,
   login → campaigns → game) with `/api` mocked in-browser — no backend/Docker
   (F-L9, ADR 0011). A backend-real + Docker variant is deferred.
-- Coverage floor in `vite.config.ts` (`thresholds`: 80/80/70/80) as an
-  anti-regression gate; current frontend coverage is ~82/84/73/82.
+- Frontend test coverage raised to ~95% (from ~82%): new tests for `NPCBubble`,
+  `Typewriter`, `ConfirmModal`, `MoodLayer` + atmospheric overlays, `RegisterForm`,
+  `JournalDrawer`, `App` ProtectedRoute redirect, and `SettingsDrawer`.
+- Coverage floor in `vite.config.ts` (`thresholds`) as an anti-regression gate,
+  ratcheted to 90/82/78/90 (current ~95/85/83/95). Remaining gaps: `client.ts`
+  401 interceptor and `turn-block` progressive-reveal branches.
 - Zustand stores (`game`, `auth`, `ui`) wrapped in the `devtools` middleware,
   gated on `import.meta.env.DEV` (F-L2). `ThemeOverride` is now exported once from
   `ui-store` and imported by `settings-drawer` instead of being re-declared (R-12).
