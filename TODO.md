@@ -15,9 +15,9 @@
 [~] installer casual NATIVO (no-Docker) — fatto (vedi ADR 0000, dir `install/`). Scelta rivista vs la riga originale: NON wrappa docker-compose (l'utente tecnico fa `docker compose up --build`); il casual provisiona un bundle Postgres+pgvector portatile (Release asset), uv user-scope + Node portatile, NO admin, secret auto-generati nel `.env` (std 16). Niente dialog API-key: le key si mettono dalla UI (BYOAK). Usa `.env.example` (non `.env.template`). Windows .bat+.ps1 + launcher accoppiato; controparti Linux/Mac .sh (PG da package manager). Backend invariato (FastAPI serve la SPA, mount guardato). FATTO: bundle pubblicato come Release (`bundle-pg16-v1`, PG 16.14 + pgvector 0.8.2) + URL reale cablato in `install/windows/install_saga.ps1` e `installer-smoke.yml`. [spunto: NEQ installer .bat, dnd-llm-game launcher]
 
 # ---- installer/CI: follow-up rimasti (giu 2026) ----
-# gli script installer finora sono solo PARSE-CHECKati; il vero run e' lo smoke E2E.
-[ ] smoke E2E installer: primo run REALE (`installer-smoke.yml`, Windows+Linux) -> verificare che funzioni davvero su macchina pulita e fixare eventuali bug runtime
-[ ] merge del branch su `main`: solo allora `workflow_dispatch` mostra "Run". DOPO il merge: togliere i trigger TEMP su push da `ci.yml` E `installer-smoke.yml` (tornare a `push:[main]`+PR per ci, `workflow_dispatch`+schedule per smoke)
+[x] smoke E2E installer VERDE su Windows + Linux (`installer-smoke.yml`): bundle scaricato (gh), PG+pgvector provisionati, DB creato, backend su, SPA servita. Trigger TEMP gia' rimossi.
+[ ] NON ancora testato: il ramo "auto-installa git/node/uv se mancanti" (i runner CI e il PC di dev li hanno gia') -> serve una VM/PC Windows VERGINE per validarlo
+[ ] merge del branch su `main` (squash). Solo dopo `workflow_dispatch` mostra il bottone "Run" per lo smoke
 [ ] icona custom `saga.ico` per la shortcut desktop (polish; la shortcut funziona anche senza)
 [ ] CD: `release.yml` (build+publish immagini Docker su GHCR) quando ci sara una versione stabile
 
