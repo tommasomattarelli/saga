@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { devtools, persist } from "zustand/middleware";
 
-type ThemeOverride = "auto" | "dark" | "light";
+export type ThemeOverride = "auto" | "dark" | "light";
 
 interface UIState {
   sidePanel: "character" | "inventory" | "quests" | "map" | "settings" | null;
@@ -18,7 +18,8 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>()(
-  persist(
+  devtools(
+    persist(
     (set) => ({
       sidePanel: null,
       showCompanionBar: true,
@@ -43,5 +44,7 @@ export const useUIStore = create<UIState>()(
         fontSize: state.fontSize,
       }),
     },
+    ),
+    { name: "ui-store", enabled: import.meta.env.DEV },
   ),
 );

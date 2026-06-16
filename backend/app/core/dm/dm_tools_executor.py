@@ -2,18 +2,37 @@
 
 from __future__ import annotations
 
+from enum import IntEnum
 from typing import Any
 
 import structlog
 from langchain_core.messages import ToolMessage
 
 from app.ai.npc_director import invoke_npcs_parallel
+from app.ai.router import get_gameplay_config
 from app.ai.tools.dm_tools import execute_tool, get_tool
 from app.core.combat.combat_graph import combat_graph
 from app.core.dice import ability_check
 from app.core.dm.dm_helpers import get_or_create_segment, sync_narration_to_segment
 from app.core.dm.game_state import GameState
+from app.core.dm.npc_prehook import validate_or_create_npc
 from app.memory.updater import apply_typed_updates
+
+
+class _ToolPriority(IntEnum):
+    FIRST = 0  # resolved before others (e.g. request_dice)
+    NORMAL = 1
+    LAST = 2  # resolved after others (e.g. invoke_npc)
+
+
+_TOOL_PRIORITY: dict[str, _ToolPriority] = {
+    "request_dice": _ToolPriority.FIRST,
+    "invoke_npc": _ToolPriority.LAST,
+}
+
+
+def _sort_tool_calls(tool_calls: list[dict]) -> list[dict]:
+    return sorted(tool_calls, key=lambda tc: _TOOL_PRIORITY.get(tc["name"], _ToolPriority.NORMAL))
 
 logger = structlog.get_logger()
 
@@ -30,7 +49,7 @@ async def tools_node(state: GameState) -> dict[str, Any]:
     if not ai_msg:
         return {}
 
-    tool_calls = tool_calls_from_ai_message(ai_msg)
+    tool_calls = _sort_tool_calls(tool_calls_from_ai_message(ai_msg))
     if not tool_calls:
         return {}
 
@@ -95,6 +114,12 @@ async def tools_node(state: GameState) -> dict[str, Any]:
                 tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
                 continue
 
+            npc_config = get_gameplay_config()
+            ok, error_msg = validate_or_create_npc(npc_name, world_state, npc_config)
+            if not ok:
+                tool_messages.append(ToolMessage(content=error_msg, tool_call_id=tc_id, name=name))
+                continue
+
             called_npcs.append(npc_name)
 
             async with get_db_context() as db:
@@ -140,6 +165,10 @@ async def tools_node(state: GameState) -> dict[str, Any]:
 
     sync_narration_to_segment(narration_segments, step, state["narration"])
 
+    has_narration = bool(state["narration"].strip())
+    prev_empty = state.get("consecutive_empty_steps", 0)
+    consecutive_empty_steps = 0 if has_narration else prev_empty + 1
+
     return {
         "messages": tool_messages,
         "world_state": world_state,
@@ -151,6 +180,7 @@ async def tools_node(state: GameState) -> dict[str, Any]:
         "scene_mood": scene_mood,
         "time_passed_minutes": time_passed,
         "narration_segments": narration_segments,
+        "consecutive_empty_steps": consecutive_empty_steps,
     }
 
 
@@ -208,6 +238,7 @@ def _handle_npc_results(
     char_data: dict,
 ) -> tuple[str, dict, dict]:
     dialogue_parts: list[str] = []
+    kept = get_gameplay_config().npc_last_interactions_kept
 
     for npc in npc_results:
         evt = {"npc_name": npc.npc_name, "dialogue": npc.dialogue, "action": npc.action}
@@ -225,8 +256,8 @@ def _handle_npc_results(
         if npc_ws is not None:
             history: list[str] = npc_ws.setdefault("last_interactions", [])
             history.append(f'"{npc.dialogue}"')
-            if len(history) > 3:
-                history[:] = history[-3:]
+            if len(history) > kept:
+                history[:] = history[-kept:]
 
         if npc.disposition_change != 0:
             world_state, char_data = apply_typed_updates(

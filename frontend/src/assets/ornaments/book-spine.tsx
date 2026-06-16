@@ -2,7 +2,7 @@ import { Seal } from "./seal";
 
 /* Book spine SVG — verticale, colore derivato dalla classe, sigillo da campaign.id */
 
-export const CLASS_SPINE_COLORS: Record<string, { base: string; accent: string }> = {
+const CLASS_SPINE_COLORS: Record<string, { base: string; accent: string }> = {
   warrior: { base: "#5C1410", accent: "#8B0000" },
   rogue: { base: "#2D1F3D", accent: "#5C3D78" },
   mage: { base: "#152438", accent: "#2D4A78" },

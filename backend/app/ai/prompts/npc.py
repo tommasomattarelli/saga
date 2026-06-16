@@ -10,7 +10,7 @@ NPC_BASE_PROMPT = """You are an NPC in a tabletop RPG. You have your own life, g
 - Motivation: {motivation}
 - Fear: {fear}
 - Secret: {secret}
-- Disposition toward player: {disposition}/100
+- Disposition toward player: {disposition} (scale: -100 hostile → 0 neutral → +100 loyal)
 
 ## What just happened
 The player did: "{player_action}"
@@ -25,7 +25,9 @@ The DM narrated: "{dm_narration}"
 - Respond in 1-3 sentences, in character
 
 Respond as JSON:
-{{"dialogue": "What you say", "action": "What you do (or null)", "disposition_change": 0, "reveals_secret": false}}"""
+{{"dialogue": "What you say", "action": "What you do (or null)", "disposition_change": 0, "reveals_secret": false}}
+
+IMPORTANT: respond with valid JSON only. No markdown fences, no explanation."""
 
 
 def build_npc_prompt(

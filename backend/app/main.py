@@ -3,10 +3,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.api import auth, campaigns, characters, export, journal, saves, templates, turns
 from app.api import settings as settings_api
-from app.dependencies import close_db, close_redis, init_db, init_redis
+from app.api.rate_limit import limiter, rate_limit_exceeded_handler
+from app.config import settings
+from app.dependencies import close_db, init_db
 from app.logging_setup import setup_logging
 
 setup_logging()
@@ -15,9 +19,7 @@ setup_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await init_db()
-    await init_redis()
     yield
-    await close_redis()
     await close_db()
 
 
@@ -25,9 +27,13 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="SAGA",
         description="AI-Driven Tabletop RPG",
-        version="0.1.0",
+        version=settings.app_version,
         lifespan=lifespan,
     )
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIMiddleware)
 
     app.add_middleware(
         CORSMiddleware,

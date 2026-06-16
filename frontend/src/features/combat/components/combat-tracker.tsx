@@ -45,9 +45,8 @@ function CombatantCard({
   isCurrent: boolean;
 }) {
   const isPlayer = combatant.type === "player";
-  const isCompanion = combatant.type === "companion";
   const isDead = combatant.hp <= 0;
-  const glyph = isPlayer ? "❖" : isCompanion ? "✦" : "▲";
+  const glyph = isPlayer ? "❖" : "▲";
 
   return (
     <div
@@ -64,7 +63,7 @@ function CombatantCard({
       <div className="flex items-center gap-1 mb-0.5">
         <span
           className="font-display text-xs"
-          style={{ color: isPlayer ? "var(--gold-bright)" : isCompanion ? "var(--gold-deep)" : "var(--blood)" }}
+          style={{ color: isPlayer ? "var(--gold-bright)" : "var(--blood)" }}
         >
           {glyph}
         </span>
@@ -108,42 +107,45 @@ function CombatantCard({
 }
 
 export default function CombatTracker({ combatState }: CombatTrackerProps) {
+  if (!combatState.active) return null;
+
   return (
     <AnimatePresence>
-      {combatState.active && (
-        <motion.div
-          className="fixed bottom-0 left-0 right-0 z-50"
-          initial={{ y: "100%" }}
-          animate={{ y: 0 }}
-          exit={{ y: "100%" }}
-          transition={{ duration: 0.5, ease: [0.77, 0, 0.175, 1] }}
+      <motion.div
+        className="fixed bottom-0 left-0 right-0 z-50"
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ duration: 0.5, ease: [0.77, 0, 0.175, 1] }}
+      >
+        <div
+          className="max-w-[1200px] mx-auto px-6 py-3"
+          style={{
+            background: "var(--parchment-aged)",
+            border: "1px solid var(--gold-deep)",
+            borderBottom: "none",
+          }}
         >
-          <div
-            className="max-w-[1200px] mx-auto px-6 py-3"
-            style={{
-              background: "var(--parchment-aged)",
-              border: "1px solid var(--gold-deep)",
-              borderBottom: "none",
-            }}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <span
-                className="font-display text-xs uppercase"
-                style={{ color: "var(--gold-bright)", letterSpacing: "0.3em" }}
-              >
-                ⚔ Initiative
-              </span>
-              <span
-                className="font-body italic text-xs"
-                style={{ color: "var(--ink-faded)" }}
-              >
-                Round {combatState.round}
-              </span>
-            </div>
-            <OrnamentDivider variant="flourish-a" className="!my-1" />
+          {/* Header */}
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <span
+              className="font-display text-xs uppercase"
+              style={{ color: "var(--gold-bright)", letterSpacing: "0.3em" }}
+            >
+              COMBAT - Round {combatState.round}
+            </span>
+          </div>
+          <OrnamentDivider variant="flourish-a" className="!my-1" />
 
-            {/* Combatant cards — horizontal scroll */}
+          {/* Combatant cards — horizontal scroll; empty guard prevents crash */}
+          {combatState.initiative_order.length === 0 ? (
+            <div
+              className="py-2 text-center font-body italic text-xs"
+              style={{ color: "var(--ink-faded)" }}
+            >
+              Awaiting initiative…
+            </div>
+          ) : (
             <div className="flex items-end gap-3 overflow-x-auto pb-1 justify-start">
               {combatState.initiative_order.map((c, i) => (
                 <CombatantCard
@@ -153,9 +155,9 @@ export default function CombatTracker({ combatState }: CombatTrackerProps) {
                 />
               ))}
             </div>
-          </div>
-        </motion.div>
-      )}
+          )}
+        </div>
+      </motion.div>
     </AnimatePresence>
   );
 }

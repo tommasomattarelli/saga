@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, it, expect, beforeEach } from "vitest";
 import NarrativeStream from "../components/narrative-stream";
 import { useGameStore } from "../../../shared/stores/game-store";
@@ -16,7 +16,7 @@ describe("NarrativeStream Component", () => {
 
   it("should show empty state message when no turns", () => {
     render(<NarrativeStream />);
-    expect(screen.getByText("Your adventure awaits…")).toBeInTheDocument();
+    expect(screen.getByText("Thy adventure awaits…")).toBeInTheDocument();
   });
 
   it("should render turn history properly", async () => {
@@ -34,17 +34,14 @@ describe("NarrativeStream Component", () => {
     });
 
     render(<NarrativeStream />);
-    // Latest turn uses typewriter — wait for full text to render
-    await waitFor(
-      () => expect(screen.getByText("A dark forest surrounds you.")).toBeInTheDocument(),
-      { timeout: 5000 },
-    );
+    // Drop-cap splits the first letter into its own span, so match the remainder.
+    expect(screen.getByText(/dark forest surrounds you/)).toBeInTheDocument();
   });
 
   it("should show loading state", () => {
     useGameStore.setState({ isLoading: true, pendingAction: "Walk forward" });
     render(<NarrativeStream />);
-    expect(screen.getByText("The DM considers your action…")).toBeInTheDocument();
+    expect(screen.getByTestId("dm-loading")).toBeInTheDocument();
   });
 
   it("should show pending action bubble while loading", () => {
@@ -56,6 +53,6 @@ describe("NarrativeStream Component", () => {
   it("should use scrollRef when provided", () => {
     const scrollRef = React.createRef<HTMLDivElement | null>();
     render(<NarrativeStream scrollRef={scrollRef} />);
-    expect(screen.getByText("Your adventure awaits…")).toBeInTheDocument();
+    expect(screen.getByText("Thy adventure awaits…")).toBeInTheDocument();
   });
 });

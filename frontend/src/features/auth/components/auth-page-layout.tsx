@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useForcedTheme } from "../../../shared/hooks/use-forced-theme";
 import { AntiqueMap } from "../../../assets/ornaments/antique-map";
 import { SagaSeal } from "../../../assets/ornaments/saga-seal";
 import { OrnateFrame } from "../../../shared/ui/ornate-frame";
@@ -16,15 +16,7 @@ interface AuthPageLayoutProps {
 
 /* Tomo a doppia pagina con mappa antica di sfondo, tema DARK forzato */
 export function AuthPageLayout({ subtitle, children }: AuthPageLayoutProps) {
-  // Force dark theme on the root for this flow
-  useEffect(() => {
-    const prev = document.documentElement.getAttribute("data-theme");
-    document.documentElement.setAttribute("data-theme", "dark");
-    return () => {
-      if (prev) document.documentElement.setAttribute("data-theme", prev);
-      else document.documentElement.removeAttribute("data-theme");
-    };
-  }, []);
+  useForcedTheme("dark");
 
   return (
     <div

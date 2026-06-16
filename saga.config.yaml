@@ -86,20 +86,41 @@ embedding:
 # ---------------------------------------------------------------------------
 gameplay:
   context_window_turns: 8        # verbatim turns in DM prompt
+  context_token_cap: 12000       # max tokens in DM prompt before oldest verbatim turns are dropped
   npc_verbosity: "medium"        # null=0 minimal=1 low=2 medium=3 high=5 unlimited=999
   compression_enabled: true
   fact_extraction_enabled: true   # background only, used in v2 pgvector search
   semantic_resolver_enabled: false # disabled until v1.5 (NPC filtering + intent classification)
   max_agent_steps: 5
+  pgvector_hybrid: false          # enable hybrid RRF search (vector + tsvector) — v1.1 feature flag
+  auto_create_npcs: true          # if true, invoke_npc auto-creates missing NPCs
+  npc_auto_create_detail: standard # detail level for auto-created NPCs: minimal|standard|rich
+  npc_last_interactions_kept: 3   # recent NPC lines kept in world_state per NPC
+  consecutive_empty_steps_max: 2  # max tool-only steps with no narration before forcing loop exit
+
+# ---------------------------------------------------------------------------
+# API — rate limiting
+# ---------------------------------------------------------------------------
+api:
+  rate_limit:
+    turns_per_minute: 10     # max /turns requests per user_id per minute
+
+# ---------------------------------------------------------------------------
+# Summarization — retry + deduplication settings
+# ---------------------------------------------------------------------------
+summarization:
+  max_retries: 3                    # retries on LLM failure before marking turn.summarization_failed
+  retry_delays_seconds: [1, 3, 10]  # backoff capped at 10s — background task cycle is ~30s
 
 # ---------------------------------------------------------------------------
 # Feature Toggles — opt-in AI features (BYOAK — off by default)
 # ---------------------------------------------------------------------------
 features:
   global_summary:
-    enabled: false               # v1.5: rolling story summary
-    mode: rule_based             # "rule_based" or "llm"
-    interval_turns: 5
+    enabled: true                # rolling story summary, updated every interval_turns
+    mode: llm                    # "rule_based" or "llm"
+    interval_turns: 5            # update every N turns
+    max_input_chars: 4000        # cap on the existing summary fed back into the update prompt
   npc_enrichment:
     enabled: false               # v1.5+: LLM-enriched NPC profiles before invoke_npc
   world_sim:

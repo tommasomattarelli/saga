@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useForcedTheme } from "../../../shared/hooks/use-forced-theme";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGameStore } from "../../../shared/stores/game-store";
 import { useUIStore } from "../../../shared/stores/ui-store";
@@ -27,16 +28,10 @@ export default function GameView() {
   const sidePanel = useUIStore((s) => s.sidePanel);
   const toggleSidePanel = useUIStore((s) => s.toggleSidePanel);
 
-  // Force LIGHT theme in game
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", "light");
-    return () => document.documentElement.removeAttribute("data-theme");
-  }, []);
+  useForcedTheme("light");
 
   const { isLoading: isDataLoading } = useCampaignData(campaignId);
-  const { mutation, scrollRef: submitScrollRef } = useSubmitAction(campaignId!);
-
-  submitScrollRef.current = scrollRef.current;
+  const { mutation } = useSubmitAction(campaignId!, scrollRef);
 
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -76,7 +71,10 @@ export default function GameView() {
       {/* CombatTracker handles its own AnimatePresence — always render when state exists */}
       {combatState && <CombatTracker combatState={combatState} />}
 
-      <div className="mood-container flex flex-1 flex-col">
+      <div
+        className="mood-container flex flex-1 flex-col"
+        style={combatState ? { paddingBottom: "150px" } : undefined}
+      >
         {/* Ornamental banner header */}
         <header
           className="relative px-6 pt-3 pb-1"
@@ -177,7 +175,7 @@ export default function GameView() {
           </div>
         </main>
 
-        <ActionInput campaignId={campaign.id} onAction={handleAction} />
+        <ActionInput onAction={handleAction} />
       </div>
 
       {/* Character sheet — fullscreen modal (self-contained) */}
