@@ -79,8 +79,10 @@ lines in `app/main.py`, no game logic.
 download-and-run file (a `irm | iex` one-liner is documented as a power-user
 alternative). It:
 
-1. checks/installs **git** (winget), **uv**, **node** (winget); handles the
-   post-winget PATH refresh (re-launch shell);
+1. ensures **git** (winget, in the bootstrapper), then provisions **uv**
+   (user-scope installer) and a **portable Node.js** (nodejs.org zip into the
+   install dir) — no admin, deterministic PATH (no winget for Node, no
+   in-session PATH-refresh gamble);
 2. clones the repo to `%LOCALAPPDATA%\SAGA\app` (data lives beside it in
    `%LOCALAPPDATA%\SAGA\pgdata`, outside the git clone);
 3. downloads + unpacks the Postgres bundle, `initdb`,
