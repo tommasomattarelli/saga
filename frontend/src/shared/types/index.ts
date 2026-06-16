@@ -80,15 +80,7 @@ export interface CombatantInfo {
   initiative: number;
   hp: number;
   max_hp: number;
-  type: "player" | "companion" | "enemy";
-}
-
-export interface DeathEvent {
-  is_dead: boolean;
-  action: "alive" | "near_death" | "fate_intervention" | "dead";
-  death_mode: DeathMode;
-  narrative_instruction: string;
-  destino_lives_remaining: number | null;
+  type: "player" | "enemy";
 }
 
 export interface WorldState {
@@ -188,17 +180,6 @@ export interface TurnResponse {
   importance_score?: number;
   time_passed_minutes?: number;
   requires_player_action?: boolean;
-  suggested_actions?: string[] | null;
-}
-
-export interface SavePoint {
-  id: string;
-  campaign_id: string;
-  name: string;
-  turn_number: number;
-  scene_summary: string;
-  is_auto: boolean;
-  created_at: string;
 }
 
 export interface TokenPair {

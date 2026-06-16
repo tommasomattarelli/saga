@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useForcedTheme } from "../../../shared/hooks/use-forced-theme";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGameStore } from "../../../shared/stores/game-store";
 import { useUIStore } from "../../../shared/stores/ui-store";
@@ -27,11 +28,7 @@ export default function GameView() {
   const sidePanel = useUIStore((s) => s.sidePanel);
   const toggleSidePanel = useUIStore((s) => s.toggleSidePanel);
 
-  // Force LIGHT theme in game
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", "light");
-    return () => document.documentElement.removeAttribute("data-theme");
-  }, []);
+  useForcedTheme("light");
 
   const { isLoading: isDataLoading } = useCampaignData(campaignId);
   const { mutation } = useSubmitAction(campaignId!, scrollRef);
@@ -178,7 +175,7 @@ export default function GameView() {
           </div>
         </main>
 
-        <ActionInput campaignId={campaign.id} onAction={handleAction} />
+        <ActionInput onAction={handleAction} />
       </div>
 
       {/* Character sheet — fullscreen modal (self-contained) */}

@@ -8,6 +8,8 @@ from app.security.encryption import encrypt_api_key
 
 router = APIRouter()
 
+# TODO: endpoints implemented but not yet wired to the frontend (user settings / BYOAK keys — roadmap).
+
 
 @router.get("")
 async def get_settings(user: User = Depends(get_current_user)) -> dict:

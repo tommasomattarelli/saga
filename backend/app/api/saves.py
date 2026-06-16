@@ -13,6 +13,8 @@ from app.security.auth import get_current_user
 
 router = APIRouter()
 
+# TODO: endpoints implemented but not yet wired to the frontend (manual save/load — roadmap).
+
 
 @router.get("/{campaign_id}", response_model=list[SaveResponse])
 async def list_saves(

@@ -7,7 +7,7 @@
 [ ] passare in rassegna le funzioni marcate #TODO nel codice (capire se servono)
 
 ## frontend
-[ ] refactor + analisi del frontend (come fatto per il backend)
+[x] refactor + analisi del frontend (come fatto per il backend) — fatto giu 2026 (branch refactor/frontend): god-file split, dead code 0, coverage ~95%, E2E mockato, guida in scratch/frontend/
 
 ## infra / distribuzione
 [ ] debug con docker
@@ -119,3 +119,26 @@
 [ ] coda pending_world_changes applicata dal turn path al turno successivo (single writer, niente race) + validazione consistenza all'apply (scarta/riconcilia se la precondizione non regge)
 [ ] output = world data (fatti=hard ground-truth, pressione narrativa=soft advisory che il DM interpreta)
 [ ] nuovo AICallType.DIRECTOR (thinking tier) + max_iterations cap (std 19) + disciplina sessioni rule-15
+
+# ============================================================
+# ADR 0007-0011 (giu 2026) -> follow-up. 0007-0010 = analisi Voyage; 0011 = refactor FE.
+# vedi docs/adr/. 0007-0010 NON ancora Accepted (Proposed/WIP).
+# vanno prima accettati.
+# ============================================================
+
+## ADR 0007 (Proposed) — direzioni adottate dalla Voyage
+[ ] state-audit pass: secondo passaggio CHEAP, async e fuori dal critical path, che estrae/riconcilia lo stato implicato dalla narrazione vs i tool realmente eseguiti e patcha il drift (estrazione, NON decisione; niente two-pass pieno) [ADR 0007 §1]
+[ ] massima configurabilita' della memoria + modelli per-sottosistema [ADR 0007 §2-3]
+
+## ADR 0008 (Proposed — design fissato, TODO aperti prima di Accepted) — world model multi-layer YAML + grafo spaziale deterministico
+[ ] chiudere i TODO di design: enum `kind` (A-i), transform/scale globale per livello (A-ii), sistema unita'/coordinate (B-i), vocabolario `terrain` + range `elevation_m` (B-ii), schema blocco `scenario` + seed della campagna (C-i)
+[ ] poi: split in sprint di implementazione
+
+## ADR 0009 (WIP, nulla deciso) — NPC enrichment (status, update_npc, archivio NPC rimossi)
+[ ] analisi dedicata: decidere le meccaniche PRIMA di implementare (oggi e' solo direzione)
+
+## ADR 0010 (WIP, nulla deciso) — customizzazione PG (skill progression + abilities configurabili)
+[ ] analisi dedicata: decidere le meccaniche PRIMA di implementare (oggi e' solo direzione)
+
+## ADR 0011 (Accepted) — E2E frontend mockato
+[ ] variante E2E con backend reale + Docker (make test-infra-up + DB seedato + action->dado); oggi le /api sono mockate in-browser

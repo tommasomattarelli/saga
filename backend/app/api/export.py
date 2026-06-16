@@ -13,6 +13,8 @@ from app.security.auth import get_current_user
 
 router = APIRouter()
 
+# TODO: endpoint implemented but not yet wired to the frontend (campaign export/import — data-sovereignty pillar).
+
 
 @router.get("/{campaign_id}")
 async def export_campaign(
