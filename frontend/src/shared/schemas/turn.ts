@@ -43,7 +43,7 @@ const CombatantInfoSchema = z.object({
   initiative: z.number(),
   hp: z.number(),
   max_hp: z.number(),
-  type: z.enum(["player", "companion", "enemy"]),
+  type: z.enum(["player", "enemy"]),
 });
 
 const CombatStateSchema = z.object({
@@ -80,5 +80,4 @@ export const TurnResponseSchema = z.object({
   importance_score: z.number().optional(),
   time_passed_minutes: z.number().optional(),
   requires_player_action: z.boolean().optional(),
-  suggested_actions: z.array(z.string()).nullable().optional(),
 });
