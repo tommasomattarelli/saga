@@ -68,28 +68,6 @@ describe("ActionInput", () => {
     expect(screen.getByText("460/500")).toBeInTheDocument();
   });
 
-  it("shows suggested action pills and triggers them", () => {
-    const onAction = vi.fn();
-    useGameStore.setState({
-      turnHistory: [
-        {
-          turn_number: 1,
-          narration: "...",
-          scene_mood: null,
-          requires_player_action: true,
-          suggested_actions: ["Look around", "Draw sword"],
-        },
-      ],
-    });
-    render(<ActionInput onAction={onAction} />);
-
-    expect(screen.getByText("Look around")).toBeInTheDocument();
-    expect(screen.getByText("Draw sword")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText("Look around"));
-    expect(onAction).toHaveBeenCalledWith("Look around");
-  });
-
   it("shows Continue button when last turn does not require player action", () => {
     const onAction = vi.fn();
     useGameStore.setState({

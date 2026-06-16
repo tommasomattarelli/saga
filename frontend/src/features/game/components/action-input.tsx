@@ -79,35 +79,6 @@ export default function ActionInput({ onAction }: ActionInputProps) {
         borderTop: "1px solid var(--gold-deep)",
       }}
     >
-      {/* Suggested action pills — "Possibilities:" label */}
-      {lastTurn?.suggested_actions && lastTurn.suggested_actions.length > 0 && (
-        <div className="mb-3">
-          <span
-            className="block mb-1.5 font-display text-[9px] uppercase"
-            style={{ color: "var(--ink-faded)", letterSpacing: "0.25em" }}
-          >
-            Possibilities:
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {lastTurn.suggested_actions.map((suggestion, i) => (
-              <button
-                key={i}
-                onClick={() => sendAction(suggestion)}
-                disabled={blocked}
-                className="px-3 py-1 font-body text-sm italic transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
-                style={{
-                  color: "var(--ink-secondary)",
-                  border: "1px solid var(--gold-deep)",
-                  background: "rgba(244, 232, 208, 0.4)",
-                }}
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Cartiglio rituale — OrnateFrame-styled container */}
       <form onSubmit={handleSubmit}>
         <div

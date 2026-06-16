@@ -9,7 +9,7 @@ const baseCombat: CombatState = {
   initiative_order: [
     { name: "Hero", initiative: 18, hp: 28, max_hp: 40, type: "player" },
     { name: "Goblin", initiative: 12, hp: 8, max_hp: 10, type: "enemy" },
-    { name: "Miriam", initiative: 15, hp: 20, max_hp: 20, type: "companion" },
+    { name: "Miriam", initiative: 15, hp: 20, max_hp: 20, type: "enemy" },
   ],
   current_turn_index: 0,
 };

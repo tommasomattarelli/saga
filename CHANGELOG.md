@@ -97,6 +97,12 @@ predating this file live in `docs/archive/changelog/`.
   embedding API call runs inside an open session (B-M1, rule 15).
 
 ### Removed
+- Contract-orphaned frontend code removed (cross-stack audit): the
+  `suggested_actions` turn field + its "Possibilities" chip UI (backend hardwires
+  `None`, never emitted), and the `"companion"` `CombatantInfo` type variant
+  (backend combat only emits `player`/`enemy`). `archetype` was checked and
+  **kept** — the FE-supplied value is persisted verbatim by the backend and drives
+  the campaign book-spine colour.
 - Frontend unused dependencies dropped: `@radix-ui/react-popover`, `clsx`,
   `lucide-react` (zero imports in `src/`).
 - Frontend dead API/type surface removed: unused `schemas/campaign.ts`, the

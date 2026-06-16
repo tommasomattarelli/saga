@@ -80,7 +80,7 @@ export interface CombatantInfo {
   initiative: number;
   hp: number;
   max_hp: number;
-  type: "player" | "companion" | "enemy";
+  type: "player" | "enemy";
 }
 
 export interface WorldState {
@@ -180,7 +180,6 @@ export interface TurnResponse {
   importance_score?: number;
   time_passed_minutes?: number;
   requires_player_action?: boolean;
-  suggested_actions?: string[] | null;
 }
 
 export interface TokenPair {
