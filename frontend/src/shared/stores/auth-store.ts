@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import type { User, TokenPair } from "../types";
 import { useGameStore } from "./game-store";
 
@@ -32,7 +33,8 @@ function saveRefreshToken(token: string | null): void {
   }
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
+export const useAuthStore = create<AuthState>()(
+  devtools((set) => ({
   user: null,
   // accessToken is memory-only: never persisted, cleared on page reload
   accessToken: null,
@@ -58,4 +60,5 @@ export const useAuthStore = create<AuthState>()((set) => ({
       isAuthenticated: false,
     });
   },
-}));
+  }), { name: "auth-store", enabled: import.meta.env.DEV }),
+);
