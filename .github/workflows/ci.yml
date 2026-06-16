@@ -103,7 +103,7 @@ jobs:
         shell: pwsh
         run: |
           $bad = $false
-          Get-ChildItem install/*.ps1 | ForEach-Object {
+          Get-ChildItem install -Recurse -Filter *.ps1 | ForEach-Object {
             $e = $null
             [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$e) | Out-Null
             if ($e) { $bad = $true; Write-Host "::error file=$($_.FullName)::$($e[0].Message)" }
@@ -112,5 +112,5 @@ jobs:
           if ($bad) { exit 1 }
       - name: Syntax + lint sh installer scripts (Linux/macOS)
         run: |
-          for f in install/*.sh; do bash -n "$f" && echo "[OK] $f"; done
-          shellcheck -S error install/*.sh
+          for f in install/linux-macos/*.sh; do bash -n "$f" && echo "[OK] $f"; done
+          shellcheck -S error install/linux-macos/*.sh
