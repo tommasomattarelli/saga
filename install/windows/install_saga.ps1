@@ -113,8 +113,8 @@ if (-not (Test-Path (Join-Path $PgData "PG_VERSION"))) {
   Write-Step "Starting Postgres to create the database..."
   & (Join-Path $PgBin "pg_ctl.exe") -D $PgData -o "-p $PgPort" -l (Join-Path $InstallRoot "pg-init.log") -w start
   try {
-    & (Join-Path $PgBin "createdb.exe") -p $PgPort -U saga saga
-    & (Join-Path $PgBin "psql.exe") -p $PgPort -U saga -d saga -c "CREATE EXTENSION IF NOT EXISTS vector;"
+    & (Join-Path $PgBin "createdb.exe") -h localhost -p $PgPort -U saga saga
+    & (Join-Path $PgBin "psql.exe") -h localhost -p $PgPort -U saga -d saga -c "CREATE EXTENSION IF NOT EXISTS vector;"
   } finally {
     & (Join-Path $PgBin "pg_ctl.exe") -D $PgData -m fast -w stop
   }

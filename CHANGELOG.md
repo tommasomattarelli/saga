@@ -50,6 +50,10 @@ predating this file live in `docs/archive/changelog/`.
   unchanged; SQLite/softening pgvector explicitly rejected. CI runs on PR + push
   with a pgvector service container and no AI keys.
 
+### Removed
+- The unused `redis` dependency (no `redis_url` setting, no imports anywhere in
+  the app); the stale `REDIS_URL` entry was also dropped from `.env.example`.
+
 ### Changed
 - `Makefile` made cross-platform: detects the OS and uses PowerShell on Windows
   and `sh` elsewhere (the `test-all` env-var injection and `clean` cache removal
