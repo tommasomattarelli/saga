@@ -2,9 +2,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useGameStore } from "../../../shared/stores/game-store";
 
 interface ActionInputProps {
-  campaignId: string;
   onAction: (action: string) => void;
 }
+
+// ponytail: backend sanitize_player_input is the real guard; this is just UX feedback
+const MAX_ACTION_LENGTH = 500;
 
 const ROTATING_PLACEHOLDERS = [
   "I draw my sword and step forward…",
@@ -136,6 +138,7 @@ export default function ActionInput({ onAction }: ActionInputProps) {
             onKeyDown={handleKeyDown}
             placeholder={ROTATING_PLACEHOLDERS[placeholderIdx]}
             disabled={blocked}
+            maxLength={MAX_ACTION_LENGTH}
             rows={1}
             autoFocus
             className="w-full resize-none bg-transparent px-5 pt-4 pb-12 font-body text-lg italic placeholder:opacity-40 focus:outline-none disabled:opacity-50"
@@ -152,12 +155,23 @@ export default function ActionInput({ onAction }: ActionInputProps) {
             className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 py-2"
             style={{ borderTop: "1px solid rgba(139, 105, 20, 0.2)" }}
           >
-            <span
-              className="font-display text-[9px] uppercase"
-              style={{ color: "var(--ink-faded)", letterSpacing: "0.2em", opacity: 0.7 }}
-            >
-              Ctrl+↵ to seal
-            </span>
+            <div className="flex items-center gap-3">
+              <span
+                className="font-display text-[9px] uppercase"
+                style={{ color: "var(--ink-faded)", letterSpacing: "0.2em", opacity: 0.7 }}
+              >
+                Ctrl+↵ to seal
+              </span>
+              {action.length > MAX_ACTION_LENGTH - 50 && (
+                <span
+                  aria-live="polite"
+                  className="font-display text-[9px]"
+                  style={{ color: action.length >= MAX_ACTION_LENGTH ? "var(--blood)" : "var(--ink-faded)" }}
+                >
+                  {action.length}/{MAX_ACTION_LENGTH}
+                </span>
+              )}
+            </div>
 
             {showContinue && !action.trim() ? (
               <button

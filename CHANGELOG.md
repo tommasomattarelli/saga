@@ -13,6 +13,10 @@ predating this file live in `docs/archive/changelog/`.
 ## [Unreleased]
 
 ### Changed
+- `ActionInput` gained a client-side length guard: native `maxLength` caps the
+  textarea at 500 chars with a live counter near the limit (F-M4); the unused
+  `campaignId` prop was dropped (R-10). Backend `sanitize_player_input` remains
+  the authoritative guard.
 - `NarrativeStream` (338 lines) split into `player-action.tsx`, `turn-block.tsx`
   (segment + progressive dice-reveal logic) and a thin `narrative-stream.tsx`
   shell (81 lines, rule 12). Stale tests realigned to current copy; `DmLoading`
