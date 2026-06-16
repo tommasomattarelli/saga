@@ -12,6 +12,17 @@ predating this file live in `docs/archive/changelog/`.
 
 ## [Unreleased]
 
+### Added
+- ADR 0000 (distribution & deployment architecture): the foundational,
+  pre-first-release deployment decision. Two-tier distribution — Docker
+  `compose up --build` for technical users, and a native no-Docker casual
+  installer (Windows `.bat` first) that provisions a pinned portable
+  Postgres+pgvector bundle and serves the built frontend via FastAPI (single
+  process, no runtime Node). A single launcher starts/stops Postgres together with
+  uvicorn (on-demand, no Windows service, no admin). Backend logic
+  unchanged; SQLite/softening pgvector explicitly rejected. CI runs on PR + push
+  with a pgvector service container and no AI keys.
+
 ### Changed
 - `docs/AUDIT_APRIL_2026.md` archived to `docs/archive/` now that the whole
   backlog (backend + frontend) is closed/deferred; references in `docs/README.md`
