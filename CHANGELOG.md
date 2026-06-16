@@ -13,6 +13,9 @@ predating this file live in `docs/archive/changelog/`.
 ## [Unreleased]
 
 ### Changed
+- `docs/AUDIT_APRIL_2026.md` archived to `docs/archive/` now that the whole
+  backlog (backend + frontend) is closed/deferred; references in `docs/README.md`
+  and `AGENTIC_ARCHITECTURE.md` updated.
 - The `data-theme` forcing effect duplicated across four pages
   (game-view, campaign-select, new-campaign, auth) collapsed into a single
   `useForcedTheme` hook that restores the previous theme on unmount (R-03).
