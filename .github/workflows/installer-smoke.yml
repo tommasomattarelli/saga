@@ -52,11 +52,11 @@ jobs:
           try {
             $ok = $false
             for ($i = 0; $i -lt 30; $i++) {
-              try { Invoke-WebRequest http://localhost:8000 -UseBasicParsing -TimeoutSec 2 | Out-Null; $ok = $true; break }
+              try { Invoke-WebRequest http://127.0.0.1:8000 -UseBasicParsing -TimeoutSec 2 | Out-Null; $ok = $true; break }
               catch { Start-Sleep -Seconds 2 }
             }
             if (-not $ok) {
-              try { Invoke-WebRequest http://localhost:8000/openapi.json -UseBasicParsing -TimeoutSec 2 | Out-Null; Write-Host "(/openapi.json OK -> backend up, SPA not mounted)" }
+              try { Invoke-WebRequest http://127.0.0.1:8000/openapi.json -UseBasicParsing -TimeoutSec 2 | Out-Null; Write-Host "(/openapi.json OK -> backend up, SPA not mounted)" }
               catch { Write-Host "(/openapi.json also failed -> backend down)" }
               Write-Host "--- uvicorn stdout ---"; Get-Content $out -ErrorAction SilentlyContinue
               Write-Host "--- uvicorn stderr ---"; Get-Content $err -ErrorAction SilentlyContinue
