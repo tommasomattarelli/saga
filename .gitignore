@@ -54,6 +54,10 @@ coverage.*
 coverage/
 *.lcov
 
+# Playwright (frontend e2e)
+test-results/
+playwright-report/
+
 # pytest
 .pytest_cache/
 

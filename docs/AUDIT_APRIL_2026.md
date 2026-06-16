@@ -114,7 +114,7 @@
 | F-L6 | `shared/` | Nessun global error boundary React. Un'eccezione non gestita in un componente smonta l'intera app. | `[x]` ✅ ErrorBoundary in `App.tsx` (commit 6209252) |
 | F-L7 | `features/` | Bundle size non monitorato. Nessun budget configurato in Vite. | `[x]` ✅ warning limit 500 kB in `vite.config.ts` (commit 484f4ab) |
 | F-L8 | `features/narrative/` | NPC dialogue bubble non ha attributo `aria-label`. Screen reader non distingue narratore da NPC. | `[x]` ✅ `aria-label` presente in `narrative-stream.tsx` |
-| F-L9 | `src/` | Nessun test E2E (Playwright/Cypress). Il golden path (crea campagna → azione → dado) non è coperto da automazione. | `[ ]` |
+| F-L9 | `src/` | Nessun test E2E (Playwright/Cypress). Il golden path (crea campagna → azione → dado) non è coperto da automazione. | `[x]` ✅ Playwright `e2e/golden-path.spec.ts` (login → campaigns → game) con `/api` **mockato in-browser, no Docker**. ⚠️ Da validare contro backend reale + Docker in una variante dedicata. |
 | F-L10 | `features/game/` | CombatTracker overlay non gestisce il caso di 0 combatants (combat_state.active=true ma initiative_order=[]). Possibile crash di rendering. | `[x]` ✅ edge case gestito (commit 1e0072e) |
 
 ---
@@ -127,14 +127,15 @@
 |-------|-----------|------|
 | Backend unit tests (516) | PASS | `pytest tests/unit --noconftest -q` |
 | Backend integration tests | PASS | Richiedono infra Docker |
-| Frontend tests | PASS | |
+| Frontend tests | PASS | 102 test, coverage ~82% (floor 80/80/70/80) |
+| Frontend E2E | PASS | Playwright golden path, `/api` mockato (no Docker) |
 | Backend ruff | **0 errori** | `[x]` ✅ SIM117 nested `with` fixati |
 | Frontend ESLint | **0 errori** | `[x]` ✅ `revealedCount` rimosso da `dice-roller.tsx` |
 
 ### Copertura gap
 
 - `[ ]` Nessun test su `route_after_tools` con path `consecutive_empty_steps ≥ 2`
-- `[ ]` Nessun test E2E sul golden path frontend
+- `[x]` ✅ Golden path frontend coperto da Playwright (mockato); variante backend-reale + Docker da fare
 - `[x]` ✅ Test di regressione sul routing modello → `tests/unit/test_router.py`
 
 ---
