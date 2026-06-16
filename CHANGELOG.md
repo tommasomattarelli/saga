@@ -90,8 +90,10 @@ predating this file live in `docs/archive/changelog/`.
   deferred secondaries).
 
 ### Fixed
-- Frontend `tsc -b` (and `npm run build`) restored: `tsconfig.json`
-  `ignoreDeprecations` was set to the invalid `"6.0"` for TS 5.7 → `"5.0"`.
+- Frontend `tsc -b` (and `npm run build`) build break resolved properly: dropped
+  the deprecated `baseUrl` (slated for removal in TS 7.0) and the unused `@/*`
+  `paths` alias, so `ignoreDeprecations` is no longer needed at all — future-proof
+  for TS 6/7 instead of the earlier `ignoreDeprecations` value juggling.
 - Frontend test setup now bootstraps the i18n instance and a `window.matchMedia`
   stub in `setupTests.ts`, unblocking i18n-dependent and `SettingsDrawer`-mounting
   suites (and the V8 coverage reporter that previously crashed on `matchMedia`).
