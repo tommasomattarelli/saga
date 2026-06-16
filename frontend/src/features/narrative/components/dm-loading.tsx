@@ -31,7 +31,7 @@ export default function DmLoading() {
   }, []);
 
   return (
-    <div className="mb-6 py-6 text-center">
+    <div className="mb-6 py-6 text-center" data-testid="dm-loading">
       {/* Quill dots */}
       <div className="flex items-center justify-center gap-1.5 mb-3">
         {[0, 1, 2].map((i) => (
