@@ -53,7 +53,7 @@ def _enforce_token_budget(
 
     while body and total > token_cap:
         dropped = body[:2] if len(body) >= 2 else body[:1]
-        body = body[len(dropped):]
+        body = body[len(dropped) :]
         total -= sum(_estimate_tokens(m.get("content", "")) for m in dropped)
 
     logger.info(
@@ -179,8 +179,10 @@ async def build_context(
     )
 
 
-def score_importance(player_action: str, campaign: Campaign) -> int:                      # TODO: questa funzione serve a poco e sopr
-    """Score the importance of a scene (0-10) for model routing."""                       # troppo deterministca per gioco in NL
+def score_importance(
+    player_action: str, campaign: Campaign
+) -> int:  # TODO: questa funzione serve a poco e sopr
+    """Score the importance of a scene (0-10) for model routing."""  # troppo deterministca per gioco in NL
     score = 5
 
     action_lower = player_action.lower()

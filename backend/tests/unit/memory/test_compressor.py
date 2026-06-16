@@ -35,7 +35,9 @@ class TestCompressTurnToSummary:
         from app.memory.compressor import compress_turn_to_summary
 
         long_action = "x" * 200
-        result = await compress_turn_to_summary(narration="Some narration.", player_action=long_action)
+        result = await compress_turn_to_summary(
+            narration="Some narration.", player_action=long_action
+        )
         assert "x" * 100 in result
 
 
@@ -199,9 +201,11 @@ class TestCompressTurnsBatchLlm:
         mock_model_cfg.provider = "openai"
         mock_model_cfg.model = "gpt-4o-mini"
 
-        with patch("app.memory.compressor.route_ai_call", new_callable=AsyncMock) as mock_route, \
-             patch("app.ai.providers.base.get_provider", return_value=MagicMock()), \
-             patch("app.ai.providers.base.logged_generate", new_callable=AsyncMock) as mock_gen:
+        with (
+            patch("app.memory.compressor.route_ai_call", new_callable=AsyncMock) as mock_route,
+            patch("app.ai.providers.base.get_provider", return_value=MagicMock()),
+            patch("app.ai.providers.base.logged_generate", new_callable=AsyncMock) as mock_gen,
+        ):
             mock_route.return_value = mock_model_cfg
             mock_gen.return_value = "  Summary text.  "
             result = await compress_turns_batch_llm([mock_turn])
@@ -221,9 +225,11 @@ class TestCompressTurnsBatchLlm:
         mock_model_cfg.provider = "openai"
         mock_model_cfg.model = "gpt-4o-mini"
 
-        with patch("app.memory.compressor.route_ai_call", new_callable=AsyncMock) as mock_route, \
-             patch("app.ai.providers.base.get_provider", return_value=MagicMock()), \
-             patch("app.ai.providers.base.logged_generate", new_callable=AsyncMock) as mock_gen:
+        with (
+            patch("app.memory.compressor.route_ai_call", new_callable=AsyncMock) as mock_route,
+            patch("app.ai.providers.base.get_provider", return_value=MagicMock()),
+            patch("app.ai.providers.base.logged_generate", new_callable=AsyncMock) as mock_gen,
+        ):
             mock_route.return_value = mock_model_cfg
             mock_gen.side_effect = RuntimeError("LLM error")
             result = await compress_turns_batch_llm([mock_turn])
@@ -237,9 +243,13 @@ class TestCompressTurnsBatchWithRetry:
         from app.memory.compressor import compress_turns_batch_with_retry
 
         mock_cfg = MagicMock(max_retries=3, retry_delays_seconds=[1, 5, 30])
-        with patch("app.memory.compressor.get_summarization_config", return_value=mock_cfg), \
-             patch("app.memory.compressor.compress_turns_batch_llm", new_callable=AsyncMock) as mock_llm, \
-             patch("app.memory.compressor.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with (
+            patch("app.memory.compressor.get_summarization_config", return_value=mock_cfg),
+            patch(
+                "app.memory.compressor.compress_turns_batch_llm", new_callable=AsyncMock
+            ) as mock_llm,
+            patch("app.memory.compressor.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
             mock_llm.return_value = "first try success"
             result = await compress_turns_batch_with_retry([MagicMock()])
 
@@ -252,9 +262,13 @@ class TestCompressTurnsBatchWithRetry:
         from app.memory.compressor import compress_turns_batch_with_retry
 
         mock_cfg = MagicMock(max_retries=3, retry_delays_seconds=[1, 5, 30])
-        with patch("app.memory.compressor.get_summarization_config", return_value=mock_cfg), \
-             patch("app.memory.compressor.compress_turns_batch_llm", new_callable=AsyncMock) as mock_llm, \
-             patch("app.memory.compressor.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with (
+            patch("app.memory.compressor.get_summarization_config", return_value=mock_cfg),
+            patch(
+                "app.memory.compressor.compress_turns_batch_llm", new_callable=AsyncMock
+            ) as mock_llm,
+            patch("app.memory.compressor.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
             mock_llm.side_effect = [None, None, "finally worked"]
             result = await compress_turns_batch_with_retry([MagicMock()])
 
@@ -270,9 +284,13 @@ class TestCompressTurnsBatchWithRetry:
         from app.memory.compressor import compress_turns_batch_with_retry
 
         mock_cfg = MagicMock(max_retries=3, retry_delays_seconds=[1, 5, 30])
-        with patch("app.memory.compressor.get_summarization_config", return_value=mock_cfg), \
-             patch("app.memory.compressor.compress_turns_batch_llm", new_callable=AsyncMock) as mock_llm, \
-             patch("app.memory.compressor.asyncio.sleep", new_callable=AsyncMock):
+        with (
+            patch("app.memory.compressor.get_summarization_config", return_value=mock_cfg),
+            patch(
+                "app.memory.compressor.compress_turns_batch_llm", new_callable=AsyncMock
+            ) as mock_llm,
+            patch("app.memory.compressor.asyncio.sleep", new_callable=AsyncMock),
+        ):
             mock_llm.return_value = None
             result = await compress_turns_batch_with_retry([MagicMock()])
 

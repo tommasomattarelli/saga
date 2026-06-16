@@ -97,14 +97,19 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
 
     messages_raw = messages_to_raw(state["messages"])
 
-    _llm_io.info(json.dumps({
-        "direction": "input",
-        "step": state["step_count"],
-        "model": model_cfg.model,
-        "system_preview": system_prompt[:300],
-        "messages_count": len(messages_raw),
-        "tools": sorted(allowed_tools),
-    }, ensure_ascii=False))
+    _llm_io.info(
+        json.dumps(
+            {
+                "direction": "input",
+                "step": state["step_count"],
+                "model": model_cfg.model,
+                "system_preview": system_prompt[:300],
+                "messages_count": len(messages_raw),
+                "tools": sorted(allowed_tools),
+            },
+            ensure_ascii=False,
+        )
+    )
 
     try:
         response = await provider.generate_with_tools(
@@ -127,12 +132,17 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
     text = response.text or ""
     tool_calls_raw = response.tool_calls
 
-    _llm_io.info(json.dumps({
-        "direction": "output",
-        "step": state["step_count"],
-        "text_preview": text[:200],
-        "tool_calls": [{"name": tc.name, "args": tc.arguments} for tc in tool_calls_raw],
-    }, ensure_ascii=False))
+    _llm_io.info(
+        json.dumps(
+            {
+                "direction": "output",
+                "step": state["step_count"],
+                "text_preview": text[:200],
+                "tool_calls": [{"name": tc.name, "args": tc.arguments} for tc in tool_calls_raw],
+            },
+            ensure_ascii=False,
+        )
+    )
 
     lc_tool_calls = [
         {"id": tc.id, "name": tc.name, "args": tc.arguments, "type": "tool_call"}

@@ -99,7 +99,12 @@ class TestToolsNodeRequestDice:
     async def test_request_dice_adds_to_dice_results(self):
         from app.core.dm.dm_tools_executor import tools_node
 
-        tc = {"id": "tc1", "name": "request_dice", "args": {"dc": 12, "stat": "STR"}, "type": "tool_call"}
+        tc = {
+            "id": "tc1",
+            "name": "request_dice",
+            "args": {"dc": 12, "stat": "STR"},
+            "type": "tool_call",
+        }
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
         mock_roll = MagicMock()
@@ -129,7 +134,12 @@ class TestToolsNodeRegularTool:
     async def test_regular_tool_execution(self):
         from app.core.dm.dm_tools_executor import tools_node
 
-        tc = {"id": "tc1", "name": "update_world", "args": {"key": "weather", "value": "rainy"}, "type": "tool_call"}
+        tc = {
+            "id": "tc1",
+            "name": "update_world",
+            "args": {"key": "weather", "value": "rainy"},
+            "type": "tool_call",
+        }
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
         mock_tool_result = MagicMock()
@@ -157,7 +167,12 @@ class TestToolsNodeRegularTool:
     async def test_set_scene_mood_tool_updates_mood(self):
         from app.core.dm.dm_tools_executor import tools_node
 
-        tc = {"id": "tc1", "name": "set_scene_mood", "args": {"mood": "tense"}, "type": "tool_call"}
+        tc = {
+            "id": "tc1",
+            "name": "set_scene_mood",
+            "args": {"mood": "tense"},
+            "type": "tool_call",
+        }
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
         mock_tool_result = MagicMock()
@@ -238,11 +253,23 @@ class TestToolsNodeStartCombat:
     async def test_start_combat_invokes_combat_graph(self):
         from app.core.dm.dm_tools_executor import tools_node
 
-        tc = {"id": "tc1", "name": "start_combat", "args": {"enemies": [{"name": "Goblin", "hp": 8}]}, "type": "tool_call"}
+        tc = {
+            "id": "tc1",
+            "name": "start_combat",
+            "args": {"enemies": [{"name": "Goblin", "hp": 8}]},
+            "type": "tool_call",
+        }
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
         mock_combat_result = {
-            "world_state": {"combat_state": {"active": True, "round": 1, "initiative_order": [], "current_turn_index": 0}}
+            "world_state": {
+                "combat_state": {
+                    "active": True,
+                    "round": 1,
+                    "initiative_order": [],
+                    "current_turn_index": 0,
+                }
+            }
         }
 
         mock_tool_cls = MagicMock()
@@ -266,9 +293,7 @@ class TestToolsNodeStartCombat:
         tc = {"id": "tc1", "name": "start_combat", "args": {"enemies": []}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
-        mock_combat_result = {
-            "world_state": {"combat_state": {"active": True}}
-        }
+        mock_combat_result = {"world_state": {"combat_state": {"active": True}}}
 
         mock_tool_cls = MagicMock()
         mock_tool_cls.visible.return_value = True
@@ -302,7 +327,12 @@ class TestToolsNodeInvokeNpc:
     async def test_invoke_npc_calls_npc_director(self):
         from app.core.dm.dm_tools_executor import tools_node
 
-        tc = {"id": "tc1", "name": "invoke_npc", "args": {"name": "Guard", "context": "looking at gate"}, "type": "tool_call"}
+        tc = {
+            "id": "tc1",
+            "name": "invoke_npc",
+            "args": {"name": "Guard", "context": "looking at gate"},
+            "type": "tool_call",
+        }
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
         mock_npc_result = MagicMock()
@@ -324,7 +354,9 @@ class TestToolsNodeInvokeNpc:
 
         state = _make_state(messages=[ai_msg])
 
-        with patch("app.core.dm.dm_tools_executor.invoke_npcs_parallel", new_callable=AsyncMock) as mock_npc:
+        with patch(
+            "app.core.dm.dm_tools_executor.invoke_npcs_parallel", new_callable=AsyncMock
+        ) as mock_npc:
             mock_npc.return_value = [mock_npc_result]
             with patch("app.dependencies.get_db_context", return_value=mock_ctx):
                 result = await tools_node(state)

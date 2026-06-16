@@ -23,11 +23,18 @@ class TestHandleDice:
         }
 
         with patch("app.core.dm.dm_tools_executor.ability_check", return_value=mock_dice_result):
-            args = {"dc": 15, "stat": "STR", "check": "strength_check", "reason": "lifting boulder"}
+            args = {
+                "dc": 15,
+                "stat": "STR",
+                "check": "strength_check",
+                "reason": "lifting boulder",
+            }
             char_data = {"abilities": {"STR": 14}}
             segments: list[dict] = []
 
-            result_str, roll_data = _handle_dice(args, char_data, step=0, narration_segments=segments)
+            result_str, roll_data = _handle_dice(
+                args, char_data, step=0, narration_segments=segments
+            )
 
         assert "DC 15" in result_str
         assert "success" in result_str

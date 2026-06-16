@@ -12,7 +12,53 @@ predating this file live in `docs/archive/changelog/`.
 
 ## [Unreleased]
 
+### Added
+- `installer-smoke.yml` workflow (manual `workflow_dispatch` + weekly schedule):
+  end-to-end installer smoke on `windows-latest` (provisions the published bundle,
+  starts the backend, probes `/`) and `ubuntu-latest` (PGDG apt + the sh installer).
+  Kept off the PR path because it is slow and downloads the bundle. Installer
+  scripts are organized under `install/windows/` and `install/linux-macos/`.
+- Native Windows installer under `install/` (no Docker, no admin): `install_saga.bat`
+  bootstrapper (ensures Git, clones) hands off to `install_saga.ps1` (portable
+  Node + user-scope uv + a pinned portable Postgres+pgvector bundle, generated
+  secrets, `uv sync` + `npm build`, desktop shortcut). `start_saga.ps1` is the
+  coupled launcher (Postgres up → backend serving API + SPA → Postgres down on
+  exit); `uninstall_saga.ps1` removes everything; `build_bundle.ps1` assembles the
+  Postgres+pgvector bundle for maintainers. Consumes the bundle from a configurable
+  URL; the published Release asset is a prerequisite to run it end-to-end (ADR 0000).
+  Linux/macOS counterparts (`install_saga.sh`, `start_saga.sh`, `uninstall_saga.sh`)
+  mirror the flow, sourcing Postgres+pgvector from the OS package manager. CI
+  syntax/lint-checks both the PowerShell and the sh scripts; end-to-end smoke is
+  deferred until the bundle is published.
+- GitHub Actions CI (`.github/workflows/ci.yml`), runs on PR + push to `main`:
+  backend lint (`ruff check`/`format --check`) + unit tests; backend integration
+  + playtest against a `pgvector/pgvector:pg16` service container; the full
+  frontend pipeline (lint, vitest, knip, build); a Docker build smoke; and a
+  parse-check of the installer PowerShell scripts. No AI keys are needed — every
+  LLM call on the test path is mocked (ADR 0000).
+- Backend can serve the built frontend SPA itself (FastAPI `StaticFiles` with an
+  index.html fallback for client routes), enabled via `SAGA_FRONTEND_DIST` and
+  mounted last so `/api` keeps precedence. Off by default, so dev and Docker
+  (Vite dev server) are unaffected — used only by the native installer (ADR 0000).
+- ADR 0000 (distribution & deployment architecture): the foundational,
+  pre-first-release deployment decision. Two-tier distribution — Docker
+  `compose up --build` for technical users, and a native no-Docker casual
+  installer (Windows `.bat` first) that provisions a pinned portable
+  Postgres+pgvector bundle and serves the built frontend via FastAPI (single
+  process, no runtime Node). A single launcher starts/stops Postgres together with
+  uvicorn (on-demand, no Windows service, no admin). Backend logic
+  unchanged; SQLite/softening pgvector explicitly rejected. CI runs on PR + push
+  with a pgvector service container and no AI keys.
+
+### Removed
+- The unused `redis` dependency (no `redis_url` setting, no imports anywhere in
+  the app); the stale `REDIS_URL` entry was also dropped from `.env.example`.
+
 ### Changed
+- `Makefile` made cross-platform: detects the OS and uses PowerShell on Windows
+  and `sh` elsewhere (the `test-all` env-var injection and `clean` cache removal
+  branch per shell). Windows behaviour is unchanged; Linux/macOS contributors can
+  now use the same targets. CI does not depend on `make` — it runs explicit steps.
 - `docs/AUDIT_APRIL_2026.md` archived to `docs/archive/` now that the whole
   backlog (backend + frontend) is closed/deferred; references in `docs/README.md`
   and `AGENTIC_ARCHITECTURE.md` updated.

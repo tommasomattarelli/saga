@@ -30,7 +30,9 @@ def validate_or_create_npc(
     if not config.auto_create_npcs:
         return False, f"{name} is not a known NPC."
 
-    world_state.setdefault("npcs", {})[name] = _create_npc_profile(name, config.npc_auto_create_detail)
+    world_state.setdefault("npcs", {})[name] = _create_npc_profile(
+        name, config.npc_auto_create_detail
+    )
     return True, ""
 
 

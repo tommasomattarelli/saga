@@ -32,9 +32,13 @@ class TestExtractAndStoreFacts:
         with patch("app.memory.fact_extractor.get_gameplay_config") as mock_cfg:
             mock_cfg.return_value.fact_extraction_enabled = True
             with (
-                patch("app.memory.fact_extractor.route_ai_call", new_callable=AsyncMock) as mock_route,
+                patch(
+                    "app.memory.fact_extractor.route_ai_call", new_callable=AsyncMock
+                ) as mock_route,
                 patch("app.memory.fact_extractor.get_provider", return_value=MagicMock()),
-                patch("app.memory.fact_extractor.logged_generate", new_callable=AsyncMock) as mock_gen,
+                patch(
+                    "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock
+                ) as mock_gen,
             ):
                 mock_route.return_value = MagicMock(provider="openai", model="gpt-4o-mini")
                 mock_gen.return_value = '{"facts": []}'
@@ -57,9 +61,13 @@ class TestExtractAndStoreFacts:
         with patch("app.memory.fact_extractor.get_gameplay_config") as mock_cfg:
             mock_cfg.return_value.fact_extraction_enabled = True
             with (
-                patch("app.memory.fact_extractor.route_ai_call", new_callable=AsyncMock) as mock_route,
+                patch(
+                    "app.memory.fact_extractor.route_ai_call", new_callable=AsyncMock
+                ) as mock_route,
                 patch("app.memory.fact_extractor.get_provider", return_value=MagicMock()),
-                patch("app.memory.fact_extractor.logged_generate", new_callable=AsyncMock) as mock_gen,
+                patch(
+                    "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock
+                ) as mock_gen,
             ):
                 mock_route.return_value = MagicMock(provider="openai", model="gpt-4o-mini")
                 mock_gen.return_value = '{"facts": []}'
@@ -84,10 +92,16 @@ class TestExtractAndStoreFacts:
         with patch("app.memory.fact_extractor.get_gameplay_config") as mock_cfg:
             mock_cfg.return_value.fact_extraction_enabled = True
             with (
-                patch("app.memory.fact_extractor.route_ai_call", new_callable=AsyncMock) as mock_route,
+                patch(
+                    "app.memory.fact_extractor.route_ai_call", new_callable=AsyncMock
+                ) as mock_route,
                 patch("app.memory.fact_extractor.get_provider", return_value=MagicMock()),
-                patch("app.memory.fact_extractor.logged_generate", new_callable=AsyncMock) as mock_gen,
-                patch("app.memory.fact_extractor.generate_embedding", new_callable=AsyncMock) as mock_embed,
+                patch(
+                    "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock
+                ) as mock_gen,
+                patch(
+                    "app.memory.fact_extractor.generate_embedding", new_callable=AsyncMock
+                ) as mock_embed,
                 patch("app.dependencies.async_session", return_value=mock_session_instance),
             ):
                 mock_route.return_value = MagicMock(provider="openai", model="gpt-4o-mini")
@@ -108,7 +122,9 @@ class TestExtractAndStoreFacts:
 
         with patch("app.memory.fact_extractor.get_gameplay_config") as mock_cfg:
             mock_cfg.return_value.fact_extraction_enabled = True
-            with patch("app.memory.fact_extractor.route_ai_call", side_effect=RuntimeError("API error")):
+            with patch(
+                "app.memory.fact_extractor.route_ai_call", side_effect=RuntimeError("API error")
+            ):
                 # Should not raise
                 await extract_and_store_facts(
                     campaign_id=uuid.uuid4(),
@@ -124,9 +140,13 @@ class TestExtractAndStoreFacts:
         with patch("app.memory.fact_extractor.get_gameplay_config") as mock_cfg:
             mock_cfg.return_value.fact_extraction_enabled = True
             with (
-                patch("app.memory.fact_extractor.route_ai_call", new_callable=AsyncMock) as mock_route,
+                patch(
+                    "app.memory.fact_extractor.route_ai_call", new_callable=AsyncMock
+                ) as mock_route,
                 patch("app.memory.fact_extractor.get_provider", return_value=MagicMock()),
-                patch("app.memory.fact_extractor.logged_generate", new_callable=AsyncMock) as mock_gen,
+                patch(
+                    "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock
+                ) as mock_gen,
             ):
                 mock_route.return_value = MagicMock(provider="openai", model="gpt-4o-mini")
                 mock_gen.return_value = "   "
@@ -151,9 +171,13 @@ class TestExtractAndStoreFacts:
         with patch("app.memory.fact_extractor.get_gameplay_config") as mock_cfg:
             mock_cfg.return_value.fact_extraction_enabled = True
             with (
-                patch("app.memory.fact_extractor.route_ai_call", new_callable=AsyncMock) as mock_route,
+                patch(
+                    "app.memory.fact_extractor.route_ai_call", new_callable=AsyncMock
+                ) as mock_route,
                 patch("app.memory.fact_extractor.get_provider", return_value=MagicMock()),
-                patch("app.memory.fact_extractor.logged_generate", new_callable=AsyncMock) as mock_gen,
+                patch(
+                    "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock
+                ) as mock_gen,
                 patch("app.memory.fact_extractor.generate_embedding", new_callable=AsyncMock),
                 patch("app.dependencies.async_session", return_value=mock_session_instance),
             ):

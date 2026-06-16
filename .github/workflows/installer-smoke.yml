@@ -1,0 +1,97 @@
+name: Installer smoke
+
+# End-to-end installer test. NOT on every PR — slow, downloads the Postgres
+# bundle, provisions a real DB and build. Manual + scheduled only.
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_url:
+        description: Postgres+pgvector bundle URL (Windows)
+        required: true
+        default: https://github.com/tommasomattarelli/saga/releases/download/bundle-pg16-v1/saga-pg-bundle-pg16.zip
+  schedule:
+    - cron: "0 4 1,15 * *" # ~ every two weeks (1st & 15th, 04:00 UTC)
+
+env:
+  # Used when triggered by schedule (inputs are only set on workflow_dispatch).
+  BUNDLE_URL: ${{ github.event.inputs.bundle_url || 'https://github.com/tommasomattarelli/saga/releases/download/bundle-pg16-v1/saga-pg-bundle-pg16.zip' }}
+
+jobs:
+  windows-smoke:
+    name: Windows installer smoke
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download bundle (gh — works on private repo)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download bundle-pg16-v1 -p saga-pg-bundle-pg16.zip -D "$env:TEMP"
+      - name: Provision (install, no launch)
+        shell: pwsh
+        run: |
+          install\windows\install_saga.ps1 -FromLocal -NoLaunch -BundleUrl "$env:TEMP\saga-pg-bundle-pg16.zip"
+      - name: Smoke - start backend and probe /
+        shell: pwsh
+        run: |
+          # uv is on PATH only within the install step; re-add it here.
+          $env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
+          # -FromLocal puts pg/pgdata in the checkout's parent.
+          $pgBin = Join-Path (Split-Path $PWD -Parent) "pg\pgsql\bin"
+          $pgData = Join-Path (Split-Path $PWD -Parent) "pgdata"
+          & "$pgBin\pg_ctl.exe" -D $pgData -o "-p 54320" -l "$env:TEMP\pg.log" -w start
+          $out = "$env:TEMP\uvicorn.out"; $err = "$env:TEMP\uvicorn.err"
+          $proc = Start-Process uv -WorkingDirectory backend -PassThru `
+            -RedirectStandardOutput $out -RedirectStandardError $err `
+            -ArgumentList 'run','uvicorn','app.main:app','--host','127.0.0.1','--port','8000'
+          try {
+            $ok = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              try { Invoke-WebRequest http://127.0.0.1:8000 -UseBasicParsing -TimeoutSec 2 | Out-Null; $ok = $true; break }
+              catch { Start-Sleep -Seconds 2 }
+            }
+            if (-not $ok) {
+              try { Invoke-WebRequest http://127.0.0.1:8000/openapi.json -UseBasicParsing -TimeoutSec 2 | Out-Null; Write-Host "(/openapi.json OK -> backend up, SPA not mounted)" }
+              catch { Write-Host "(/openapi.json also failed -> backend down)" }
+              Write-Host "--- uvicorn stdout ---"; Get-Content $out -ErrorAction SilentlyContinue
+              Write-Host "--- uvicorn stderr ---"; Get-Content $err -ErrorAction SilentlyContinue
+              throw "Backend did not serve the SPA at http://localhost:8000"
+            }
+            Write-Host "[OK] backend served the SPA"
+          } finally {
+            Stop-Process $proc.Id -Force -ErrorAction SilentlyContinue
+            & "$pgBin\pg_ctl.exe" -D $pgData -m fast -w stop
+          }
+
+  linux-smoke:
+    name: Linux installer smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add PGDG apt repo (Postgres 16 + pgvector)
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo apt-get update
+      - name: Provision (install, no launch)
+        env:
+          SAGA_FROM_LOCAL: "1"
+          SAGA_NO_LAUNCH: "1"
+        run: bash install/linux-macos/install_saga.sh
+      - name: Smoke - start backend and probe /
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          PGBIN=/usr/lib/postgresql/16/bin
+          PGDATA="$HOME/.local/share/saga/pgdata"  # SAGA_INSTALL_ROOT default
+          "$PGBIN/pg_ctl" -D "$PGDATA" -o "-p 54320 -k /tmp" -l /tmp/pg.log -w start
+          ( cd backend && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 ) &
+          UVPID=$!
+          ok=0
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:8000 >/dev/null 2>&1; then ok=1; break; fi
+            sleep 2
+          done
+          kill "$UVPID" 2>/dev/null || true
+          "$PGBIN/pg_ctl" -D "$PGDATA" -m fast -w stop || true
+          [ "$ok" = "1" ] || { echo "Backend did not serve"; exit 1; }
+          echo "[OK] backend served the SPA"

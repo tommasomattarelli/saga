@@ -10,6 +10,7 @@ from app.models.user import User
 
 def _make_user() -> User:
     import uuid
+
     uid = uuid.uuid4()
     return User(
         id=uid,
@@ -54,6 +55,7 @@ async def test_delete_campaign_cascades_turns(auth_client, test_user, db_session
     campaign_id = resp.json()["id"]
 
     import uuid
+
     turn = Turn(
         campaign_id=uuid.UUID(campaign_id),
         turn_number=1,
@@ -76,6 +78,7 @@ async def test_delete_campaign_cascades_turns(auth_client, test_user, db_session
 async def test_delete_campaign_404_if_not_found(auth_client, test_user):
     """DELETE on unknown id returns 404."""
     import uuid
+
     resp = await auth_client.delete(f"/api/campaigns/{uuid.uuid4()}")
     assert resp.status_code == 404
 
