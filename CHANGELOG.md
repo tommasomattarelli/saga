@@ -33,6 +33,10 @@ predating this file live in `docs/archive/changelog/`.
   with a pgvector service container and no AI keys.
 
 ### Changed
+- `Makefile` made cross-platform: detects the OS and uses PowerShell on Windows
+  and `sh` elsewhere (the `test-all` env-var injection and `clean` cache removal
+  branch per shell). Windows behaviour is unchanged; Linux/macOS contributors can
+  now use the same targets. CI does not depend on `make` — it runs explicit steps.
 - `docs/AUDIT_APRIL_2026.md` archived to `docs/archive/` now that the whole
   backlog (backend + frontend) is closed/deferred; references in `docs/README.md`
   and `AGENTIC_ARCHITECTURE.md` updated.
