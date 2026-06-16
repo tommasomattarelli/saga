@@ -3,6 +3,11 @@ name: Installer smoke
 # End-to-end installer test. NOT on every PR — slow, downloads the Postgres
 # bundle, provisions a real DB and build. Manual + scheduled only.
 on:
+  push:
+    # TEMP: feat branch, so it runs on push (workflow_dispatch's "Run workflow"
+    # button only appears once the workflow is on the default branch).
+    # Revert together with ci.yml before merge.
+    branches: [feat/casual-installer-ci]
   workflow_dispatch:
     inputs:
       bundle_url:
@@ -10,7 +15,7 @@ on:
         required: true
         default: https://github.com/tommasomattarelli/saga/releases/download/bundle-pg16-v1/saga-pg-bundle-pg16.zip
   schedule:
-    - cron: "0 4 * * 1" # weekly, Monday 04:00 UTC
+    - cron: "0 4 1,15 * *" # ~ every two weeks (1st & 15th, 04:00 UTC)
 
 env:
   # Used when triggered by schedule (inputs are only set on workflow_dispatch).
