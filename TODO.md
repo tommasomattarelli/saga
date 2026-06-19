@@ -8,6 +8,8 @@
 [ ] versioning: al lancio si parte da 0.2.5? (allineare ai docs)
 [ ] passare in rassegna le funzioni marcate #TODO nel codice (capire se servono)
 [ ] mypy backend: aggiungere `[tool.mypy]` + rendere verde, poi gateare su pre-push (oggi installato ma mai eseguito in CI, quindi escluso dagli hook)
+[ ] installare `gh` CLI (oggi assente: serve per aprire/validare PR)
+[ ] validare la CI del branch `feat/claude-skills` via PR (il nuovo `prettier --check` in CI non ha ancora girato — scatta solo su PR o push a `main`)
 
 ## roadmap / release
 [x] pipeline GitHub (CI) — fatto (`.github/workflows/ci.yml`: lint, unit, integration+playtest con service container pgvector, frontend, docker build-smoke, parse-check installer; nessuna API key, tutto mockato). CD/release ancora da fare (sarà `release.yml`)
