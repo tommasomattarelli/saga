@@ -1,4 +1,4 @@
-# Normalize line endings: LF in the repo and on checkout (stops CRLF churn on Windows).
+# Normalize line endings
 * text=auto eol=lf
 
 # Binary assets — never normalize.
