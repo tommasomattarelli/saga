@@ -70,7 +70,7 @@ Requires PostgreSQL 16+ with the pgvector extension running locally.
 
 ## Project Status
 
-SAGA is in active single-player development (**v1**, see the [Roadmap](docs/AGENTIC_ARCHITECTURE.md#roadmap)). The backend has been through a refactor and audit pass — current open items and resolved findings are tracked in [`docs/AUDIT_APRIL_2026.md`](docs/AUDIT_APRIL_2026.md), and shipped changes are curated in [`CHANGELOG.md`](CHANGELOG.md). The frontend polish pass (Phase D) is ongoing.
+SAGA is in active single-player development (**v1**, see the [Roadmap](docs/AGENTIC_ARCHITECTURE.md#roadmap)). The backend has been through a refactor and audit pass — current open items are tracked in [`TODO.md`](TODO.md), and shipped changes are curated in [`CHANGELOG.md`](CHANGELOG.md). The frontend polish pass (Phase D) is ongoing.
 
 ## Project Structure
 
@@ -151,6 +151,7 @@ Contributions welcome. Please follow:
 - **Python**: PEP 8 via Ruff, type hints required, async for all I/O
 - **TypeScript**: ESLint + Prettier, functional components only, no `any`
 - **Git**: Conventional commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`)
+- **Git hooks**: run `pre-commit install` once after cloning — enforces format, lint, unit tests, and the commit-message convention locally (config in `.pre-commit-config.yaml`)
 - **Tests**: Required for backend business logic
 
 ## License
