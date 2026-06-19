@@ -65,9 +65,9 @@ Non-negotiable technical constraints. Referenced elsewhere by number — keep th
 
 Every working session follows the same ritual so state is never lost between them.
 
-- **Start**: reconstruct state — skim `CHANGELOG.md` `[Unreleased]`, the open items in `docs/AUDIT_APRIL_2026.md`, and the latest ADRs. Confirm the tree is green before changing anything.
+- **Start** (`/catchup`): reconstruct state — skim `CHANGELOG.md` `[Unreleased]` and the `## NOW` items in `TODO.md`. Load the latest ADRs or `docs/AGENTIC_ARCHITECTURE.md` on demand (`/catchup deep`). Confirm the tree is green before changing anything.
 - **During**: one commit per logical change (standard 10). Add a `CHANGELOG.md` `[Unreleased]` entry in the same commit. Any architectural decision → a new ADR in `docs/adr/` in that same commit (docs-as-code).
-- **End**: ensure `[Unreleased]` reflects what shipped, tick off the corresponding `AUDIT` items, and leave the suite green. Run unit + integration/playtest before declaring the session done.
+- **End** (`/wrap-up`): ensure `[Unreleased]` reflects what shipped, move/tick the corresponding `TODO.md` items, and leave the suite green. Run unit + integration/playtest before declaring the session done.
 
 ## Commit Convention
 
