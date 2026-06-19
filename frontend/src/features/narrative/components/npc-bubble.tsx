@@ -17,17 +17,11 @@ export default function NPCBubble({ npc_name, dialogue, action }: NPCDialogue) {
         </span>
       </div>
       {/* Quote */}
-      <p
-        className="font-body italic text-lg"
-        style={{ color: "var(--ink-primary)" }}
-      >
+      <p className="font-body italic text-lg" style={{ color: "var(--ink-primary)" }}>
         &ldquo;{dialogue}&rdquo;
       </p>
       {action && (
-        <p
-          className="mt-0.5 font-body text-sm italic"
-          style={{ color: "var(--ink-faded)" }}
-        >
+        <p className="mt-0.5 font-body text-sm italic" style={{ color: "var(--ink-faded)" }}>
           *{action}*
         </p>
       )}

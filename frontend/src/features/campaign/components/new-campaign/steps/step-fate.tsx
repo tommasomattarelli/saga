@@ -34,10 +34,7 @@ export default function StepFate({ form, onChange, onBack, onSubmit, isPending, 
         >
           The Fate
         </h2>
-        <p
-          className="mt-2 font-body italic text-sm"
-          style={{ color: "var(--ink-secondary)" }}
-        >
+        <p className="mt-2 font-body italic text-sm" style={{ color: "var(--ink-secondary)" }}>
           Title thy tale and decree the weight of death upon it.
         </p>
       </div>
@@ -106,11 +103,7 @@ export default function StepFate({ form, onChange, onBack, onSubmit, isPending, 
               const selected = form.deathMode === m.value;
               const glyph = DEATH_GLYPHS[m.value] ?? "✦";
               return (
-                <RadioGroup.Item
-                  key={m.value}
-                  value={m.value}
-                  asChild
-                >
+                <RadioGroup.Item key={m.value} value={m.value} asChild>
                   <motion.button
                     whileHover={{ y: -2 }}
                     transition={{ type: "spring", stiffness: 300, damping: 22 }}

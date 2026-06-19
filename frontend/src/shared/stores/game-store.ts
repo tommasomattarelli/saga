@@ -45,70 +45,8 @@ interface GameState {
 }
 
 export const useGameStore = create<GameState>()(
-  devtools((set) => ({
-  campaign: null,
-  turnHistory: [],
-  isLoading: false,
-  pendingAction: null,
-  currentMood: "neutral",
-  combatState: null,
-  freshTurnNumber: null,
-  hasPendingDice: false,
-
-  setCampaign: (campaign) => set({ campaign }),
-  setTurnHistory: (turns) => set({ turnHistory: turns, freshTurnNumber: null }),
-  addTurn: (turn) => {
-    const hasDice =
-      (turn.dice_results && turn.dice_results.length > 0) ||
-      !!(turn.dice_rolls && Object.keys(turn.dice_rolls).length > 0);
-    set((state) => ({
-      turnHistory: [...state.turnHistory, turn],
-      freshTurnNumber: turn.turn_number,
-      hasPendingDice: hasDice,
-    }));
-  },
-  setLoading: (loading) => set({ isLoading: loading }),
-  setPendingAction: (action) => set({ pendingAction: action }),
-  setCurrentMood: (mood) => set({ currentMood: mood }),
-  setCombatState: (combatState) => set({ combatState }),
-  clearPendingDice: () => set({ hasPendingDice: false }),
-
-  updateWorldState: (updates) =>
-    set((state) => {
-      if (__DEV__) {
-        const leaked = Object.keys(updates).filter((k) => !ALLOWED_WORLD_STATE_KEYS.has(k));
-        if (leaked.length > 0) {
-          console.warn("[game-store] WorldState leakage:", leaked);
-        }
-      }
-      if (!state.campaign) return state;
-      return {
-        campaign: {
-          ...state.campaign,
-          world_state: { ...state.campaign.world_state, ...updates },
-        },
-      };
-    }),
-
-  updateCharacter: (updates) =>
-    set((state) => {
-      if (!state.campaign) return state;
-      return {
-        campaign: {
-          ...state.campaign,
-          character_data: { ...state.campaign.character_data, ...updates },
-        },
-      };
-    }),
-
-  updateTurnNumber: (n) =>
-    set((state) => {
-      if (!state.campaign) return state;
-      return { campaign: { ...state.campaign, turn_number: n } };
-    }),
-
-  reset: () =>
-    set({
+  devtools(
+    (set) => ({
       campaign: null,
       turnHistory: [],
       isLoading: false,
@@ -117,6 +55,71 @@ export const useGameStore = create<GameState>()(
       combatState: null,
       freshTurnNumber: null,
       hasPendingDice: false,
+
+      setCampaign: (campaign) => set({ campaign }),
+      setTurnHistory: (turns) => set({ turnHistory: turns, freshTurnNumber: null }),
+      addTurn: (turn) => {
+        const hasDice =
+          (turn.dice_results && turn.dice_results.length > 0) ||
+          !!(turn.dice_rolls && Object.keys(turn.dice_rolls).length > 0);
+        set((state) => ({
+          turnHistory: [...state.turnHistory, turn],
+          freshTurnNumber: turn.turn_number,
+          hasPendingDice: hasDice,
+        }));
+      },
+      setLoading: (loading) => set({ isLoading: loading }),
+      setPendingAction: (action) => set({ pendingAction: action }),
+      setCurrentMood: (mood) => set({ currentMood: mood }),
+      setCombatState: (combatState) => set({ combatState }),
+      clearPendingDice: () => set({ hasPendingDice: false }),
+
+      updateWorldState: (updates) =>
+        set((state) => {
+          if (__DEV__) {
+            const leaked = Object.keys(updates).filter((k) => !ALLOWED_WORLD_STATE_KEYS.has(k));
+            if (leaked.length > 0) {
+              console.warn("[game-store] WorldState leakage:", leaked);
+            }
+          }
+          if (!state.campaign) return state;
+          return {
+            campaign: {
+              ...state.campaign,
+              world_state: { ...state.campaign.world_state, ...updates },
+            },
+          };
+        }),
+
+      updateCharacter: (updates) =>
+        set((state) => {
+          if (!state.campaign) return state;
+          return {
+            campaign: {
+              ...state.campaign,
+              character_data: { ...state.campaign.character_data, ...updates },
+            },
+          };
+        }),
+
+      updateTurnNumber: (n) =>
+        set((state) => {
+          if (!state.campaign) return state;
+          return { campaign: { ...state.campaign, turn_number: n } };
+        }),
+
+      reset: () =>
+        set({
+          campaign: null,
+          turnHistory: [],
+          isLoading: false,
+          pendingAction: null,
+          currentMood: "neutral",
+          combatState: null,
+          freshTurnNumber: null,
+          hasPendingDice: false,
+        }),
     }),
-  }), { name: "game-store", enabled: import.meta.env.DEV }),
+    { name: "game-store", enabled: import.meta.env.DEV },
+  ),
 );

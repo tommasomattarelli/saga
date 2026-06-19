@@ -2,11 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuthFlow } from "../hooks/use-auth-flow";
 import { AuthPageLayout } from "./auth-page-layout";
-import {
-  AuthInput,
-  AuthError,
-  OrnateButton,
-} from "./auth-form-parts";
+import { AuthInput, AuthError, OrnateButton } from "./auth-form-parts";
 
 export default function LoginForm() {
   const [username, setUsername] = useState("");
@@ -49,10 +45,7 @@ export default function LoginForm() {
         </div>
       </form>
 
-      <p
-        className="mt-6 text-center text-xs font-body"
-        style={{ color: "var(--ink-secondary)" }}
-      >
+      <p className="mt-6 text-center text-xs font-body" style={{ color: "var(--ink-secondary)" }}>
         New to these lands?{" "}
         <Link
           to="/register"

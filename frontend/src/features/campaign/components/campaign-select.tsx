@@ -116,7 +116,10 @@ function TomeCard({
             border: "1px solid var(--gold-deep)",
           }}
         >
-          <div className="font-display text-xs uppercase tracking-grimoire" style={{ color: "var(--gold-bright)" }}>
+          <div
+            className="font-display text-xs uppercase tracking-grimoire"
+            style={{ color: "var(--gold-bright)" }}
+          >
             {campaign.name}
           </div>
           <div className="mt-1 italic" style={{ color: "var(--ink-secondary)" }}>
@@ -154,7 +157,10 @@ export default function CampaignSelect() {
 
   return (
     <Tooltip.Provider>
-      <div className="min-h-screen w-full px-8 py-12" style={{ background: "var(--parchment-base)" }}>
+      <div
+        className="min-h-screen w-full px-8 py-12"
+        style={{ background: "var(--parchment-base)" }}
+      >
         {/* Header */}
         <header className="max-w-6xl mx-auto flex items-start justify-between mb-10">
           <div className="flex items-center gap-4">
@@ -191,10 +197,7 @@ export default function CampaignSelect() {
         {/* Shelf */}
         <main className="max-w-6xl mx-auto">
           {isLoading ? (
-            <p
-              className="text-center font-body italic py-16"
-              style={{ color: "var(--ink-faded)" }}
-            >
+            <p className="text-center font-body italic py-16" style={{ color: "var(--ink-faded)" }}>
               Retrieving the tomes…
             </p>
           ) : (
@@ -228,7 +231,10 @@ export default function CampaignSelect() {
                   <div
                     aria-hidden="true"
                     className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                    style={{ boxShadow: "0 0 40px 6px rgba(212, 175, 55, 0.55)", borderRadius: "4px" }}
+                    style={{
+                      boxShadow: "0 0 40px 6px rgba(212, 175, 55, 0.55)",
+                      borderRadius: "4px",
+                    }}
                   />
                 </motion.div>
               </div>
@@ -271,9 +277,7 @@ export default function CampaignSelect() {
           onConfirm={handleConfirmDelete}
           title="Burn this tome?"
           description={
-            toDelete
-              ? `"${toDelete.name}" will be lost to the ages. This cannot be undone.`
-              : ""
+            toDelete ? `"${toDelete.name}" will be lost to the ages. This cannot be undone.` : ""
           }
           confirmLabel="Burn"
           isPending={deleteMutation.isPending}

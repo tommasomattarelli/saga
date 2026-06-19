@@ -4,7 +4,14 @@ import { getHP, abilityMod } from "../../../shared/utils/dnd";
 import { InitialSeal } from "../../../assets/ornaments/seal";
 import { OrnamentDivider } from "../../../shared/ui/ornament-divider";
 
-const KNOWN_ABILITIES = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"];
+const KNOWN_ABILITIES = [
+  "strength",
+  "dexterity",
+  "constitution",
+  "intelligence",
+  "wisdom",
+  "charisma",
+];
 
 // Canonical order for the six core abilities, with any extra (e.g. "luck") appended.
 function orderedAbilities(abilities: Record<string, number>): string[] {
@@ -18,11 +25,28 @@ function StatSigil({ name, score }: { name: string; score: number }) {
   return (
     <div className="flex flex-col items-center">
       <svg width={72} height={72} viewBox="0 0 72 72" aria-label={`${name}: ${score}`}>
-        <circle cx="36" cy="36" r="34" fill="none" stroke="var(--gold-deep)" strokeWidth="1" opacity="0.6" />
-        <circle cx="36" cy="36" r="28" fill="none" stroke="var(--gold-deep)" strokeWidth="0.5" opacity="0.3" />
+        <circle
+          cx="36"
+          cy="36"
+          r="34"
+          fill="none"
+          stroke="var(--gold-deep)"
+          strokeWidth="1"
+          opacity="0.6"
+        />
+        <circle
+          cx="36"
+          cy="36"
+          r="28"
+          fill="none"
+          stroke="var(--gold-deep)"
+          strokeWidth="0.5"
+          opacity="0.3"
+        />
         {/* Stat abbrev arc top */}
         <text
-          x="36" y="18"
+          x="36"
+          y="18"
           textAnchor="middle"
           fontSize="8"
           fill="var(--gold-deep)"
@@ -34,7 +58,8 @@ function StatSigil({ name, score }: { name: string; score: number }) {
         </text>
         {/* Score centre */}
         <text
-          x="36" y="42"
+          x="36"
+          y="42"
           textAnchor="middle"
           fontSize="22"
           fill="var(--gold-bright)"
@@ -44,7 +69,8 @@ function StatSigil({ name, score }: { name: string; score: number }) {
         </text>
         {/* Modifier bottom */}
         <text
-          x="36" y="58"
+          x="36"
+          y="58"
           textAnchor="middle"
           fontSize="10"
           fill="var(--ink-secondary)"
@@ -62,8 +88,15 @@ function HpBar({ current, max }: { current: number; max: number }) {
   return (
     <div className="mt-4">
       <div className="flex justify-between mb-1">
-        <span className="font-display text-[10px] uppercase" style={{ color: "var(--ink-faded)", letterSpacing: "0.2em" }}>HP</span>
-        <span className="font-display text-sm" style={{ color: "var(--gold-bright)" }}>{current} / {max}</span>
+        <span
+          className="font-display text-[10px] uppercase"
+          style={{ color: "var(--ink-faded)", letterSpacing: "0.2em" }}
+        >
+          HP
+        </span>
+        <span className="font-display text-sm" style={{ color: "var(--gold-bright)" }}>
+          {current} / {max}
+        </span>
       </div>
       <div
         className="relative h-3 overflow-hidden"
@@ -83,7 +116,11 @@ function HpBar({ current, max }: { current: number; max: number }) {
 
 export function CharacterSheetBody({ char }: { char: CharacterData | null }) {
   if (!char || !char.name) {
-    return <p className="font-body italic" style={{ color: "var(--ink-faded)" }}>No character data.</p>;
+    return (
+      <p className="font-body italic" style={{ color: "var(--ink-faded)" }}>
+        No character data.
+      </p>
+    );
   }
   const hp = getHP(char);
   return (
@@ -97,7 +134,8 @@ export function CharacterSheetBody({ char }: { char: CharacterData | null }) {
             <div
               className="relative flex items-center justify-center"
               style={{
-                width: 120, height: 120,
+                width: 120,
+                height: 120,
                 border: "2px solid var(--gold-deep)",
                 borderRadius: "50%",
                 background: "var(--parchment-aged)",
@@ -128,10 +166,19 @@ export function CharacterSheetBody({ char }: { char: CharacterData | null }) {
 
           <HpBar current={hp.current} max={hp.max} />
 
-          <div className="mt-3 flex gap-4 font-body text-sm" style={{ color: "var(--ink-secondary)" }}>
-            <span>AC <strong style={{ color: "var(--ink-primary)" }}>{char.ac}</strong></span>
-            <span>XP <strong style={{ color: "var(--ink-primary)" }}>{char.xp}</strong></span>
-            <span>Gold <strong style={{ color: "var(--gold-bright)" }}>{char.gold}</strong></span>
+          <div
+            className="mt-3 flex gap-4 font-body text-sm"
+            style={{ color: "var(--ink-secondary)" }}
+          >
+            <span>
+              AC <strong style={{ color: "var(--ink-primary)" }}>{char.ac}</strong>
+            </span>
+            <span>
+              XP <strong style={{ color: "var(--ink-primary)" }}>{char.xp}</strong>
+            </span>
+            <span>
+              Gold <strong style={{ color: "var(--gold-bright)" }}>{char.gold}</strong>
+            </span>
           </div>
         </div>
 
@@ -146,11 +193,17 @@ export function CharacterSheetBody({ char }: { char: CharacterData | null }) {
               Inventory
             </h4>
             {(char.inventory ?? []).length === 0 ? (
-              <p className="font-body italic text-sm" style={{ color: "var(--ink-faded)" }}>Empty satchel.</p>
+              <p className="font-body italic text-sm" style={{ color: "var(--ink-faded)" }}>
+                Empty satchel.
+              </p>
             ) : (
               <ul className="space-y-1">
                 {(char.inventory ?? []).map((item, i) => (
-                  <li key={i} className="flex items-center gap-2 font-body text-sm" style={{ color: "var(--ink-primary)" }}>
+                  <li
+                    key={i}
+                    className="flex items-center gap-2 font-body text-sm"
+                    style={{ color: "var(--ink-primary)" }}
+                  >
                     <span style={{ color: "var(--gold-deep)" }}>⚖</span>
                     {item.name}
                     {item.quantity > 1 && (
@@ -173,7 +226,11 @@ export function CharacterSheetBody({ char }: { char: CharacterData | null }) {
               </h4>
               <ul className="space-y-1">
                 {Object.entries(char.skills).map(([skill, data]) => (
-                  <li key={skill} className="flex justify-between font-body text-sm" style={{ color: "var(--ink-primary)" }}>
+                  <li
+                    key={skill}
+                    className="flex justify-between font-body text-sm"
+                    style={{ color: "var(--ink-primary)" }}
+                  >
                     <span className="flex items-center gap-2">
                       <span style={{ color: "var(--gold-deep)" }}>◈</span>
                       <span className="capitalize">{skill}</span>
@@ -199,7 +256,8 @@ export function CharacterSheetBody({ char }: { char: CharacterData | null }) {
                   <li key={faction} className="flex justify-between font-body text-sm">
                     <span style={{ color: "var(--ink-primary)" }}>{faction}</span>
                     <span style={{ color: score >= 0 ? "var(--gold-bright)" : "var(--blood)" }}>
-                      {score >= 0 ? "+" : ""}{score}
+                      {score >= 0 ? "+" : ""}
+                      {score}
                     </span>
                   </li>
                 ))}
@@ -211,17 +269,17 @@ export function CharacterSheetBody({ char }: { char: CharacterData | null }) {
 
       {/* === BOTTOM STRIP: Background bio === */}
       {char.background && (
-        <div
-          className="mt-6 pt-4"
-          style={{ borderTop: "1px solid var(--gold-deep)" }}
-        >
+        <div className="mt-6 pt-4" style={{ borderTop: "1px solid var(--gold-deep)" }}>
           <h4
             className="mb-2 text-center font-display text-[10px] uppercase"
             style={{ color: "var(--ink-faded)", letterSpacing: "0.3em" }}
           >
             ◈ Background & Origin ◈
           </h4>
-          <p className="font-body italic text-base leading-relaxed" style={{ color: "var(--ink-primary)" }}>
+          <p
+            className="font-body italic text-base leading-relaxed"
+            style={{ color: "var(--ink-primary)" }}
+          >
             {char.background}
           </p>
         </div>

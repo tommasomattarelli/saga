@@ -9,10 +9,7 @@ export default function PlayerAction({ action }: { action: string }) {
   return (
     <div className="my-5 ml-auto max-w-[50ch]">
       <OrnateFrame variant="small" color="var(--gold-deep)">
-        <div
-          className="px-1 py-1"
-          style={{ background: "var(--parchment-shadow)" }}
-        >
+        <div className="px-1 py-1" style={{ background: "var(--parchment-shadow)" }}>
           {/* Header: sigillo + "{name} acts:" */}
           <div className="flex items-center gap-2 mb-2">
             <InitialSeal name={heroName} size={24} />

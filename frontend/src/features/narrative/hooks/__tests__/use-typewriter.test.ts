@@ -12,9 +12,7 @@ afterEach(() => {
 
 describe("useTypewriter", () => {
   it("starts empty and types towards full text", async () => {
-    const { result } = renderHook(() =>
-      useTypewriter({ text: "Hello", baseSpeed: 10 }),
-    );
+    const { result } = renderHook(() => useTypewriter({ text: "Hello", baseSpeed: 10 }));
 
     expect(result.current.isTyping).toBe(true);
     expect(result.current.displayed).toBe("");
@@ -54,9 +52,7 @@ describe("useTypewriter", () => {
 
   it("calls onComplete when typing finishes naturally", async () => {
     const onComplete = vi.fn();
-    const { result } = renderHook(() =>
-      useTypewriter({ text: "Hi", baseSpeed: 5, onComplete }),
-    );
+    const { result } = renderHook(() => useTypewriter({ text: "Hi", baseSpeed: 5, onComplete }));
 
     // Advance multiple times to ensure cascading state updates + new timers are all processed
     for (let i = 0; i < 20; i++) {
@@ -73,9 +69,7 @@ describe("useTypewriter", () => {
 
   it("resets when text changes", async () => {
     let text = "First";
-    const { result, rerender } = renderHook(() =>
-      useTypewriter({ text, baseSpeed: 5 }),
-    );
+    const { result, rerender } = renderHook(() => useTypewriter({ text, baseSpeed: 5 }));
 
     await act(async () => {
       vi.advanceTimersByTime(1000);
@@ -92,9 +86,7 @@ describe("useTypewriter", () => {
   });
 
   it("handles empty string without errors", () => {
-    const { result } = renderHook(() =>
-      useTypewriter({ text: "", baseSpeed: 10 }),
-    );
+    const { result } = renderHook(() => useTypewriter({ text: "", baseSpeed: 10 }));
 
     expect(result.current.displayed).toBe("");
     expect(result.current.isTyping).toBe(false);

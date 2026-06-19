@@ -6,7 +6,11 @@ import { useAuthStore } from "../shared/stores/auth-store";
 import { useUIStore } from "../shared/stores/ui-store";
 
 const renderAt = (path: string) =>
-  render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>);
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <App />
+    </MemoryRouter>,
+  );
 
 describe("App routing & display settings", () => {
   beforeEach(() => {

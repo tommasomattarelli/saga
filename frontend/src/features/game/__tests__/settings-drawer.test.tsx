@@ -6,11 +6,21 @@ import { useUIStore } from "../../../shared/stores/ui-store";
 import { useAuthStore } from "../../../shared/stores/auth-store";
 import type { User } from "../../../shared/types";
 
-const renderDrawer = () => render(<MemoryRouter><SettingsDrawer /></MemoryRouter>);
+const renderDrawer = () =>
+  render(
+    <MemoryRouter>
+      <SettingsDrawer />
+    </MemoryRouter>,
+  );
 
 describe("SettingsDrawer", () => {
   beforeEach(() => {
-    useUIStore.setState({ sidePanel: "settings", soundEnabled: true, themeOverride: "auto", fontSize: 18 });
+    useUIStore.setState({
+      sidePanel: "settings",
+      soundEnabled: true,
+      themeOverride: "auto",
+      fontSize: 18,
+    });
     useAuthStore.setState({ user: { id: "u1", username: "hero", email: "h@x.io" } as User });
   });
 
