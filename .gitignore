@@ -29,7 +29,9 @@ frontend/.vite/
 *.swp
 *.swo
 *~
-.claude
+
+# Claude Code — track shared skills/agents; keep personal local overrides untracked
+.claude/settings.local.json
 
 # OS
 .DS_Store
