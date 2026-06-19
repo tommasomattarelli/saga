@@ -80,6 +80,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci --legacy-peer-deps
       - run: npm run lint
+      - run: npx prettier --check "src/**/*.{ts,tsx,json,css}"
       - run: npm run test -- --run
       - run: npm run knip
       - run: npm run build
