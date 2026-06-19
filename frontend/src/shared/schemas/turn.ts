@@ -29,13 +29,13 @@ const NPCDialogueSchema = z.object({
 const NarrationSegmentSchema = z.object({
   step: z.number(),
   text: z.string(),
-  dice: z.record(z.string(),DiceRollResultSchema).nullable(),
+  dice: z.record(z.string(), DiceRollResultSchema).nullable(),
   npc_dialogues: z.array(NPCDialogueSchema),
 });
 
 const DiceResultSchema = z.object({
   step: z.number(),
-  rolls: z.record(z.string(),DiceRollResultSchema),
+  rolls: z.record(z.string(), DiceRollResultSchema),
 });
 
 const CombatantInfoSchema = z.object({
@@ -59,13 +59,13 @@ export const TurnResponseSchema = z.object({
   narration: z.string(),
   narration_segments: z.array(NarrationSegmentSchema).nullable().optional(),
   dice_results: z.array(DiceResultSchema).nullable().optional(),
-  dice_rolls: z.record(z.string(),DiceRollResultSchema).nullable().optional(),
+  dice_rolls: z.record(z.string(), DiceRollResultSchema).nullable().optional(),
   npc_dialogues: z.array(NPCDialogueSchema).nullable().optional(),
-  world_state: z.record(z.string(),z.unknown()).optional(),
-  character_data: z.record(z.string(),z.unknown()).optional(),
+  world_state: z.record(z.string(), z.unknown()).optional(),
+  character_data: z.record(z.string(), z.unknown()).optional(),
   scene_mood: z.string().nullable(),
   combat_state: CombatStateSchema.nullable().optional(),
-  tool_events: z.array(z.record(z.string(),z.unknown())).optional(),
+  tool_events: z.array(z.record(z.string(), z.unknown())).optional(),
   death_event: z
     .object({
       is_dead: z.boolean(),

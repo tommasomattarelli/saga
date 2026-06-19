@@ -2,10 +2,7 @@ import { useForcedTheme } from "../../../shared/hooks/use-forced-theme";
 import { AntiqueMap } from "../../../assets/ornaments/antique-map";
 import { SagaSeal } from "../../../assets/ornaments/saga-seal";
 import { OrnateFrame } from "../../../shared/ui/ornate-frame";
-import {
-  FlourishB,
-  FlourishC,
-} from "../../../assets/ornaments/flourish-dividers";
+import { FlourishB, FlourishC } from "../../../assets/ornaments/flourish-dividers";
 
 interface AuthPageLayoutProps {
   /** Subtitle shown below SAGA seal on the left page */
@@ -31,8 +28,7 @@ export function AuthPageLayout({ subtitle, children }: AuthPageLayoutProps) {
         aria-hidden="true"
         className="absolute inset-0 pointer-events-none"
         style={{
-          background:
-            "radial-gradient(ellipse at center, transparent 25%, rgba(0,0,0,0.75) 100%)",
+          background: "radial-gradient(ellipse at center, transparent 25%, rgba(0,0,0,0.75) 100%)",
         }}
       />
 
@@ -73,9 +69,7 @@ export function AuthPageLayout({ subtitle, children }: AuthPageLayoutProps) {
             />
 
             {/* Right page — form area */}
-            <div className="flex flex-col justify-center px-6 py-4">
-              {children}
-            </div>
+            <div className="flex flex-col justify-center px-6 py-4">{children}</div>
           </div>
           <div className="flex justify-center pt-3">
             <FlourishB width={360} color="var(--gold-deep)" />

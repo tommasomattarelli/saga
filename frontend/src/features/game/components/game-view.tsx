@@ -111,17 +111,26 @@ export default function GameView() {
                 style={{ color: "var(--ink-faded)", letterSpacing: "0.28em" }}
               >
                 <span>Chapter {campaign.turn_number}</span>
-                <span className="mx-2" aria-hidden="true">·</span>
-                <span className="italic normal-case" style={{ fontStyle: "italic", letterSpacing: "0.1em" }}>
+                <span className="mx-2" aria-hidden="true">
+                  ·
+                </span>
+                <span
+                  className="italic normal-case"
+                  style={{ fontStyle: "italic", letterSpacing: "0.1em" }}
+                >
                   {location}
                 </span>
                 {clock?.current_day && (
                   <>
-                    <span className="mx-2" aria-hidden="true">·</span>
+                    <span className="mx-2" aria-hidden="true">
+                      ·
+                    </span>
                     <span>Day {clock.current_day}</span>
                     {clock.time_of_day && (
                       <>
-                        <span className="mx-2" aria-hidden="true">·</span>
+                        <span className="mx-2" aria-hidden="true">
+                          ·
+                        </span>
                         <span>{clock.time_of_day}</span>
                       </>
                     )}

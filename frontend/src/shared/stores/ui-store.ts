@@ -20,30 +20,30 @@ interface UIState {
 export const useUIStore = create<UIState>()(
   devtools(
     persist(
-    (set) => ({
-      sidePanel: null,
-      showCompanionBar: true,
-      soundEnabled: true,
-      themeOverride: "auto",
-      fontSize: 18,
-      setSidePanel: (panel) => set({ sidePanel: panel }),
-      toggleSidePanel: (panel) =>
-        set((state) => ({
-          sidePanel: state.sidePanel === panel ? null : panel,
-        })),
-      setShowCompanionBar: (show) => set({ showCompanionBar: show }),
-      setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
-      setThemeOverride: (theme) => set({ themeOverride: theme }),
-      setFontSize: (size) => set({ fontSize: Math.min(24, Math.max(14, size)) }),
-    }),
-    {
-      name: "saga-ui",
-      partialize: (state) => ({
-        soundEnabled: state.soundEnabled,
-        themeOverride: state.themeOverride,
-        fontSize: state.fontSize,
+      (set) => ({
+        sidePanel: null,
+        showCompanionBar: true,
+        soundEnabled: true,
+        themeOverride: "auto",
+        fontSize: 18,
+        setSidePanel: (panel) => set({ sidePanel: panel }),
+        toggleSidePanel: (panel) =>
+          set((state) => ({
+            sidePanel: state.sidePanel === panel ? null : panel,
+          })),
+        setShowCompanionBar: (show) => set({ showCompanionBar: show }),
+        setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
+        setThemeOverride: (theme) => set({ themeOverride: theme }),
+        setFontSize: (size) => set({ fontSize: Math.min(24, Math.max(14, size)) }),
       }),
-    },
+      {
+        name: "saga-ui",
+        partialize: (state) => ({
+          soundEnabled: state.soundEnabled,
+          themeOverride: state.themeOverride,
+          fontSize: state.fontSize,
+        }),
+      },
     ),
     { name: "ui-store", enabled: import.meta.env.DEV },
   ),

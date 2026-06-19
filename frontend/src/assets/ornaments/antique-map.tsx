@@ -199,22 +199,46 @@ export function AntiqueMap({ animate = true, className }: AntiqueMapProps) {
             opacity="0.4"
             transform="rotate(0)"
           />
-          <path
-            d="M 34 -34 L -2 -2 L -34 34 L 2 2 Z"
-            fill={strokeColor}
-            opacity="0.4"
-          />
+          <path d="M 34 -34 L -2 -2 L -34 34 L 2 2 Z" fill={strokeColor} opacity="0.4" />
           {/* Cardinals */}
-          <text x="0" y="-54" textAnchor="middle" fontSize="8" fill={strokeColor} fontFamily="var(--font-display)">
+          <text
+            x="0"
+            y="-54"
+            textAnchor="middle"
+            fontSize="8"
+            fill={strokeColor}
+            fontFamily="var(--font-display)"
+          >
             N
           </text>
-          <text x="56" y="3" textAnchor="middle" fontSize="8" fill={strokeColor} fontFamily="var(--font-display)">
+          <text
+            x="56"
+            y="3"
+            textAnchor="middle"
+            fontSize="8"
+            fill={strokeColor}
+            fontFamily="var(--font-display)"
+          >
             E
           </text>
-          <text x="0" y="62" textAnchor="middle" fontSize="8" fill={strokeColor} fontFamily="var(--font-display)">
+          <text
+            x="0"
+            y="62"
+            textAnchor="middle"
+            fontSize="8"
+            fill={strokeColor}
+            fontFamily="var(--font-display)"
+          >
             S
           </text>
-          <text x="-56" y="3" textAnchor="middle" fontSize="8" fill={strokeColor} fontFamily="var(--font-display)">
+          <text
+            x="-56"
+            y="3"
+            textAnchor="middle"
+            fontSize="8"
+            fill={strokeColor}
+            fontFamily="var(--font-display)"
+          >
             W
           </text>
         </g>
@@ -230,21 +254,10 @@ export function AntiqueMap({ animate = true, className }: AntiqueMapProps) {
             strokeLinecap="round"
           />
           {/* Dragon head */}
-          <path
-            d="M 70 8 Q 78 4 80 10 Q 82 16 76 18 Q 72 20 70 16 Z"
-            fill={strokeColor}
-          />
+          <path d="M 70 8 Q 78 4 80 10 Q 82 16 76 18 Q 72 20 70 16 Z" fill={strokeColor} />
           {/* Wings */}
-          <path
-            d="M 10 -6 Q 18 -18 28 -14 Q 22 -8 10 -6 Z"
-            fill={strokeColor}
-            opacity="0.5"
-          />
-          <path
-            d="M 40 -10 Q 50 -22 58 -14 Q 50 -10 40 -10 Z"
-            fill={strokeColor}
-            opacity="0.5"
-          />
+          <path d="M 10 -6 Q 18 -18 28 -14 Q 22 -8 10 -6 Z" fill={strokeColor} opacity="0.5" />
+          <path d="M 40 -10 Q 50 -22 58 -14 Q 50 -10 40 -10 Z" fill={strokeColor} opacity="0.5" />
           {/* Scales dots */}
           <circle cx="-10" cy="-4" r="0.8" fill={strokeColor} />
           <circle cx="20" cy="0" r="0.8" fill={strokeColor} />

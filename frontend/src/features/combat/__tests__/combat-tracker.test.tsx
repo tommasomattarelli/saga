@@ -24,9 +24,7 @@ describe("CombatTracker", () => {
   });
 
   it("returns null when combat is not active", () => {
-    const { container } = render(
-      <CombatTracker combatState={{ ...baseCombat, active: false }} />,
-    );
+    const { container } = render(<CombatTracker combatState={{ ...baseCombat, active: false }} />);
     expect(container.firstChild).toBeNull();
   });
 
@@ -45,9 +43,7 @@ describe("CombatTracker", () => {
   it("handles a dead combatant (hp <= 0)", () => {
     const deadCombat: CombatState = {
       ...baseCombat,
-      initiative_order: [
-        { name: "Hero", initiative: 18, hp: 0, max_hp: 40, type: "player" },
-      ],
+      initiative_order: [{ name: "Hero", initiative: 18, hp: 0, max_hp: 40, type: "player" }],
     };
     render(<CombatTracker combatState={deadCombat} />);
     expect(screen.getByText("Hero")).toBeInTheDocument();

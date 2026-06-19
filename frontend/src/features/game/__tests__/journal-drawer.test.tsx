@@ -40,7 +40,9 @@ describe("JournalDrawer", () => {
   it("renders the completed-deeds accordion with a count", () => {
     setup({
       active: [],
-      completed: [{ name: "Slay the boar", description: "Done", status: "completed", objectives: [] }],
+      completed: [
+        { name: "Slay the boar", description: "Done", status: "completed", objectives: [] },
+      ],
     });
     render(<JournalDrawer />);
     expect(screen.getByText("Completed Deeds")).toBeInTheDocument();

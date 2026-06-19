@@ -68,7 +68,9 @@ describe("LoginForm Component", () => {
     renderComponent();
 
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "testuser" } });
-    fireEvent.change(screen.getByLabelText("Word of Passage"), { target: { value: "password123" } });
+    fireEvent.change(screen.getByLabelText("Word of Passage"), {
+      target: { value: "password123" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /cross the threshold/i }));
 
     await waitFor(() => expect(login).toHaveBeenCalledWith("testuser", "password123"), {

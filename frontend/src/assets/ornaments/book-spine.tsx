@@ -173,7 +173,13 @@ interface NewBookSpineProps {
 
 export function NewBookSpine({ width = 80, height = 260, className }: NewBookSpineProps) {
   return (
-    <svg width={width} height={height} viewBox="0 0 80 260" aria-hidden="true" className={className}>
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 80 260"
+      aria-hidden="true"
+      className={className}
+    >
       <rect
         x="4"
         y="6"

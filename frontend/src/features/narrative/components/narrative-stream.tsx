@@ -36,10 +36,7 @@ export default function NarrativeStream({
           >
             Thy adventure awaits…
           </p>
-          <p
-            className="mt-3 font-body italic text-sm"
-            style={{ color: "var(--ink-faded)" }}
-          >
+          <p className="mt-3 font-body italic text-sm" style={{ color: "var(--ink-faded)" }}>
             Inscribe thine action below to begin
           </p>
         </div>

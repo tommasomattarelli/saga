@@ -27,31 +27,32 @@ interface AuthInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
 }
 
-export const AuthInput = forwardRef<HTMLInputElement, AuthInputProps>(
-  function AuthInput({ label, id, className = "", ...rest }, ref) {
-    return (
-      <div className="group relative">
-        <AuthLabel htmlFor={id!}>{label}</AuthLabel>
-        <input
-          ref={ref}
-          id={id}
-          {...rest}
-          className={`w-full bg-transparent px-0 py-1.5 font-body text-base focus:outline-none ${className}`}
-          style={{
-            color: "var(--ink-primary)",
-            borderBottom: "1px solid var(--gold-deep)",
-          }}
-        />
-        {/* Animated gold underline on focus */}
-        <span
-          aria-hidden="true"
-          className="absolute left-0 right-0 bottom-0 h-[2px] scale-x-0 group-focus-within:scale-x-100 origin-left transition-transform duration-700 ease-out"
-          style={{ background: "var(--gold-bright)" }}
-        />
-      </div>
-    );
-  }
-);
+export const AuthInput = forwardRef<HTMLInputElement, AuthInputProps>(function AuthInput(
+  { label, id, className = "", ...rest },
+  ref,
+) {
+  return (
+    <div className="group relative">
+      <AuthLabel htmlFor={id!}>{label}</AuthLabel>
+      <input
+        ref={ref}
+        id={id}
+        {...rest}
+        className={`w-full bg-transparent px-0 py-1.5 font-body text-base focus:outline-none ${className}`}
+        style={{
+          color: "var(--ink-primary)",
+          borderBottom: "1px solid var(--gold-deep)",
+        }}
+      />
+      {/* Animated gold underline on focus */}
+      <span
+        aria-hidden="true"
+        className="absolute left-0 right-0 bottom-0 h-[2px] scale-x-0 group-focus-within:scale-x-100 origin-left transition-transform duration-700 ease-out"
+        style={{ background: "var(--gold-bright)" }}
+      />
+    </div>
+  );
+});
 
 /* Ornate CTA button — bordo doppio dorato, testo Cinzel uppercase */
 interface OrnateButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
