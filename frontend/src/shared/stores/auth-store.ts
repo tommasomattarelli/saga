@@ -34,31 +34,34 @@ function saveRefreshToken(token: string | null): void {
 }
 
 export const useAuthStore = create<AuthState>()(
-  devtools((set) => ({
-  user: null,
-  // accessToken is memory-only: never persisted, cleared on page reload
-  accessToken: null,
-  // refreshToken survives tab reload via sessionStorage, not across browser closes
-  refreshToken: loadRefreshToken(),
-  isAuthenticated: false,
-  setTokens: (tokens) => {
-    saveRefreshToken(tokens.refresh_token);
-    set({
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      isAuthenticated: true,
-    });
-  },
-  setUser: (user) => set({ user }),
-  logout: () => {
-    saveRefreshToken(null);
-    useGameStore.getState().reset();
-    set({
+  devtools(
+    (set) => ({
       user: null,
+      // accessToken is memory-only: never persisted, cleared on page reload
       accessToken: null,
-      refreshToken: null,
+      // refreshToken survives tab reload via sessionStorage, not across browser closes
+      refreshToken: loadRefreshToken(),
       isAuthenticated: false,
-    });
-  },
-  }), { name: "auth-store", enabled: import.meta.env.DEV }),
+      setTokens: (tokens) => {
+        saveRefreshToken(tokens.refresh_token);
+        set({
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          isAuthenticated: true,
+        });
+      },
+      setUser: (user) => set({ user }),
+      logout: () => {
+        saveRefreshToken(null);
+        useGameStore.getState().reset();
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
+        });
+      },
+    }),
+    { name: "auth-store", enabled: import.meta.env.DEV },
+  ),
 );

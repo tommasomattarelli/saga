@@ -137,7 +137,9 @@ export default function ActionInput({ onAction }: ActionInputProps) {
                 <span
                   aria-live="polite"
                   className="font-display text-[9px]"
-                  style={{ color: action.length >= MAX_ACTION_LENGTH ? "var(--blood)" : "var(--ink-faded)" }}
+                  style={{
+                    color: action.length >= MAX_ACTION_LENGTH ? "var(--blood)" : "var(--ink-faded)",
+                  }}
                 >
                   {action.length}/{MAX_ACTION_LENGTH}
                 </span>

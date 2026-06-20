@@ -27,20 +27,13 @@ afterEach(() => {
 
 describe("DiceRoller — alwaysRevealed=true (historical turns)", () => {
   it("shows the roll result immediately without clicking", () => {
-    render(
-      <DiceRoller
-        rolls={{ "STR save": makeRoll({ total: 17 }) }}
-        alwaysRevealed
-      />,
-    );
+    render(<DiceRoller rolls={{ "STR save": makeRoll({ total: 17 }) }} alwaysRevealed />);
     expect(screen.getByText("17")).toBeInTheDocument();
     expect(screen.getByText("SUCCESS")).toBeInTheDocument();
   });
 
   it("shows the DC value", () => {
-    render(
-      <DiceRoller rolls={{ "STR save": makeRoll({ dc: 15 }) }} alwaysRevealed />,
-    );
+    render(<DiceRoller rolls={{ "STR save": makeRoll({ dc: 15 }) }} alwaysRevealed />);
     expect(screen.getByText(/vs DC 15/)).toBeInTheDocument();
   });
 
@@ -57,7 +50,7 @@ describe("DiceRoller — alwaysRevealed=true (historical turns)", () => {
   it("shows CRITICAL! label on critical success", () => {
     render(
       <DiceRoller
-        rolls={{ "ATK": makeRoll({ success: true, outcome: "critical_success", is_critical: true }) }}
+        rolls={{ ATK: makeRoll({ success: true, outcome: "critical_success", is_critical: true }) }}
         alwaysRevealed
       />,
     );
@@ -67,7 +60,7 @@ describe("DiceRoller — alwaysRevealed=true (historical turns)", () => {
   it("shows CRITICAL FAIL label on critical failure", () => {
     render(
       <DiceRoller
-        rolls={{ "ATK": makeRoll({ success: false, outcome: "critical_failure" }) }}
+        rolls={{ ATK: makeRoll({ success: false, outcome: "critical_failure" }) }}
         alwaysRevealed
       />,
     );

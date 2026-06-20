@@ -103,7 +103,9 @@ function SingleDice({
           style={{ color: "var(--ink-faded)", letterSpacing: "0.2em" }}
         >
           {name}
-          <span className="ml-2" style={{ opacity: 0.7 }}>DC {result.dc}</span>
+          <span className="ml-2" style={{ opacity: 0.7 }}>
+            DC {result.dc}
+          </span>
         </span>
         <span
           className="font-display text-base group-hover:scale-110 transition-transform"
@@ -125,11 +127,7 @@ function SingleDice({
         background: success ? "rgba(212, 175, 55, 0.1)" : "rgba(139, 0, 0, 0.08)",
       }}
       /* Crit screen-shake */
-      animate={
-        crit
-          ? { x: [0, -3, 3, -2, 2, 0], transition: { duration: 0.4 } }
-          : undefined
-      }
+      animate={crit ? { x: [0, -3, 3, -2, 2, 0], transition: { duration: 0.4 } } : undefined}
     >
       <span
         className="font-display text-[10px] uppercase"
@@ -142,11 +140,12 @@ function SingleDice({
       <span
         className="font-display text-2xl font-bold"
         style={{
-          color: crit === "success"
-            ? "var(--gold-bright)"
-            : crit === "fail"
-              ? "var(--blood)"
-              : "var(--ink-primary)",
+          color:
+            crit === "success"
+              ? "var(--gold-bright)"
+              : crit === "fail"
+                ? "var(--blood)"
+                : "var(--ink-primary)",
         }}
       >
         {displayValue}
@@ -154,10 +153,7 @@ function SingleDice({
 
       {revealed && (
         <>
-          <span
-            className="font-body text-xs"
-            style={{ color: "var(--ink-faded)" }}
-          >
+          <span className="font-body text-xs" style={{ color: "var(--ink-faded)" }}>
             [{result.rolls.join(", ")}]
             {result.modifier !== 0 && (
               <>{result.modifier > 0 ? `+${result.modifier}` : result.modifier}</>
@@ -185,9 +181,10 @@ function SingleDice({
           className="absolute -inset-2 pointer-events-none"
           style={{
             borderRadius: "50%",
-            background: crit === "success"
-              ? "radial-gradient(circle, var(--gold-bright), transparent 70%)"
-              : "radial-gradient(circle, var(--blood), transparent 70%)",
+            background:
+              crit === "success"
+                ? "radial-gradient(circle, var(--gold-bright), transparent 70%)"
+                : "radial-gradient(circle, var(--blood), transparent 70%)",
           }}
         />
       )}
@@ -195,7 +192,12 @@ function SingleDice({
   );
 }
 
-export default function DiceRoller({ rolls, alwaysRevealed = false, onAllRevealed, step = 0 }: DiceRollerProps) {
+export default function DiceRoller({
+  rolls,
+  alwaysRevealed = false,
+  onAllRevealed,
+  step = 0,
+}: DiceRollerProps) {
   const total = Object.keys(rolls).length;
   const [, setRevealedCount] = useState(alwaysRevealed ? total : 0);
 

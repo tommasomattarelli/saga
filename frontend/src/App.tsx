@@ -37,31 +37,31 @@ const PAGE_VARIANTS = {
   auth: {
     initial: { opacity: 0, scale: 0.98 },
     animate: { opacity: 1, scale: 1 },
-    exit:    { opacity: 0, scale: 0.98 },
+    exit: { opacity: 0, scale: 0.98 },
   },
   campaigns: {
     initial: { opacity: 0, scale: 0.98 },
     animate: { opacity: 1, scale: 1 },
-    exit:    { opacity: 0, scale: 0.98 },
+    exit: { opacity: 0, scale: 0.98 },
   },
   game: {
     /* Page-turn: entering game = rotateY from 90° */
     initial: { opacity: 0, rotateY: 90 },
     animate: { opacity: 1, rotateY: 0 },
-    exit:    { opacity: 0, rotateY: -90 },
+    exit: { opacity: 0, rotateY: -90 },
   },
 } as const;
 
 const TRANSITION = {
-  auth:      { duration: 0.4, ease: "easeOut" as const },
+  auth: { duration: 0.4, ease: "easeOut" as const },
   campaigns: { duration: 0.4, ease: "easeOut" as const },
-  game:      { duration: 0.6, ease: [0.77, 0, 0.175, 1] as number[] },
+  game: { duration: 0.6, ease: [0.77, 0, 0.175, 1] as number[] },
 };
 
 const REDUCED_VARIANTS = {
   initial: { opacity: 0 },
   animate: { opacity: 1 },
-  exit:    { opacity: 0 },
+  exit: { opacity: 0 },
 };
 const REDUCED_TRANSITION = { duration: 0.2 };
 
@@ -80,7 +80,9 @@ function AnimatedRoutes() {
         animate="animate"
         exit="exit"
         transition={transition}
-        style={variant === "game" ? { perspective: 1600, transformStyle: "preserve-3d" } : undefined}
+        style={
+          variant === "game" ? { perspective: 1600, transformStyle: "preserve-3d" } : undefined
+        }
       >
         <Routes location={location}>
           <Route path="/login" element={<LoginForm />} />
@@ -146,7 +148,11 @@ export default function App() {
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:px-4 focus:py-2 focus:font-display focus:text-xs focus:uppercase"
-          style={{ background: "var(--parchment-aged)", color: "var(--gold-bright)", border: "1px solid var(--gold-bright)" }}
+          style={{
+            background: "var(--parchment-aged)",
+            color: "var(--gold-bright)",
+            border: "1px solid var(--gold-bright)",
+          }}
         >
           Skip to content
         </a>

@@ -9,7 +9,22 @@ const makeCampaign = (overrides: Partial<Campaign> = {}): Campaign => ({
   status: "active",
   death_mode: "cronista",
   turn_number: 1,
-  character_data: { name: "Hero", level: 1, xp: 0, hp: { current: 20, max: 20 }, ac: 10, abilities: {}, skills: {}, inventory: [], equipped: {}, gold: 0, background: "", notes: "", reputation: {}, active_quests: [] },
+  character_data: {
+    name: "Hero",
+    level: 1,
+    xp: 0,
+    hp: { current: 20, max: 20 },
+    ac: 10,
+    abilities: {},
+    skills: {},
+    inventory: [],
+    equipped: {},
+    gold: 0,
+    background: "",
+    notes: "",
+    reputation: {},
+    active_quests: [],
+  },
   world_state: {},
   quests: {},
   created_at: new Date().toISOString(),
@@ -59,7 +74,9 @@ describe("game-store", () => {
   });
 
   it("setCombatState and clear", () => {
-    useGameStore.getState().setCombatState({ active: true, round: 1, initiative_order: [], current_turn_index: 0 });
+    useGameStore
+      .getState()
+      .setCombatState({ active: true, round: 1, initiative_order: [], current_turn_index: 0 });
     expect(useGameStore.getState().combatState?.active).toBe(true);
     useGameStore.getState().setCombatState(null);
     expect(useGameStore.getState().combatState).toBeNull();

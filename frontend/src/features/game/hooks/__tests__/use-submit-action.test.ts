@@ -102,7 +102,10 @@ describe("useSubmitAction", () => {
     });
 
     mockSubmitAction.mockResolvedValue({
-      data: { ...baseTurn, combat_state: { active: false, round: 0, initiative_order: [], current_turn_index: 0 } },
+      data: {
+        ...baseTurn,
+        combat_state: { active: false, round: 0, initiative_order: [], current_turn_index: 0 },
+      },
     } as never);
 
     const { result } = renderHook(() => useSubmitAction("campaign-1", nullScrollRef), {

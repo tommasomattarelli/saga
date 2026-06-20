@@ -66,10 +66,7 @@ function SegmentView({
 
   return (
     <Fragment>
-      <div
-        className="font-body text-base"
-        style={{ color: "var(--ink-primary)" }}
-      >
+      <div className="font-body text-base" style={{ color: "var(--ink-primary)" }}>
         <DmParagraphs
           text={segment.text}
           useTypewriter={useTypewriter}
@@ -112,9 +109,7 @@ export default function TurnBlock({
   onAllDiceRevealed?: () => void;
 }) {
   const segments =
-    turn.narration_segments && turn.narration_segments.length > 0
-      ? turn.narration_segments
-      : null;
+    turn.narration_segments && turn.narration_segments.length > 0 ? turn.narration_segments : null;
 
   const alwaysRevealed = !isLatest;
 
@@ -131,17 +126,22 @@ export default function TurnBlock({
 
   // Steps that have dice in this turn
   const diceSegmentSteps = useMemo(
-    () => new Set(
-      (segments ?? [])
-        .filter((s) => !!(turn.dice_results?.find((d) => d.step === s.step)?.rolls ?? s.dice))
-        .map((s) => s.step),
-    ),
+    () =>
+      new Set(
+        (segments ?? [])
+          .filter((s) => !!(turn.dice_results?.find((d) => d.step === s.step)?.rolls ?? s.dice))
+          .map((s) => s.step),
+      ),
     [segments, turn.dice_results],
   );
 
   // Notify parent when all dice in this turn are revealed
   useLayoutEffect(() => {
-    if (!alwaysRevealed && diceSegmentSteps.size > 0 && revealedSteps.size >= diceSegmentSteps.size) {
+    if (
+      !alwaysRevealed &&
+      diceSegmentSteps.size > 0 &&
+      revealedSteps.size >= diceSegmentSteps.size
+    ) {
       onAllDiceRevealed?.();
     }
   }, [revealedSteps.size, diceSegmentSteps.size, alwaysRevealed, onAllDiceRevealed]);
@@ -168,10 +168,7 @@ export default function TurnBlock({
       transition={{ duration: 0.5, ease: "easeOut" }}
     >
       {showDivider && (
-        <OrnamentDivider
-          variant={turnDividerVariant(turn.turn_number)}
-          className="!my-6"
-        />
+        <OrnamentDivider variant={turnDividerVariant(turn.turn_number)} className="!my-6" />
       )}
 
       {turn.player_action && <PlayerAction action={turn.player_action} />}
@@ -193,10 +190,7 @@ export default function TurnBlock({
         })
       ) : (
         <>
-          <div
-            className="font-body text-base"
-            style={{ color: "var(--ink-primary)" }}
-          >
+          <div className="font-body text-base" style={{ color: "var(--ink-primary)" }}>
             <DmParagraphs
               text={turn.narration}
               useTypewriter={isLatest && isFresh}

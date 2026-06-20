@@ -83,11 +83,7 @@ export default function SettingsDrawer() {
     >
       {/* Audio */}
       <SectionHeader label="Audio" />
-      <Toggle
-        label="Dice sound"
-        checked={soundEnabled}
-        onChange={setSoundEnabled}
-      />
+      <Toggle label="Dice sound" checked={soundEnabled} onChange={setSoundEnabled} />
 
       <OrnamentDivider variant="flourish-b" className="!my-3" />
 
@@ -125,7 +121,9 @@ export default function SettingsDrawer() {
 
       {/* Theme override */}
       <div className="mb-3">
-        <span className="font-body text-xs mb-1.5 block" style={{ color: "var(--ink-faded)" }}>Theme</span>
+        <span className="font-body text-xs mb-1.5 block" style={{ color: "var(--ink-faded)" }}>
+          Theme
+        </span>
         <div className="flex gap-2">
           {(["auto", "light", "dark"] as ThemeOverride[]).map((opt) => (
             <button
@@ -147,8 +145,12 @@ export default function SettingsDrawer() {
       {/* Font size slider */}
       <div className="mb-1">
         <div className="flex justify-between mb-1">
-          <span className="font-body text-xs" style={{ color: "var(--ink-faded)" }}>Text size</span>
-          <span className="font-display text-xs" style={{ color: "var(--gold-bright)" }}>{fontSize}px</span>
+          <span className="font-body text-xs" style={{ color: "var(--ink-faded)" }}>
+            Text size
+          </span>
+          <span className="font-display text-xs" style={{ color: "var(--gold-bright)" }}>
+            {fontSize}px
+          </span>
         </div>
         <input
           type="range"
@@ -159,8 +161,12 @@ export default function SettingsDrawer() {
           className="w-full accent-gold-bright"
           style={{ accentColor: "var(--gold-bright)" }}
         />
-        <div className="flex justify-between font-body text-[10px]" style={{ color: "var(--ink-faded)" }}>
-          <span>A</span><span>A</span>
+        <div
+          className="flex justify-between font-body text-[10px]"
+          style={{ color: "var(--ink-faded)" }}
+        >
+          <span>A</span>
+          <span>A</span>
         </div>
       </div>
 
