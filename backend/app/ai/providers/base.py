@@ -29,7 +29,7 @@ class AIProvider(ABC):
         ...
 
     @abstractmethod
-    async def stream(
+    def stream(
         self,
         system_prompt: str,
         messages: list[dict],

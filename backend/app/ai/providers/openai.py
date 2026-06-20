@@ -83,7 +83,7 @@ class OpenAIProvider(AIProvider):
         max_tokens: int = 2000,
     ) -> AgentResponse:
         full_messages = [{"role": "system", "content": system_prompt}] + messages
-        response = await self.client.chat.completions.create(
+        response = await self.client.chat.completions.create(  # type: ignore[call-overload]
             model=model,
             messages=full_messages,
             tools=tools,

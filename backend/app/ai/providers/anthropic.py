@@ -34,13 +34,13 @@ class AnthropicProvider(AIProvider):
         response = await self.client.messages.create(
             model=model,
             system=system_prompt,
-            messages=messages,
+            messages=messages,  # type: ignore[arg-type]
             temperature=temperature,
             max_tokens=max_tokens,
         )
         if response.stop_reason == "end_turn" and not response.content:
             raise ContentPolicyError("anthropic", "Empty response — possible policy block")
-        return response.content[0].text
+        return response.content[0].text  # type: ignore[union-attr]
 
     async def stream(
         self,
@@ -53,7 +53,7 @@ class AnthropicProvider(AIProvider):
         async with self.client.messages.stream(
             model=model,
             system=system_prompt,
-            messages=messages,
+            messages=messages,  # type: ignore[arg-type]
             temperature=temperature,
             max_tokens=max_tokens,
         ) as stream:
@@ -81,8 +81,8 @@ class AnthropicProvider(AIProvider):
         response = await self.client.messages.create(
             model=model,
             system=system_prompt,
-            messages=messages,
-            tools=anthropic_tools,
+            messages=messages,  # type: ignore[arg-type]
+            tools=anthropic_tools,  # type: ignore[arg-type]
             temperature=temperature,
             max_tokens=max_tokens,
         )

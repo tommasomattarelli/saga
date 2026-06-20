@@ -1,4 +1,5 @@
 import uuid
+from typing import TYPE_CHECKING
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
@@ -6,6 +7,9 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.campaign import Campaign
 
 
 class Turn(Base, UUIDMixin, TimestampMixin):
@@ -40,4 +44,4 @@ class Turn(Base, UUIDMixin, TimestampMixin):
     embedding: Mapped[list | None] = mapped_column(Vector(384), nullable=True)
 
     # Relationships
-    campaign: Mapped["Campaign"] = relationship(back_populates="turns")  # noqa: F821
+    campaign: Mapped["Campaign"] = relationship(back_populates="turns")
