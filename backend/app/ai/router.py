@@ -3,9 +3,13 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from app.config import settings
 from app.config_loader import load_saga_config
+
+if TYPE_CHECKING:
+    from app.ai.context import GameContext
 
 
 class AICallType(StrEnum):
@@ -200,7 +204,7 @@ def get_summarization_config() -> SummarizationConfig:
     )
 
 
-async def route_ai_call(call_type: AICallType, context: GameContext) -> ModelConfig:  # noqa: F821
+async def route_ai_call(call_type: AICallType, context: GameContext) -> ModelConfig:
     """Select the appropriate model based on call type and context importance."""
     if call_type == AICallType.DM_NARRATION:
         importance = getattr(context, "importance_score", 5)
