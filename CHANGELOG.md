@@ -30,8 +30,10 @@ predating this file live in `docs/archive/changelog/`.
   mirror the flow, sourcing Postgres+pgvector from the OS package manager. CI
   syntax/lint-checks both the PowerShell and the sh scripts; end-to-end smoke is
   deferred until the bundle is published.
-- GitHub Actions CI (`.github/workflows/ci.yml`), runs on PR + push to `main`:
-  backend lint (`ruff check`/`format --check`) + unit tests; backend integration
+- GitHub Actions CI (`.github/workflows/ci.yml`), runs on PR (the push-to-`main`
+  trigger was dropped to avoid a duplicate run on merge; `main` is protected):
+  backend lint (`ruff check`/`format --check`), type-check (`mypy`) and dead-code
+  scan (`vulture --min-confidence 80`) + unit tests; backend integration
   + playtest against a `pgvector/pgvector:pg16` service container; the full
   frontend pipeline (lint, vitest, knip, build); a Docker build smoke; and a
   parse-check of the installer PowerShell scripts. No AI keys are needed — every
@@ -49,6 +51,13 @@ predating this file live in `docs/archive/changelog/`.
   uvicorn (on-demand, no Windows service, no admin). Backend logic
   unchanged; SQLite/softening pgvector explicitly rejected. CI runs on PR + push
   with a pgvector service container and no AI keys.
+- Backend is now `mypy`-clean and type-gated. A `[tool.mypy]` config over `app/`
+  (pydantic plugin, `pgvector` import override, `types-PyYAML`/`types-python-jose`
+  stubs); provider SDK `list[dict]`↔`TypedDict` boundaries and the pydantic
+  `computed_field` limitation use targeted `# type: ignore[code]`, ORM forward-refs
+  use `TYPE_CHECKING`. Enforced by a `backend-mypy` pre-push hook and in CI — the
+  counterpart of the frontend `tsc` gate. A `vulture` dead-code scan likewise joins
+  CI as the backend counterpart of the frontend `knip` gate (0 findings today).
 
 ### Removed
 - The unused `redis` dependency (no `redis_url` setting, no imports anywhere in
