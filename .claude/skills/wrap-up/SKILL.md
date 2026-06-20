@@ -15,7 +15,7 @@ The End half of the Session Protocol, and the inverse of `/catchup`. **Interview
 4. **Update `TODO.md`** — tick completed items `[ ]`→`[x]`, and move/add the agreed next items into `## NOW / prossimi`. Keep NOW tight; push the rest to the backlog sections.
 5. **Verify the tree** — run the fast unit tests (no infra):
    - backend: `cd backend && uv run python -m pytest tests/unit --noconftest -q`
-   - frontend: `cd frontend && npm run test`
+   - frontend: `cd frontend && npm run test -- --run` (one-shot; plain `npm run test` is vitest watch mode and will hang)
    If red, report the failure and ask whether to fix now or note it before committing — don't bury a red tree.
 6. **Commit the docs** — stage `CHANGELOG.md` + `TODO.md` (and any other doc touched here) and commit as `docs(session): wrap-up`. Conventional Commits, no co-author/tool trailers (per CLAUDE.md). Do not push — leave that to the user.
 
