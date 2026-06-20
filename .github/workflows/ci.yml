@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
 
 concurrency:
@@ -11,7 +9,7 @@ concurrency:
 
 jobs:
   backend:
-    name: Backend lint + unit
+    name: Backend lint + types + unit
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -26,6 +24,8 @@ jobs:
       - run: uv sync
       - run: uv run ruff check .
       - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run vulture app --min-confidence 80
       - run: uv run python -m pytest tests/unit --noconftest -q
 
   backend-integration:

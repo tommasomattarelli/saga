@@ -14,17 +14,17 @@ logger = structlog.get_logger()
 class GameClock(BaseModel):
     total_minutes: int = 0
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def current_hour(self) -> int:
         return (self.total_minutes // 60) % 24
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def current_day(self) -> int:
         return (self.total_minutes // (60 * 24)) + 1
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def current_season(self) -> str:
         day = self.current_day
@@ -37,7 +37,7 @@ class GameClock(BaseModel):
             return "autumn"
         return "winter"
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def time_of_day(self) -> str:
         h = self.current_hour
@@ -74,7 +74,6 @@ _MIGRATIONS: dict[int, Callable[[dict], dict]] = {}
 
 
 def _register_migration(from_version: int):
-
     def decorator(fn):
         _MIGRATIONS[from_version] = fn
         return fn
