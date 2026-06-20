@@ -34,6 +34,15 @@ dependencies = [
 [project.optional-dependencies]
 dev = []
 
+[tool.mypy]
+python_version = "3.12"
+files = ["app"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "pgvector.*"
+ignore_missing_imports = true
+
 [tool.ruff]
 target-version = "py312"
 line-length = 99
@@ -67,5 +76,7 @@ dev = [
     "httpx>=0.28.0",
     "ruff>=0.8.0",
     "mypy>=1.13.0",
+    "types-pyyaml>=6.0.12",
+    "types-python-jose>=3.3.4",
     "vulture>=2.16",
 ]
