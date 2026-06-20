@@ -86,3 +86,11 @@ repos:
         files: ^frontend/.*\.(ts|tsx)$
         pass_filenames: false
         stages: [pre-push]
+
+      - id: backend-mypy
+        name: mypy (backend typecheck)
+        entry: bash -c 'cd backend && uv run mypy'
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false
+        stages: [pre-push]

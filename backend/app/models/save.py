@@ -1,12 +1,16 @@
 """Save model."""
 
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.campaign import Campaign
 
 
 class Save(Base, UUIDMixin, TimestampMixin):
@@ -26,4 +30,4 @@ class Save(Base, UUIDMixin, TimestampMixin):
     campaign_snapshot: Mapped[dict] = mapped_column(JSONB)
 
     # Relationships
-    campaign: Mapped["Campaign"] = relationship(back_populates="saves")  # noqa: F821
+    campaign: Mapped["Campaign"] = relationship(back_populates="saves")
