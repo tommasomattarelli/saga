@@ -7,7 +7,8 @@
 [ ] companion: implementarli
 [ ] versioning: al lancio si parte da 0.2.5? (allineare ai docs)
 [ ] passare in rassegna le funzioni marcate #TODO nel codice (capire se servono)
-[ ] mypy backend: aggiungere `[tool.mypy]` + rendere verde, poi gateare su pre-push (oggi installato ma mai eseguito in CI, quindi escluso dagli hook)
+[x] mypy backend: `[tool.mypy]` + verde (82 file) + gateato su pre-push E in CI (branch `fix/mypy`, PR aperta) — plugin pydantic, override import `pgvector`, stub types; boundary SDK e `computed_field` con `# type: ignore[code]` mirati; forward-ref ORM via `TYPE_CHECKING` (giu 2026)
+[ ] vulture in CI (gate dead-code BE, speculare a knip FE): oggi 0 findings a `--min-confidence 80`. È euristico → se in futuro un falso positivo blocca una PR (route FastAPI, fixture pytest, `relationship` SQLAlchemy, attributi dinamici) NON abbassare la soglia: aggiungere un file whitelist vulture (equivalente di `knip.json`). Validare alla prima PR che tocca codice nuovo.
 [ ] installare `gh` CLI (oggi assente: serve per aprire/validare PR)
 [ ] validare la CI del branch `feat/claude-skills` via PR (il nuovo `prettier --check` in CI non ha ancora girato — scatta solo su PR o push a `main`)
 
