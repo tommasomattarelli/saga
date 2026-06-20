@@ -30,13 +30,7 @@ export function Seal({ seed, size = 40, className }: SealProps) {
   const color = `hsl(${hue}, 60%, 50%)`;
 
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 40 40"
-      aria-hidden="true"
-      className={className}
-    >
+    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true" className={className}>
       {/* Outer ring */}
       <circle
         cx="20"
@@ -48,15 +42,7 @@ export function Seal({ seed, size = 40, className }: SealProps) {
         opacity="0.6"
       />
       {/* Inner ring */}
-      <circle
-        cx="20"
-        cy="20"
-        r="14"
-        stroke={color}
-        strokeWidth="0.5"
-        fill="none"
-        opacity="0.4"
-      />
+      <circle cx="20" cy="20" r="14" stroke={color} strokeWidth="0.5" fill="none" opacity="0.4" />
       {/* Glyph */}
       <text
         x="20"
@@ -86,14 +72,16 @@ export function InitialSeal({ name, size = 40, className }: InitialSealProps) {
   const initial = (name[0] ?? "?").toUpperCase();
 
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 40 40"
-      aria-hidden="true"
-      className={className}
-    >
-      <circle cx="20" cy="20" r="18" stroke="var(--gold-deep)" strokeWidth="1" fill="none" opacity="0.5" />
+    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true" className={className}>
+      <circle
+        cx="20"
+        cy="20"
+        r="18"
+        stroke="var(--gold-deep)"
+        strokeWidth="1"
+        fill="none"
+        opacity="0.5"
+      />
       <text
         x="20"
         y="25"

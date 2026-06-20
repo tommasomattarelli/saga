@@ -29,10 +29,7 @@ function QuestEntry({ quest }: { quest: Quest }) {
           {quest.name}
         </h4>
       </div>
-      <p
-        className="font-body italic text-sm mb-2"
-        style={{ color: "var(--ink-primary)" }}
-      >
+      <p className="font-body italic text-sm mb-2" style={{ color: "var(--ink-primary)" }}>
         {quest.description}
       </p>
       {quest.objectives && quest.objectives.length > 0 && (
@@ -50,7 +47,9 @@ function QuestEntry({ quest }: { quest: Quest }) {
                   textDecoration: done ? "line-through" : "none",
                 }}
               >
-                <span style={{ color: done ? "var(--gold-deep)" : "var(--ink-faded)", flexShrink: 0 }}>
+                <span
+                  style={{ color: done ? "var(--gold-deep)" : "var(--ink-faded)", flexShrink: 0 }}
+                >
                   {done ? "◆" : "◇"}
                 </span>
                 {text}
@@ -73,11 +72,7 @@ export default function JournalDrawer() {
   const completedQuests: Quest[] = quests?.completed ?? [];
 
   return (
-    <Drawer
-      open={sidePanel === "quests"}
-      onClose={() => setSidePanel(null)}
-      title="The Ledger"
-    >
+    <Drawer open={sidePanel === "quests"} onClose={() => setSidePanel(null)} title="The Ledger">
       <p
         className="font-display text-[10px] uppercase mb-4"
         style={{ color: "var(--ink-faded)", letterSpacing: "0.3em" }}
@@ -106,7 +101,10 @@ export default function JournalDrawer() {
               className="flex items-center gap-2 w-full mb-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
               style={{ color: "var(--ink-faded)" }}
             >
-              <span className="font-display text-[10px] uppercase" style={{ letterSpacing: "0.25em" }}>
+              <span
+                className="font-display text-[10px] uppercase"
+                style={{ letterSpacing: "0.25em" }}
+              >
                 Completed Deeds
               </span>
               <span className="font-body text-xs">({completedQuests.length})</span>
@@ -123,7 +121,11 @@ export default function JournalDrawer() {
       {/* Footer count */}
       <div
         className="mt-auto pt-4 font-display text-[9px] uppercase text-center"
-        style={{ color: "var(--ink-faded)", letterSpacing: "0.2em", borderTop: "1px solid var(--gold-deep)" }}
+        style={{
+          color: "var(--ink-faded)",
+          letterSpacing: "0.2em",
+          borderTop: "1px solid var(--gold-deep)",
+        }}
       >
         {activeQuests.length} active · {completedQuests.length} completed
       </div>

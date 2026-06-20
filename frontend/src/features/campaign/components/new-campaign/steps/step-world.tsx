@@ -1,12 +1,5 @@
 import { motion } from "framer-motion";
-import {
-  Castle,
-  ElvenCastle,
-  TowerFall,
-  Mountains,
-  DragonHead,
-  Compass,
-} from "react-game-icons";
+import { Castle, ElvenCastle, TowerFall, Mountains, DragonHead, Compass } from "react-game-icons";
 import type { TemplateOption } from "../../../../../shared/api/client";
 
 interface Props {
@@ -40,19 +33,13 @@ export default function StepWorld({ templates, isLoading, selectedTemplate, onSe
         >
           The World Awaits
         </h2>
-        <p
-          className="mt-2 font-body italic text-sm"
-          style={{ color: "var(--ink-secondary)" }}
-        >
+        <p className="mt-2 font-body italic text-sm" style={{ color: "var(--ink-secondary)" }}>
           Choose the realm in which thy tale shall be inscribed.
         </p>
       </div>
 
       {isLoading && (
-        <div
-          className="py-10 text-center font-body italic"
-          style={{ color: "var(--ink-faded)" }}
-        >
+        <div className="py-10 text-center font-body italic" style={{ color: "var(--ink-faded)" }}>
           Unfurling the atlas…
         </div>
       )}
@@ -82,9 +69,7 @@ export default function StepWorld({ templates, isLoading, selectedTemplate, onSe
               transition={{ type: "spring", stiffness: 300, damping: 22 }}
               className="relative p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
               style={{
-                background: selected
-                  ? "rgba(212, 175, 55, 0.12)"
-                  : "rgba(244, 232, 208, 0.04)",
+                background: selected ? "rgba(212, 175, 55, 0.12)" : "rgba(244, 232, 208, 0.04)",
                 border: `1px solid ${selected ? "var(--gold-bright)" : "var(--gold-deep)"}`,
                 boxShadow: selected ? "0 0 24px rgba(212,175,55,0.25)" : "none",
               }}
@@ -108,10 +93,7 @@ export default function StepWorld({ templates, isLoading, selectedTemplate, onSe
                   >
                     {t.name}
                   </h3>
-                  <p
-                    className="mt-1 font-body text-sm"
-                    style={{ color: "var(--ink-secondary)" }}
-                  >
+                  <p className="mt-1 font-body text-sm" style={{ color: "var(--ink-secondary)" }}>
                     {t.description}
                   </p>
                   <div

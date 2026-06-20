@@ -93,7 +93,9 @@ describe("useAuthFlow — login mode", () => {
     mockLogin.mockReturnValue(
       new Promise((resolve) => {
         resolveLogin = () =>
-          resolve({ data: { access_token: "a", refresh_token: "r", token_type: "bearer" } } as never);
+          resolve({
+            data: { access_token: "a", refresh_token: "r", token_type: "bearer" },
+          } as never);
       }),
     );
 

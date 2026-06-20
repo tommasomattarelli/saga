@@ -8,8 +8,7 @@ export function VignetteLayer() {
         inset: 0,
         zIndex: 1,
         pointerEvents: "none",
-        background:
-          "radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.45) 100%)",
+        background: "radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.45) 100%)",
       }}
     />
   );

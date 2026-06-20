@@ -14,7 +14,12 @@ const mockFlow = (over: Partial<ReturnType<typeof useAuthFlow>> = {}) =>
     ...over,
   });
 
-const renderForm = () => render(<MemoryRouter><RegisterForm /></MemoryRouter>);
+const renderForm = () =>
+  render(
+    <MemoryRouter>
+      <RegisterForm />
+    </MemoryRouter>,
+  );
 
 describe("RegisterForm", () => {
   it("renders the three fields and the submit button", () => {
@@ -32,9 +37,15 @@ describe("RegisterForm", () => {
     renderForm();
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "hero" } });
     fireEvent.change(screen.getByLabelText("Sigil (email)"), { target: { value: "h@x.io" } });
-    fireEvent.change(screen.getByLabelText("Word of Passage"), { target: { value: "longpassword" } });
+    fireEvent.change(screen.getByLabelText("Word of Passage"), {
+      target: { value: "longpassword" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Begin Thy Tale" }));
-    expect(submit).toHaveBeenCalledWith({ username: "hero", email: "h@x.io", password: "longpassword" });
+    expect(submit).toHaveBeenCalledWith({
+      username: "hero",
+      email: "h@x.io",
+      password: "longpassword",
+    });
   });
 
   it("renders the error message from the flow", () => {

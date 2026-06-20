@@ -7,7 +7,7 @@ describe("Drawer", () => {
     render(
       <Drawer open={true} onClose={() => {}} title="The Ledger">
         <p>Drawer content</p>
-      </Drawer>
+      </Drawer>,
     );
     expect(screen.getByText("The Ledger")).toBeInTheDocument();
     expect(screen.getByText("Drawer content")).toBeInTheDocument();
@@ -17,7 +17,7 @@ describe("Drawer", () => {
     render(
       <Drawer open={false} onClose={() => {}} title="Hidden">
         <p>Hidden content</p>
-      </Drawer>
+      </Drawer>,
     );
     expect(screen.queryByText("Hidden")).not.toBeInTheDocument();
   });
@@ -27,7 +27,7 @@ describe("Drawer", () => {
     render(
       <Drawer open={true} onClose={onClose} title="Closeable">
         content
-      </Drawer>
+      </Drawer>,
     );
     fireEvent.click(screen.getByRole("button", { name: /close drawer/i }));
     expect(onClose).toHaveBeenCalled();

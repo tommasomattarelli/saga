@@ -1,10 +1,18 @@
 # TODO — SAGA
 
-## roadmap / release
+## NOW / prossimi
+<!-- Lavoro attivo near-term: /catchup legge questa sezione, /wrap-up la aggiorna. Il resto del file e' backlog curato. -->
+[ ] installer: merge del branch su `main` (squash) — sblocca il bottone "Run" dello smoke (`workflow_dispatch`)
+[ ] installer: validare il ramo "auto-installa git/node/uv se mancanti" su VM/PC Windows VERGINE
 [ ] companion: implementarli
 [ ] versioning: al lancio si parte da 0.2.5? (allineare ai docs)
-[x] pipeline GitHub (CI) — fatto (`.github/workflows/ci.yml`: lint, unit, integration+playtest con service container pgvector, frontend, docker build-smoke, parse-check installer; nessuna API key, tutto mockato). CD/release ancora da fare (sarà `release.yml`)
 [ ] passare in rassegna le funzioni marcate #TODO nel codice (capire se servono)
+[ ] mypy backend: aggiungere `[tool.mypy]` + rendere verde, poi gateare su pre-push (oggi installato ma mai eseguito in CI, quindi escluso dagli hook)
+[ ] installare `gh` CLI (oggi assente: serve per aprire/validare PR)
+[ ] validare la CI del branch `feat/claude-skills` via PR (il nuovo `prettier --check` in CI non ha ancora girato — scatta solo su PR o push a `main`)
+
+## roadmap / release
+[x] pipeline GitHub (CI) — fatto (`.github/workflows/ci.yml`: lint, unit, integration+playtest con service container pgvector, frontend, docker build-smoke, parse-check installer; nessuna API key, tutto mockato). CD/release ancora da fare (sarà `release.yml`)
 
 ## frontend
 [x] refactor + analisi del frontend (come fatto per il backend) — fatto giu 2026 (branch refactor/frontend): god-file split, dead code 0, coverage ~95%, E2E mockato, guida in scratch/frontend/
@@ -16,8 +24,6 @@
 
 # ---- installer/CI: follow-up rimasti (giu 2026) ----
 [x] smoke E2E installer VERDE su Windows + Linux (`installer-smoke.yml`): bundle scaricato (gh), PG+pgvector provisionati, DB creato, backend su, SPA servita. Trigger TEMP gia' rimossi.
-[ ] NON ancora testato: il ramo "auto-installa git/node/uv se mancanti" (i runner CI e il PC di dev li hanno gia') -> serve una VM/PC Windows VERGINE per validarlo
-[ ] merge del branch su `main` (squash). Solo dopo `workflow_dispatch` mostra il bottone "Run" per lo smoke
 [ ] icona custom `saga.ico` per la shortcut desktop (polish; la shortcut funziona anche senza)
 [ ] CD: `release.yml` (build+publish immagini Docker su GHCR) quando ci sara una versione stabile
 

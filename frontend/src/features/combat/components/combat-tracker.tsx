@@ -87,10 +87,7 @@ function CombatantCard({
       </span>
       {/* HP bar */}
       <CombatHpBar current={combatant.hp} max={combatant.max_hp} isPlayer={isPlayer} />
-      <span
-        className="mt-0.5 font-body text-[10px]"
-        style={{ color: "var(--ink-faded)" }}
-      >
+      <span className="mt-0.5 font-body text-[10px]" style={{ color: "var(--ink-faded)" }}>
         {combatant.hp}/{combatant.max_hp}
       </span>
       {/* Your turn label */}

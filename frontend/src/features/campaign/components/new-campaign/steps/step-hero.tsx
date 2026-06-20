@@ -49,13 +49,10 @@ export default function StepHero({ form, selectedTemplate, onChange, onBack, onN
         >
           The Hero
         </h2>
-        <p
-          className="mt-2 font-body italic text-sm"
-          style={{ color: "var(--ink-secondary)" }}
-        >
+        <p className="mt-2 font-body italic text-sm" style={{ color: "var(--ink-secondary)" }}>
           Walking the paths of{" "}
-          <span style={{ color: "var(--gold-bright)" }}>{selectedTemplate.name}</span>
-          . Who dost thou become?
+          <span style={{ color: "var(--gold-bright)" }}>{selectedTemplate.name}</span>. Who dost
+          thou become?
         </p>
       </div>
 
@@ -82,9 +79,7 @@ export default function StepHero({ form, selectedTemplate, onChange, onBack, onN
                   className="relative p-3 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
                   style={{
                     border: `1px solid ${selected ? "var(--gold-bright)" : "var(--gold-deep)"}`,
-                    background: selected
-                      ? "rgba(212, 175, 55, 0.12)"
-                      : "rgba(244, 232, 208, 0.04)",
+                    background: selected ? "rgba(212, 175, 55, 0.12)" : "rgba(244, 232, 208, 0.04)",
                     boxShadow: selected ? "0 0 16px rgba(212,175,55,0.3)" : "none",
                   }}
                 >
@@ -158,15 +153,15 @@ export default function StepHero({ form, selectedTemplate, onChange, onBack, onN
             >
               {form.heroName || "The Stranger"}
             </div>
-            <div
-              className="font-body text-sm italic"
-              style={{ color: "var(--ink-secondary)" }}
-            >
+            <div className="font-body text-sm italic" style={{ color: "var(--ink-secondary)" }}>
               {preset.label}
             </div>
           </div>
 
-          <div className="flex items-center justify-between mb-3 font-body text-xs" style={{ color: "var(--ink-secondary)" }}>
+          <div
+            className="flex items-center justify-between mb-3 font-body text-xs"
+            style={{ color: "var(--ink-secondary)" }}
+          >
             <span>HP</span>
             <span style={{ color: "var(--gold-bright)" }}>
               {preset.baseHp} / {preset.baseHp}
@@ -192,10 +187,7 @@ export default function StepHero({ form, selectedTemplate, onChange, onBack, onN
                 >
                   {ability.slice(0, 3)}
                 </div>
-                <div
-                  className="font-display text-base"
-                  style={{ color: "var(--gold-bright)" }}
-                >
+                <div className="font-display text-base" style={{ color: "var(--gold-bright)" }}>
                   {score}
                 </div>
                 <div className="font-body text-[10px]" style={{ color: "var(--ink-secondary)" }}>
