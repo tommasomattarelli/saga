@@ -15,17 +15,43 @@ ADRs live in `docs/adr/NNNN-kebab-title.md`. The method is a **deep interview** 
 
 ## 1. The interview — the heart of this skill, go VERY deep
 
-This must be **thorough — much more thorough than feels necessary.** A shallow ADR is worse than none. One decision at a time:
+This must be **thorough — much more thorough than feels necessary.** A shallow ADR is worse than none: it launders an un-examined assumption into a "decision". Treat the interview as the real work; the written record is just its transcript.
 
-1. **Frame the problem first** — what exactly are we deciding, in which subsystem, what's at stake, what constraints bind it (self-hostable, BYOAK token cost, LangGraph/pgvector fit, std 14/15/19).
-2. **For every decision point, loop:**
-   - State the problem precisely.
-   - Lay out the **realistic options** (not strawmen) with their trade-offs.
-   - **The owner decides.** Never assume, never pick silently, never "fill in the obvious."
-   - **Immediately capture** the chosen option **and each rejected alternative WITH the reason it lost** — the Rejected-alternatives section is built here, live.
-   - Tag the outcome: **Decided** (settled), **Refined** (hardened later by research), or **TODO / Open assumption** (consciously deferred to implementation).
-3. **Probe relentlessly** — don't stop at the happy path. Push on: edge cases, failure modes, interactions with *other* ADRs and subsystems, per-turn cost, config knobs that should exist (std 14), and **contradictions between decisions already taken** (the 0008 interview caught A4-vs-F4 and D2-vs-F5 conflicts — actively hunt for these and resolve them with the owner).
-4. **Keep going until the decision space is genuinely exhausted.** Depth over speed. If the owner is deciding fast, slow down and surface the consequences they may not have weighed. Ask follow-ups. It is normal for a substantial ADR to take many rounds.
+### 1a. Frame the problem first
+
+Before any option, establish: what exactly are we deciding; in which subsystem; what's at stake if we get it wrong; what binds it (self-hostable, BYOAK per-turn token cost, LangGraph/pgvector fit, std 14/15/19); and **what is explicitly out of scope** (which other ADR owns it). Decompose the decision into its **sub-questions** up front — these become the checklist you must close, so none is silently skipped.
+
+### 1b. Per-decision loop
+
+For every sub-question, one at a time, in order:
+1. **State the problem precisely** — and why it isn't obvious.
+2. **Lay out the realistic options** — 2-4 genuine candidates with their trade-offs, never strawmen. If you only see one option, say so and stress-test it rather than rubber-stamping.
+3. **The owner decides.** Never assume, never pick silently, never "fill in the obvious." If the owner is unsure, give a recommendation *with* reasoning — but the call is theirs.
+4. **Capture live** — the chosen option AND each rejected alternative **with the reason it lost** (this builds the Rejected-alternatives section in real time, while the reasoning is fresh).
+5. **Tag the outcome** — **Decided** (settled), **Refined** (will be / was hardened by research), or **TODO / Open assumption** (consciously deferred to implementation, with a note on *what* must be resolved and *when*).
+
+### 1c. Probe checklist — interrogate every non-trivial decision against ALL of these
+
+Don't stop at the happy path. For each decision, actively ask:
+- **Data/schema impact** — new tables, JSONB shape, migration (std 15); does it break existing saves?
+- **Runtime cost** — per-turn token cost on BYOAK, latency, DB write pattern (recall 0008 C7: whole-column rewrite → TOAST write amplification). What scales badly?
+- **Failure modes** — what happens on error? Fail-fast, structured errors (std 6)? Silent-corruption risk (0008 F7: silent name resolution rejected for reject-with-candidates)?
+- **Config knobs (std 14)** — what tunable value must live in `saga.config.yaml`? Any open-ended loop/structure needing a hard cap (std 19)?
+- **Cross-ADR / cross-decision contradictions** — does this conflict with another ADR *or with a decision already taken in this interview*? The 0008 interview caught A4-vs-F4 and D2-vs-F5 — **actively hunt for these** and resolve them with the owner, don't paper over them.
+- **Reversibility** — how hard to undo later? Does it lock in a schema/dependency?
+- **Testability (std 11)** — what integration test would prove this decision correct?
+- **Security (std 16-18)** — if it touches auth/secrets/tokens.
+
+### 1d. Interview discipline
+
+- **One decision at a time. Never batch** a list of questions to "get through it faster" — batching loses the rejected-alternative reasoning.
+- **If the owner decides fast, slow down.** Restate the consequence they may not have weighed, then re-confirm. A fast "sure, option B" on a load-bearing choice is a flag, not a finish.
+- **Re-read periodically.** Every several decisions, re-scan the ones already taken and check the new one doesn't contradict them.
+- **Distinguish Decided-now vs deferred-TODO explicitly, every time** — never let an unresolved point masquerade as decided.
+
+### 1e. When is the interview done
+
+Only when **every sub-question from 1a is either Decided/Refined or an explicit TODO** — no silent gaps — and the rejected alternatives + risks are captured. Depth over speed; a substantial ADR taking many rounds is normal and correct. If in doubt, it is not done — ask another question.
 
 ## 2. Validation research — only if genuinely needed
 
