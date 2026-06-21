@@ -17,6 +17,6 @@ The End half of the Session Protocol, and the inverse of `/catchup`. **Interview
    - backend: `cd backend && uv run python -m pytest tests/unit --noconftest -q`
    - frontend: `cd frontend && npm run test -- --run` (one-shot; plain `npm run test` is vitest watch mode and will hang)
    If red, report the failure and ask whether to fix now or note it before committing — don't bury a red tree.
-6. **Commit the docs** — stage `CHANGELOG.md` + `TODO.md` (and any other doc touched here) and commit as `docs(session): wrap-up`. Conventional Commits, no co-author/tool trailers (per CLAUDE.md). Do not push — leave that to the user.
+6. **Commit the docs** — first **check you're not on `main`** (`git branch --show-current`); if you are, stop and branch before committing — session work lands via a feature branch + PR, never directly on `main` (CLAUDE.md Session Protocol). Then stage `CHANGELOG.md` + `TODO.md` (and any other doc touched here) and commit as `docs(session): wrap-up`. Conventional Commits, no co-author/tool trailers (per CLAUDE.md). Do not push — leave that to the user.
 
 Code changes from the session should already be committed one-per-logical-change during the session; this commit is only the closing doc/state update.

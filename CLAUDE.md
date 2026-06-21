@@ -66,7 +66,7 @@ Non-negotiable technical constraints. Referenced elsewhere by number — keep th
 Every working session follows the same ritual so state is never lost between them.
 
 - **Start** (`/catchup`): reconstruct state — skim `CHANGELOG.md` `[Unreleased]` and the `## NOW` items in `TODO.md`. Load the latest ADRs or `docs/AGENTIC_ARCHITECTURE.md` on demand (`/catchup deep`). Confirm the tree is green before changing anything.
-- **During**: one commit per logical change (standard 10). Add a `CHANGELOG.md` `[Unreleased]` entry in the same commit. Any architectural decision → a new ADR in `docs/adr/` in that same commit (docs-as-code).
+- **During**: work on a **feature branch, never commit directly to `main`** — branch at the first commit of the session (`/catchup` already surfaces the current branch at Start; if it's `main`, branch before changing anything). Land work via PR, as the git history does. Then: one commit per logical change (standard 10); add a `CHANGELOG.md` `[Unreleased]` entry in the same commit; any architectural decision → a new ADR in `docs/adr/` in that same commit (docs-as-code).
 - **End** (`/wrap-up`): ensure `[Unreleased]` reflects what shipped, move/tick the corresponding `TODO.md` items, and leave the suite green. Run unit + integration/playtest before declaring the session done.
 
 ## Commit Convention

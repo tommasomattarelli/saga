@@ -64,6 +64,15 @@ predating this file live in `docs/archive/changelog/`.
   the app); the stale `REDIS_URL` entry was also dropped from `.env.example`.
 
 ### Changed
+- ADR 0009 (NPC enrichment) expanded from a "WIP, nothing decided" stub to **Proposed**
+  via a design interview grounded in the live code. Decided: split the overloaded NPC
+  `status` into `lifecycle` `{alive,dead,removed}` (engine-owned) + a DM-owned `condition`
+  descriptor, eliminating the redundant `is_dead` reader; `update_npc` as an upsert tool
+  that **excludes** disposition (kept with ADR 0005) and gates writes through an exhaustive
+  whitelist⊎blacklist partition + an exhaustiveness test; removed-NPC re-entry as a
+  `lifecycle` value (no separate archive store). Boundaries drawn to ADR 0002/0005/0006 and
+  the previously-silent ADR 0008 seam (`location` address deferred to 0008-J-iii). Surfaced
+  that NPC death/removal is currently read-only scaffolding with no writer.
 - `Makefile` made cross-platform: detects the OS and uses PowerShell on Windows
   and `sh` elsewhere (the `test-all` env-var injection and `clean` cache removal
   branch per shell). Windows behaviour is unchanged; Linux/macOS contributors can
