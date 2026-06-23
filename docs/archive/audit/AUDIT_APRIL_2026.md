@@ -1,8 +1,8 @@
 # Audit SAGA — Aprile 2026
 
-**Data**: 2026-04-22  
-**Branch**: `refactor`  
-**Scope**: Backend (`app/`), Frontend (`frontend/src/`), Test suite, Lint, SOTA research  
+**Data**: 2026-04-22
+**Branch**: `refactor`
+**Scope**: Backend (`app/`), Frontend (`frontend/src/`), Test suite, Lint, SOTA research
 **Auditato da**: saga-audit team (backend-auditor, frontend-auditor, test-runner, web-scout, doc-writer)
 
 ---
