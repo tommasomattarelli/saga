@@ -446,8 +446,8 @@ flowchart LR
     LOW & MED & HIGH --> MC["ModelConfig\nprovider · model\ntemperature · max_tokens"]
 ```
 
-High-importance keywords (+2): `attack`, `fight`, `confront`, `betray`, `confess`, `reveal`, `final`  
-Low-importance keywords (-2): `look around`, `rest`, `wait`, `inventory`, `check`  
+High-importance keywords (+2): `attack`, `fight`, `confront`, `betray`, `confess`, `reveal`, `final`
+Low-importance keywords (-2): `look around`, `rest`, `wait`, `inventory`, `check`
 Active combat: +2
 
 Configured in `saga.config.yaml` under `dm_narration.low|medium|high`.
@@ -554,7 +554,7 @@ The structural debt previously tracked here was cleared in the June 2026 refacto
 - The DB session lifecycle was fixed — short sessions only, none spanning the LLM call (see ADR 0001).
 - `MEANINGFUL_TOOLS` now lives once in `app/ai/tools/dm_tools.py` and is imported by the graph (single source of truth).
 
-See [`../CHANGELOG.md`](../CHANGELOG.md) and [`archive/AUDIT_APRIL_2026.md`](archive/AUDIT_APRIL_2026.md) for the full record.
+See [`../CHANGELOG.md`](../CHANGELOG.md) and [`archive/audit/AUDIT_APRIL_2026.md`](archive/audit/AUDIT_APRIL_2026.md) for the full record.
 
 ---
 

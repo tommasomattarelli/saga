@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This log is curated by hand — it is not a dump of `git log`. Add entries under
 `[Unreleased]` as you work; on release, replace `[Unreleased]` with the version
-and date and open a fresh `[Unreleased]` on top. Historical session/sprint notes
-predating this file live in `docs/archive/changelog/`.
+and date and open a fresh `[Unreleased]` on top. Versions older than the last
+1–2 are archived per-file under `docs/archive/changelog/`.
 
 ## [Unreleased]
 
