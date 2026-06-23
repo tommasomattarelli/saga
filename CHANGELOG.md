@@ -12,3 +12,12 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 `[Unreleased]` is reset; this root file keeps only `[Unreleased]`.
 
 ## [Unreleased]
+
+### Highlights
+
+- [Installer] Each release now attaches the install scripts (`install_saga.bat`, `install_saga.sh`) as downloadable assets, so a non-technical user can grab the installer straight from a specific release page.
+
+### Internal
+
+#### Added
+- `release.sh` uploads the two installer scripts as release assets after creating the GitHub Release (`gh release upload`), reflected in the `--dry-run` command preview.
