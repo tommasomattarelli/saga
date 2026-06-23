@@ -118,6 +118,38 @@ class TestHandleDice:
 
         assert captured_modifier["value"] == 3
 
+    def test_full_name_ability_key_from_frontend(self):
+        # The frontend persists abilities under full lowercase names ("dexterity"),
+        # while request_dice passes the abbreviation ("DEX"): the reader must bridge.
+        from app.core.dm.dm_tools_executor import _handle_dice
+
+        mock_roll = MagicMock()
+        mock_roll.expression = "1d20+3"
+        mock_roll.rolls = [10]
+        mock_roll.modifier = 3
+        mock_roll.total = 13
+
+        mock_dice_result = {
+            "roll": mock_roll,
+            "success": True,
+            "outcome": "success",
+            "is_critical": False,
+        }
+
+        captured_modifier = {}
+
+        def mock_ability_check(modifier, dc):
+            captured_modifier["value"] = modifier
+            return mock_dice_result
+
+        with patch("app.core.dm.dm_tools_executor.ability_check", side_effect=mock_ability_check):
+            # dexterity 16 → modifier = (16-10)//2 = 3
+            args = {"dc": 10, "stat": "DEX"}
+            char_data = {"abilities": {"dexterity": 16}}
+            _handle_dice(args, char_data, step=0, narration_segments=[])
+
+        assert captured_modifier["value"] == 3
+
     def test_segment_dice_is_populated(self):
         from app.core.dm.dm_tools_executor import _handle_dice
 
