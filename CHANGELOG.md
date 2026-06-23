@@ -13,6 +13,26 @@ predating this file live in `docs/archive/changelog/`.
 ## [Unreleased]
 
 ### Added
+- ADR 0010 (player-character customization) advanced from a "WIP, nothing decided" stub to
+  **Proposed**, via the 2026-06-23 design interview grounded in live code + direct in-game
+  observation of Voyage (`voyage.md` §3bis). Defines a **per-world rulebook** (a top-level
+  `rulebook/` collection in the World, frozen `rulebook` JSONB column) owning the
+  character-system kinds (Attribute/Resource/Skill/generic Trait-bundle, category=folder); a
+  **unified modifier-layer model** (one mechanism for creation bundles + buffs/status/
+  circumstance); **skill progression** (XP auto-granted on the roll, scaled by outcome tier,
+  curve/cap in the rulebook); the **resolution seam with 0003** (`request_dice` reworked to
+  carry a world-defined `skill|attribute` id, rulebook-weighted modifier formula, 0003 stays
+  agnostic); and a **typed `character_data`** with a compact per-turn prompt projection. The
+  cross-cutting principle **value→rulebook / guardrail→config** is recorded. Active abilities
+  were spun off to ADR 0012.
+- ADR 0012 (active abilities): the player-triggered "special move" system spun off from 0010 —
+  player-only trigger (the DM has no `use_ability` tool), cooldown in turns engine-enforced,
+  outcome adjudicated by DM+engine (not an auto-effect, so it can't bypass plot protection),
+  Power→effect deferred to ADR 0003, ability-point economy a TODO.
+- `voyage.md` §3bis: the Voyage **character model** captured from direct in-game observation
+  (new `[👁️ IN-GAME]` evidence level) — creation flow + a real Skyrim character sheet
+  (world-defined attributes/resources/skills-with-XP, race/class/talent/background modifier
+  bundles, active abilities with Power+Cooldown).
 - `installer-smoke.yml` workflow (manual `workflow_dispatch` + weekly schedule):
   end-to-end installer smoke on `windows-latest` (provisions the published bundle,
   starts the backend, probes `/`) and `ubuntu-latest` (PGDG apt + the sh installer).
@@ -64,6 +84,15 @@ predating this file live in `docs/archive/changelog/`.
   the app); the stale `REDIS_URL` entry was also dropped from `.env.example`.
 
 ### Changed
+- ADR 0009 (NPC enrichment) expanded from a "WIP, nothing decided" stub to **Proposed**
+  via a design interview grounded in the live code. Decided: split the overloaded NPC
+  `status` into `lifecycle` `{alive,dead,removed}` (engine-owned) + a DM-owned `condition`
+  descriptor, eliminating the redundant `is_dead` reader; `update_npc` as an upsert tool
+  that **excludes** disposition (kept with ADR 0005) and gates writes through an exhaustive
+  whitelist⊎blacklist partition + an exhaustiveness test; removed-NPC re-entry as a
+  `lifecycle` value (no separate archive store). Boundaries drawn to ADR 0002/0005/0006 and
+  the previously-silent ADR 0008 seam (`location` address deferred to 0008-J-iii). Surfaced
+  that NPC death/removal is currently read-only scaffolding with no writer.
 - `Makefile` made cross-platform: detects the OS and uses PowerShell on Windows
   and `sh` elsewhere (the `test-all` env-var injection and `clean` cache removal
   branch per shell). Windows behaviour is unchanged; Linux/macOS contributors can
