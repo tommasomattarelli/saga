@@ -204,6 +204,16 @@ async def tools_node(state: GameState) -> dict[str, Any]:
 
 # ── Private helpers ────────────────────────────────────────────────────────────
 
+# request_dice passes a 3-letter stat code; the frontend persists full lowercase names.
+_STAT_FULL_NAMES = {
+    "STR": "strength",
+    "DEX": "dexterity",
+    "CON": "constitution",
+    "INT": "intelligence",
+    "WIS": "wisdom",
+    "CHA": "charisma",
+}
+
 
 def _handle_dice(
     args: dict, char_data: dict, step: int, narration_segments: list[dict]
@@ -214,7 +224,8 @@ def _handle_dice(
     reason = args.get("reason", "")
 
     abilities = char_data.get("abilities", {})
-    stat_score = abilities.get(stat, abilities.get(stat.lower(), 10))
+    full = _STAT_FULL_NAMES.get(stat.upper(), stat.lower())
+    stat_score = abilities.get(full, abilities.get(stat, abilities.get(stat.lower(), 10)))
     modifier = (stat_score - 10) // 2
 
     dice_result = ability_check(modifier=modifier, dc=dc)
