@@ -94,7 +94,7 @@ Every working session follows the same ritual so state is never lost between the
 ## Documentation
 
 - **Where things go**: see [`docs/README.md`](docs/README.md) for the full map. Active docs use `UPPER_SNAKE_CASE.md`; ADRs use `NNNN-kebab-title.md`.
-- **CHANGELOG.md**: hand-curated ([Keep a Changelog](https://keepachangelog.com/) + SemVer), not a `git log` dump. Entries accrue under `[Unreleased]`, split into **`### Highlights`** (user-facing: UI/UX, gameplay, fixes — these become the GitHub Release notes) and **`### Internal`** (ADRs, CI, refactors). The root file keeps `[Unreleased]` + the last 1–2 versions; older versions move to `docs/archive/changelog/CHANGELOG-vX.Y.Z.md`.
+- **CHANGELOG.md**: hand-curated ([Keep a Changelog](https://keepachangelog.com/) + SemVer), not a `git log` dump. Entries accrue under `[Unreleased]`, split into **`### Highlights`** (user-facing: UI/UX, gameplay, fixes — these become the GitHub Release notes) and **`### Internal`** (ADRs, CI, refactors). The root file keeps `[Unreleased]`, without previous version; older versions move to `docs/archive/changelog/CHANGELOG-vX.Y.Z.md`.
 - **ADRs are append-only**: never edit an accepted decision — write a new one that supersedes it.
 - **Archive, don't delete**: superseded docs move to `docs/archive/`, keeping naming and history.
 
