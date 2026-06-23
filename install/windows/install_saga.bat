@@ -12,7 +12,7 @@ set "REPO=https://github.com/tommasomattarelli/saga.git"
 
 REM Release the installer checks out. Bumped per release (like the bundle URL).
 REM Override with: set SAGA_REF=<tag-or-branch> before running.
-set "REF=v0.1.0-beta.1"
+set "REF=v0.1.0-beta.2"
 if not "%SAGA_REF%"=="" set "REF=%SAGA_REF%"
 
 echo.
