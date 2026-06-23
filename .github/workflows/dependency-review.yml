@@ -1,0 +1,21 @@
+name: Dependency review
+
+# Dependency review is free only on public repos (else needs GitHub Advanced
+# Security). Guarded on visibility: skips while private, runs once public.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: Dependency review
+    if: github.event.repository.visibility == 'public'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
