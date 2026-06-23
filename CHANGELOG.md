@@ -12,7 +12,19 @@ and date and open a fresh `[Unreleased]` on top. Versions older than the last
 
 ## [Unreleased]
 
-### Added
+### Highlights
+
+- **Native no-Docker installer for casual users.** Double-click `install_saga.bat`
+  (Windows) and play: it provisions a portable Postgres+pgvector bundle, the app,
+  and a branded desktop shortcut, and starts/stops the database with the app.
+  Linux/macOS scripts included.
+- **Ability scores now affect dice checks** — previously every skill/ability check
+  rolled at a flat +0 regardless of your character's stats.
+- **The action input is capped at 500 characters** with a live counter near the limit.
+
+### Internal
+
+#### Added
 - ADR 0010 (player-character customization) advanced from a "WIP, nothing decided" stub to
   **Proposed**, via the 2026-06-23 design interview grounded in live code + direct in-game
   observation of Voyage (`voyage.md` §3bis). Defines a **per-world rulebook** (a top-level
@@ -79,11 +91,11 @@ and date and open a fresh `[Unreleased]` on top. Versions older than the last
   counterpart of the frontend `tsc` gate. A `vulture` dead-code scan likewise joins
   CI as the backend counterpart of the frontend `knip` gate (0 findings today).
 
-### Removed
+#### Removed
 - The unused `redis` dependency (no `redis_url` setting, no imports anywhere in
   the app); the stale `REDIS_URL` entry was also dropped from `.env.example`.
 
-### Changed
+#### Changed
 - ADR 0009 (NPC enrichment) expanded from a "WIP, nothing decided" stub to **Proposed**
   via a design interview grounded in the live code. Decided: split the overloaded NPC
   `status` into `lifecycle` `{alive,dead,removed}` (engine-owned) + a DM-owned `condition`
@@ -144,7 +156,7 @@ and date and open a fresh `[Unreleased]` on top. Versions older than the last
   `world_overlay`), the per-kind parameter model, living-world seeds, and the in-game
   editor; open TODOs catalogued. Research kept locally in `scratch/research/`.
 
-### Added
+#### Added
 - Frontend E2E golden path via Playwright (`e2e/golden-path.spec.ts`,
   login → campaigns → game) with `/api` mocked in-browser — no backend/Docker
   (F-L9, ADR 0011). A backend-real + Docker variant is deferred.
@@ -176,10 +188,7 @@ and date and open a fresh `[Unreleased]` on top. Versions older than the last
   `TODO.md` restructured with the derived backlog (keepers, fork follow-ups,
   deferred secondaries).
 
-### Fixed
-- Ability scores now affect dice checks. Previously every skill/ability check
-  rolled at a flat +0 regardless of the character's stats — the dice resolver
-  looked up ability scores under keys the character sheet never writes.
+#### Fixed
 - Frontend `tsc -b` (and `npm run build`) build break resolved properly: dropped
   the deprecated `baseUrl` (slated for removal in TS 7.0) and the unused `@/*`
   `paths` alias, so `ignoreDeprecations` is no longer needed at all — future-proof
@@ -192,7 +201,7 @@ and date and open a fresh `[Unreleased]` on top. Versions older than the last
 - Recall embedding is now computed before the turn's DB session opens, so no
   embedding API call runs inside an open session (B-M1, rule 15).
 
-### Removed
+#### Removed
 - Contract-orphaned frontend code removed (cross-stack audit): the
   `suggested_actions` turn field + its "Possibilities" chip UI (backend hardwires
   `None`, never emitted), and the `"companion"` `CombatantInfo` type variant
@@ -224,5 +233,3 @@ and date and open a fresh `[Unreleased]` on top. Versions older than the last
   was replaced by REST, and the tests only asserted tautological status codes.
 - Dead config fields with zero readers (`config.py` + `.env.example`):
   `cloudflare_r2_*`, `app_mode`, `default_language`, `telemetry_enabled`.
-
-### Security
