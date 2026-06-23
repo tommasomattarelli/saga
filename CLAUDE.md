@@ -82,10 +82,19 @@ Every working session follows the same ritual so state is never lost between the
 - **Never** add co-author trailers (`Co-Authored-By`, tool attribution, etc.). Plain messages only.
 - One logical change per commit (standard 10).
 
+## Versioning & Releases
+
+[SemVer](https://semver.org), still pre-1.0 (schema/API churns freely until `1.0.0`).
+
+- **Tags**: `v`-prefixed, on `main` only — `v0.2.5`, pre-releases `v0.2.5-beta.1` / `-rc.1` (mark them "pre-release" on GitHub).
+- **0.x bumps**: features *and* breaking changes → **minor** (`0.2`→`0.3`); bug fixes → **patch** (`0.2.5`→`0.2.6`).
+- **Branching**: GitHub Flow — short-lived `feat/*`/`fix/*` off `main`, squash-merge via PR. No long-lived `develop`/release branches; a release is a **tag on `main` after merge**, not a branch.
+- **Release**: promote `[Unreleased]` → `[vX.Y.Z]`, tag `main`, then a GitHub Release whose notes are the version's **user-facing** section only.
+
 ## Documentation
 
 - **Where things go**: see [`docs/README.md`](docs/README.md) for the full map. Active docs use `UPPER_SNAKE_CASE.md`; ADRs use `NNNN-kebab-title.md`.
-- **CHANGELOG.md**: hand-curated, [Keep a Changelog](https://keepachangelog.com/) + SemVer. Not a `git log` dump. Entries accrue under `[Unreleased]`.
+- **CHANGELOG.md**: hand-curated ([Keep a Changelog](https://keepachangelog.com/) + SemVer), not a `git log` dump. Entries accrue under `[Unreleased]`, split into **`### Highlights`** (user-facing: UI/UX, gameplay, fixes — these become the GitHub Release notes) and **`### Internal`** (ADRs, CI, refactors). The root file keeps `[Unreleased]` + the last 1–2 versions; older versions move to `docs/archive/changelog/CHANGELOG-vX.Y.Z.md`.
 - **ADRs are append-only**: never edit an accepted decision — write a new one that supersedes it.
 - **Archive, don't delete**: superseded docs move to `docs/archive/`, keeping naming and history.
 
