@@ -81,6 +81,10 @@ trim_blanks() {
   awk '{l[NR]=$0} END{s=1; while(s<=NR&&l[s]~/^[ \t]*$/)s++; e=NR; while(e>=s&&l[e]~/^[ \t]*$/)e--; for(i=s;i<=e;i++)print l[i]}'
 }
 
+# Collapse trailing blank lines to a single final newline — pre-commit's
+# end-of-file-fixer rejects (and rewrites) files that end with extra blanks.
+finalize_newline() { printf '%s\n' "$(cat "$1")" > "$1.tmp" && mv "$1.tmp" "$1"; }
+
 # Group "- [Area] text" bullets under "### Area" headers, canonical order first,
 # unknown areas appended (with a warning). The [Area] tag is stripped.
 awk '
@@ -108,10 +112,12 @@ sed -E 's/^#### /### /' "$int_block" | trim_blanks > "$int_promoted"
   if [ -s "$hl_grouped" ]; then printf '## Highlights\n\n'; cat "$hl_grouped"; printf '\n\n'; fi
   if [ -s "$int_promoted" ]; then printf '## Internal\n\n'; cat "$int_promoted"; printf '\n'; fi
 } > "$CHANGELOG_FILE"
+finalize_newline "$CHANGELOG_FILE"
 
 # --- reset [Unreleased] to empty (keep the preamble) ------------------------
 awk '/^## \[Unreleased\]/{print; print ""; exit} {print}' "$CHANGELOG" > "$CHANGELOG.tmp"
 mv "$CHANGELOG.tmp" "$CHANGELOG"
+finalize_newline "$CHANGELOG"
 
 # --- bump installer REF -----------------------------------------------------
 bat_expr='s/^set "REF=v[^"]*"/set "REF='"$TAG"'"/'
