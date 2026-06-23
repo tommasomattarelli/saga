@@ -21,7 +21,7 @@ jobs:
     name: Windows installer smoke
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Download bundle (gh — works on private repo)
         shell: pwsh
         env:
@@ -67,7 +67,7 @@ jobs:
     name: Linux installer smoke
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Add PGDG apt repo (Postgres 16 + pgvector)
         run: |
           sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'

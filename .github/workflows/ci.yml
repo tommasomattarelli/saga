@@ -15,7 +15,7 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
@@ -51,7 +51,7 @@ jobs:
     env:
       TEST_DATABASE_URL: postgresql+asyncpg://saga_test:saga_test@localhost:5432/saga_test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
@@ -72,7 +72,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -89,7 +89,7 @@ jobs:
     name: Docker build smoke
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: cp .env.example .env
       # Retry once: esbuild's postinstall can hit a transient ETXTBSY race on
       # Docker overlayfs during `npm ci`.
@@ -99,7 +99,7 @@ jobs:
     name: Installer scripts check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Parse-check PowerShell installer scripts (Windows)
         shell: pwsh
         run: |
