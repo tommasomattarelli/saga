@@ -2,15 +2,16 @@
 
 ## NOW / prossimi
 <!-- Lavoro attivo near-term: /catchup legge questa sezione, /wrap-up la aggiorna. Il resto del file e' backlog curato. -->
-[ ] installer: merge del branch su `main` (squash) — sblocca il bottone "Run" dello smoke (`workflow_dispatch`)
+[ ] **fix(dice) — ability scores INERTI in ogni check (mis-keying, bug LIVE nel playtest).** Decoupled da ADR 0010 (vedi `0010-H1`). PROBLEMA: il FE salva `character_data.abilities` con **nomi pieni lowercase** (`{strength:16, dexterity:12, …}`, `frontend/src/features/campaign/data/class-presets.ts`); ma il risolutore del dado `core/dm/dm_tools_executor.py:217` legge `abilities.get(stat, abilities.get(stat.lower(), 10))` con `stat` = `"DEX"`/`"STR"`/… → cerca `"DEX"` poi `"dex"`, **non matcha `"dexterity"`** → fallback a 10 → `modifier = (10-10)//2 = 0` **SEMPRE**. Quindi **ogni `request_dice` ignora gli ability score** (tira a +0). Per contrasto: `core/combat/combat_graph.py:35` legge `abilities.get("DEX", abilities.get("dexterity", 10))` → matcha (iniziativa combat ok); `ai/prompts/dm.py:71` legge flat `char_data["dex"]` → mai popolato → il blocco `<abilities>` non compare nel prompt. **Tre convenzioni divergenti.** FIX MINIMO: allineare il lettore del dado (e il blocco prompt) alle chiavi reali del FE (nomi pieni lowercase) o normalizzare a un punto unico. NB: throwaway quando `0010-F1` ritipizza `character_data` (Pydantic), ma è ~1 riga e sana un bug che falsa OGNI tiro. Aggiungere un test: `request_dice` su DEX alta → `modifier > 0`.
+[x] installer: merge del branch su `main` (squash) — sblocca il bottone "Run" dello smoke (`workflow_dispatch`)
 [ ] installer: validare il ramo "auto-installa git/node/uv se mancanti" su VM/PC Windows VERGINE
 [ ] companion: implementarli
 [ ] versioning: al lancio si parte da 0.2.5? (allineare ai docs)
 [ ] passare in rassegna le funzioni marcate #TODO nel codice (capire se servono)
 [x] mypy backend: `[tool.mypy]` + verde (82 file) + gateato su pre-push E in CI (branch `fix/mypy`, PR aperta) — plugin pydantic, override import `pgvector`, stub types; boundary SDK e `computed_field` con `# type: ignore[code]` mirati; forward-ref ORM via `TYPE_CHECKING` (giu 2026)
 [ ] vulture in CI (gate dead-code BE, speculare a knip FE): oggi 0 findings a `--min-confidence 80`. È euristico → se in futuro un falso positivo blocca una PR (route FastAPI, fixture pytest, `relationship` SQLAlchemy, attributi dinamici) NON abbassare la soglia: aggiungere un file whitelist vulture (equivalente di `knip.json`). Validare alla prima PR che tocca codice nuovo.
-[ ] installare `gh` CLI (oggi assente: serve per aprire/validare PR)
-[ ] validare la CI del branch `feat/claude-skills` via PR (il nuovo `prettier --check` in CI non ha ancora girato — scatta solo su PR o push a `main`)
+[x] installare `gh` CLI — fatto (giu 2026)
+[x] validare la CI del branch `feat/claude-skills` via PR (il nuovo `prettier --check` in CI non ha ancora girato — scatta solo su PR o push a `main`)
 
 ## roadmap / release
 [x] pipeline GitHub (CI) — fatto (`.github/workflows/ci.yml`: lint, unit, integration+playtest con service container pgvector, frontend, docker build-smoke, parse-check installer; nessuna API key, tutto mockato). CD/release ancora da fare (sarà `release.yml`)
