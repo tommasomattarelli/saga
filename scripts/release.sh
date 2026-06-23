@@ -56,6 +56,11 @@ BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 [ "$BRANCH" = "main" ] || guard "not on main (on '$BRANCH'); a release must run from main."
 [ -z "$(git status --porcelain)" ] || guard "working tree is dirty; commit or stash so the only diff is the release."
 
+# main must match origin/main, else the release commit won't fast-forward on push.
+git fetch --quiet origin main || guard "could not fetch origin/main to check sync."
+[ "$(git rev-parse main 2>/dev/null)" = "$(git rev-parse origin/main 2>/dev/null)" ] \
+  || guard "local main is not in sync with origin/main; run 'git checkout main && git pull' first."
+
 # --- paths & scratch --------------------------------------------------------
 DATE="$(date +%Y-%m-%d)"
 CHANGELOG="CHANGELOG.md"
