@@ -10,6 +10,11 @@ set "INSTALL_ROOT=%LOCALAPPDATA%\SAGA"
 set "APP_DIR=%INSTALL_ROOT%\app"
 set "REPO=https://github.com/tommasomattarelli/saga.git"
 
+REM Release the installer checks out. Bumped per release (like the bundle URL).
+REM Override with: set SAGA_REF=<tag-or-branch> before running.
+set "REF=v0.1.0-beta.1"
+if not "%SAGA_REF%"=="" set "REF=%SAGA_REF%"
+
 echo.
 echo ========================================
 echo   SAGA Installation
@@ -28,11 +33,12 @@ if errorlevel 1 (
 )
 
 if exist "%APP_DIR%\.git" (
-    echo Updating existing SAGA install...
-    git -C "%APP_DIR%" pull --ff-only
+    echo Updating existing SAGA install to %REF% ...
+    git -C "%APP_DIR%" fetch --tags origin
+    git -C "%APP_DIR%" checkout "%REF%"
 ) else (
-    echo Cloning SAGA into %APP_DIR% ...
-    git clone "%REPO%" "%APP_DIR%"
+    echo Cloning SAGA %REF% into %APP_DIR% ...
+    git clone --branch "%REF%" "%REPO%" "%APP_DIR%"
     if errorlevel 1 (
         echo ERROR: clone failed. Check your internet connection and try again.
         pause
