@@ -146,6 +146,7 @@ if [ "$DRY_RUN" = 1 ]; then
   else
     echo "gh release create \"$TAG\" --target main --title \"SAGA $TAG\" --notes-file <highlights>"
   fi
+  echo "gh release upload \"$TAG\" \"$BAT\" \"$SH\""
   echo "===== reverting (dry-run leaves no changes) ====="
   git checkout -- "$CHANGELOG" "$BAT" "$SH"
   rm -f "$CHANGELOG_FILE"
@@ -163,4 +164,5 @@ if [ "$PRERELEASE" = 1 ]; then
 else
   gh release create "$TAG" --target main --title "SAGA $TAG" --notes-file "$notes"
 fi
+gh release upload "$TAG" "$BAT" "$SH"
 echo "Released $TAG."
