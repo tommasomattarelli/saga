@@ -89,12 +89,14 @@ Every working session follows the same ritual so state is never lost between the
 - **Tags**: `v`-prefixed, on `main` only — `v0.2.5`, pre-releases `v0.2.5-beta.1` / `-rc.1` (mark them "pre-release" on GitHub).
 - **0.x bumps**: features *and* breaking changes → **minor** (`0.2`→`0.3`); bug fixes → **patch** (`0.2.5`→`0.2.6`).
 - **Branching**: GitHub Flow — short-lived `feat/*`/`fix/*` off `main`, squash-merge via PR. No long-lived `develop`/release branches; a release is a **tag on `main` after merge**, not a branch.
-- **Release**: promote `[Unreleased]` → `[vX.Y.Z]`, tag `main`, then a GitHub Release whose notes are the version's **user-facing** section only.
+- **Release notes**: regroup `[Unreleased]`'s `### Highlights` into user-facing prose grouped by **area → `New` / `Improvements` / `Bugfixes`** (areas: Gameplay · World & DM · UI · Installer · Memory & AI · Infra). Append `(@handle)` for outside contributors and `(#NN)` when the release closes an issue; `### Internal` is not published.
+- **Release flow**: write those grouped notes to `docs/archive/changelog/CHANGELOG-vX.Y.Z.md`, reset root `[Unreleased]` to empty, tag `main`, and publish a GitHub Release with the same notes (pre-release for beta/rc).
 
 ## Documentation
 
 - **Where things go**: see [`docs/README.md`](docs/README.md) for the full map. Active docs use `UPPER_SNAKE_CASE.md`; ADRs use `NNNN-kebab-title.md`.
-- **CHANGELOG.md**: hand-curated ([Keep a Changelog](https://keepachangelog.com/) + SemVer), not a `git log` dump. Entries accrue under `[Unreleased]`, split into **`### Highlights`** (user-facing: UI/UX, gameplay, fixes — these become the GitHub Release notes) and **`### Internal`** (ADRs, CI, refactors). The root file keeps `[Unreleased]`, without previous version; older versions move to `docs/archive/changelog/CHANGELOG-vX.Y.Z.md`.
+- **Issues vs `TODO.md`**: bugs and user reports → GitHub issues (a closing release tags them `(#NN)` in the notes); `TODO.md` stays the curated forward backlog — features, refactors, design directions.
+- **CHANGELOG.md**: hand-curated ([Keep a Changelog](https://keepachangelog.com/) + SemVer), not a `git log` dump. Entries accrue under `[Unreleased]`, split into **`### Highlights`** (user-facing: UI/UX, gameplay, fixes — regrouped into the release notes at release, see Versioning & Releases) and **`### Internal`** (ADRs, CI, refactors). The root file keeps only `[Unreleased]`; each released version moves to `docs/archive/changelog/CHANGELOG-vX.Y.Z.md`.
 - **ADRs are append-only**: never edit an accepted decision — write a new one that supersedes it.
 - **Archive, don't delete**: superseded docs move to `docs/archive/`, keeping naming and history.
 
