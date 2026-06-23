@@ -28,6 +28,10 @@ SAGA is an AI-driven tabletop RPG engine designed to replicate the infinite poss
 - **Up**: `make test-infra-up` (Test DB) | `docker-compose up -d` (Prod-like)
 - **Down**: `make test-infra-down` | `docker-compose down`
 
+### Release (maintainer)
+- **Preview**: `bash scripts/release.sh <version> --dry-run` (renders the changelog + diff + the exact git/gh commands, then reverts — no changes kept)
+- **Cut it**: `bash scripts/release.sh <version>` (from a clean `main`; e.g. `0.2.0` or `0.1.0-beta.2`)
+
 ## How We Work
 
 Four principles that bias toward caution over speed. For trivial tasks, use judgment.
@@ -89,14 +93,14 @@ Every working session follows the same ritual so state is never lost between the
 - **Tags**: `v`-prefixed, on `main` only — `v0.2.5`, pre-releases `v0.2.5-beta.1` / `-rc.1` (mark them "pre-release" on GitHub).
 - **0.x bumps**: features *and* breaking changes → **minor** (`0.2`→`0.3`); bug fixes → **patch** (`0.2.5`→`0.2.6`).
 - **Branching**: GitHub Flow — short-lived `feat/*`/`fix/*` off `main`, squash-merge via PR. No long-lived `develop`/release branches; a release is a **tag on `main` after merge**, not a branch.
-- **Release notes**: regroup `[Unreleased]`'s `### Highlights` into user-facing prose grouped by **area → `New` / `Improvements` / `Bugfixes`** (areas: Gameplay · World & DM · UI · Installer · Memory & AI · Infra). Append `(@handle)` for outside contributors and `(#NN)` when the release closes an issue; `### Internal` is not published.
-- **Release flow**: write those grouped notes to `docs/archive/changelog/CHANGELOG-vX.Y.Z.md`, reset root `[Unreleased]` to empty, tag `main`, and publish a GitHub Release with the same notes (pre-release for beta/rc).
+- **Release notes**: `release.sh` regroups `[Unreleased]`'s `### Highlights` **by area** — each bullet's `[Area]` tag becomes its `### <Area>` header (areas: Gameplay · World & DM · UI · Installer · Memory & AI · Infra). Append `(@handle)` for outside contributors and `(#NN)` when the release closes an issue; `### Internal` is not published.
+- **Release flow**: `scripts/release.sh <version> [--dry-run]` does it end-to-end — writes the grouped notes to `docs/changelog/CHANGELOG-vX.Y.Z.md`, resets root `[Unreleased]`, bumps the installer `REF`, then commits, tags `main`, and publishes the GitHub Release (pre-release for beta/rc). Run `--dry-run` first; manifest versions are deliberately not bumped (pre-release PEP440/npm divergence).
 
 ## Documentation
 
 - **Where things go**: see [`docs/README.md`](docs/README.md) for the full map. Active docs use `UPPER_SNAKE_CASE.md`; ADRs use `NNNN-kebab-title.md`.
 - **Issues vs `TODO.md`**: bugs and user reports → GitHub issues (a closing release tags them `(#NN)` in the notes); `TODO.md` stays the curated forward backlog — features, refactors, design directions.
-- **CHANGELOG.md**: hand-curated ([Keep a Changelog](https://keepachangelog.com/) + SemVer), not a `git log` dump. Entries accrue under `[Unreleased]`, split into **`### Highlights`** (user-facing: UI/UX, gameplay, fixes — regrouped into the release notes at release, see Versioning & Releases) and **`### Internal`** (ADRs, CI, refactors). The root file keeps only `[Unreleased]`; each released version moves to `docs/archive/changelog/CHANGELOG-vX.Y.Z.md`.
+- **CHANGELOG.md**: hand-curated ([Keep a Changelog](https://keepachangelog.com/) + SemVer), not a `git log` dump. Entries accrue under `[Unreleased]`, split into **`### Highlights`** (user-facing: UI/UX, gameplay, fixes — regrouped into the release notes at release, see Versioning & Releases) and **`### Internal`** (ADRs, CI, refactors). Highlights bullets are written `- [Area] text` (areas above) so `release.sh` can group them; `### Internal` takes free-form bullets (optionally `#### Added`/`Removed`/… subsections). The root file keeps only `[Unreleased]`; each released version moves to `docs/changelog/CHANGELOG-vX.Y.Z.md`.
 - **ADRs are append-only**: never edit an accepted decision — write a new one that supersedes it.
 - **Archive, don't delete**: superseded docs move to `docs/archive/`, keeping naming and history.
 
