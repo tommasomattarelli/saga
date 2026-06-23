@@ -26,7 +26,7 @@ Before any option, establish: what exactly are we deciding; in which subsystem; 
 For every sub-question, one at a time, in order:
 1. **State the problem precisely** — and why it isn't obvious.
 2. **Lay out the realistic options** — 2-4 genuine candidates with their trade-offs, never strawmen. If you only see one option, say so and stress-test it rather than rubber-stamping.
-3. **The owner decides.** Never assume, never pick silently, never "fill in the obvious." If the owner is unsure, give a recommendation *with* reasoning — but the call is theirs.
+3. **The owner decides — via the AskUserQuestion tool.** Never assume, never pick silently, never "fill in the obvious." **Put each fork to the owner with AskUserQuestion**: the 2-4 genuine options (step 2) as the tool's options, your recommendation **first** and tagged `(Recommended)`, each option's trade-off in its `description`, and an option `preview` whenever a concrete artifact helps compare (schema shape, formula, file layout, contract). Don't bury a load-bearing choice in prose. Prefer **more, sharper questions over fewer broad ones** — one fork per question. If the owner is unsure, give a recommendation *with* reasoning — but the call is theirs.
 4. **Capture live** — the chosen option AND each rejected alternative **with the reason it lost** (this builds the Rejected-alternatives section in real time, while the reasoning is fresh).
 5. **Tag the outcome** — **Decided** (settled), **Refined** (will be / was hardened by research), or **TODO / Open assumption** (consciously deferred to implementation, with a note on *what* must be resolved and *when*).
 
