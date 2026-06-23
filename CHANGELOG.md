@@ -177,6 +177,9 @@ and date and open a fresh `[Unreleased]` on top. Versions older than the last
   deferred secondaries).
 
 ### Fixed
+- Ability scores now affect dice checks. Previously every skill/ability check
+  rolled at a flat +0 regardless of the character's stats — the dice resolver
+  looked up ability scores under keys the character sheet never writes.
 - Frontend `tsc -b` (and `npm run build`) build break resolved properly: dropped
   the deprecated `baseUrl` (slated for removal in TS 7.0) and the unused `@/*`
   `paths` alias, so `ignoreDeprecations` is no longer needed at all — future-proof
