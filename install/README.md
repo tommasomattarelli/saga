@@ -52,6 +52,9 @@ install\build_bundle.ps1 `
 ```
 
 Then upload `saga-pg-bundle-pg16.zip` as a GitHub Release asset and use its URL.
+**At the same release**, bump `REF` in `windows/install_saga.bat` and
+`linux-macos/install_saga.sh` to the new tag — the installer checks out that ref
+(casual users get the published release, not `main`; override with `SAGA_REF`).
 Known-good sources (June 2026): PG 16.14 binaries from EDB, pgvector v0.8.2 for
 PG16 (`vector.v0.8.2-pg16.zip`).
 

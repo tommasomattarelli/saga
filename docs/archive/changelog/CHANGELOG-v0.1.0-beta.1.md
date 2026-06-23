@@ -151,6 +151,9 @@ First public beta of SAGA — an AI-driven tabletop RPG engine with an AI Dungeo
   `cloudflare_r2_*`, `app_mode`, `default_language`, `telemetry_enabled`.
 
 #### Changed
+- The casual installer checks out the pinned release tag (`REF`, default the current
+  release; override with `SAGA_REF`) instead of `main` HEAD, so users get the published
+  release rather than in-development code (`install_saga.bat` / `install_saga.sh`).
 - ADR 0009 (NPC enrichment) expanded from a "WIP, nothing decided" stub to **Proposed**
   via a design interview grounded in the live code. Decided: split the overloaded NPC
   `status` into `lifecycle` `{alive,dead,removed}` (engine-owned) + a DM-owned `condition`

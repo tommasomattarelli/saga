@@ -10,6 +10,8 @@ APP_PORT="${SAGA_APP_PORT:-8000}"
 NODE_VERSION="${SAGA_NODE_VERSION:-20.18.1}"
 NO_LAUNCH="${SAGA_NO_LAUNCH:-0}"
 REPO="https://github.com/tommasomattarelli/saga.git"
+# Release the installer checks out. Bumped per release. Override with SAGA_REF.
+REF="${SAGA_REF:-v0.1.0-beta.1}"
 
 step() { printf '\n==> %s\n' "$1"; }
 ok()   { printf '[OK] %s\n' "$1"; }
@@ -21,10 +23,12 @@ if [ "$FROM_LOCAL" = "1" ]; then
 else
   APP_DIR="$INSTALL_ROOT/app"
   if [ ! -d "$APP_DIR/.git" ]; then
-    step "Cloning SAGA into $APP_DIR"
-    git clone "$REPO" "$APP_DIR"
+    step "Cloning SAGA $REF into $APP_DIR"
+    git clone --branch "$REF" "$REPO" "$APP_DIR"
   else
-    git -C "$APP_DIR" pull --ff-only
+    step "Updating SAGA to $REF"
+    git -C "$APP_DIR" fetch --tags origin
+    git -C "$APP_DIR" checkout "$REF"
   fi
 fi
 [ -d "$APP_DIR/backend" ] || { echo "SAGA app not found at $APP_DIR"; exit 1; }
