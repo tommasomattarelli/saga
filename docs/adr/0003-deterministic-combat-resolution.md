@@ -48,6 +48,25 @@ fixed, difficulty comes from the character's modifier (the sheet), not an arbite
    enemy-damage codepath. The "agentic" part (deciding *what* an enemy does) stays
    separate from the deterministic "resolution" part (computing the *outcome*).
 
+## Coordination with ADR 0010 / 0012 (Refined 2026-06-23)
+
+The configurable character system (ADR 0010) makes this ADR's "modifier" source concrete,
+**without changing the resolution frame above**:
+
+- **Modifier source.** "character stat" (decision 1) generalizes to **the value produced by the
+  0010 character sheet** — `w_attr · attr_mod + w_skill · skill_mod(level)` plus the unified
+  modifier layers (creation bundles + buffs/status) — still summed with the bounded circumstance
+  modifier. **0003 stays agnostic** to how that value is composed; it receives a number.
+- **`request_dice` contract.** The `stat: STR|DEX|…` enum (`tools_special.py`) becomes
+  `skill | attribute: id` (world-defined ids, validated against the rulebook,
+  reject-with-candidates on unknown — 0010-E2). The engine resolves `skill → parent_attribute`
+  before producing the modifier.
+- **Ability Power (ADR 0012).** Active abilities are player-triggered "special moves"; their
+  **outcome is adjudicated through this resolver** (not an auto-effect). Mapping `Power →
+  outcome / server-side damage` is owned here — a TODO to settle when 0012 is built.
+
+Implementation order: this ADR (the resolution frame) lands **before** 0010's sheet plugs into it.
+
 ## Consequences
 
 - **Positive**: combat math is fully deterministic and auditable; the LLM's role
