@@ -187,6 +187,13 @@ world. Static richness now; life later.
   they cannot live inside an entity's file. They are a first-class top-level collection
   (`edges/…yaml`) referencing endpoint ids. (Prior art: NavMesh/graph-DB separate
   connectivity from scene hierarchy.)
+- **D2c — The character rulebook is a sibling top-level collection (Noted 2026-06-23, per ADR
+  0010-A2).** The World tree also carries a top-level `rulebook/` collection (attributes, skills,
+  and trait/ability categories-as-folders) — the per-world character rules — alongside
+  `regions/`, `edges/`, and `scenario.yaml`. Its **shape** is owned by **ADR 0010**; 0008 owns
+  only that it is an authored, instantiated-once asset (a **frozen `rulebook` JSONB store** at
+  runtime, mirroring the `world_baseline` lifecycle, C7), loaded by the same
+  directory-convention loader (D3, category = folder).
 - **D3 — Directory-convention loader, no manifest (Decided).** Folder structure + per-file
   `id` + `parent_id` (for the skip case) resolve the hierarchy; loader walks the tree
   (`rglob`), builds an `{id: node}` registry, and **eagerly detects duplicate ids**.
