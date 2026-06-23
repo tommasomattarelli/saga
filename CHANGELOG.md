@@ -14,4 +14,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ## [Unreleased]
 
 ### Internal
-- Supply-chain / security CI: Dependabot (`uv` backend, `npm` frontend, github-actions; weekly, grouped minor/patch) plus CodeQL code-scanning and a dependency-review gate on PRs. CodeQL + dependency-review are **guarded on repo visibility** — they skip while the repo is private (those features are free only on public repos) and activate automatically once it's public. Secret scanning + push protection are a repo setting to flip at go-public.
+- Supply-chain / security CI: Dependabot (`uv` backend, `npm` frontend, github-actions) — routine version updates as one grouped PR per ecosystem (weekly, low noise), plus Dependabot alerts + security updates **enabled** so CVE fixes open individually as soon as they land. CodeQL code-scanning and a dependency-review gate on PRs are **guarded on repo visibility** — they skip while the repo is private (free only on public repos) and activate automatically once it's public. Secret scanning + push protection remain a repo setting to flip at go-public.

@@ -1,27 +1,38 @@
+# Two channels:
+#  - Version updates (below): routine bumps, one grouped PR per ecosystem,
+#    weekly — low noise.
+#  - Security updates: enabled at the repo level (Dependabot alerts +
+#    security updates). They open as soon as a CVE affects a dependency and
+#    arrive INDIVIDUALLY (not grouped), so a critical fix is never blocked by
+#    a bundled breaking change.
 version: 2
 updates:
   - package-ecosystem: "uv"
     directory: "/backend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
     groups:
-      backend:
-        update-types: ["minor", "patch"]
+      all:
+        applies-to: version-updates
+        patterns:
+          - "*"
 
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
     groups:
-      frontend:
-        update-types: ["minor", "patch"]
+      all:
+        applies-to: version-updates
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     groups:
-      actions:
-        update-types: ["minor", "patch"]
+      all:
+        applies-to: version-updates
+        patterns:
+          - "*"
