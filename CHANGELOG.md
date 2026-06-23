@@ -12,3 +12,6 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 `[Unreleased]` is reset; this root file keeps only `[Unreleased]`.
 
 ## [Unreleased]
+
+### Internal
+- Supply-chain / security CI: Dependabot (`uv` backend, `npm` frontend, github-actions; weekly, grouped minor/patch) plus CodeQL code-scanning and a dependency-review gate on PRs. CodeQL + dependency-review are **guarded on repo visibility** — they skip while the repo is private (those features are free only on public repos) and activate automatically once it's public. Secret scanning + push protection are a repo setting to flip at go-public.
