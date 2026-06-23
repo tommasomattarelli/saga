@@ -90,10 +90,71 @@ and date and open a fresh `[Unreleased]` on top. Versions older than the last
   use `TYPE_CHECKING`. Enforced by a `backend-mypy` pre-push hook and in CI — the
   counterpart of the frontend `tsc` gate. A `vulture` dead-code scan likewise joins
   CI as the backend counterpart of the frontend `knip` gate (0 findings today).
+  - Frontend E2E golden path via Playwright (`e2e/golden-path.spec.ts`,
+  login → campaigns → game) with `/api` mocked in-browser — no backend/Docker
+  (F-L9, ADR 0011). A backend-real + Docker variant is deferred.
+- Frontend test coverage raised to ~95% (from ~82%): new tests for `NPCBubble`,
+  `Typewriter`, `ConfirmModal`, `MoodLayer` + atmospheric overlays, `RegisterForm`,
+  `JournalDrawer`, `App` ProtectedRoute redirect, and `SettingsDrawer`.
+- Coverage floor in `vite.config.ts` (`thresholds`) as an anti-regression gate,
+  ratcheted to 90/82/78/90 (current ~95/85/83/95). Remaining gaps: `client.ts`
+  401 interceptor and `turn-block` progressive-reveal branches.
+- Zustand stores (`game`, `auth`, `ui`) wrapped in the `devtools` middleware,
+  gated on `import.meta.env.DEV` (F-L2). `ThemeOverride` is now exported once from
+  `ui-store` and imported by `settings-drawer` instead of being re-declared (R-12).
+- ADRs 0007-0010 from the Voyage (Latitude/AI Dungeon) competitive analysis:
+  adopted directions in 0007 (hybrid state-audit pass — not full two-pass — and
+  maximum configurability of memory + per-subsystem models); WIP direction-setting
+  records for the multi-layer YAML world model + in-game editor (0008), NPC
+  enrichment (0009), and player-character customization (0010). 0009-0010 are WIP
+  (nothing decided, pending deep analysis); the source analysis is kept locally in
+  `scratch/research/`. (0008 has since been expanded — see Changed.)
+- Integration tests for the player-action endpoint's previously untested paths:
+  DM-graph failure → clean 500 with no half-written turn, missing/inactive
+  campaign guards, dice-roll flattening, and the background helpers'
+  commit/error-swallow behaviour (`turns.py` coverage 80% → 99%).
+- ADRs 0002-0006 from the multi-repo research session (NeverEndingQuest + 6 OS
+  projects): relationship graph + recall enrichment, deterministic combat
+  resolution (fixed thresholds + server-side damage + symmetric enemy/hero),
+  dm_core/game_system separation, multi-axis NPC psychology, and the v2.5 AI
+  Director layer. All `Proposed` (direction-setting, pre-implementation).
+  `TODO.md` restructured with the derived backlog (keepers, fork follow-ups,
+  deferred secondaries).
 
 #### Removed
 - The unused `redis` dependency (no `redis_url` setting, no imports anywhere in
   the app); the stale `REDIS_URL` entry was also dropped from `.env.example`.
+  - Contract-orphaned frontend code removed (cross-stack audit): the
+  `suggested_actions` turn field + its "Possibilities" chip UI (backend hardwires
+  `None`, never emitted), and the `"companion"` `CombatantInfo` type variant
+  (backend combat only emits `player`/`enemy`). `archetype` was checked and
+  **kept** — the FE-supplied value is persisted verbatim by the backend and drives
+  the campaign book-spine colour.
+- Frontend unused dependencies dropped: `@radix-ui/react-popover`, `clsx`,
+  `lucide-react` (zero imports in `src/`).
+- Frontend dead API/type surface removed: unused `schemas/campaign.ts`, the
+  never-called save/settings/export client functions (`getSaves`, `createSave`,
+  `loadSave`, `getSettings`, `updateApiKeys`, `exportCampaign`) and the orphaned
+  `SavePoint` interface.
+- Frontend module-private symbols un-exported (`CLASS_SPINE_COLORS`, `AuthLabel`,
+  `ClassPreset`, `clampPercent`, `JournalTurn`, i18n default), unused `abilityModNum`
+  helper deleted, narrowing each module's public surface to what is actually imported.
+- Frontend `schemas/turn.ts` sub-schemas un-exported (only `TurnResponseSchema`
+  is consumed externally); unused `TurnResponseParsed` and `DeathEvent` types removed.
+- `Modal` un-exported (used only internally by `ConfirmModal`). Frontend `knip`
+  now reports zero unused files/exports/dependencies.
+- Dead `diceAnimationEnabled` wiring removed (ui-store field/setter, dice-roller
+  branch, `saga.config.yaml` key): the F-L4 toggle was never given a UI control, so
+  the setter had zero callers and the skip-animation branch was unreachable. Dice
+  animation is now unconditional; re-add with a real settings toggle when wanted.
+- Residual function-level dead code: `ProcessedTurn`/`StreamEvent`
+  (`core/engine.py`, pre-LangGraph leftovers), `get_user_campaigns`/
+  `get_active_campaign` (`services/campaign_service.py`), and `register_provider`
+  (`ai/providers/base.py`) — all with zero callers.
+- Stale WebSocket integration tests (`test_websocket_sync.py`): the WS transport
+  was replaced by REST, and the tests only asserted tautological status codes.
+- Dead config fields with zero readers (`config.py` + `.env.example`):
+  `cloudflare_r2_*`, `app_mode`, `default_language`, `telemetry_enabled`.
 
 #### Changed
 - ADR 0009 (NPC enrichment) expanded from a "WIP, nothing decided" stub to **Proposed**
@@ -156,37 +217,6 @@ and date and open a fresh `[Unreleased]` on top. Versions older than the last
   `world_overlay`), the per-kind parameter model, living-world seeds, and the in-game
   editor; open TODOs catalogued. Research kept locally in `scratch/research/`.
 
-#### Added
-- Frontend E2E golden path via Playwright (`e2e/golden-path.spec.ts`,
-  login → campaigns → game) with `/api` mocked in-browser — no backend/Docker
-  (F-L9, ADR 0011). A backend-real + Docker variant is deferred.
-- Frontend test coverage raised to ~95% (from ~82%): new tests for `NPCBubble`,
-  `Typewriter`, `ConfirmModal`, `MoodLayer` + atmospheric overlays, `RegisterForm`,
-  `JournalDrawer`, `App` ProtectedRoute redirect, and `SettingsDrawer`.
-- Coverage floor in `vite.config.ts` (`thresholds`) as an anti-regression gate,
-  ratcheted to 90/82/78/90 (current ~95/85/83/95). Remaining gaps: `client.ts`
-  401 interceptor and `turn-block` progressive-reveal branches.
-- Zustand stores (`game`, `auth`, `ui`) wrapped in the `devtools` middleware,
-  gated on `import.meta.env.DEV` (F-L2). `ThemeOverride` is now exported once from
-  `ui-store` and imported by `settings-drawer` instead of being re-declared (R-12).
-- ADRs 0007-0010 from the Voyage (Latitude/AI Dungeon) competitive analysis:
-  adopted directions in 0007 (hybrid state-audit pass — not full two-pass — and
-  maximum configurability of memory + per-subsystem models); WIP direction-setting
-  records for the multi-layer YAML world model + in-game editor (0008), NPC
-  enrichment (0009), and player-character customization (0010). 0009-0010 are WIP
-  (nothing decided, pending deep analysis); the source analysis is kept locally in
-  `scratch/research/`. (0008 has since been expanded — see Changed.)
-- Integration tests for the player-action endpoint's previously untested paths:
-  DM-graph failure → clean 500 with no half-written turn, missing/inactive
-  campaign guards, dice-roll flattening, and the background helpers'
-  commit/error-swallow behaviour (`turns.py` coverage 80% → 99%).
-- ADRs 0002-0006 from the multi-repo research session (NeverEndingQuest + 6 OS
-  projects): relationship graph + recall enrichment, deterministic combat
-  resolution (fixed thresholds + server-side damage + symmetric enemy/hero),
-  dm_core/game_system separation, multi-axis NPC psychology, and the v2.5 AI
-  Director layer. All `Proposed` (direction-setting, pre-implementation).
-  `TODO.md` restructured with the derived backlog (keepers, fork follow-ups,
-  deferred secondaries).
 
 #### Fixed
 - Frontend `tsc -b` (and `npm run build`) build break resolved properly: dropped
@@ -200,36 +230,3 @@ and date and open a fresh `[Unreleased]` on top. Versions older than the last
   new-campaign, campaign-select, game-view); test-only, components unchanged.
 - Recall embedding is now computed before the turn's DB session opens, so no
   embedding API call runs inside an open session (B-M1, rule 15).
-
-#### Removed
-- Contract-orphaned frontend code removed (cross-stack audit): the
-  `suggested_actions` turn field + its "Possibilities" chip UI (backend hardwires
-  `None`, never emitted), and the `"companion"` `CombatantInfo` type variant
-  (backend combat only emits `player`/`enemy`). `archetype` was checked and
-  **kept** — the FE-supplied value is persisted verbatim by the backend and drives
-  the campaign book-spine colour.
-- Frontend unused dependencies dropped: `@radix-ui/react-popover`, `clsx`,
-  `lucide-react` (zero imports in `src/`).
-- Frontend dead API/type surface removed: unused `schemas/campaign.ts`, the
-  never-called save/settings/export client functions (`getSaves`, `createSave`,
-  `loadSave`, `getSettings`, `updateApiKeys`, `exportCampaign`) and the orphaned
-  `SavePoint` interface.
-- Frontend module-private symbols un-exported (`CLASS_SPINE_COLORS`, `AuthLabel`,
-  `ClassPreset`, `clampPercent`, `JournalTurn`, i18n default), unused `abilityModNum`
-  helper deleted, narrowing each module's public surface to what is actually imported.
-- Frontend `schemas/turn.ts` sub-schemas un-exported (only `TurnResponseSchema`
-  is consumed externally); unused `TurnResponseParsed` and `DeathEvent` types removed.
-- `Modal` un-exported (used only internally by `ConfirmModal`). Frontend `knip`
-  now reports zero unused files/exports/dependencies.
-- Dead `diceAnimationEnabled` wiring removed (ui-store field/setter, dice-roller
-  branch, `saga.config.yaml` key): the F-L4 toggle was never given a UI control, so
-  the setter had zero callers and the skip-animation branch was unreachable. Dice
-  animation is now unconditional; re-add with a real settings toggle when wanted.
-- Residual function-level dead code: `ProcessedTurn`/`StreamEvent`
-  (`core/engine.py`, pre-LangGraph leftovers), `get_user_campaigns`/
-  `get_active_campaign` (`services/campaign_service.py`), and `register_provider`
-  (`ai/providers/base.py`) — all with zero callers.
-- Stale WebSocket integration tests (`test_websocket_sync.py`): the WS transport
-  was replaced by REST, and the tests only asserted tautological status codes.
-- Dead config fields with zero readers (`config.py` + `.env.example`):
-  `cloudflare_r2_*`, `app_mode`, `default_language`, `telemetry_enabled`.
