@@ -27,6 +27,7 @@
 # ---- installer/CI: follow-up rimasti (giu 2026) ----
 [x] smoke E2E installer VERDE su Windows + Linux (`installer-smoke.yml`): bundle scaricato (gh), PG+pgvector provisionati, DB creato, backend su, SPA servita. Trigger TEMP gia' rimossi.
 [ ] icona custom `saga.ico` per la shortcut desktop (polish; la shortcut funziona anche senza)
+[ ] (terziario) installer: porta PG dinamica. Oggi `54320` e' hardcoded in `start_saga.ps1`/`install_saga.ps1` senza check ne' fallback; se un processo TERZO la occupa, `pg_ctl start` fallisce il bind ma e' un exe nativo -> non fa scattare `$ErrorActionPreference=Stop` -> lo script prosegue su uvicorn che poi non trova il DB (fallimento muto). FIX: sondare una porta libera all'avvio, scriverla nel `.env`, passarla a pg_ctl; messaggio chiaro se il bind fallisce. Loopback-only (no esposizione di rete) gia' ok. Raro (un orfano stessa-datadir si auto-cura via postmaster.pid) -> farlo alla prima issue utente o quando ci sono 5 min per testare.
 [ ] CD: `release.yml` (build+publish immagini Docker su GHCR) quando ci sara una versione stabile
 
 [ ] verificare che i push al frontend in dm_tools_executor siano fail-silent (un FE down non deve bloccare il loop DM) [spunto: open-tabletop-gm]
