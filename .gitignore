@@ -67,6 +67,3 @@ playwright-report/
 
 # ruff
 .ruff_cache/
-
-# scratch
-scratch/
