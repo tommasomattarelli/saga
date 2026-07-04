@@ -87,6 +87,17 @@ step "Ensuring Postgres 16 + pgvector..."
 if command -v brew >/dev/null 2>&1; then
   brew install postgresql@16 pgvector
 elif command -v apt-get >/dev/null 2>&1; then
+  # Distro default repos only ship their own Postgres major (bookworm=15,
+  # trixie=17, noble=16); pull pg16 uniformly from the PGDG apt repo.
+  if [ ! -f /etc/apt/sources.list.d/pgdg.list ]; then
+    step "Adding PostgreSQL APT repository (PGDG)..."
+    CODENAME="$(. /etc/os-release && echo "${VERSION_CODENAME:-}")"
+    [ -n "$CODENAME" ] || { echo "Cannot determine distro codename (/etc/os-release)."; exit 1; }
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+      | sudo tee /usr/share/keyrings/postgresql-pgdg.asc >/dev/null
+    echo "deb [signed-by=/usr/share/keyrings/postgresql-pgdg.asc] https://apt.postgresql.org/pub/repos/apt ${CODENAME}-pgdg main" \
+      | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+  fi
   sudo apt-get update
   sudo apt-get install -y postgresql-16 postgresql-16-pgvector
 else
