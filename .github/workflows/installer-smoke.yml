@@ -92,3 +92,33 @@ jobs:
           "$PGBIN/pg_ctl" -D "$PGDATA" -m fast -w stop || true
           [ "$ok" = "1" ] || { echo "Backend did not serve"; exit 1; }
           echo "[OK] backend served the SPA"
+
+  macos-smoke:
+    name: macOS installer smoke
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Homebrew is preinstalled on macOS runners; install_saga.sh uses the brew
+      # path (postgresql@16 + pgvector) — no PGDG/bundle needed here.
+      - name: Provision (install, no launch)
+        env:
+          SAGA_FROM_LOCAL: "1"
+          SAGA_NO_LAUNCH: "1"
+        run: bash install/linux-macos/install_saga.sh
+      - name: Smoke - start backend and probe /
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          PGBIN="$(brew --prefix postgresql@16)/bin"
+          PGDATA="$HOME/.local/share/saga/pgdata"  # SAGA_INSTALL_ROOT default
+          "$PGBIN/pg_ctl" -D "$PGDATA" -o "-p 54320 -k /tmp" -l /tmp/pg.log -w start
+          ( cd backend && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 ) &
+          UVPID=$!
+          ok=0
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:8000 >/dev/null 2>&1; then ok=1; break; fi
+            sleep 2
+          done
+          kill "$UVPID" 2>/dev/null || true
+          "$PGBIN/pg_ctl" -D "$PGDATA" -m fast -w stop || true
+          [ "$ok" = "1" ] || { echo "Backend did not serve"; exit 1; }
+          echo "[OK] backend served the SPA"
