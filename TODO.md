@@ -9,7 +9,7 @@
 [x] versioning: prima release **v0.1.0-beta.1** (manifest gia' a 0.1.0, nessun bump; SemVer + tag `v` + bump 0.x in CLAUDE.md). Tag dopo il merge di install-from-tag.
 [ ] passare in rassegna le funzioni marcate #TODO nel codice (capire se servono)
 [x] mypy backend: `[tool.mypy]` + verde (82 file) + gateato su pre-push E in CI (branch `fix/mypy`, PR aperta) — plugin pydantic, override import `pgvector`, stub types; boundary SDK e `computed_field` con `# type: ignore[code]` mirati; forward-ref ORM via `TYPE_CHECKING` (giu 2026)
-[ ] vulture in CI (gate dead-code BE, speculare a knip FE): oggi 0 findings a `--min-confidence 80`. È euristico → se in futuro un falso positivo blocca una PR (route FastAPI, fixture pytest, `relationship` SQLAlchemy, attributi dinamici) NON abbassare la soglia: aggiungere un file whitelist vulture (equivalente di `knip.json`). Validare alla prima PR che tocca codice nuovo.
+[x] vulture in CI (gate dead-code BE, speculare a knip FE): FATTO (commit a94f84e, `ci.yml:28` — `uv run vulture app --min-confidence 80`, verde, 0 findings). È euristico → se in futuro un falso positivo blocca una PR (route FastAPI, fixture pytest, `relationship` SQLAlchemy, attributi dinamici) NON abbassare la soglia: aggiungere un file whitelist vulture (equivalente di `knip.json`). Validare alla prima PR che tocca codice nuovo.
 [x] installare `gh` CLI — fatto (giu 2026)
 [x] validare la CI del branch `feat/claude-skills` via PR (il nuovo `prettier --check` in CI non ha ancora girato — scatta solo su PR o push a `main`)
 
@@ -44,7 +44,7 @@
 # ============================================================
 
 ## router / costi
-[ ] ATTIVARE il tiering del router: oggi importance_score e' hardcoded =5 (turns.py:91), quindi tutto il routing low/med/high di router.py e' inerte e paghi sempre il tier di default. aggiungere un pre-classificatore (mini-LLM o euristica) che deriva importance_score dall'azione del player. [spunto: NEQ action_predictor]
+[ ] **RIFARE `score_importance` (da analizzare per bene, studio dedicato).** PRECISAZIONE (la vecchia riga era sbagliata): il routing low/med/high NON e' inerte. `turns.py:91` `"importance_score": 5` e' solo il seed iniziale dello stato del grafo, **sovrascritto** da `context_node` (`core/dm/dm_nodes.py:64`) col valore calcolato da `score_importance` (`ai/context.py:182`); `route_ai_call` (`ai/router.py:210`) sceglie il tier proprio da quel valore. Quindi oggi il routing gira DAVVERO, ma sull'euristica keyword grezza di `score_importance` (`+2` su parole tipo attack/betray, `-2` su look-around/rest, `+2` in combat) — **troppo deterministica per un gioco in linguaggio naturale**. Serve un'analisi dedicata su come derivare l'importance in modo robusto: pre-classificatore (mini-LLM) o euristica migliore, con validazione su azioni reali. Decidere le meccaniche PRIMA di riscrivere. [spunto: NEQ action_predictor]
 
 ## memoria
 [ ] recall pgvector: usare come query "azione + ultimi N turni" invece della sola query nuda (semantic.py) [spunto: dnd-llm-game]
