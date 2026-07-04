@@ -4,6 +4,13 @@
 # (the Windows portable-bundle trick is Windows-specific); everything else matches.
 set -euo pipefail
 
+# initdb/pg_ctl refuse to run as root; fail fast before touching the system.
+if [ "$(id -u)" = "0" ]; then
+  echo "Do not run this installer as root. It uses sudo only for the Postgres package."
+  echo "Re-run as your normal user: bash install/linux-macos/install_saga.sh"
+  exit 1
+fi
+
 FROM_LOCAL="${SAGA_FROM_LOCAL:-0}"
 PG_PORT="${SAGA_PG_PORT:-54320}"
 APP_PORT="${SAGA_APP_PORT:-8000}"
