@@ -15,6 +15,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Highlights
 - [Installer] The native Linux installer now works on Debian and every Ubuntu release, not just Ubuntu 24.04: it adds the PostgreSQL PGDG apt repository so Postgres 16 + pgvector install uniformly regardless of the distro's default Postgres major (bookworm ships 15, trixie ships 17).
+- [Installer] macOS: pgvector is now built from source against `postgresql@16` (Homebrew's pgvector bottle targets a different Postgres major, so `CREATE EXTENSION vector` previously failed).
 - [Installer] The native Linux/macOS installer now fails fast with a clear message when run as root, instead of installing Postgres and then dying mid-way on `initdb` (which refuses to run as root).
 
 ### Internal
