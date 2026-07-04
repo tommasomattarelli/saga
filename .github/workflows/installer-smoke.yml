@@ -68,11 +68,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Add PGDG apt repo (Postgres 16 + pgvector)
-        run: |
-          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-          sudo apt-get update
+      # No manual PGDG setup: install_saga.sh now adds the PGDG repo itself, so
+      # this job exercises that logic end-to-end.
       - name: Provision (install, no launch)
         env:
           SAGA_FROM_LOCAL: "1"
