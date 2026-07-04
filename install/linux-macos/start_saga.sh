@@ -3,6 +3,12 @@
 # open the browser, stop Postgres on exit. Mirror of start_saga.ps1.
 set -euo pipefail
 
+# pg_ctl refuses to run as root; mirror the installer's guard.
+if [ "$(id -u)" = "0" ]; then
+  echo "Do not run SAGA as root. Re-run as your normal user: bash install/start_saga.sh"
+  exit 1
+fi
+
 PG_PORT="${SAGA_PG_PORT:-54320}"
 APP_PORT="${SAGA_APP_PORT:-8000}"
 export PATH="$HOME/.local/bin:$PATH"
