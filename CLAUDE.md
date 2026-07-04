@@ -103,6 +103,7 @@ Every working session follows the same ritual so state is never lost between the
 - **CHANGELOG.md**: hand-curated ([Keep a Changelog](https://keepachangelog.com/) + SemVer), not a `git log` dump. Entries accrue under `[Unreleased]`, split into **`### Highlights`** (user-facing: UI/UX, gameplay, fixes — regrouped into the release notes at release, see Versioning & Releases) and **`### Internal`** (ADRs, CI, refactors). Highlights bullets are written `- [Area] text` (areas above) so `release.sh` can group them; `### Internal` takes free-form bullets (optionally `#### Added`/`Removed`/… subsections). The root file keeps only `[Unreleased]`; each released version moves to `docs/changelog/CHANGELOG-vX.Y.Z.md`.
 - **ADRs are append-only**: never edit an accepted decision — write a new one that supersedes it.
 - **Archive, don't delete**: superseded docs move to `docs/archive/`, keeping naming and history.
+- Folder **scratch/** is for file that do not have to be committed, it is a standalone repo-submodule.
 
 ## File Locations
 - **Game Engine**: `backend/app/core/`
