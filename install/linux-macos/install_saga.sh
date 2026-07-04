@@ -4,10 +4,18 @@
 # (the Windows portable-bundle trick is Windows-specific); everything else matches.
 set -euo pipefail
 
+# initdb/pg_ctl refuse to run as root; fail fast before touching the system.
+if [ "$(id -u)" = "0" ]; then
+  echo "Do not run this installer as root. It uses sudo only for the Postgres package."
+  echo "Re-run as your normal user: bash install/linux-macos/install_saga.sh"
+  exit 1
+fi
+
 FROM_LOCAL="${SAGA_FROM_LOCAL:-0}"
 PG_PORT="${SAGA_PG_PORT:-54320}"
 APP_PORT="${SAGA_APP_PORT:-8000}"
 NODE_VERSION="${SAGA_NODE_VERSION:-20.18.1}"
+PGVECTOR_VERSION="${SAGA_PGVECTOR_VERSION:-0.8.4}"
 NO_LAUNCH="${SAGA_NO_LAUNCH:-0}"
 REPO="https://github.com/tommasomattarelli/saga.git"
 # Release the installer checks out. Bumped per release. Override with SAGA_REF.
@@ -78,8 +86,31 @@ find_pg_bin() {
 # may be missing even when Postgres itself is already present.
 step "Ensuring Postgres 16 + pgvector..."
 if command -v brew >/dev/null 2>&1; then
-  brew install postgresql@16 pgvector
+  brew install postgresql@16
+  # Homebrew's pgvector bottle targets the current default Postgres, not
+  # keg-only postgresql@16, so build the extension from source against pg16.
+  PG16_CONFIG="$(brew --prefix postgresql@16)/bin/pg_config"
+  if [ ! -f "$("$PG16_CONFIG" --sharedir)/extension/vector.control" ]; then
+    step "Building pgvector $PGVECTOR_VERSION for postgresql@16..."
+    PGV_SRC="$(mktemp -d)"
+    git clone --depth 1 --branch "v$PGVECTOR_VERSION" \
+      https://github.com/pgvector/pgvector.git "$PGV_SRC"
+    make -C "$PGV_SRC" PG_CONFIG="$PG16_CONFIG"
+    make -C "$PGV_SRC" install PG_CONFIG="$PG16_CONFIG"
+    rm -rf "$PGV_SRC"
+  fi
 elif command -v apt-get >/dev/null 2>&1; then
+  # Distro default repos only ship their own Postgres major (bookworm=15,
+  # trixie=17, noble=16); pull pg16 uniformly from the PGDG apt repo.
+  if [ ! -f /etc/apt/sources.list.d/pgdg.list ]; then
+    step "Adding PostgreSQL APT repository (PGDG)..."
+    CODENAME="$(. /etc/os-release && echo "${VERSION_CODENAME:-}")"
+    [ -n "$CODENAME" ] || { echo "Cannot determine distro codename (/etc/os-release)."; exit 1; }
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+      | sudo tee /usr/share/keyrings/postgresql-pgdg.asc >/dev/null
+    echo "deb [signed-by=/usr/share/keyrings/postgresql-pgdg.asc] https://apt.postgresql.org/pub/repos/apt ${CODENAME}-pgdg main" \
+      | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+  fi
   sudo apt-get update
   sudo apt-get install -y postgresql-16 postgresql-16-pgvector
 else

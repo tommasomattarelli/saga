@@ -179,10 +179,8 @@ async def build_context(
     )
 
 
-def score_importance(
-    player_action: str, campaign: Campaign
-) -> int:  # TODO: questa funzione serve a poco e sopr
-    """Score the importance of a scene (0-10) for model routing."""  # troppo deterministca per gioco in NL
+def score_importance(player_action: str, campaign: Campaign) -> int:
+    """Score the importance of a scene (0-10) for model routing."""
     score = 5
 
     action_lower = player_action.lower()
