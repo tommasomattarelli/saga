@@ -28,7 +28,7 @@ Legend: **Decided** · **Refined/TODO** (settled in the build).
 ### B. Foundation (tokens / fonts)
 - **B1 (Decided)** — Fonts: `@fontsource-variable/newsreader` (serif, narration — opsz axis, built for on-screen reading) + `@fontsource-variable/instrument-sans` (sans, UI — weights 400-700, no accidental thin text on dark). **Self-hosted / bundled, no CDN** (drops the Google Fonts `<link>`; offline-safe, fits self-host). Backup: Source Serif 4 + Inter.
 - **B2 (Decided)** — Neutral near-black palette per the a11y checklist: never pure black/white; bg ~`#121212–#1a1a1a`, text ~`#e0e0e0–#f0f0f0`; body ≥4.5:1 (aim 7:1 for long reads), UI/large ≥3:1; serif weight ≥400 on dark; reading measure 60-75ch; line-height 1.5-1.65. `750a2ac` landed starting values; final palette refined in build.
-- **B3 (Refined/TODO)** — Accent/signature: a **single cool "arcane" hue** (teal or violet) — differentiates from Voyage's warm gold, fits SAGA's AI/magic theme (there is already an `--arcane` token). **Exact hex chosen in the build.**
+- **B3 (Decided in build)** — Accent/signature: **verdigris `#8fb8ac`** (bright variant `#a9cec2`) — a desaturated oxidized-bronze green, ink-like rather than neon; picked by the owner over slate indigo after two mock rounds (first round teal/violet rejected as glowing "AI-slop"). Used sparingly: active nav, dice tier/verdict, primary action. Wired as `--accent`/`--accent-bright` with `--gold`/`--gold-bright` kept as aliases.
 
 ### C. Atmosphere
 - **C1 (Decided)** — **Strip it.** Remove the film-grain noise overlay, the vignette, and the 3D page-turn route transition; mood-layer off (or reduced to a near-invisible tint). Reversible if a touch is missed later.
