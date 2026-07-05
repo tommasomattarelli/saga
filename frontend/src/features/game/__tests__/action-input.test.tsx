@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ActionInput from "../components/action-input";
 import { useGameStore } from "../../../shared/stores/game-store";
@@ -8,30 +8,44 @@ beforeEach(() => {
 });
 
 describe("ActionInput", () => {
-  it("renders the input and Seal button", () => {
-    const onAction = vi.fn();
+  it("renders the input and Send button", () => {
+    const onAction = vi.fn().mockResolvedValue(undefined);
     render(<ActionInput onAction={onAction} />);
     expect(screen.getByRole("textbox")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Seal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send ↵" })).toBeInTheDocument();
   });
 
   it("calls onAction and clears input on submit", () => {
-    const onAction = vi.fn();
+    const onAction = vi.fn().mockResolvedValue(undefined);
     render(<ActionInput onAction={onAction} />);
 
     fireEvent.change(screen.getByRole("textbox"), {
       target: { value: "I search the room" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Seal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send ↵" }));
 
     expect(onAction).toHaveBeenCalledWith("I search the room");
     expect(screen.getByRole("textbox")).toHaveValue("");
   });
 
-  it("does not submit empty input", () => {
-    const onAction = vi.fn();
+  it("restores the typed text when the submit fails", async () => {
+    const onAction = vi.fn().mockRejectedValue(new Error("boom"));
     render(<ActionInput onAction={onAction} />);
-    fireEvent.click(screen.getByRole("button", { name: "Seal" }));
+
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "I search the room" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send ↵" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox")).toHaveValue("I search the room");
+    });
+  });
+
+  it("does not submit empty input", () => {
+    const onAction = vi.fn().mockResolvedValue(undefined);
+    render(<ActionInput onAction={onAction} />);
+    fireEvent.click(screen.getByRole("button", { name: "Send ↵" }));
     expect(onAction).not.toHaveBeenCalled();
   });
 
