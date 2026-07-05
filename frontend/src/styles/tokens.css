@@ -39,8 +39,7 @@
   --ink-draw: 500ms ease;
   --mood-crossfade: 1000ms ease-in-out;
 
-  /* --- fonts: normal & legible --- */
-  --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
-  --font-body: Georgia, "Times New Roman", serif;
+  /* --- fonts: sans UI chrome, serif narration --- */
+  --font-display: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Newsreader Variable", Georgia, serif;
 }
