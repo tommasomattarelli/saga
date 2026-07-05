@@ -21,7 +21,6 @@ export default function GameView() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const campaign = useGameStore((s) => s.campaign);
-  const currentMood = useGameStore((s) => s.currentMood);
   const combatState = useGameStore((s) => s.combatState);
 
   const sidePanel = useUIStore((s) => s.sidePanel);
@@ -60,16 +59,12 @@ export default function GameView() {
   const location = (campaign.world_state?.location as string | undefined) || "Unknown lands";
 
   return (
-    <div
-      className="flex h-screen"
-      data-mood={currentMood}
-      style={{ background: "var(--parchment-base)" }}
-    >
+    <div className="flex h-screen" style={{ background: "var(--parchment-base)" }}>
       {/* CombatTracker handles its own AnimatePresence — always render when state exists */}
       {combatState && <CombatTracker combatState={combatState} />}
 
       <div
-        className="mood-container flex flex-1 flex-col"
+        className="flex flex-1 flex-col"
         style={combatState ? { paddingBottom: "150px" } : undefined}
       >
         {/* Ornamental banner header */}

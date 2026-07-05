@@ -161,7 +161,6 @@ export default function TurnBlock({
   return (
     <motion.div
       className="mb-6"
-      data-mood={turn.scene_mood || "neutral"}
       variants={staggerChild}
       initial="hidden"
       animate="visible"

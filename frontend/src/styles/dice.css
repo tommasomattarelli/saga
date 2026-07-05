@@ -1,0 +1,67 @@
+/* Dice outcome colors — 6 tiers */
+.dice-critical_failure {
+  border-color: #991b1b;
+  background-color: rgba(127, 29, 29, 0.3);
+}
+
+.dice-hard_failure {
+  border-color: #b91c1c;
+  background-color: rgba(153, 27, 27, 0.2);
+}
+
+.dice-soft_failure {
+  border-color: #d97706;
+  background-color: rgba(146, 64, 14, 0.2);
+}
+
+.dice-partial_success {
+  border-color: #ca8a04;
+  background-color: rgba(133, 77, 14, 0.2);
+}
+
+.dice-full_success {
+  border-color: #16a34a;
+  background-color: rgba(22, 101, 52, 0.2);
+}
+
+.dice-critical_success {
+  border-color: #d4a017;
+  background-color: rgba(161, 130, 15, 0.3);
+  box-shadow: 0 0 12px rgba(212, 160, 23, 0.4);
+}
+
+/* Dice counter animation */
+@keyframes dice-counter {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.dice-counter-animate {
+  animation: dice-counter 0.15s ease-out;
+}
+
+.dice-final {
+  animation: dice-reveal 0.4s ease-out;
+}
+
+@keyframes dice-reveal {
+  0% {
+    transform: scale(1.3);
+  }
+  60% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
