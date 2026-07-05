@@ -18,7 +18,6 @@ describe("SettingsDrawer", () => {
     useUIStore.setState({
       sidePanel: "settings",
       soundEnabled: true,
-      themeOverride: "auto",
       fontSize: 18,
     });
     useAuthStore.setState({ user: { id: "u1", username: "hero", email: "h@x.io" } as User });
@@ -28,12 +27,6 @@ describe("SettingsDrawer", () => {
     renderDrawer();
     fireEvent.click(screen.getByRole("switch"));
     expect(useUIStore.getState().soundEnabled).toBe(false);
-  });
-
-  it("sets the theme override", () => {
-    renderDrawer();
-    fireEvent.click(screen.getByRole("button", { name: "dark" }));
-    expect(useUIStore.getState().themeOverride).toBe("dark");
   });
 
   it("updates the font size from the slider", () => {

@@ -118,22 +118,13 @@ function AnimatedRoutes() {
   );
 }
 
-/* Apply fontSize + themeOverride from UIStore to DOM */
+/* Apply fontSize from UIStore to DOM */
 function useDisplaySettings() {
   const fontSize = useUIStore((s) => s.fontSize);
-  const themeOverride = useUIStore((s) => s.themeOverride);
 
   useEffect(() => {
     document.documentElement.style.setProperty("--base-font-size", `${fontSize}px`);
   }, [fontSize]);
-
-  useEffect(() => {
-    if (themeOverride === "auto") {
-      document.documentElement.removeAttribute("data-theme-override");
-    } else {
-      document.documentElement.setAttribute("data-theme-override", themeOverride);
-    }
-  }, [themeOverride]);
 }
 
 export default function App() {

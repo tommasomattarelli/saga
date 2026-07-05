@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useUIStore, type ThemeOverride } from "../../../shared/stores/ui-store";
+import { useUIStore } from "../../../shared/stores/ui-store";
 import { useAuthStore } from "../../../shared/stores/auth-store";
 import { Drawer } from "../../../shared/ui/drawer";
 import { OrnamentDivider } from "../../../shared/ui/ornament-divider";
@@ -62,8 +62,6 @@ export default function SettingsDrawer() {
   const setSidePanel = useUIStore((s) => s.setSidePanel);
   const soundEnabled = useUIStore((s) => s.soundEnabled);
   const setSoundEnabled = useUIStore((s) => s.setSoundEnabled);
-  const themeOverride = useUIStore((s) => s.themeOverride);
-  const setThemeOverride = useUIStore((s) => s.setThemeOverride);
   const fontSize = useUIStore((s) => s.fontSize);
   const setFontSize = useUIStore((s) => s.setFontSize);
   const user = useAuthStore((s) => s.user);
@@ -118,29 +116,6 @@ export default function SettingsDrawer() {
 
       {/* Display */}
       <SectionHeader label="Display" />
-
-      {/* Theme override */}
-      <div className="mb-3">
-        <span className="font-body text-xs mb-1.5 block" style={{ color: "var(--ink-faded)" }}>
-          Theme
-        </span>
-        <div className="flex gap-2">
-          {(["auto", "light", "dark"] as ThemeOverride[]).map((opt) => (
-            <button
-              key={opt}
-              onClick={() => setThemeOverride(opt)}
-              className="flex-1 py-1.5 font-display text-[10px] uppercase tracking-grimoire focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright capitalize"
-              style={{
-                border: `1px solid ${themeOverride === opt ? "var(--gold-bright)" : "var(--gold-deep)"}`,
-                background: themeOverride === opt ? "rgba(212,175,55,0.12)" : "transparent",
-                color: themeOverride === opt ? "var(--gold-bright)" : "var(--ink-secondary)",
-              }}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Font size slider */}
       <div className="mb-1">

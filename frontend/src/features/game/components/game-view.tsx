@@ -1,5 +1,4 @@
 import { useRef, useState } from "react";
-import { useForcedTheme } from "../../../shared/hooks/use-forced-theme";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGameStore } from "../../../shared/stores/game-store";
 import { useUIStore } from "../../../shared/stores/ui-store";
@@ -27,8 +26,6 @@ export default function GameView() {
 
   const sidePanel = useUIStore((s) => s.sidePanel);
   const toggleSidePanel = useUIStore((s) => s.toggleSidePanel);
-
-  useForcedTheme("light");
 
   const { isLoading: isDataLoading } = useCampaignData(campaignId);
   const { mutation } = useSubmitAction(campaignId!, scrollRef);
