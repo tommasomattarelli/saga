@@ -17,9 +17,12 @@
   --line: #232a33;
   --line-strong: #313945;
 
-  /* --- accent: one restrained gold --- */
-  --gold: #d8a657;
-  --gold-bright: #e6bd74;
+  /* --- accent: verdigris, cool arcane (ADR 0013 B3) --- */
+  --accent: #8fb8ac;
+  --accent-bright: #a9cec2;
+  /* legacy names kept — most components still reference gold */
+  --gold: var(--accent);
+  --gold-bright: var(--accent-bright);
   /* repurposed to a neutral hairline (was dark gold): most 1px borders in the
      app were drawn with --gold-deep, so this neutralises them in one move. */
   --gold-deep: #242a32;
