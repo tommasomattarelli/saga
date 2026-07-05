@@ -16,7 +16,7 @@ describe("NarrativeStream Component", () => {
 
   it("should show empty state message when no turns", () => {
     render(<NarrativeStream />);
-    expect(screen.getByText("Thy adventure awaits…")).toBeInTheDocument();
+    expect(screen.getByText("The story hasn't started yet")).toBeInTheDocument();
   });
 
   it("should render turn history properly", async () => {
@@ -53,6 +53,6 @@ describe("NarrativeStream Component", () => {
   it("should use scrollRef when provided", () => {
     const scrollRef = React.createRef<HTMLDivElement | null>();
     render(<NarrativeStream scrollRef={scrollRef} />);
-    expect(screen.getByText("Thy adventure awaits…")).toBeInTheDocument();
+    expect(screen.getByText("The story hasn't started yet")).toBeInTheDocument();
   });
 });

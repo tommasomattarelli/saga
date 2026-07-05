@@ -10,21 +10,33 @@ export default function CompanionBar() {
   const companions = campaign.world_state.companions;
 
   return (
-    <div className="flex gap-2 border-b border-parchment-700/20 bg-parchment-900/80 px-4 py-2">
+    <div
+      className="flex gap-3 px-6 py-2"
+      style={{ background: "var(--parchment-aged)", borderBottom: "1px solid var(--line)" }}
+    >
       {Object.entries(companions).map(([key, c]) => {
-        const hpPercent = (c.hp / c.max_hp) * 100;
+        const hpPercent = Math.max(0, Math.min(100, (c.hp / c.max_hp) * 100));
 
         return (
-          <div
-            key={key}
-            className="flex items-center gap-2 rounded-lg border border-parchment-700/20 bg-parchment-800/30 px-3 py-1"
-          >
-            <div>
-              <span className="text-sm font-semibold text-parchment-200">{c.name}</span>
-              <span className="ml-2 text-xs text-parchment-500">{c.mood}</span>
-            </div>
-            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-parchment-800">
-              <div className="h-full rounded-full bg-red-600" style={{ width: `${hpPercent}%` }} />
+          <div key={key} className="flex items-center gap-2.5">
+            <span
+              className="font-display text-[13px] font-semibold"
+              style={{ color: "var(--ink-primary)" }}
+            >
+              {c.name}
+            </span>
+            <span className="font-display text-xs" style={{ color: "var(--ink-faded)" }}>
+              {c.mood}
+            </span>
+            <div
+              aria-label={`${c.name} HP ${c.hp} of ${c.max_hp}`}
+              className="h-1 w-14 overflow-hidden rounded-full"
+              style={{ background: "var(--line)" }}
+            >
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${hpPercent}%`, background: "var(--blood)" }}
+              />
             </div>
           </div>
         );

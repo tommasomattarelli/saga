@@ -26,13 +26,17 @@ export default {
           800: "#1a1e24",
           900: "#0f1216",
         },
+        accent: {
+          DEFAULT: "var(--accent)",
+          bright: "var(--accent-bright)",
+        },
         gold: {
           DEFAULT: "var(--gold)",
           bright: "var(--gold-bright)",
           deep: "var(--gold-deep)",
-          400: "#e6bd74",
-          500: "#d8a657",
-          600: "#b98a3f",
+          400: "#a9cec2",
+          500: "#8fb8ac",
+          600: "#6e9a8d",
         },
         blood: {
           DEFAULT: "var(--blood)",

@@ -17,9 +17,23 @@
     "processing": "The DM considers your action...",
     "turn": "Turn",
     "character": "Character",
+    "journal": "Journal",
     "quests": "Quests",
     "inventory": "Inventory",
-    "settings": "Settings"
+    "settings": "Settings",
+    "back_to_campaigns": "Campaigns",
+    "level_abbr": "Lv",
+    "chapter": "Chapter",
+    "day": "Day",
+    "send": "Send",
+    "continue": "Continue",
+    "input_hint": "Ctrl+↵ to send",
+    "reveal_dice": "Reveal the dice to continue",
+    "loading_campaign": "Loading your campaign…",
+    "dm_writing": "The DM is writing…",
+    "empty_title": "The story hasn't started yet",
+    "empty_hint": "Write your first action below.",
+    "history_error": "Couldn't load the story so far. Refresh the page to try again."
   },
   "campaign": {
     "new": "Begin a New Saga",
@@ -41,6 +55,6 @@
     "invalid_credentials": "Invalid credentials.",
     "request_failed": "Request failed. Check your details.",
     "server_error": "Server error. Please try again later.",
-    "action_failed": "The DM's quill falters. Try thy action anew."
+    "action_failed": "Your action didn't go through. Your text is kept — try again."
   }
 }
