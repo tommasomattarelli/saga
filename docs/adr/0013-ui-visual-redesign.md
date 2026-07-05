@@ -28,7 +28,7 @@ Legend: **Decided** · **Refined/TODO** (settled in the build).
 ### B. Foundation (tokens / fonts)
 - **B1 (Decided)** — Fonts: `@fontsource-variable/newsreader` (serif, narration — opsz axis, built for on-screen reading) + `@fontsource-variable/instrument-sans` (sans, UI — weights 400-700, no accidental thin text on dark). **Self-hosted / bundled, no CDN** (drops the Google Fonts `<link>`; offline-safe, fits self-host). Backup: Source Serif 4 + Inter.
 - **B2 (Decided)** — Neutral near-black palette per the a11y checklist: never pure black/white; bg ~`#121212–#1a1a1a`, text ~`#e0e0e0–#f0f0f0`; body ≥4.5:1 (aim 7:1 for long reads), UI/large ≥3:1; serif weight ≥400 on dark; reading measure 60-75ch; line-height 1.5-1.65. `750a2ac` landed starting values; final palette refined in build.
-- **B3 (Refined/TODO)** — Accent/signature: a **single cool "arcane" hue** (teal or violet) — differentiates from Voyage's warm gold, fits SAGA's AI/magic theme (there is already an `--arcane` token). **Exact hex chosen in the build.**
+- **B3 (Decided in build)** — Accent/signature: **verdigris `#8fb8ac`** (bright variant `#a9cec2`) — a desaturated oxidized-bronze green, ink-like rather than neon; picked by the owner over slate indigo after two mock rounds (first round teal/violet rejected as glowing "AI-slop"). Used sparingly: active nav, dice tier/verdict, primary action. Wired as `--accent`/`--accent-bright` with `--gold`/`--gold-bright` kept as aliases.
 
 ### C. Atmosphere
 - **C1 (Decided)** — **Strip it.** Remove the film-grain noise overlay, the vignette, and the 3D page-turn route transition; mood-layer off (or reduced to a near-invisible tint). Reversible if a touch is missed later.
@@ -37,7 +37,7 @@ Legend: **Decided** · **Refined/TODO** (settled in the build).
 - **D1 (Decided)** — **English-first, plain modern voice.** Re-voice the English copy (drop archaisms), and route hardcoded strings (e.g. `action-input.tsx` "What dost thou do?") through i18n. **Keep the i18n layer and the `it` locale** (Italian translation pass deferred — see debt below). Default language = English.
 
 ### E. Dice (the signature)
-- **E1 (Refined/TODO)** — **Bespoke, tier-based dice reveal** — deliberately NOT Voyage's plain "(Sneak, Easy): Great Success" text. **Prototype 2-3 variants in the build and pick visually.** Leading candidate: a "**tier arc**" — a slim inline gauge of the 6 outcome tiers, a marker snapping to the landed tier, raw d20 shown small, with a flashier split-flap flip reserved for the two crit tiers. Calm, always-legible, CSS-cheap, no full-screen interrupt.
+- **E1 (Decided in build)** — **Tier arc**, plain (no crit split-flap): a slim inline gauge of the 6 outcome tiers; click Roll → marker sweeps and lands on the outcome tier; raw roll + verdict beneath; success lands accent, failure blood; crits get typographic weight only. Owner-picked over ink-stamp card and "tier arc + split-flap on crits" mocks. Calm, always-legible, CSS-cheap, no full-screen interrupt.
 
 ### F. Brand mark
 - **F1 (Decided)** — Clean "SAGA" **wordmark** in the new sans; retire the ornate SagaSeal (which also carries a near-black rendering bug).
@@ -47,8 +47,7 @@ Invisible login inputs · semi-transparent character-modal layering · illegible
 
 ## Decided vs Open
 
-- **Decided**: A1–A5, B1–B2, C1, D1, F1.
-- **In-build TODO**: B3 (exact accent hue), E1 (dice-reveal variant).
+- **Decided**: A1–A5, B1–B2, C1, D1, F1; B3 (verdigris `#8fb8ac`) and E1 (tier arc) settled in the build.
 - **Out of scope / parked**: the **player-input-as-inspiration** gameplay model (raised during this interview — the DM reframes the player's action as an *attempt* with an always-uncertain outcome, input as inspiration not truth) → **its own future ADR**; it conflicts with the backlog's "WorldBuilder accept-not-reject / player co-author" direction and is a gameplay-mechanics call, not a UI one (closest existing: ADR 0003). Also parked: the **`getTurns` empty-render** functional bug (a 4-turn campaign renders the zero-turns empty state because the turns fetch no-ops silently and its error is never surfaced) — a data/fetch fix, adjacent but separate.
 
 ## Rejected alternatives

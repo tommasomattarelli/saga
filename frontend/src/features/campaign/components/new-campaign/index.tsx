@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useForcedTheme } from "../../../../shared/hooks/use-forced-theme";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -37,8 +36,6 @@ export default function NewCampaign() {
     background: "",
   });
   const [error, setError] = useState<string | null>(null);
-
-  useForcedTheme("dark");
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ["templates"],

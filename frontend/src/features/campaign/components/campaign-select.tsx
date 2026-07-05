@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useForcedTheme } from "../../../shared/hooks/use-forced-theme";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -140,8 +139,6 @@ export default function CampaignSelect() {
   const user = useAuthStore((s) => s.user);
   const deleteMutation = useDeleteCampaign();
   const [toDelete, setToDelete] = useState<Campaign | null>(null);
-
-  useForcedTheme("dark");
 
   const { data: campaigns, isLoading } = useQuery({
     queryKey: ["campaigns"],

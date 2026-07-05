@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { motion } from "framer-motion";
 import type { DiceRollResult, DiceOutcome } from "../../../shared/types";
 import { useUIStore } from "../../../shared/stores/ui-store";
 
@@ -10,25 +9,34 @@ interface DiceRollerProps {
   step?: number;
 }
 
+/* The six outcome tiers, worst → best; the arc renders them in this order */
+const TIER_ORDER: DiceOutcome[] = [
+  "critical_failure",
+  "hard_failure",
+  "soft_failure",
+  "partial_success",
+  "full_success",
+  "critical_success",
+];
+
 const OUTCOME_LABELS: Record<DiceOutcome, string> = {
-  critical_failure: "CRITICAL FAIL",
-  hard_failure: "FAILURE",
-  soft_failure: "NEAR MISS",
-  partial_success: "PARTIAL",
-  full_success: "SUCCESS",
-  critical_success: "CRITICAL!",
+  critical_failure: "Critical fail",
+  hard_failure: "Failure",
+  soft_failure: "Near miss",
+  partial_success: "Partial success",
+  full_success: "Success",
+  critical_success: "Critical success",
 };
 
-const COUNTER_DURATION_MS = 1500;
-const COUNTER_INTERVAL_MS = 60;
+const SWEEP_DURATION_MS = 1100;
+const SWEEP_INTERVAL_MS = 90;
 
-function isCrit(outcome?: DiceOutcome): "success" | "fail" | null {
-  if (outcome === "critical_success") return "success";
-  if (outcome === "critical_failure") return "fail";
-  return null;
+function outcomeOf(result: DiceRollResult): DiceOutcome {
+  return result.outcome ?? (result.success ? "full_success" : "hard_failure");
 }
 
-function SingleDice({
+/* Tier arc — all six outcomes visible as segments; the marker lands on the rolled tier */
+function TierArc({
   name,
   result,
   alwaysRevealed = false,
@@ -39,14 +47,16 @@ function SingleDice({
   alwaysRevealed?: boolean;
   onReveal?: () => void;
 }) {
-  const [displayValue, setDisplayValue] = useState<number | null>(
-    alwaysRevealed ? result.total : null,
-  );
   const [revealed, setRevealed] = useState(alwaysRevealed);
-  const [animating, setAnimating] = useState(false);
+  const [sweepIdx, setSweepIdx] = useState<number | null>(null);
   const soundEnabled = useUIStore((s) => s.soundEnabled);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const outcome = outcomeOf(result);
+  const tierIdx = TIER_ORDER.indexOf(outcome);
+  const isCrit = outcome === "critical_failure" || outcome === "critical_success";
+  const hitColor = result.success ? "var(--accent)" : "var(--blood)";
 
   const playSound = useCallback(() => {
     if (!soundEnabled) return;
@@ -60,23 +70,23 @@ function SingleDice({
   }, [soundEnabled]);
 
   const handleClick = useCallback(() => {
-    if (animating || revealed) return;
-
-    setAnimating(true);
+    if (revealed || sweepIdx !== null) return;
     playSound();
 
+    let idx = 0;
+    setSweepIdx(0);
     intervalRef.current = setInterval(() => {
-      setDisplayValue(Math.floor(Math.random() * 20) + 1);
-    }, COUNTER_INTERVAL_MS);
+      idx = (idx + 1) % TIER_ORDER.length;
+      setSweepIdx(idx);
+    }, SWEEP_INTERVAL_MS);
 
     timeoutRef.current = setTimeout(() => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      setDisplayValue(result.total);
+      setSweepIdx(null);
       setRevealed(true);
-      setAnimating(false);
       onReveal?.();
-    }, COUNTER_DURATION_MS);
-  }, [animating, revealed, result.total, playSound, onReveal]);
+    }, SWEEP_DURATION_MS);
+  }, [revealed, sweepIdx, playSound, onReveal]);
 
   useEffect(() => {
     return () => {
@@ -85,110 +95,78 @@ function SingleDice({
     };
   }, []);
 
-  const crit = revealed ? isCrit(result.outcome) : null;
-
-  /* Unrevealed — clickable sigil */
-  if (!revealed && !animating) {
+  /* Unrevealed — quiet clickable row */
+  if (!revealed && sweepIdx === null) {
     return (
       <button
         onClick={handleClick}
-        className="group inline-flex items-center gap-3 px-4 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
-        style={{
-          border: "1px solid var(--gold-deep)",
-          background: "rgba(212, 175, 55, 0.06)",
-        }}
+        className="flex w-full items-center justify-between rounded-lg px-4 py-2.5 transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+        style={{ border: "1px solid var(--line-strong)" }}
       >
         <span
-          className="font-display text-[10px] uppercase"
-          style={{ color: "var(--ink-faded)", letterSpacing: "0.2em" }}
+          className="font-display text-[11px] uppercase"
+          style={{ color: "var(--ink-faded)", letterSpacing: "0.12em" }}
         >
-          {name}
-          <span className="ml-2" style={{ opacity: 0.7 }}>
-            DC {result.dc}
-          </span>
+          {name} · DC {result.dc}
         </span>
-        <span
-          className="font-display text-base group-hover:scale-110 transition-transform"
-          style={{ color: "var(--gold-bright)" }}
-        >
-          Roll!
+        <span className="font-display text-[13px] font-semibold" style={{ color: "var(--accent)" }}>
+          Roll
         </span>
       </button>
     );
   }
 
-  const success = result.success;
+  const modifier =
+    result.modifier !== 0 ? ` ${result.modifier > 0 ? "+" : "−"} ${Math.abs(result.modifier)}` : "";
 
   return (
-    <motion.div
-      className="inline-flex items-center gap-3 px-4 py-2"
-      style={{
-        border: `1px solid ${success ? "var(--gold-bright)" : "var(--blood)"}`,
-        background: success ? "rgba(212, 175, 55, 0.1)" : "rgba(139, 0, 0, 0.08)",
-      }}
-      /* Crit screen-shake */
-      animate={crit ? { x: [0, -3, 3, -2, 2, 0], transition: { duration: 0.4 } } : undefined}
+    <div
+      className="py-3"
+      style={{ borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}
     >
-      <span
-        className="font-display text-[10px] uppercase"
-        style={{ color: "var(--ink-faded)", letterSpacing: "0.2em" }}
+      <div
+        className="mb-2.5 flex items-center justify-between font-display text-[11px] uppercase"
+        style={{ color: "var(--ink-faded)", letterSpacing: "0.12em" }}
       >
-        {name}
-      </span>
+        <span>{name}</span>
+        <span>DC {result.dc}</span>
+      </div>
 
-      {/* The rolled number */}
-      <span
-        className="font-display text-2xl font-bold"
-        style={{
-          color:
-            crit === "success"
-              ? "var(--gold-bright)"
-              : crit === "fail"
-                ? "var(--blood)"
-                : "var(--ink-primary)",
-        }}
-      >
-        {displayValue}
-      </span>
+      {/* The six tiers; the landed one rises in the outcome color */}
+      <div className="flex items-center gap-1" style={{ height: 10 }} aria-hidden="true">
+        {TIER_ORDER.map((tier, i) => {
+          const isHit = revealed && i === tierIdx;
+          const isSweep = !revealed && i === sweepIdx;
+          return (
+            <span
+              key={tier}
+              className="flex-1 rounded-sm transition-all duration-100"
+              style={{
+                height: isHit || isSweep ? 9 : 3,
+                background: isHit ? hitColor : isSweep ? "var(--ink-faded)" : "var(--line-strong)",
+              }}
+            />
+          );
+        })}
+      </div>
 
       {revealed && (
-        <>
-          <span className="font-body text-xs" style={{ color: "var(--ink-faded)" }}>
-            [{result.rolls.join(", ")}]
-            {result.modifier !== 0 && (
-              <>{result.modifier > 0 ? `+${result.modifier}` : result.modifier}</>
-            )}{" "}
-            vs DC {result.dc}
+        <p className="mt-2.5 font-display text-[13px]" style={{ color: "var(--ink-secondary)" }}>
+          <span style={{ color: "var(--ink-faded)" }}>
+            {result.rolls.join(" + ")}
+            {modifier} ={" "}
           </span>
+          <span style={{ color: "var(--ink-primary)" }}>{result.total}</span>
+          <span style={{ color: "var(--ink-faded)" }}> — </span>
           <span
-            className="font-display text-xs uppercase"
-            style={{
-              color: success ? "var(--gold-bright)" : "var(--blood)",
-              letterSpacing: "0.15em",
-            }}
+            className={isCrit ? "uppercase font-semibold" : "font-semibold"}
+            style={{ color: hitColor, letterSpacing: isCrit ? "0.06em" : undefined }}
           >
-            {result.outcome ? OUTCOME_LABELS[result.outcome] : success ? "SUCCESS" : "FAILURE"}
+            {OUTCOME_LABELS[outcome]}
           </span>
-        </>
+        </p>
       )}
-
-      {/* Ink-blot splash on crit */}
-      {crit && (
-        <motion.span
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 0.15 }}
-          transition={{ duration: 0.5 }}
-          className="absolute -inset-2 pointer-events-none"
-          style={{
-            borderRadius: "50%",
-            background:
-              crit === "success"
-                ? "radial-gradient(circle, var(--gold-bright), transparent 70%)"
-                : "radial-gradient(circle, var(--blood), transparent 70%)",
-          }}
-        />
-      )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -210,16 +188,15 @@ export default function DiceRoller({
   }, [total, onAllRevealed, step]);
 
   return (
-    <div className="my-4 flex flex-wrap gap-2">
+    <div className="my-5 space-y-2" style={{ maxWidth: "26rem" }}>
       {Object.entries(rolls).map(([name, result]) => (
-        <div key={name} className="relative">
-          <SingleDice
-            name={name}
-            result={result}
-            alwaysRevealed={alwaysRevealed}
-            onReveal={handleReveal}
-          />
-        </div>
+        <TierArc
+          key={name}
+          name={name}
+          result={result}
+          alwaysRevealed={alwaysRevealed}
+          onReveal={handleReveal}
+        />
       ))}
     </div>
   );
