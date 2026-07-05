@@ -1,6 +1,5 @@
 import { Fragment, useLayoutEffect, useCallback, useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { OrnamentDivider, turnDividerVariant } from "../../../shared/ui/ornament-divider";
 import DiceRoller from "./dice-roller";
 import NPCBubble from "./npc-bubble";
 import Typewriter from "./typewriter";
@@ -25,13 +24,13 @@ function DmParagraphs({
       {paragraphs.map((paragraph, i) => {
         const isFirst = i === 0 && dropCap;
         return (
-          <p key={i} className="mb-3 leading-relaxed">
+          <p key={i} className="mb-4" style={{ lineHeight: 1.62 }}>
             {isFirst && paragraph.length > 0 && (
               <span
-                className="float-left mr-2 font-display leading-none"
+                className="float-left mr-2 font-body leading-none"
                 style={{
                   fontSize: "3.2rem",
-                  color: "var(--gold-bright)",
+                  color: "var(--accent)",
                   lineHeight: 0.8,
                   marginTop: "0.1em",
                 }}
@@ -66,7 +65,7 @@ function SegmentView({
 
   return (
     <Fragment>
-      <div className="font-body text-base" style={{ color: "var(--ink-primary)" }}>
+      <div className="font-body text-lg" style={{ color: "var(--ink-primary)" }}>
         <DmParagraphs
           text={segment.text}
           useTypewriter={useTypewriter}
@@ -167,7 +166,13 @@ export default function TurnBlock({
       transition={{ duration: 0.5, ease: "easeOut" }}
     >
       {showDivider && (
-        <OrnamentDivider variant={turnDividerVariant(turn.turn_number)} className="!my-6" />
+        <div className="my-8 flex items-center gap-4" role="separator" aria-hidden="true">
+          <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+          <span className="font-display text-[11px]" style={{ color: "var(--ink-faded)" }}>
+            {turn.turn_number}
+          </span>
+          <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+        </div>
       )}
 
       {turn.player_action && <PlayerAction action={turn.player_action} />}
@@ -189,7 +194,7 @@ export default function TurnBlock({
         })
       ) : (
         <>
-          <div className="font-body text-base" style={{ color: "var(--ink-primary)" }}>
+          <div className="font-body text-lg" style={{ color: "var(--ink-primary)" }}>
             <DmParagraphs
               text={turn.narration}
               useTypewriter={isLatest && isFresh}
@@ -204,18 +209,6 @@ export default function TurnBlock({
             />
           )}
         </>
-      )}
-
-      {turn.scene_mood && turn.scene_mood !== "neutral" && (
-        <div
-          className="mt-3 font-display text-[9px] uppercase text-center"
-          style={{
-            color: "var(--ink-faded)",
-            letterSpacing: "0.3em",
-          }}
-        >
-          — {turn.scene_mood.replace(/_/g, " ")} —
-        </div>
       )}
     </motion.div>
   );

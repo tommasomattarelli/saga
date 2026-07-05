@@ -17,9 +17,23 @@
     "processing": "Il Dungeon Master considera la tua azione...",
     "turn": "Turno",
     "character": "Personaggio",
+    "journal": "Diario",
     "quests": "Missioni",
     "inventory": "Inventario",
-    "settings": "Impostazioni"
+    "settings": "Impostazioni",
+    "back_to_campaigns": "Campagne",
+    "level_abbr": "Lv",
+    "chapter": "Capitolo",
+    "day": "Giorno",
+    "send": "Invia",
+    "continue": "Continua",
+    "input_hint": "Ctrl+↵ per inviare",
+    "reveal_dice": "Rivela i dadi per continuare",
+    "loading_campaign": "Caricamento della campagna…",
+    "dm_writing": "Il DM sta scrivendo…",
+    "empty_title": "La storia non è ancora iniziata",
+    "empty_hint": "Scrivi la tua prima azione qui sotto.",
+    "history_error": "Impossibile caricare la storia. Ricarica la pagina per riprovare."
   },
   "campaign": {
     "new": "Inizia una Nuova Saga",
@@ -41,6 +55,6 @@
     "invalid_credentials": "Credenziali non valide.",
     "request_failed": "Richiesta fallita. Controlla i dati inseriti.",
     "server_error": "Errore del server. Riprova più tardi.",
-    "action_failed": "La penna del Dungeon Master vacilla. Riprova la tua azione."
+    "action_failed": "L'azione non è andata a buon fine. Il testo è ancora lì — riprova."
   }
 }

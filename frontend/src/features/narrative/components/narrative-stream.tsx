@@ -1,4 +1,5 @@
 import { useLayoutEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useGameStore } from "../../../shared/stores/game-store";
 import DmLoading from "./dm-loading";
 import PlayerAction from "./player-action";
@@ -11,6 +12,7 @@ export default function NarrativeStream({
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   actionError?: string | null;
 }) {
+  const { t } = useTranslation();
   const turnHistory = useGameStore((s) => s.turnHistory);
   const isLoading = useGameStore((s) => s.isLoading);
   const pendingAction = useGameStore((s) => s.pendingAction);
@@ -29,15 +31,12 @@ export default function NarrativeStream({
   return (
     <div aria-live="polite" aria-label="Narrative">
       {turnHistory.length === 0 && !isLoading && !pendingAction && (
-        <div className="py-16 text-center">
-          <p
-            className="font-display text-xl uppercase"
-            style={{ color: "var(--gold-bright)", letterSpacing: "0.25em" }}
-          >
-            Thy adventure awaits…
+        <div className="py-24 text-center">
+          <p className="font-display text-lg font-semibold" style={{ color: "var(--ink-primary)" }}>
+            {t("game.empty_title")}
           </p>
-          <p className="mt-3 font-body italic text-sm" style={{ color: "var(--ink-faded)" }}>
-            Inscribe thine action below to begin
+          <p className="mt-2 font-body italic text-base" style={{ color: "var(--ink-faded)" }}>
+            {t("game.empty_hint")}
           </p>
         </div>
       )}
@@ -63,14 +62,14 @@ export default function NarrativeStream({
 
       {actionError && !isLoading && (
         <div
-          className="mb-4 p-3 font-body text-sm italic"
+          role="alert"
+          className="mb-4 rounded-md px-4 py-3 font-display text-sm"
           style={{
-            border: "1px solid var(--blood)",
-            background: "rgba(139, 0, 0, 0.08)",
+            border: "1px solid var(--blood-dark)",
             color: "var(--blood)",
           }}
         >
-          ❧ {actionError}
+          {actionError}
         </div>
       )}
     </div>

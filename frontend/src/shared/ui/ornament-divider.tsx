@@ -36,10 +36,3 @@ export function OrnamentDivider({
     </div>
   );
 }
-
-/* Deterministic variant from a seed — used for turn dividers */
-const VARIANTS: FlourishVariant[] = ["flourish-a", "flourish-b", "flourish-c", "flourish-d"];
-
-export function turnDividerVariant(seed: number): FlourishVariant {
-  return VARIANTS[seed % VARIANTS.length];
-}
