@@ -14,6 +14,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ## [Unreleased]
 
 ### Highlights
+- [UI] Play screen redesigned to the new clean dark identity (ADR 0013, Sprint 1): self-hosted Newsreader/Instrument Sans type, verdigris accent, hero badge with level/HP, labeled panel pills, serif narration at reading measure with color-coded speakers, rounded action input in plain English, and a new tier-arc dice reveal showing all six outcome tiers. Also fixes: the orphan red companion bar, typed actions lost on a failed submit, history-load failures shown as a false "not started yet" empty state, and a CSS `@import` ordering bug that silently dropped every design token in dev.
 - [Installer] The native Linux installer now works on Debian and every Ubuntu release, not just Ubuntu 24.04: it adds the PostgreSQL PGDG apt repository so Postgres 16 + pgvector install uniformly regardless of the distro's default Postgres major (bookworm ships 15, trixie ships 17).
 - [Installer] macOS: pgvector is now built from source against `postgresql@16` (Homebrew's pgvector bottle targets a different Postgres major, so `CREATE EXTENSION vector` previously failed).
 - [Installer] The native Linux/macOS installer now fails fast with a clear message when run as root, instead of installing Postgres and then dying mid-way on `initdb` (which refuses to run as root).
