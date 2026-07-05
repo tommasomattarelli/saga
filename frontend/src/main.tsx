@@ -6,7 +6,6 @@ import App from "./App";
 import "@fontsource-variable/newsreader";
 import "@fontsource-variable/instrument-sans";
 import "./index.css";
-import "./styles/dice.css";
 import "./shared/i18n/config";
 
 const queryClient = new QueryClient({

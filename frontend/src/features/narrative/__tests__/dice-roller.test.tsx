@@ -29,42 +29,42 @@ describe("DiceRoller — alwaysRevealed=true (historical turns)", () => {
   it("shows the roll result immediately without clicking", () => {
     render(<DiceRoller rolls={{ "STR save": makeRoll({ total: 17 }) }} alwaysRevealed />);
     expect(screen.getByText("17")).toBeInTheDocument();
-    expect(screen.getByText("SUCCESS")).toBeInTheDocument();
+    expect(screen.getByText("Success")).toBeInTheDocument();
   });
 
   it("shows the DC value", () => {
     render(<DiceRoller rolls={{ "STR save": makeRoll({ dc: 15 }) }} alwaysRevealed />);
-    expect(screen.getByText(/vs DC 15/)).toBeInTheDocument();
+    expect(screen.getByText(/DC 15/)).toBeInTheDocument();
   });
 
-  it("shows FAILURE label on failed roll", () => {
+  it("shows Failure label on failed roll", () => {
     render(
       <DiceRoller
         rolls={{ "DEX save": makeRoll({ success: false, outcome: "hard_failure" }) }}
         alwaysRevealed
       />,
     );
-    expect(screen.getByText("FAILURE")).toBeInTheDocument();
+    expect(screen.getByText("Failure")).toBeInTheDocument();
   });
 
-  it("shows CRITICAL! label on critical success", () => {
+  it("shows Critical success label on critical success", () => {
     render(
       <DiceRoller
         rolls={{ ATK: makeRoll({ success: true, outcome: "critical_success", is_critical: true }) }}
         alwaysRevealed
       />,
     );
-    expect(screen.getByText("CRITICAL!")).toBeInTheDocument();
+    expect(screen.getByText("Critical success")).toBeInTheDocument();
   });
 
-  it("shows CRITICAL FAIL label on critical failure", () => {
+  it("shows Critical fail label on critical failure", () => {
     render(
       <DiceRoller
         rolls={{ ATK: makeRoll({ success: false, outcome: "critical_failure" }) }}
         alwaysRevealed
       />,
     );
-    expect(screen.getByText("CRITICAL FAIL")).toBeInTheDocument();
+    expect(screen.getByText("Critical fail")).toBeInTheDocument();
   });
 
   it("renders multiple dice", () => {
@@ -91,9 +91,9 @@ describe("DiceRoller — interactive (live turn)", () => {
     vi.useRealTimers();
   });
 
-  it("shows Roll! button before clicking", () => {
+  it("shows Roll button before clicking", () => {
     render(<DiceRoller rolls={{ "STR save": makeRoll() }} />);
-    expect(screen.getByText("Roll!")).toBeInTheDocument();
+    expect(screen.getByText("Roll")).toBeInTheDocument();
   });
 
   it("shows DC on the Roll button", () => {
@@ -104,11 +104,11 @@ describe("DiceRoller — interactive (live turn)", () => {
   it("reveals result after animation completes", async () => {
     render(<DiceRoller rolls={{ "STR save": makeRoll({ total: 17 }) }} />);
 
-    fireEvent.click(screen.getByText("Roll!"));
+    fireEvent.click(screen.getByText("Roll"));
 
     await vi.runAllTimersAsync();
 
     expect(screen.getByText("17")).toBeInTheDocument();
-    expect(screen.getByText("SUCCESS")).toBeInTheDocument();
+    expect(screen.getByText("Success")).toBeInTheDocument();
   });
 });
