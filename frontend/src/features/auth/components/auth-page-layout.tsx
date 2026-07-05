@@ -1,4 +1,3 @@
-import { useForcedTheme } from "../../../shared/hooks/use-forced-theme";
 import { AntiqueMap } from "../../../assets/ornaments/antique-map";
 import { SagaSeal } from "../../../assets/ornaments/saga-seal";
 import { OrnateFrame } from "../../../shared/ui/ornate-frame";
@@ -11,10 +10,8 @@ interface AuthPageLayoutProps {
   children: React.ReactNode;
 }
 
-/* Tomo a doppia pagina con mappa antica di sfondo, tema DARK forzato */
+/* Tomo a doppia pagina con mappa antica di sfondo */
 export function AuthPageLayout({ subtitle, children }: AuthPageLayoutProps) {
-  useForcedTheme("dark");
-
   return (
     <div
       className="relative min-h-screen w-full overflow-hidden flex items-center justify-center p-8"
