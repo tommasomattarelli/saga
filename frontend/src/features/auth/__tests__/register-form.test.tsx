@@ -25,22 +25,22 @@ describe("RegisterForm", () => {
   it("renders the three fields and the submit button", () => {
     mockFlow();
     renderForm();
-    expect(screen.getByLabelText("Name")).toBeInTheDocument();
-    expect(screen.getByLabelText("Sigil (email)")).toBeInTheDocument();
-    expect(screen.getByLabelText("Word of Passage")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Begin Thy Tale" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Username")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
   });
 
   it("submits the entered credentials", () => {
     const submit = vi.fn(() => Promise.resolve());
     mockFlow({ submit });
     renderForm();
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "hero" } });
-    fireEvent.change(screen.getByLabelText("Sigil (email)"), { target: { value: "h@x.io" } });
-    fireEvent.change(screen.getByLabelText("Word of Passage"), {
+    fireEvent.change(screen.getByLabelText("Username"), { target: { value: "hero" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "h@x.io" } });
+    fireEvent.change(screen.getByLabelText("Password"), {
       target: { value: "longpassword" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Begin Thy Tale" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
     expect(submit).toHaveBeenCalledWith({
       username: "hero",
       email: "h@x.io",

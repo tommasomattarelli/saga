@@ -14,7 +14,7 @@ describe("JournalDrawer", () => {
   it("shows the empty state when no active quests", () => {
     setup({ active: [], completed: [] });
     render(<JournalDrawer />);
-    expect(screen.getByText("No oaths yet sworn.")).toBeInTheDocument();
+    expect(screen.getByText("No quests yet.")).toBeInTheDocument();
     expect(screen.getByText("0 active · 0 completed")).toBeInTheDocument();
   });
 
@@ -45,7 +45,6 @@ describe("JournalDrawer", () => {
       ],
     });
     render(<JournalDrawer />);
-    expect(screen.getByText("Completed Deeds")).toBeInTheDocument();
-    expect(screen.getByText("(1)")).toBeInTheDocument();
+    expect(screen.getByText("Completed (1)")).toBeInTheDocument();
   });
 });

@@ -35,10 +35,10 @@ describe("SettingsDrawer", () => {
     expect(useUIStore.getState().fontSize).toBe(22);
   });
 
-  it("shows the signed-in user and logs out on Depart", () => {
+  it("shows the signed-in user and logs out on Sign out", () => {
     renderDrawer();
     expect(screen.getByText("h@x.io")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Depart" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(useUIStore.getState().sidePanel).toBeNull();
   });

@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   CrossedSwords,
   BatteredAxe,
@@ -38,34 +39,30 @@ const CLASS_ICONS: Record<string, ComponentType> = {
 const FALLBACK_ICON: ComponentType = CrystalBall;
 
 export default function StepHero({ form, selectedTemplate, onChange, onBack, onNext }: Props) {
+  const { t } = useTranslation();
   const preset = CLASS_PRESETS[form.archetype];
 
   return (
     <div>
-      <div className="mb-6 text-center">
-        <h2
-          className="font-display text-2xl uppercase"
-          style={{ color: "var(--gold-bright)", letterSpacing: "0.22em" }}
-        >
-          The Hero
+      <div className="mb-6">
+        <h2 className="font-display text-lg font-semibold" style={{ color: "var(--ink-primary)" }}>
+          {t("wizard.hero_title")}
         </h2>
-        <p className="mt-2 font-body italic text-sm" style={{ color: "var(--ink-secondary)" }}>
-          Walking the paths of{" "}
-          <span style={{ color: "var(--gold-bright)" }}>{selectedTemplate.name}</span>. Who dost
-          thou become?
+        <p className="mt-1 font-display text-sm" style={{ color: "var(--ink-faded)" }}>
+          {t("wizard.hero_hint", { world: selectedTemplate.name })}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-8">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-[1fr_260px]">
         {/* Class grid */}
         <div>
           <label
-            className="block mb-3 font-display text-[10px] uppercase"
-            style={{ color: "var(--ink-faded)", letterSpacing: "0.3em" }}
+            className="mb-3 block font-display text-xs"
+            style={{ color: "var(--ink-secondary)" }}
           >
-            Choose thy calling
+            {t("wizard.class_label")}
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {Object.entries(CLASS_PRESETS).map(([key, p]) => {
               const Icon = CLASS_ICONS[key] ?? FALLBACK_ICON;
               const selected = form.archetype === key;
@@ -76,30 +73,26 @@ export default function StepHero({ form, selectedTemplate, onChange, onBack, onN
                   onClick={() => onChange({ archetype: key })}
                   whileHover={{ y: -2 }}
                   transition={{ type: "spring", stiffness: 300, damping: 22 }}
-                  className="relative p-3 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
+                  className="rounded-xl p-3 text-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
                   style={{
-                    border: `1px solid ${selected ? "var(--gold-bright)" : "var(--gold-deep)"}`,
-                    background: selected ? "rgba(212, 175, 55, 0.12)" : "rgba(244, 232, 208, 0.04)",
-                    boxShadow: selected ? "0 0 16px rgba(212,175,55,0.3)" : "none",
+                    border: `1px solid ${selected ? "var(--accent)" : "var(--line-strong)"}`,
+                    background: "var(--parchment-aged)",
                   }}
                 >
                   <div
                     className="mx-auto mb-1.5 flex items-center justify-center"
                     style={{
-                      width: 48,
-                      height: 48,
-                      color: selected ? "var(--gold-bright)" : "var(--gold-deep)",
-                      fontSize: 36,
+                      width: 44,
+                      height: 44,
+                      color: selected ? "var(--accent)" : "var(--ink-faded)",
+                      fontSize: 32,
                     }}
                   >
                     <Icon />
                   </div>
                   <div
-                    className="font-display text-xs uppercase"
-                    style={{
-                      color: selected ? "var(--gold-bright)" : "var(--ink-secondary)",
-                      letterSpacing: "0.15em",
-                    }}
+                    className="font-display text-[13px] font-semibold"
+                    style={{ color: selected ? "var(--accent)" : "var(--ink-secondary)" }}
                   >
                     {p.label}
                   </div>
@@ -112,87 +105,72 @@ export default function StepHero({ form, selectedTemplate, onChange, onBack, onN
           <div className="mt-6">
             <label
               htmlFor="hero-name"
-              className="block mb-2 font-display text-[10px] uppercase"
-              style={{ color: "var(--ink-faded)", letterSpacing: "0.3em" }}
+              className="mb-1.5 block font-display text-xs"
+              style={{ color: "var(--ink-secondary)" }}
             >
-              Thy name
+              {t("wizard.name_label")}
             </label>
             <input
               id="hero-name"
               type="text"
               value={form.heroName}
               onChange={(e) => onChange({ heroName: e.target.value })}
-              placeholder="Leave blank to walk as a stranger…"
-              className="w-full bg-transparent py-2 font-body text-lg italic focus:outline-none"
+              placeholder={t("wizard.name_placeholder")}
+              className="w-full rounded-lg px-3 py-2 font-display text-sm focus:outline-none focus:ring-1 focus:ring-accent"
               style={{
                 color: "var(--ink-primary)",
-                borderBottom: "1px solid var(--gold-deep)",
+                background: "var(--parchment-aged)",
+                border: "1px solid var(--line-strong)",
               }}
             />
           </div>
         </div>
 
-        {/* Preview sigil */}
+        {/* Preview */}
         <aside
-          className="p-4 self-start"
-          style={{
-            border: "1px solid var(--gold-deep)",
-            background: "rgba(244, 232, 208, 0.03)",
-          }}
+          className="self-start rounded-xl p-4"
+          style={{ border: "1px solid var(--line)", background: "var(--parchment-aged)" }}
         >
+          <div className="mb-3 font-display text-xs" style={{ color: "var(--ink-faded)" }}>
+            {t("wizard.preview_label")}
+          </div>
           <div
-            className="font-display text-[9px] uppercase text-center mb-3"
-            style={{ color: "var(--ink-faded)", letterSpacing: "0.3em" }}
+            className="font-display text-[15px] font-semibold"
+            style={{ color: "var(--ink-primary)" }}
           >
-            Sigil of the Hero
+            {form.heroName || "The Stranger"}
           </div>
-          <div className="text-center mb-3">
-            <div
-              className="font-display text-lg uppercase"
-              style={{ color: "var(--gold-bright)", letterSpacing: "0.12em" }}
-            >
-              {form.heroName || "The Stranger"}
-            </div>
-            <div className="font-body text-sm italic" style={{ color: "var(--ink-secondary)" }}>
-              {preset.label}
-            </div>
+          <div className="font-display text-xs" style={{ color: "var(--ink-faded)" }}>
+            {preset.label} · HP {preset.baseHp}
           </div>
-
-          <div
-            className="flex items-center justify-between mb-3 font-body text-xs"
+          <p
+            className="mt-2 mb-3 font-body text-sm italic"
             style={{ color: "var(--ink-secondary)" }}
           >
-            <span>HP</span>
-            <span style={{ color: "var(--gold-bright)" }}>
-              {preset.baseHp} / {preset.baseHp}
-            </span>
-          </div>
-          <div
-            className="h-1.5 mb-4 overflow-hidden"
-            style={{ background: "var(--gold-deep)", opacity: 0.3 }}
-          >
-            <div className="h-full" style={{ background: "var(--gold-bright)", width: "100%" }} />
-          </div>
+            {preset.desc}
+          </p>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div>
             {Object.entries(preset.abilities).map(([ability, score]) => (
               <div
                 key={ability}
-                className="text-center py-1.5"
-                style={{ border: "1px solid var(--gold-deep)" }}
+                className="flex items-baseline justify-between border-b py-1.5 last:border-b-0"
+                style={{ borderColor: "var(--line)" }}
               >
-                <div
-                  className="font-display text-[9px] uppercase"
-                  style={{ color: "var(--ink-faded)", letterSpacing: "0.2em" }}
+                <span
+                  className="font-display text-[11px] uppercase"
+                  style={{ color: "var(--ink-faded)", letterSpacing: "0.08em" }}
                 >
-                  {ability.slice(0, 3)}
-                </div>
-                <div className="font-display text-base" style={{ color: "var(--gold-bright)" }}>
-                  {score}
-                </div>
-                <div className="font-body text-[10px]" style={{ color: "var(--ink-secondary)" }}>
-                  {abilityMod(score)}
-                </div>
+                  {ability}
+                </span>
+                <span className="font-display text-sm">
+                  <span className="font-semibold" style={{ color: "var(--ink-primary)" }}>
+                    {score}
+                  </span>{" "}
+                  <span className="text-xs" style={{ color: "var(--accent)" }}>
+                    {abilityMod(score)}
+                  </span>
+                </span>
               </div>
             ))}
           </div>
@@ -202,23 +180,17 @@ export default function StepHero({ form, selectedTemplate, onChange, onBack, onN
       <div className="mt-8 flex items-center justify-between gap-4">
         <button
           onClick={onBack}
-          className="font-display text-xs uppercase tracking-grimoire-wide px-4 py-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
+          className="px-2 py-2 font-display text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
           style={{ color: "var(--ink-faded)" }}
         >
-          ← Back
+          ← {t("wizard.back")}
         </button>
         <button
           onClick={onNext}
-          className="font-display text-sm uppercase tracking-grimoire-wide px-6 py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
-          style={{
-            color: "var(--gold-bright)",
-            border: "1px solid var(--gold-bright)",
-            outline: "1px solid var(--gold-deep)",
-            outlineOffset: "3px",
-            background: "rgba(212, 175, 55, 0.08)",
-          }}
+          className="rounded-lg px-6 py-2.5 font-display text-sm font-semibold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+          style={{ color: "var(--accent)", border: "1px solid var(--accent)" }}
         >
-          Name thy Fate →
+          {t("wizard.next")} →
         </button>
       </div>
     </div>

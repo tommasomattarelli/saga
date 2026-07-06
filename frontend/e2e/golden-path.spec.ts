@@ -44,9 +44,9 @@ test("golden path: login → campaigns → open game", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/login/);
 
-  await page.getByLabel("Name").fill("hero");
-  await page.getByLabel("Word of Passage").fill("secret");
-  await page.getByRole("button", { name: /cross the threshold/i }).click();
+  await page.getByLabel("Username").fill("hero");
+  await page.getByLabel("Password").fill("secret");
+  await page.getByRole("button", { name: /sign in/i }).click();
 
   await expect(page).toHaveURL(/\/campaigns/);
   await expect(page.getByText("The Dragon Raid")).toBeVisible();

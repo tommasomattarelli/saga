@@ -4,12 +4,16 @@
     "subtitle": "AI Dungeon Master"
   },
   "auth": {
-    "login": "Sign In",
-    "register": "Create Account",
-    "logout": "Sign Out",
+    "login": "Sign in",
+    "register": "Create account",
+    "logout": "Sign out",
     "username": "Username",
     "email": "Email",
-    "password": "Password"
+    "password": "Password",
+    "login_subtitle": "Sign in to continue your story",
+    "register_subtitle": "Create an account to begin",
+    "no_account": "New here?",
+    "have_account": "Already have an account?"
   },
   "game": {
     "action_placeholder": "What do you do?",
@@ -36,6 +40,13 @@
     "history_error": "Couldn't load the story so far. Refresh the page to try again."
   },
   "campaign": {
+    "your_campaigns": "Your campaigns, {{name}}",
+    "loading": "Loading campaigns…",
+    "new_card": "New campaign",
+    "open": "Open",
+    "delete": "Delete",
+    "delete_title": "Delete this campaign?",
+    "delete_body": "\"{{name}}\" will be permanently deleted. This cannot be undone.",
     "new": "Begin a New Saga",
     "select_death_mode": "Choose Your Fate",
     "ironman": "Ironman",
@@ -44,6 +55,65 @@
     "destino_desc": "Death carries a heavy price. 2-3 chances.",
     "cronista": "Cronista",
     "cronista_desc": "Story mode. The tale must go on."
+  },
+  "wizard": {
+    "title": "New campaign",
+    "back_link": "Campaigns",
+    "step_world": "World",
+    "step_hero": "Hero",
+    "step_fate": "Fate",
+    "world_title": "Choose a world",
+    "world_hint": "The setting your story takes place in.",
+    "world_loading": "Loading worlds…",
+    "world_empty": "No worlds available yet.",
+    "by": "by",
+    "hero_title": "Your hero",
+    "hero_hint": "A {{world}} story. Who are you?",
+    "class_label": "Class",
+    "name_label": "Name — optional",
+    "name_placeholder": "Leave blank to play as The Stranger",
+    "preview_label": "Preview",
+    "back": "Back",
+    "next": "Continue",
+    "fate_title": "Name your campaign",
+    "fate_hint": "A title, an origin, and how death works.",
+    "campaign_title_label": "Campaign title",
+    "origin_label": "Origin — optional",
+    "origin_placeholder": "A wandering sellsword seeking redemption…",
+    "death_label": "Death mode",
+    "create": "Create campaign",
+    "creating": "Creating…",
+    "create_failed": "Couldn't create the campaign. Try again."
+  },
+  "journal": {
+    "empty": "No quests yet.",
+    "completed": "Completed",
+    "counts": "{{active}} active · {{completed}} completed"
+  },
+  "settings": {
+    "audio": "Audio",
+    "dice_sound": "Dice sound",
+    "motion": "Motion",
+    "motion_auto": "Auto (follow OS)",
+    "motion_reduced": "Reduced",
+    "motion_full": "Full",
+    "motion_note": "Motion preferences — full control coming in a future update.",
+    "display": "Display",
+    "text_size": "Text size",
+    "account": "Account",
+    "signed_in_as": "Signed in as"
+  },
+  "char": {
+    "stats": "Stats",
+    "inventory": "Inventory",
+    "skills": "Skills",
+    "reputation": "Reputation",
+    "background": "Background",
+    "empty_inventory": "Nothing carried yet.",
+    "empty_skills": "No skills learned yet.",
+    "empty_reputation": "No reputation earned yet.",
+    "empty_background": "No background written.",
+    "no_data": "No character data."
   },
   "saves": {
     "save": "Save",
