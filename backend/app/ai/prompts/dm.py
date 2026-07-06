@@ -5,6 +5,8 @@ from pathlib import Path
 import yaml
 
 from app.ai.prompts.presets import PERSONA_PRESETS
+from app.ai.prompts.scene import render_location_block
+from app.core.world_access import WorldView
 from app.models.campaign import Campaign
 
 _PROMPTS = yaml.safe_load((Path(__file__).parent / "dm.yaml").read_text(encoding="utf-8"))
@@ -74,7 +76,13 @@ def build_dm_system_prompt(
     inventory = char_data.get("inventory", [])
     inventory_str = ", ".join(str(i) for i in inventory) if inventory else "nothing notable"
 
-    # Location data from world_state
+    # Hierarchical world view (ADR 0008); legacy flat locations as fallback
+    view = WorldView(getattr(campaign, "world_baseline", None) or {}, world_state)
+    position = view.player_position() if view.has_world else None
+    location_display = current_location
+    if position and view.node(position):
+        location_display = view.require(position)["name"]
+
     loc_data = world_state.get("locations", {}).get(current_location, {})
     loc_desc = loc_data.get("description", "")
     loc_connections = loc_data.get("connections", [])
@@ -107,7 +115,7 @@ def build_dm_system_prompt(
     lines.append("</instructions>")
 
     # <character>
-    loc_attr = f' location="{current_location}"' if current_location else ""
+    loc_attr = f' location="{location_display}"' if location_display else ""
     lines.append(f'\n<character name="{char_name}" hp="{hp}/{max_hp}"{loc_attr}>')
     if ability_parts:
         lines.append(f"  <abilities>{', '.join(ability_parts)}</abilities>")
@@ -116,12 +124,15 @@ def build_dm_system_prompt(
 
     # <scene>
     lines.append("\n<scene>")
-    lines.append(f'  <location name="{current_location}">')
-    if loc_desc:
-        lines.append(f"    {loc_desc}")
-    if loc_connections:
-        lines.append(f"    Connected to: {', '.join(loc_connections)}.")
-    lines.append("  </location>")
+    if position and view.node(position):
+        lines.extend(render_location_block(view, position))
+    else:
+        lines.append(f'  <location name="{current_location}">')
+        if loc_desc:
+            lines.append(f"    {loc_desc}")
+        if loc_connections:
+            lines.append(f"    Connected to: {', '.join(loc_connections)}.")
+        lines.append("  </location>")
 
     if npcs_present:
         lines.append("  <npcs_present>")
