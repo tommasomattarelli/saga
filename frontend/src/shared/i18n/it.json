@@ -5,11 +5,15 @@
   },
   "auth": {
     "login": "Accedi",
-    "register": "Crea Account",
+    "register": "Crea account",
     "logout": "Esci",
     "username": "Nome utente",
     "email": "Email",
-    "password": "Password"
+    "password": "Password",
+    "login_subtitle": "Accedi per continuare la tua storia",
+    "register_subtitle": "Crea un account per iniziare",
+    "no_account": "Nuovo qui?",
+    "have_account": "Hai già un account?"
   },
   "game": {
     "action_placeholder": "Cosa fai?",
@@ -17,11 +21,32 @@
     "processing": "Il Dungeon Master considera la tua azione...",
     "turn": "Turno",
     "character": "Personaggio",
+    "journal": "Diario",
     "quests": "Missioni",
     "inventory": "Inventario",
-    "settings": "Impostazioni"
+    "settings": "Impostazioni",
+    "back_to_campaigns": "Campagne",
+    "level_abbr": "Lv",
+    "chapter": "Capitolo",
+    "day": "Giorno",
+    "send": "Invia",
+    "continue": "Continua",
+    "input_hint": "Ctrl+↵ per inviare",
+    "reveal_dice": "Rivela i dadi per continuare",
+    "loading_campaign": "Caricamento della campagna…",
+    "dm_writing": "Il DM sta scrivendo…",
+    "empty_title": "La storia non è ancora iniziata",
+    "empty_hint": "Scrivi la tua prima azione qui sotto.",
+    "history_error": "Impossibile caricare la storia. Ricarica la pagina per riprovare."
   },
   "campaign": {
+    "your_campaigns": "Le tue campagne, {{name}}",
+    "loading": "Caricamento campagne…",
+    "new_card": "Nuova campagna",
+    "open": "Apri",
+    "delete": "Elimina",
+    "delete_title": "Eliminare questa campagna?",
+    "delete_body": "\"{{name}}\" verrà eliminata per sempre. Non si può annullare.",
     "new": "Inizia una Nuova Saga",
     "select_death_mode": "Scegli il Tuo Destino",
     "ironman": "Ironman",
@@ -30,6 +55,65 @@
     "destino_desc": "La morte ha un prezzo. 2-3 possibilità.",
     "cronista": "Cronista",
     "cronista_desc": "Modalità storia. Il racconto deve continuare."
+  },
+  "wizard": {
+    "title": "Nuova campagna",
+    "back_link": "Campagne",
+    "step_world": "Mondo",
+    "step_hero": "Eroe",
+    "step_fate": "Destino",
+    "world_title": "Scegli un mondo",
+    "world_hint": "L'ambientazione della tua storia.",
+    "world_loading": "Caricamento mondi…",
+    "world_empty": "Nessun mondo disponibile.",
+    "by": "di",
+    "hero_title": "Il tuo eroe",
+    "hero_hint": "Una storia in {{world}}. Chi sei?",
+    "class_label": "Classe",
+    "name_label": "Nome — opzionale",
+    "name_placeholder": "Lascia vuoto per giocare come Lo Straniero",
+    "preview_label": "Anteprima",
+    "back": "Indietro",
+    "next": "Continua",
+    "fate_title": "Dai un nome alla campagna",
+    "fate_hint": "Un titolo, un'origine e come funziona la morte.",
+    "campaign_title_label": "Titolo della campagna",
+    "origin_label": "Origine — opzionale",
+    "origin_placeholder": "Uno spadaccino errante in cerca di redenzione…",
+    "death_label": "Modalità morte",
+    "create": "Crea campagna",
+    "creating": "Creazione…",
+    "create_failed": "Impossibile creare la campagna. Riprova."
+  },
+  "journal": {
+    "empty": "Nessuna missione per ora.",
+    "completed": "Completate",
+    "counts": "{{active}} attive · {{completed}} completate"
+  },
+  "settings": {
+    "audio": "Audio",
+    "dice_sound": "Suono dei dadi",
+    "motion": "Animazioni",
+    "motion_auto": "Auto (segui il sistema)",
+    "motion_reduced": "Ridotte",
+    "motion_full": "Complete",
+    "motion_note": "Preferenze animazioni — controllo completo in un prossimo aggiornamento.",
+    "display": "Schermo",
+    "text_size": "Dimensione testo",
+    "account": "Account",
+    "signed_in_as": "Connesso come"
+  },
+  "char": {
+    "stats": "Statistiche",
+    "inventory": "Inventario",
+    "skills": "Abilità",
+    "reputation": "Reputazione",
+    "background": "Background",
+    "empty_inventory": "Non porti ancora nulla.",
+    "empty_skills": "Nessuna abilità appresa.",
+    "empty_reputation": "Nessuna reputazione guadagnata.",
+    "empty_background": "Nessun background scritto.",
+    "no_data": "Nessun dato del personaggio."
   },
   "saves": {
     "save": "Salva",
@@ -41,6 +125,6 @@
     "invalid_credentials": "Credenziali non valide.",
     "request_failed": "Richiesta fallita. Controlla i dati inseriti.",
     "server_error": "Errore del server. Riprova più tardi.",
-    "action_failed": "La penna del Dungeon Master vacilla. Riprova la tua azione."
+    "action_failed": "L'azione non è andata a buon fine. Il testo è ancora lì — riprova."
   }
 }

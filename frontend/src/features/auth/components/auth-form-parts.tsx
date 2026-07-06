@@ -1,28 +1,6 @@
 import { forwardRef } from "react";
 
-/* Label in Cinzel small-caps, dorato tenue */
-interface AuthLabelProps {
-  htmlFor: string;
-  children: React.ReactNode;
-}
-
-function AuthLabel({ htmlFor, children }: AuthLabelProps) {
-  return (
-    <label
-      htmlFor={htmlFor}
-      className="font-display text-[10px] uppercase block mb-1"
-      style={{
-        letterSpacing: "0.22em",
-        color: "var(--gold-deep)",
-        fontWeight: 600,
-      }}
-    >
-      {children}
-    </label>
-  );
-}
-
-/* Input senza box — solo border-bottom dorato con underline animato al focus */
+/* Boxed input with a visible field — label above, accent ring on focus */
 interface AuthInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
 }
@@ -32,85 +10,60 @@ export const AuthInput = forwardRef<HTMLInputElement, AuthInputProps>(function A
   ref,
 ) {
   return (
-    <div className="group relative">
-      <AuthLabel htmlFor={id!}>{label}</AuthLabel>
+    <div>
+      <label
+        htmlFor={id}
+        className="font-display text-xs block mb-1.5"
+        style={{ color: "var(--ink-secondary)" }}
+      >
+        {label}
+      </label>
       <input
         ref={ref}
         id={id}
         {...rest}
-        className={`w-full bg-transparent px-0 py-1.5 font-body text-base focus:outline-none ${className}`}
+        className={`w-full rounded-lg px-3 py-2 font-display text-sm focus:outline-none focus:ring-1 focus:ring-accent ${className}`}
         style={{
           color: "var(--ink-primary)",
-          borderBottom: "1px solid var(--gold-deep)",
+          background: "var(--parchment-aged)",
+          border: "1px solid var(--line-strong)",
         }}
-      />
-      {/* Animated gold underline on focus */}
-      <span
-        aria-hidden="true"
-        className="absolute left-0 right-0 bottom-0 h-[2px] scale-x-0 group-focus-within:scale-x-100 origin-left transition-transform duration-700 ease-out"
-        style={{ background: "var(--gold-bright)" }}
       />
     </div>
   );
 });
 
-/* Ornate CTA button — bordo doppio dorato, testo Cinzel uppercase */
-interface OrnateButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "ghost";
-}
-
-export function OrnateButton({
+/* Primary CTA — quiet outline, accent text */
+export function AuthButton({
   children,
-  variant = "primary",
   className = "",
   ...rest
-}: OrnateButtonProps) {
-  const baseStyle: React.CSSProperties =
-    variant === "primary"
-      ? {
-          background: "var(--parchment-base)",
-          color: "var(--gold-bright)",
-          border: "1px solid var(--gold-bright)",
-          outline: "1px solid var(--gold-deep)",
-          outlineOffset: "3px",
-        }
-      : {
-          background: "transparent",
-          color: "var(--gold-deep)",
-          border: "1px solid var(--gold-deep)",
-        };
-
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       {...rest}
-      className={`relative font-display uppercase text-xs px-6 py-3 disabled:opacity-50 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright focus-visible:ring-offset-2 ${className}`}
+      className={`rounded-lg px-6 py-2.5 font-display text-sm font-semibold disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent ${className}`}
       style={{
-        ...baseStyle,
-        letterSpacing: "0.3em",
+        color: "var(--accent)",
+        border: "1px solid var(--accent)",
+        background: "transparent",
       }}
     >
-      <span className="relative z-10">{children}</span>
+      {children}
     </button>
   );
 }
 
-/* Inline error — Cormorant italic blood, icon-like bullet */
-interface AuthErrorProps {
-  message: string;
-}
-
-export function AuthError({ message }: AuthErrorProps) {
+/* Inline error */
+export function AuthError({ message }: { message: string }) {
   return (
     <div
       role="alert"
       aria-live="polite"
-      className="font-body italic text-sm flex items-start gap-2"
-      style={{ color: "var(--blood)" }}
+      className="rounded-lg px-3 py-2 font-display text-sm"
+      style={{ color: "var(--blood)", border: "1px solid var(--blood-dark)" }}
     >
-      <span aria-hidden="true" style={{ color: "var(--blood-dark)" }}>
-        ❧
-      </span>
-      <span>{message}</span>
+      {message}
     </div>
   );
 }

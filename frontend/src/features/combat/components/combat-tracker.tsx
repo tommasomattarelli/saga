@@ -1,5 +1,4 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { OrnamentDivider } from "../../../shared/ui/ornament-divider";
 import type { CombatState } from "../../../shared/types";
 
 interface CombatTrackerProps {
@@ -15,20 +14,15 @@ function CombatHpBar({
   max: number;
   isPlayer: boolean;
 }) {
-  const pct = max > 0 ? (current / max) * 100 : 0;
+  const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
   return (
     <div
-      className="mt-1 relative overflow-hidden"
-      style={{
-        width: 64,
-        height: 5,
-        border: "1px solid var(--gold-deep)",
-        background: "rgba(0,0,0,0.3)",
-      }}
+      className="relative mt-1.5 overflow-hidden rounded-full"
+      style={{ width: 64, height: 4, background: "var(--line)" }}
     >
       <motion.div
-        className="h-full absolute left-0 top-0"
-        style={{ background: isPlayer ? "var(--gold-bright)" : "var(--blood)" }}
+        className="absolute left-0 top-0 h-full rounded-full"
+        style={{ background: isPlayer ? "var(--accent)" : "var(--blood)" }}
         initial={false}
         animate={{ width: `${pct}%` }}
         transition={{ duration: 0.5 }}
@@ -46,59 +40,35 @@ function CombatantCard({
 }) {
   const isPlayer = combatant.type === "player";
   const isDead = combatant.hp <= 0;
-  const glyph = isPlayer ? "❖" : "▲";
 
   return (
     <div
-      className="flex-shrink-0 flex flex-col items-center px-3 py-2 transition-all"
+      className="flex flex-shrink-0 flex-col items-center rounded-lg px-3 py-2 transition-all"
       style={{
         width: 110,
-        border: `1px solid ${isCurrent ? "var(--gold-bright)" : "var(--gold-deep)"}`,
-        background: isCurrent ? "rgba(212, 175, 55, 0.15)" : "rgba(42, 26, 16, 0.6)",
-        boxShadow: isCurrent ? "0 0 18px rgba(212,175,55,0.4)" : "none",
+        border: `1px solid ${isCurrent ? "var(--accent)" : "var(--line)"}`,
         opacity: isDead ? 0.35 : 1,
       }}
     >
-      {/* Type glyph + initiative */}
-      <div className="flex items-center gap-1 mb-0.5">
-        <span
-          className="font-display text-xs"
-          style={{ color: isPlayer ? "var(--gold-bright)" : "var(--blood)" }}
-        >
-          {glyph}
-        </span>
-        <span
-          className="font-display text-[10px]"
-          style={{ color: "var(--ink-faded)", letterSpacing: "0.1em" }}
-        >
-          {combatant.initiative}
-        </span>
-      </div>
-      {/* Name */}
       <span
-        className="font-display text-[10px] uppercase text-center truncate w-full text-center"
+        className="font-display text-[11px]"
+        style={{ color: "var(--ink-faded)", letterSpacing: "0.06em" }}
+      >
+        {combatant.initiative}
+      </span>
+      <span
+        className="w-full truncate text-center font-display text-[13px] font-semibold"
         style={{
-          color: isPlayer ? "var(--gold-bright)" : "var(--ink-primary)",
-          letterSpacing: "0.12em",
+          color: isPlayer ? "var(--accent)" : "var(--ink-primary)",
           textDecoration: isDead ? "line-through" : "none",
         }}
       >
         {combatant.name}
       </span>
-      {/* HP bar */}
       <CombatHpBar current={combatant.hp} max={combatant.max_hp} isPlayer={isPlayer} />
-      <span className="mt-0.5 font-body text-[10px]" style={{ color: "var(--ink-faded)" }}>
+      <span className="mt-0.5 font-display text-[11px]" style={{ color: "var(--ink-faded)" }}>
         {combatant.hp}/{combatant.max_hp}
       </span>
-      {/* Your turn label */}
-      {isCurrent && (
-        <span
-          className="mt-0.5 font-body italic text-[9px]"
-          style={{ color: "var(--gold-bright)" }}
-        >
-          ◀ your turn
-        </span>
-      )}
     </div>
   );
 }
@@ -113,37 +83,34 @@ export default function CombatTracker({ combatState }: CombatTrackerProps) {
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
-        transition={{ duration: 0.5, ease: [0.77, 0, 0.175, 1] }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
       >
         <div
-          className="max-w-[1200px] mx-auto px-6 py-3"
+          className="mx-auto max-w-[1200px] rounded-t-xl px-6 py-3"
           style={{
             background: "var(--parchment-aged)",
-            border: "1px solid var(--gold-deep)",
+            border: "1px solid var(--line-strong)",
             borderBottom: "none",
           }}
         >
           {/* Header */}
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <span
-              className="font-display text-xs uppercase"
-              style={{ color: "var(--gold-bright)", letterSpacing: "0.3em" }}
-            >
-              COMBAT - Round {combatState.round}
-            </span>
+          <div
+            className="mb-2 text-center font-display text-xs font-semibold"
+            style={{ color: "var(--ink-secondary)" }}
+          >
+            Combat · Round {combatState.round}
           </div>
-          <OrnamentDivider variant="flourish-a" className="!my-1" />
 
           {/* Combatant cards — horizontal scroll; empty guard prevents crash */}
           {combatState.initiative_order.length === 0 ? (
             <div
-              className="py-2 text-center font-body italic text-xs"
+              className="py-2 text-center font-display text-xs"
               style={{ color: "var(--ink-faded)" }}
             >
               Awaiting initiative…
             </div>
           ) : (
-            <div className="flex items-end gap-3 overflow-x-auto pb-1 justify-start">
+            <div className="flex items-end justify-start gap-3 overflow-x-auto pb-1">
               {combatState.initiative_order.map((c, i) => (
                 <CombatantCard
                   key={`${c.name}-${i}`}

@@ -1,8 +1,8 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import type { CharacterData } from "../../../shared/types";
 import { getHP, abilityMod } from "../../../shared/utils/dnd";
-import { InitialSeal } from "../../../assets/ornaments/seal";
-import { OrnamentDivider } from "../../../shared/ui/ornament-divider";
 
 const KNOWN_ABILITIES = [
   "strength",
@@ -20,270 +20,229 @@ function orderedAbilities(abilities: Record<string, number>): string[] {
   return [...known, ...extra];
 }
 
-function StatSigil({ name, score }: { name: string; score: number }) {
-  const mod = abilityMod(score);
+type TabKey = "stats" | "inventory" | "skills" | "reputation" | "background";
+const TABS: TabKey[] = ["stats", "inventory", "skills", "reputation", "background"];
+
+/* One row per entry — the shared list pattern of the sheet (no bars: abilities are uncapped) */
+function Row({ left, right }: { left: React.ReactNode; right: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center">
-      <svg width={72} height={72} viewBox="0 0 72 72" aria-label={`${name}: ${score}`}>
-        <circle
-          cx="36"
-          cy="36"
-          r="34"
-          fill="none"
-          stroke="var(--gold-deep)"
-          strokeWidth="1"
-          opacity="0.6"
-        />
-        <circle
-          cx="36"
-          cy="36"
-          r="28"
-          fill="none"
-          stroke="var(--gold-deep)"
-          strokeWidth="0.5"
-          opacity="0.3"
-        />
-        {/* Stat abbrev arc top */}
-        <text
-          x="36"
-          y="18"
-          textAnchor="middle"
-          fontSize="8"
-          fill="var(--gold-deep)"
-          fontFamily="var(--font-display)"
-          letterSpacing="0.2em"
-          style={{ textTransform: "uppercase" }}
-        >
-          {name.slice(0, 3)}
-        </text>
-        {/* Score centre */}
-        <text
-          x="36"
-          y="42"
-          textAnchor="middle"
-          fontSize="22"
-          fill="var(--gold-bright)"
-          fontFamily="var(--font-display)"
-        >
-          {score}
-        </text>
-        {/* Modifier bottom */}
-        <text
-          x="36"
-          y="58"
-          textAnchor="middle"
-          fontSize="10"
-          fill="var(--ink-secondary)"
-          fontFamily="var(--font-display)"
-        >
-          {mod}
-        </text>
-      </svg>
+    <div
+      className="flex items-baseline justify-between border-b py-2 last:border-b-0"
+      style={{ borderColor: "var(--line)" }}
+    >
+      <span className="font-display text-sm" style={{ color: "var(--ink-secondary)" }}>
+        {left}
+      </span>
+      <span className="font-display text-sm">{right}</span>
     </div>
   );
 }
 
-function HpBar({ current, max }: { current: number; max: number }) {
-  const pct = max > 0 ? (current / max) * 100 : 0;
+function EmptyLine({ text }: { text: string }) {
   return (
-    <div className="mt-4">
-      <div className="flex justify-between mb-1">
-        <span
-          className="font-display text-[10px] uppercase"
-          style={{ color: "var(--ink-faded)", letterSpacing: "0.2em" }}
-        >
-          HP
-        </span>
-        <span className="font-display text-sm" style={{ color: "var(--gold-bright)" }}>
-          {current} / {max}
-        </span>
+    <p className="py-2 font-body text-sm italic" style={{ color: "var(--ink-faded)" }}>
+      {text}
+    </p>
+  );
+}
+
+function TabContent({ tab, char }: { tab: TabKey; char: CharacterData }) {
+  const { t } = useTranslation();
+
+  if (tab === "stats") {
+    return (
+      <div>
+        {orderedAbilities(char.abilities ?? {}).map((ab) => {
+          const score = char.abilities?.[ab] ?? 10;
+          return (
+            <Row
+              key={ab}
+              left={<span className="capitalize">{ab}</span>}
+              right={
+                <>
+                  <span className="font-semibold" style={{ color: "var(--ink-primary)" }}>
+                    {score}
+                  </span>{" "}
+                  <span className="text-xs" style={{ color: "var(--accent)" }}>
+                    {abilityMod(score)}
+                  </span>
+                </>
+              }
+            />
+          );
+        })}
       </div>
-      <div
-        className="relative h-3 overflow-hidden"
-        style={{ border: "1px solid var(--gold-deep)", background: "rgba(139, 0, 0, 0.08)" }}
-      >
-        <motion.div
-          className="h-full"
-          style={{ background: "var(--blood)" }}
-          initial={false}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-        />
+    );
+  }
+
+  if (tab === "inventory") {
+    const items = char.inventory ?? [];
+    if (items.length === 0) return <EmptyLine text={t("char.empty_inventory")} />;
+    return (
+      <div>
+        {items.map((item, i) => (
+          <Row
+            key={i}
+            left={<span style={{ color: "var(--ink-primary)" }}>{item.name}</span>}
+            right={
+              item.quantity > 1 ? (
+                <span style={{ color: "var(--ink-faded)" }}>×{item.quantity}</span>
+              ) : null
+            }
+          />
+        ))}
       </div>
-    </div>
+    );
+  }
+
+  if (tab === "skills") {
+    const skills = Object.entries(char.skills ?? {});
+    if (skills.length === 0) return <EmptyLine text={t("char.empty_skills")} />;
+    return (
+      <div>
+        {skills.map(([skill, data]) => (
+          <Row
+            key={skill}
+            left={<span className="capitalize">{skill}</span>}
+            right={<span style={{ color: "var(--ink-faded)" }}>Lv {data.level}</span>}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (tab === "reputation") {
+    const reps = Object.entries(char.reputation ?? {});
+    if (reps.length === 0) return <EmptyLine text={t("char.empty_reputation")} />;
+    return (
+      <div>
+        {reps.map(([faction, score]) => (
+          <Row
+            key={faction}
+            left={faction}
+            right={
+              <span style={{ color: score >= 0 ? "var(--accent)" : "var(--blood)" }}>
+                {score >= 0 ? "+" : ""}
+                {score}
+              </span>
+            }
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // background
+  if (!char.background) return <EmptyLine text={t("char.empty_background")} />;
+  return (
+    <p
+      className="font-body text-base italic"
+      style={{ color: "var(--ink-primary)", lineHeight: 1.62 }}
+    >
+      {char.background}
+    </p>
   );
 }
 
 export function CharacterSheetBody({ char }: { char: CharacterData | null }) {
+  const { t } = useTranslation();
+  const [tab, setTab] = useState<TabKey>("stats");
+
   if (!char || !char.name) {
     return (
-      <p className="font-body italic" style={{ color: "var(--ink-faded)" }}>
-        No character data.
+      <p className="p-8 font-body italic" style={{ color: "var(--ink-faded)" }}>
+        {t("char.no_data")}
       </p>
     );
   }
   const hp = getHP(char);
+  const hpPct = hp.max > 0 ? Math.max(0, Math.min(100, (hp.current / hp.max) * 100)) : 0;
+
   return (
-    <>
-      {/* Double-page grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:divide-x md:divide-gold-deep/30">
-        {/* === LEFT PAGE: Identity + Stats === */}
-        <div className="pr-0 md:pr-8">
-          {/* Portrait circle */}
-          <div className="flex flex-col items-center mb-4">
-            <div
-              className="relative flex items-center justify-center"
-              style={{
-                width: 120,
-                height: 120,
-                border: "2px solid var(--gold-deep)",
-                borderRadius: "50%",
-                background: "var(--parchment-aged)",
-              }}
-            >
-              <InitialSeal name={char.name} size={80} />
-            </div>
-            {/* Name */}
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Header — identity + vitals */}
+      <div
+        className="flex items-center gap-4 px-6 py-5"
+        style={{ borderBottom: "1px solid var(--line)" }}
+      >
+        <div
+          aria-hidden="true"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full font-display text-lg font-semibold"
+          style={{
+            border: "1px solid var(--line-strong)",
+            color: "var(--accent)",
+            background: "var(--parchment-aged)",
+          }}
+        >
+          {char.name[0]?.toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-2">
             <h2
-              className="mt-3 font-display text-2xl uppercase text-center"
-              style={{ color: "var(--gold-bright)", letterSpacing: "0.18em" }}
+              className="font-display text-lg font-semibold truncate"
+              style={{ color: "var(--ink-primary)" }}
             >
               {char.name}
             </h2>
-            <p className="font-body italic text-sm" style={{ color: "var(--ink-secondary)" }}>
-              {char.archetype ?? ""} · Level {char.level}
-            </p>
-          </div>
-
-          <OrnamentDivider variant="flourish-c" className="!my-3" />
-
-          {/* Stats sigilli */}
-          <div className="grid grid-cols-3 gap-3 justify-items-center">
-            {orderedAbilities(char.abilities ?? {}).map((ab) => (
-              <StatSigil key={ab} name={ab} score={char.abilities?.[ab] ?? 10} />
-            ))}
-          </div>
-
-          <HpBar current={hp.current} max={hp.max} />
-
-          <div
-            className="mt-3 flex gap-4 font-body text-sm"
-            style={{ color: "var(--ink-secondary)" }}
-          >
-            <span>
-              AC <strong style={{ color: "var(--ink-primary)" }}>{char.ac}</strong>
-            </span>
-            <span>
-              XP <strong style={{ color: "var(--ink-primary)" }}>{char.xp}</strong>
-            </span>
-            <span>
-              Gold <strong style={{ color: "var(--gold-bright)" }}>{char.gold}</strong>
+            <span className="font-display text-sm" style={{ color: "var(--ink-faded)" }}>
+              {char.archetype ?? ""} · Lv {char.level}
             </span>
           </div>
-        </div>
-
-        {/* === RIGHT PAGE: Inventory + Skills + Companions === */}
-        <div className="pl-0 md:pl-8 mt-6 md:mt-0">
-          {/* Inventory */}
-          <div className="mb-5">
-            <h4
-              className="mb-2 font-display text-[10px] uppercase"
-              style={{ color: "var(--ink-faded)", letterSpacing: "0.28em" }}
+          <div className="mt-1.5 flex items-center gap-3">
+            <div
+              aria-label={`HP ${hp.current} of ${hp.max}`}
+              className="h-1.5 w-36 overflow-hidden rounded-full"
+              style={{ background: "var(--line)" }}
             >
-              Inventory
-            </h4>
-            {(char.inventory ?? []).length === 0 ? (
-              <p className="font-body italic text-sm" style={{ color: "var(--ink-faded)" }}>
-                Empty satchel.
-              </p>
-            ) : (
-              <ul className="space-y-1">
-                {(char.inventory ?? []).map((item, i) => (
-                  <li
-                    key={i}
-                    className="flex items-center gap-2 font-body text-sm"
-                    style={{ color: "var(--ink-primary)" }}
-                  >
-                    <span style={{ color: "var(--gold-deep)" }}>⚖</span>
-                    {item.name}
-                    {item.quantity > 1 && (
-                      <span style={{ color: "var(--ink-faded)" }}>×{item.quantity}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+              <motion.div
+                className="h-full rounded-full"
+                style={{ background: "var(--blood)" }}
+                initial={false}
+                animate={{ width: `${hpPct}%` }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+              />
+            </div>
+            <span className="font-display text-xs" style={{ color: "var(--ink-secondary)" }}>
+              HP {hp.current}/{hp.max}
+            </span>
+            <span className="font-display text-xs" style={{ color: "var(--ink-faded)" }}>
+              AC {char.ac} · XP {char.xp} · Gold {char.gold}
+            </span>
           </div>
-
-          {/* Skills */}
-          {char.skills && Object.keys(char.skills).length > 0 && (
-            <div className="mb-5">
-              <h4
-                className="mb-2 font-display text-[10px] uppercase"
-                style={{ color: "var(--ink-faded)", letterSpacing: "0.28em" }}
-              >
-                Skills
-              </h4>
-              <ul className="space-y-1">
-                {Object.entries(char.skills).map(([skill, data]) => (
-                  <li
-                    key={skill}
-                    className="flex justify-between font-body text-sm"
-                    style={{ color: "var(--ink-primary)" }}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span style={{ color: "var(--gold-deep)" }}>◈</span>
-                      <span className="capitalize">{skill}</span>
-                    </span>
-                    <span style={{ color: "var(--ink-faded)" }}>Lv {data.level}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Reputation */}
-          {char.reputation && Object.keys(char.reputation).length > 0 && (
-            <div className="mb-5">
-              <h4
-                className="mb-2 font-display text-[10px] uppercase"
-                style={{ color: "var(--ink-faded)", letterSpacing: "0.28em" }}
-              >
-                Reputation
-              </h4>
-              <ul className="space-y-1">
-                {Object.entries(char.reputation).map(([faction, score]) => (
-                  <li key={faction} className="flex justify-between font-body text-sm">
-                    <span style={{ color: "var(--ink-primary)" }}>{faction}</span>
-                    <span style={{ color: score >= 0 ? "var(--gold-bright)" : "var(--blood)" }}>
-                      {score >= 0 ? "+" : ""}
-                      {score}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* === BOTTOM STRIP: Background bio === */}
-      {char.background && (
-        <div className="mt-6 pt-4" style={{ borderTop: "1px solid var(--gold-deep)" }}>
-          <h4
-            className="mb-2 text-center font-display text-[10px] uppercase"
-            style={{ color: "var(--ink-faded)", letterSpacing: "0.3em" }}
-          >
-            ◈ Background & Origin ◈
-          </h4>
-          <p
-            className="font-body italic text-base leading-relaxed"
-            style={{ color: "var(--ink-primary)" }}
-          >
-            {char.background}
-          </p>
+      {/* Rail + content */}
+      <div className="flex min-h-0 flex-1">
+        <nav
+          className="flex w-[150px] shrink-0 flex-col py-3"
+          style={{ borderRight: "1px solid var(--line)" }}
+          aria-label="Character sections"
+        >
+          {TABS.map((key) => {
+            const active = tab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                aria-current={active ? "true" : undefined}
+                className="px-5 py-2 text-left font-display text-[13px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                style={{
+                  color: active ? "var(--accent)" : "var(--ink-faded)",
+                  borderLeft: `2px solid ${active ? "var(--accent)" : "transparent"}`,
+                  background: active ? "rgba(143, 184, 172, 0.05)" : "transparent",
+                }}
+              >
+                {t(`char.${key}`)}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          <TabContent tab={tab} char={char} />
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }

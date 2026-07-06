@@ -17,13 +17,13 @@ export default function Typewriter({ text, onComplete, dropCap = false }: Typewr
         const isFirst = i === 0 && dropCap;
         const isLast = i === paragraphs.length - 1;
         return (
-          <p key={i} className="mb-3 leading-relaxed">
+          <p key={i} className="mb-4" style={{ lineHeight: 1.62 }}>
             {isFirst && paragraph.length > 0 && (
               <span
-                className="float-left mr-2 font-display leading-none"
+                className="float-left mr-2 font-body leading-none"
                 style={{
                   fontSize: "3.2rem",
-                  color: "var(--gold-bright)",
+                  color: "var(--accent)",
                   lineHeight: 0.8,
                   marginTop: "0.1em",
                 }}
@@ -38,7 +38,7 @@ export default function Typewriter({ text, onComplete, dropCap = false }: Typewr
                 style={{
                   width: 2,
                   height: "1em",
-                  background: "var(--gold-bright)",
+                  background: "var(--accent)",
                   verticalAlign: "text-bottom",
                 }}
               />

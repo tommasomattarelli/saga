@@ -1,43 +1,48 @@
-/* Design tokens — Grimoire / Illuminated Parchment */
+/* Design tokens — Direction A: focused · clean · dark (single theme) */
 
 :root {
-  /* --- ink & parchment (LIGHT — in-game narrative) --- */
-  --ink-primary: #2a1a10;
-  --ink-secondary: #5a4530;
-  --ink-faded: #8a6f50;
-  --parchment-base: #f4e8d0;
-  --parchment-aged: #ead5a8;
-  --parchment-shadow: #d4b888;
+  color-scheme: dark;
 
-  /* --- accents (invariant across themes) --- */
-  --gold: #b8860b;
-  --gold-bright: #d4af37;
-  --gold-deep: #8b6914;
-  --blood: #8b0000;
-  --blood-dark: #5a0a0a;
-  --arcane: #1e3a5f;
-  --arcane-deep: #0f1d30;
+  /* --- text --- */
+  --ink-primary: #e7e9ee;
+  --ink-secondary: #b3b9c3;
+  --ink-faded: #868d99;
+
+  /* --- surfaces (names kept for backwards compat) --- */
+  --parchment-base: #14181e; /* elevated: cards, fields, panels */
+  --parchment-aged: #0f1216; /* bars / ground */
+  --parchment-shadow: #090b0f; /* deepest */
+
+  /* --- neutral hairlines --- */
+  --line: #232a33;
+  --line-strong: #313945;
+
+  /* --- accent: verdigris, cool arcane (ADR 0013 B3) --- */
+  --accent: #8fb8ac;
+  --accent-bright: #a9cec2;
+  /* legacy names kept — most components still reference gold */
+  --gold: var(--accent);
+  --gold-bright: var(--accent-bright);
+  /* repurposed to a neutral hairline (was dark gold): most 1px borders in the
+     app were drawn with --gold-deep, so this neutralises them in one move. */
+  --gold-deep: #242a32;
+
+  /* --- semantic --- */
+  --blood: #d3705f;
+  --blood-dark: #a4483a;
+  --ok: #79b487;
+  --arcane: #7d93b8;
+  --arcane-deep: #3a4a66;
 
   /* --- ornaments --- */
-  --ornament-stroke: var(--gold-deep);
+  --ornament-stroke: var(--line);
 
-  /* --- motion --- */
-  --page-turn: 600ms cubic-bezier(0.77, 0, 0.175, 1);
-  --ink-draw: 1200ms cubic-bezier(0.22, 1, 0.36, 1);
-  --mood-crossfade: 1800ms ease-in-out;
+  /* --- motion (calm) --- */
+  --page-turn: 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  --ink-draw: 500ms ease;
+  --mood-crossfade: 1000ms ease-in-out;
 
-  /* --- fonts --- */
-  --font-display: "Cinzel Decorative", serif;
-  --font-body: "Cormorant Garamond", Georgia, serif;
-}
-
-/* DARK theme — auth, campaign select, overlays */
-[data-theme="dark"] {
-  --ink-primary: #f0e4cc;
-  --ink-secondary: #c8b090;
-  --ink-faded: #a08060;
-  --parchment-base: #2a1a10;
-  --parchment-aged: #1a0f08;
-  --parchment-shadow: #0a0504;
-  /* accents intentionally unchanged — gold/blood/arcane work on both */
+  /* --- fonts: sans UI chrome, serif narration --- */
+  --font-display: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Newsreader Variable", Georgia, serif;
 }
