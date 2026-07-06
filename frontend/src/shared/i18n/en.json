@@ -4,12 +4,16 @@
     "subtitle": "AI Dungeon Master"
   },
   "auth": {
-    "login": "Sign In",
-    "register": "Create Account",
-    "logout": "Sign Out",
+    "login": "Sign in",
+    "register": "Create account",
+    "logout": "Sign out",
     "username": "Username",
     "email": "Email",
-    "password": "Password"
+    "password": "Password",
+    "login_subtitle": "Sign in to continue your story",
+    "register_subtitle": "Create an account to begin",
+    "no_account": "New here?",
+    "have_account": "Already have an account?"
   },
   "game": {
     "action_placeholder": "What do you do?",

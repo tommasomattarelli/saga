@@ -19,7 +19,7 @@ describe("App routing & display settings", () => {
 
   it("redirects unauthenticated users from a protected route to /login", async () => {
     renderAt("/campaigns");
-    expect(await screen.findByLabelText("Word of Passage")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Password")).toBeInTheDocument();
   });
 
   it("applies the font-size display setting to the document root", () => {

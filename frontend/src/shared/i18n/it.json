@@ -5,11 +5,15 @@
   },
   "auth": {
     "login": "Accedi",
-    "register": "Crea Account",
+    "register": "Crea account",
     "logout": "Esci",
     "username": "Nome utente",
     "email": "Email",
-    "password": "Password"
+    "password": "Password",
+    "login_subtitle": "Accedi per continuare la tua storia",
+    "register_subtitle": "Crea un account per iniziare",
+    "no_account": "Nuovo qui?",
+    "have_account": "Hai già un account?"
   },
   "game": {
     "action_placeholder": "Cosa fai?",

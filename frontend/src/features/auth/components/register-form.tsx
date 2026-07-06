@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuthFlow } from "../hooks/use-auth-flow";
 import { AuthPageLayout } from "./auth-page-layout";
-import { AuthInput, AuthError, OrnateButton } from "./auth-form-parts";
+import { AuthInput, AuthError, AuthButton } from "./auth-form-parts";
 
 export default function RegisterForm() {
+  const { t } = useTranslation();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,11 +18,11 @@ export default function RegisterForm() {
   };
 
   return (
-    <AuthPageLayout subtitle="Inscribe thy name into the tome.">
+    <AuthPageLayout subtitle={t("auth.register_subtitle")}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <AuthInput
           id="reg-username"
-          label="Name"
+          label={t("auth.username")}
           type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -30,7 +32,7 @@ export default function RegisterForm() {
         />
         <AuthInput
           id="reg-email"
-          label="Sigil (email)"
+          label={t("auth.email")}
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -39,7 +41,7 @@ export default function RegisterForm() {
         />
         <AuthInput
           id="reg-password"
-          label="Word of Passage"
+          label={t("auth.password")}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -51,20 +53,20 @@ export default function RegisterForm() {
         {error && <AuthError message={error} />}
 
         <div className="pt-2">
-          <OrnateButton type="submit" disabled={isPending} className="w-full">
-            {isPending ? "Forging…" : "Begin Thy Tale"}
-          </OrnateButton>
+          <AuthButton type="submit" disabled={isPending} className="w-full">
+            {isPending ? "…" : t("auth.register")}
+          </AuthButton>
         </div>
       </form>
 
-      <p className="mt-6 text-center text-xs font-body" style={{ color: "var(--ink-secondary)" }}>
-        Already of these lands?{" "}
+      <p className="mt-6 text-center text-xs font-display" style={{ color: "var(--ink-faded)" }}>
+        {t("auth.have_account")}{" "}
         <Link
           to="/login"
-          className="underline underline-offset-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
-          style={{ color: "var(--gold-bright)" }}
+          className="underline underline-offset-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+          style={{ color: "var(--accent)" }}
         >
-          Cross the threshold
+          {t("auth.login")}
         </Link>
       </p>
     </AuthPageLayout>

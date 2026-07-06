@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuthFlow } from "../hooks/use-auth-flow";
 import { AuthPageLayout } from "./auth-page-layout";
-import { AuthInput, AuthError, OrnateButton } from "./auth-form-parts";
+import { AuthInput, AuthError, AuthButton } from "./auth-form-parts";
 
 export default function LoginForm() {
+  const { t } = useTranslation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const { submit, isPending, error } = useAuthFlow("login");
@@ -15,11 +17,11 @@ export default function LoginForm() {
   };
 
   return (
-    <AuthPageLayout subtitle="An endless tale awaits.">
-      <form onSubmit={handleSubmit} className="space-y-5">
+    <AuthPageLayout subtitle={t("auth.login_subtitle")}>
+      <form onSubmit={handleSubmit} className="space-y-4">
         <AuthInput
           id="username"
-          label="Name"
+          label={t("auth.username")}
           type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -28,7 +30,7 @@ export default function LoginForm() {
         />
         <AuthInput
           id="password"
-          label="Word of Passage"
+          label={t("auth.password")}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -39,20 +41,20 @@ export default function LoginForm() {
         {error && <AuthError message={error} />}
 
         <div className="pt-2">
-          <OrnateButton type="submit" disabled={isPending} className="w-full">
-            {isPending ? "Opening…" : "Cross the Threshold"}
-          </OrnateButton>
+          <AuthButton type="submit" disabled={isPending} className="w-full">
+            {isPending ? "…" : t("auth.login")}
+          </AuthButton>
         </div>
       </form>
 
-      <p className="mt-6 text-center text-xs font-body" style={{ color: "var(--ink-secondary)" }}>
-        New to these lands?{" "}
+      <p className="mt-6 text-center text-xs font-display" style={{ color: "var(--ink-faded)" }}>
+        {t("auth.no_account")}{" "}
         <Link
           to="/register"
-          className="underline underline-offset-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
-          style={{ color: "var(--gold-bright)" }}
+          className="underline underline-offset-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+          style={{ color: "var(--accent)" }}
         >
-          Begin thy tale
+          {t("auth.register")}
         </Link>
       </p>
     </AuthPageLayout>
