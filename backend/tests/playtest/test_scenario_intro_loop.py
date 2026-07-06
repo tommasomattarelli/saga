@@ -34,7 +34,7 @@ async def test_register_login_create_campaign(client: AsyncClient, db_session: A
     client.headers["Authorization"] = f"Bearer {token}"
     campaign_payload = {
         "name": "The Awakening Playtest",
-        "template_id": "tutorial",
+        "world_id": "the-awakening",
         "death_mode": "destino",
         "character_data": {"name": "Aria", "class": "Ranger"},
     }
@@ -60,7 +60,7 @@ async def test_register_login_create_campaign(client: AsyncClient, db_session: A
     # --- 6. Get single campaign ---
     get_response = await client.get(f"/api/campaigns/{campaign_id}")
     assert get_response.status_code == 200
-    assert get_response.json()["template_id"] == "tutorial"
+    assert get_response.json()["world_slug"] == "the-awakening"
 
 
 @pytest.mark.asyncio
@@ -102,7 +102,7 @@ async def test_user_isolation(client: AsyncClient, db_session: AsyncSession):
         "/api/campaigns",
         json={
             "name": "A's Secret Quest",
-            "template_id": "tutorial",
+            "world_id": "the-awakening",
             "death_mode": "ironman",
             "character_data": {"name": "Solo"},
         },

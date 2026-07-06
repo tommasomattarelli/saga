@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { createCampaign, getTemplates } from "../../../../shared/api/client";
-import type { TemplateOption } from "../../../../shared/api/client";
+import { createCampaign, getWorlds } from "../../../../shared/api/client";
+import type { WorldOption } from "../../../../shared/api/client";
 import type { Campaign } from "../../../../shared/types";
 import { CLASS_PRESETS } from "../../data/class-presets";
 import { WizardStepper } from "./wizard-stepper";
@@ -27,7 +27,7 @@ export default function NewCampaign() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [direction, setDirection] = useState<1 | -1>(1);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateOption | null>(null);
+  const [selectedWorld, setSelectedWorld] = useState<WorldOption | null>(null);
   const [form, setForm] = useState<WizardForm>({
     campaignName: "",
     heroName: "",
@@ -37,9 +37,9 @@ export default function NewCampaign() {
   });
   const [error, setError] = useState<string | null>(null);
 
-  const { data: templates, isLoading } = useQuery({
-    queryKey: ["templates"],
-    queryFn: () => getTemplates().then((r) => r.data),
+  const { data: worlds, isLoading } = useQuery({
+    queryKey: ["worlds"],
+    queryFn: () => getWorlds().then((r) => r.data),
   });
 
   const buildCharacterData = () => {
@@ -64,7 +64,7 @@ export default function NewCampaign() {
   const mutation = useMutation<Campaign, Error, void>({
     mutationFn: () =>
       createCampaign({
-        template_id: selectedTemplate!.id,
+        world_id: selectedWorld!.slug,
         name: form.campaignName || `${form.heroName || "The Stranger"}'s Adventure`,
         death_mode: form.deathMode,
         character_data: buildCharacterData(),
@@ -127,19 +127,19 @@ export default function NewCampaign() {
             >
               {step === 1 && (
                 <StepWorld
-                  templates={templates}
+                  worlds={worlds}
                   isLoading={isLoading}
-                  selectedTemplate={selectedTemplate}
-                  onSelect={(tpl) => {
-                    setSelectedTemplate(tpl);
+                  selectedWorld={selectedWorld}
+                  onSelect={(world) => {
+                    setSelectedWorld(world);
                     go(2);
                   }}
                 />
               )}
-              {step === 2 && selectedTemplate && (
+              {step === 2 && selectedWorld && (
                 <StepHero
                   form={form}
-                  selectedTemplate={selectedTemplate}
+                  selectedWorld={selectedWorld}
                   onChange={patch}
                   onBack={() => go(1)}
                   onNext={() => go(3)}

@@ -16,7 +16,7 @@ const mockGetTurns = vi.mocked(client.getTurns);
 const mockCampaign = {
   id: "c1",
   name: "The Lost Realm",
-  template_id: "forgotten-lands",
+  world_slug: "w1",
   status: "active",
   death_mode: "cronista",
   turn_number: 3,

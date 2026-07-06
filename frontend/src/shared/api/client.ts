@@ -58,7 +58,7 @@ export const getCampaign = (id: string) => api.get<Campaign>(`/campaigns/${id}`)
 export const deleteCampaign = (id: string) => api.delete(`/campaigns/${id}`);
 
 export const createCampaign = (data: {
-  template_id: string;
+  world_id: string;
   name: string;
   death_mode: string;
   character_data?: Record<string, unknown>;
@@ -67,17 +67,16 @@ export const createCampaign = (data: {
 export const submitAction = (campaignId: string, action: string) =>
   api.post<TurnResponse>(`/campaigns/${campaignId}/action`, { action });
 
-export interface TemplateOption {
-  id: string;
+export interface WorldOption {
   slug: string;
   name: string;
   description: string;
   author: string;
-  difficulty: number;
+  version: string;
   tags: string[];
 }
 
-export const getTemplates = () => api.get<TemplateOption[]>("/templates");
+export const getWorlds = () => api.get<WorldOption[]>("/worlds");
 
 export const getTurns = (campaignId: string) =>
   api.get<JournalTurn[]>(`/journal/${campaignId}`, { params: { limit: 200, offset: 0 } });
