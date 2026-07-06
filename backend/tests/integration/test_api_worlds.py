@@ -41,3 +41,47 @@ async def test_campaign_map_endpoint(auth_client):
     names = {n["name"] for n in data["nodes"].values()}
     assert {"Thornhaven", "Old Mines", "Shrine of First Light"} <= names
     assert any(e["mode"] == "foot" for e in data["edges"])
+
+
+@pytest.mark.asyncio
+async def test_editor_lifecycle(auth_client):
+    # create
+    created = await auth_client.post("/api/worlds", json={"name": "Mondo Editor", "author": "it"})
+    assert created.status_code == 201
+    slug = created.json()["slug"]
+    assert slug == "mondo-editor"
+
+    # read editable payload
+    got = await auth_client.get(f"/api/worlds/{slug}")
+    assert got.status_code == 200
+    payload = got.json()
+    assert payload["meta"]["name"] == "Mondo Editor"
+
+    # edit + save
+    payload["nodes"] = [
+        {
+            "slug": "prima-citta",
+            "parent": None,
+            "kind": "site",
+            "name": "Prima Città",
+            "position": {"x": 1, "y": 1},
+        }
+    ]
+    saved = await auth_client.put(f"/api/worlds/{slug}", json=payload)
+    assert saved.status_code == 200
+
+    # invalid save rejected
+    payload["nodes"].append({"slug": "rotto", "parent": None, "kind": "ghost-kind", "name": "X"})
+    bad = await auth_client.put(f"/api/worlds/{slug}", json=payload)
+    assert bad.status_code == 422
+
+    # export
+    exported = await auth_client.get(f"/api/worlds/{slug}/export")
+    assert exported.status_code == 200
+    assert exported.headers["content-type"] == "application/zip"
+
+    # delete
+    deleted = await auth_client.delete(f"/api/worlds/{slug}")
+    assert deleted.status_code == 204
+    listed = await auth_client.get("/api/worlds")
+    assert slug not in [w["slug"] for w in listed.json()]
