@@ -59,6 +59,12 @@ class DmTool(BaseModel):
     def execute(self, world_state: dict, char_data: dict) -> ToolResult:
         raise NotImplementedError
 
+    def execute_with_baseline(
+        self, world_state: dict, char_data: dict, baseline: dict | None
+    ) -> ToolResult:
+        """Override for tools that read the frozen world tree (ADR 0008 C11)."""
+        return self.execute(world_state, char_data)
+
     @classmethod
     def to_openai_schema(cls) -> dict:
         """Return the OpenAI function-calling schema for this tool."""
@@ -114,7 +120,13 @@ def get_tool(name: str) -> type[DmTool] | None:
     return _TOOLS.get(name)
 
 
-def execute_tool(name: str, arguments: dict, world_state: dict, char_data: dict) -> ToolResult:
+def execute_tool(
+    name: str,
+    arguments: dict,
+    world_state: dict,
+    char_data: dict,
+    baseline: dict | None = None,
+) -> ToolResult:
     tool_cls = _TOOLS.get(name)
     if not tool_cls:
         return ToolResult(
@@ -124,7 +136,7 @@ def execute_tool(name: str, arguments: dict, world_state: dict, char_data: dict)
         )
     try:
         instance = tool_cls(**arguments)
-        return instance.execute(world_state, char_data)
+        return instance.execute_with_baseline(world_state, char_data, baseline)
     except Exception as exc:
         safe_msg = str(exc).replace("\n", " ").strip()[:120]
         return ToolResult(

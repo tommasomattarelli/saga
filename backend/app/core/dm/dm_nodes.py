@@ -60,6 +60,7 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
         "messages": lc_messages,
         "world_state": migrate_world_state(campaign.world_state or {}),
         "char_data": campaign.character_data or {},
+        "world_baseline": campaign.world_baseline or {},
         "model_used": model_cfg.model,
         "importance_score": context.importance_score,
         "system_prompt": context.system_prompt,
