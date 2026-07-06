@@ -69,7 +69,7 @@ describe("CampaignSelect Component", () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText("The Shelf of Tales")).toBeInTheDocument();
+    expect(screen.getByText("SAGA")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Open The Dragon Raid")).toBeInTheDocument());
   });
 
@@ -84,8 +84,6 @@ describe("CampaignSelect Component", () => {
       </QueryClientProvider>,
     );
 
-    await waitFor(() =>
-      expect(screen.getByText("The shelf is empty. Begin thy first saga.")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByLabelText("New campaign")).toBeInTheDocument());
   });
 });
