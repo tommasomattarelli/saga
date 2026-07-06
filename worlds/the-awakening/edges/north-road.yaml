@@ -1,0 +1,6 @@
+from: thornhaven
+to: old-mines
+mode: foot
+terrain: road
+encounter_table: north-road-encounters
+encounter_chance: 0.3

@@ -99,6 +99,12 @@ gameplay:
   consecutive_empty_steps_max: 2  # max tool-only steps with no narration before forcing loop exit
 
 # ---------------------------------------------------------------------------
+# World model (ADR 0008)
+# ---------------------------------------------------------------------------
+world:
+  max_depth: 8            # hard cap on world-tree depth (std 19)
+
+# ---------------------------------------------------------------------------
 # API — rate limiting
 # ---------------------------------------------------------------------------
 api:

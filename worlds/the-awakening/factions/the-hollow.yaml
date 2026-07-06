@@ -1,0 +1,11 @@
+name: "The Hollow"
+description: "A mysterious group operating from the old mines."
+goals:
+  - "Recover what sleeps beneath the mines"
+  - "Keep the villagers away"
+relations:
+  thornhaven-council:
+    stance: -7
+    label: "contemptuous secrecy"
+resources:
+  - {name: relics, quantity: 3}
