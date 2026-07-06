@@ -35,7 +35,7 @@ async def _create_campaign(auth_client) -> str:
     resp = await auth_client.post(
         "/api/campaigns",
         json={
-            "template_id": "tutorial",
+            "world_id": "the-awakening",
             "name": "Action Campaign",
             "death_mode": "destino",
             "character_data": {"name": "Eron", "hp": 20, "max_hp": 20},

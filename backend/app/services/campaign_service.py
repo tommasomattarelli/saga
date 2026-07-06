@@ -1,125 +1,62 @@
-"""Campaign service - business logic for campaign management."""
-
-import uuid
+"""Campaign service — instantiates a campaign save from a library World (ADR 0008)."""
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config_loader import load_saga_config
+from app.core.world_instantiation import instantiate_world
+from app.core.world_library import ensure_library, world_path
+from app.core.world_loader import WorldAsset, WorldLoadError, load_world
+from app.core.world_validator import validate_world
 from app.memory.world_state import migrate_world_state
 from app.models.campaign import Campaign
-from app.models.template import Template
 from app.models.user import User
 from app.schemas.campaign import CampaignCreate
 
 
-def build_initial_world_state(template: Template) -> dict:
-    content = template.content
-    world = content.get("world", {})
-    opening = content.get("opening", {})
-
-    locations = {
-        loc["name"]: {k: v for k, v in loc.items() if k != "name"}
-        for loc in world.get("locations", [])
-    }
-    npcs = {
-        npc["name"]: {
-            **{k: v for k, v in npc.items() if k != "name"},
-            "disposition_toward_player": 0,
-            "last_interactions": [],
-        }
-        for npc in world.get("npcs", [])
-    }
-    companions = {
-        comp["name"]: {k: v for k, v in comp.items() if k != "name"}
-        for comp in world.get("companions", [])
-    }
-    factions = {
-        fact["name"]: {k: v for k, v in fact.items() if k != "name"}
-        for fact in world.get("factions", [])
-    }
-
-    return {
-        "meta": {
-            "setting": world.get("setting", ""),
-            "current_location": opening.get("location", ""),
-        },
-        "locations": locations,
-        "npcs": npcs,
-        "companions": companions,
-        "factions": factions,
-        "time_of_day": opening.get("time_of_day", "morning"),
-        "weather": opening.get("weather", "clear"),
-    }
+def _max_depth() -> int:
+    return int((load_saga_config().get("world") or {}).get("max_depth", 8))
 
 
-def build_initial_quests(template: Template) -> dict:
-    opening = template.content.get("opening", {})
-    initial_quests = opening.get("initial_quests", [])
-    return {"active": initial_quests} if initial_quests else {}
-
-
-def _is_uuid(value: str) -> bool:
+def load_valid_world(slug: str) -> WorldAsset:
+    ensure_library()
+    path = world_path(slug)
+    if path is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"World '{slug}' not found in the library",
+        )
     try:
-        uuid.UUID(value)
-        return True
-    except ValueError:
-        return False
-
-
-def _validate_template_content(template: Template) -> None:
-    """Fail fast (422) if a template lacks the structure create_campaign relies on."""
-    content = template.content or {}
-    if not isinstance(content.get("world"), dict):
+        asset = load_world(path)
+    except WorldLoadError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Template '{template.slug}' is malformed: missing 'world' section",
-        )
-    opening = content.get("opening")
-    if not isinstance(opening, dict) or not opening.get("location"):
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"World '{slug}' failed to load: {exc}",
+        ) from exc
+    errors = validate_world(asset, max_depth=_max_depth())
+    if errors:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Template '{template.slug}' is malformed: missing 'opening.location'",
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"message": f"World '{slug}' is invalid", "errors": errors[:20]},
         )
-    for key in ("locations", "npcs", "companions", "factions"):
-        for entry in content["world"].get(key, []):
-            if not isinstance(entry, dict) or not entry.get("name"):
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Template '{template.slug}' is malformed: an entry in world.{key} has no 'name'",
-                )
+    return asset
 
 
 async def create_campaign(db: AsyncSession, user: User, body: CampaignCreate) -> Campaign:
-    if _is_uuid(body.template_id):
-        result = await db.execute(
-            select(Template).where(Template.id == uuid.UUID(body.template_id))
-        )
-    else:
-        result = await db.execute(select(Template).where(Template.slug == body.template_id))
-    template = result.scalar_one_or_none()
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Template '{body.template_id}' not found",
-        )
-
-    _validate_template_content(template)
-
-    initial_state = build_initial_world_state(template)
-    seeded_world_state = migrate_world_state(initial_state)
-    initial_quests = build_initial_quests(template)
+    asset = load_valid_world(body.world_id)
+    baseline, world_state, quests = instantiate_world(asset)
 
     campaign = Campaign(
         user_id=user.id,
-        template_id=template.slug,
+        world_slug=asset.root_slug,
+        world_version=asset.meta.version,
         name=body.name,
         death_mode=body.death_mode,
         character_data=body.character_data,
-        world_state=seeded_world_state,
-        quests=initial_quests,
-        persona_preset=template.persona_preset,
-        persona_xml=template.persona_xml,
+        world_baseline=baseline,
+        world_state=migrate_world_state(world_state),
+        quests=quests,
+        persona_xml=asset.scenario.dm_persona if asset.scenario else None,
     )
     db.add(campaign)
     await db.commit()

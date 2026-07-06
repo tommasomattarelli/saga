@@ -7,7 +7,7 @@ from app.models.campaign import CampaignStatus, DeathMode
 
 
 class CampaignCreate(BaseModel):
-    template_id: str
+    world_id: str
     name: str
     death_mode: DeathMode
     character_data: dict = {}
@@ -16,7 +16,7 @@ class CampaignCreate(BaseModel):
 class CampaignResponse(BaseModel):
     id: uuid.UUID
     name: str
-    template_id: str
+    world_slug: str
     status: CampaignStatus
     death_mode: DeathMode
     turn_number: int

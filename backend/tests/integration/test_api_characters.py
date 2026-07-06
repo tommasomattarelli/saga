@@ -14,7 +14,7 @@ async def test_get_and_update_character_in_campaign(auth_client: AsyncClient, db
         "/api/campaigns",
         json={
             "name": "Character Test",
-            "template_id": "tutorial",
+            "world_id": "the-awakening",
             "death_mode": "destino",
             "character_data": char_data,
         },

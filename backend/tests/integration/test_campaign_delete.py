@@ -27,7 +27,7 @@ async def test_delete_campaign_returns_204(auth_client, test_user):
     resp = await auth_client.post(
         "/api/campaigns",
         json={
-            "template_id": "tutorial",
+            "world_id": "the-awakening",
             "name": "To Delete",
             "death_mode": "destino",
             "character_data": {},
@@ -46,7 +46,7 @@ async def test_delete_campaign_cascades_turns(auth_client, test_user, db_session
     resp = await auth_client.post(
         "/api/campaigns",
         json={
-            "template_id": "tutorial",
+            "world_id": "the-awakening",
             "name": "With Turns",
             "death_mode": "destino",
             "character_data": {},
@@ -95,7 +95,7 @@ async def test_delete_campaign_403_if_not_owner(client, db_session):
 
     campaign = Campaign(
         user_id=user_a.id,
-        template_id="tutorial",
+        world_slug="the-awakening",
         name="User A Campaign",
         death_mode="destino",
         character_data={},

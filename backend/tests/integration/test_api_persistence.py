@@ -11,7 +11,7 @@ async def test_create_and_get_campaign_persistence(auth_client: AsyncClient, db_
     # 1. Create Campaign
     create_data = {
         "name": "Integration Test Story",
-        "template_id": "tutorial",
+        "world_id": "the-awakening",
         "death_mode": "destino",
         "character_data": {"name": "Valerius", "class": "Paladin"},
     }
@@ -39,7 +39,7 @@ async def test_campaign_status_update_persistence(auth_client: AsyncClient, db_s
     # 1. Create
     create_data = {
         "name": "Status Test",
-        "template_id": "tutorial",
+        "world_id": "the-awakening",
         "death_mode": "ironman",
         "character_data": {"name": "Test"},
     }

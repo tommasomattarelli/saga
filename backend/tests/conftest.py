@@ -37,26 +37,25 @@ app.dependencies.close_db = noop
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def setup_database():
-    from app.dependencies import seed_templates
+async def setup_database(tmp_path_factory):
+    # World library in a throwaway home (ADR 0008 C9) — ensure_library seeds
+    # the bundled example World on first use.
+    os.environ["SAGA_HOME"] = str(tmp_path_factory.mktemp("saga-home"))
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-    await seed_templates()
     yield
     await engine.dispose()
 
 
 @pytest.fixture(autouse=True)
 async def clean_database():
-    """Clean all tables except templates before each test."""
+    """Clean all tables before each test."""
     async with engine.begin() as conn:
         # Get all table names
         result = await conn.execute(
-            text(
-                "SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename != 'templates';"
-            )
+            text("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public';")
         )
         tables = [row[0] for row in result.fetchall()]
         if tables:

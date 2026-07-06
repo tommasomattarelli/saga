@@ -9,7 +9,6 @@ from app.api.auth import get_current_user
 from app.dependencies import get_db
 from app.main import app
 from app.models.campaign import Campaign, CampaignStatus, DeathMode
-from app.models.template import Template
 
 client = TestClient(app)
 
@@ -40,7 +39,7 @@ def test_list_campaigns(mocker, mock_user_dependency):
                             id=uuid.uuid4(),
                             name="Test Campaign",
                             user_id=mock_user_dependency.id,
-                            template_id="fantasy",
+                            world_slug="fantasy",
                             status=CampaignStatus.ACTIVE,
                             death_mode=DeathMode.IRONMAN,
                             turn_number=1,
@@ -69,28 +68,13 @@ def test_list_campaigns(mocker, mock_user_dependency):
     app.dependency_overrides.clear()
 
 
-def test_create_campaign(mocker, mock_user_dependency):
+def test_create_campaign(mocker, mock_user_dependency, tmp_path, monkeypatch):
+    # Campaigns are instantiated from a library World (ADR 0008) — point the
+    # library at a tmp home; ensure_library seeds the bundled example World.
+    monkeypatch.setenv("SAGA_HOME", str(tmp_path))
+
     mock_db = mocker.AsyncMock()
     mock_db.add = mocker.Mock()
-
-    # Needs to find a template
-    templ = Template(
-        slug="fantasy",
-        name="Fantasy",
-        description="test",
-        difficulty=3,
-        tags=["fantasy"],
-        content={
-            "world": {"locations": [{"name": "Town"}], "npcs": []},
-            "opening": {"location": "Town"},
-        },
-    )
-
-    class MockTemplateResult:
-        def scalar_one_or_none(self):
-            return templ
-
-    mock_db.execute.return_value = MockTemplateResult()
     mock_db.commit = mocker.AsyncMock()
 
     async def mock_refresh(obj):
@@ -111,7 +95,7 @@ def test_create_campaign(mocker, mock_user_dependency):
 
     create_data = {
         "name": "My New Game",
-        "template_id": "fantasy",
+        "world_id": "the-awakening",
         "death_mode": "ironman",
         "character_data": {"name": "Hero"},
     }
@@ -119,7 +103,7 @@ def test_create_campaign(mocker, mock_user_dependency):
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "My New Game"
-    assert data["template_id"] == "fantasy"
+    assert data["world_slug"] == "the-awakening"
     assert mock_db.commit.called
 
     app.dependency_overrides.clear()
@@ -134,7 +118,7 @@ def test_get_campaign(mocker, mock_user_dependency):
         id=uuid.UUID(camp_id),
         name="Test Campaign",
         user_id=mock_user_dependency.id,
-        template_id="fantasy",
+        world_slug="fantasy",
         status=CampaignStatus.ACTIVE,
         death_mode=DeathMode.IRONMAN,
         turn_number=1,
@@ -172,7 +156,7 @@ def test_update_status(mocker, mock_user_dependency):
         id=uuid.UUID(camp_id),
         user_id=mock_user_dependency.id,
         name="Test Campaign",
-        template_id="fantasy",
+        world_slug="fantasy",
         status=CampaignStatus.ACTIVE,
         death_mode=DeathMode.IRONMAN,
         turn_number=1,
@@ -215,7 +199,7 @@ def test_post_action(mocker, mock_user_dependency):
         id=uuid.UUID(camp_id),
         user_id=mock_user_dependency.id,
         name="Test Campaign",
-        template_id="fantasy",
+        world_slug="fantasy",
         status=CampaignStatus.ACTIVE,
         death_mode=DeathMode.IRONMAN,
         turn_number=1,
