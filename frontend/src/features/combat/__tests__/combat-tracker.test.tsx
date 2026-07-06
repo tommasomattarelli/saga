@@ -17,7 +17,7 @@ const baseCombat: CombatState = {
 describe("CombatTracker", () => {
   it("renders round number and all combatants", () => {
     render(<CombatTracker combatState={baseCombat} />);
-    expect(screen.getByText(/COMBAT - Round 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/Combat . Round 2/i)).toBeInTheDocument();
     expect(screen.getByText("Hero")).toBeInTheDocument();
     expect(screen.getByText("Goblin")).toBeInTheDocument();
     expect(screen.getByText("Miriam")).toBeInTheDocument();
@@ -52,6 +52,6 @@ describe("CombatTracker", () => {
 
   it("renders an empty initiative order without crashing", () => {
     render(<CombatTracker combatState={{ ...baseCombat, initiative_order: [] }} />);
-    expect(screen.getByText(/COMBAT - Round 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/Combat . Round 2/i)).toBeInTheDocument();
   });
 });

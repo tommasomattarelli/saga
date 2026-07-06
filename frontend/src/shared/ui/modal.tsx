@@ -49,32 +49,31 @@ function Modal({
             <div className={containerClass}>
               <Dialog.Content asChild>
                 <motion.div
-                  initial={{ opacity: 0, rotateY: 90 }}
-                  animate={{ opacity: 1, rotateY: 0 }}
-                  exit={{ opacity: 0, rotateY: -90 }}
-                  transition={{ duration: 0.7, ease: [0.77, 0, 0.175, 1] }}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
                   style={{
-                    perspective: 1200,
                     background: "var(--parchment-base)",
-                    border: "1px solid var(--gold-deep)",
+                    border: "1px solid var(--line-strong)",
                   }}
-                  className={contentClass}
+                  className={`${contentClass} rounded-xl overflow-hidden`}
                 >
                   {/* Header */}
                   <div
-                    className="flex items-center justify-between px-8 py-5 shrink-0"
-                    style={{ borderBottom: "1px solid var(--gold-deep)" }}
+                    className="flex items-center justify-between px-6 py-4 shrink-0"
+                    style={{ borderBottom: "1px solid var(--line)" }}
                   >
                     <Dialog.Title
-                      className="font-display text-2xl tracking-grimoire uppercase"
-                      style={{ color: "var(--gold-bright)" }}
+                      className="font-display text-base font-semibold"
+                      style={{ color: "var(--ink-primary)" }}
                     >
                       {title}
                     </Dialog.Title>
                     <Dialog.Close
                       aria-label="Close"
-                      className="text-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright focus-visible:ring-offset-2"
-                      style={{ color: "var(--gold-deep)" }}
+                      className="text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                      style={{ color: "var(--ink-faded)" }}
                     >
                       ✕
                     </Dialog.Close>
@@ -122,18 +121,18 @@ export function ConfirmModal({
           <button
             onClick={onClose}
             disabled={isPending}
-            className="px-4 py-2 font-display text-xs tracking-grimoire uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
-            style={{ color: "var(--ink-faded)", border: "1px solid var(--ink-faded)" }}
+            className="rounded-lg px-4 py-2 font-display text-[13px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+            style={{ color: "var(--ink-secondary)", border: "1px solid var(--line-strong)" }}
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={isPending}
-            className="px-4 py-2 font-display text-xs tracking-grimoire uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blood"
+            className="rounded-lg px-4 py-2 font-display text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blood"
             style={{
               color: "var(--blood)",
-              border: "1px solid var(--blood)",
+              border: "1px solid var(--blood-dark)",
               opacity: isPending ? 0.6 : 1,
             }}
           >

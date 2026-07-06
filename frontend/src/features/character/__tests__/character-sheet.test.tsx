@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import CharacterSheet from "../components/character-sheet";
 import { useGameStore } from "../../../shared/stores/game-store";
@@ -47,12 +47,17 @@ describe("CharacterSheet Component", () => {
     render(<CharacterSheet />);
 
     expect(screen.getByText(/Grog/i)).toBeInTheDocument();
-    expect(screen.getByText(/Level 5/i)).toBeInTheDocument();
-    expect(screen.getByText("45 / 50")).toBeInTheDocument();
-    expect(screen.getByText(/STR/i)).toBeInTheDocument();
+    expect(screen.getByText(/Lv 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/HP 45\/50/)).toBeInTheDocument();
+    // Stats tab is the default
+    expect(screen.getByText(/strength/i)).toBeInTheDocument();
     expect(screen.getByText("18")).toBeInTheDocument();
     expect(screen.getByText("+4")).toBeInTheDocument();
-    expect(screen.getByText(/Athletics/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Skills"));
+    expect(screen.getByText(/athletics/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Inventory"));
     expect(screen.getByText(/Axe/i)).toBeInTheDocument();
   });
 
@@ -61,8 +66,8 @@ describe("CharacterSheet Component", () => {
     useGameStore.setState({ campaign: createMockCampaign(emptyChar) });
     useUIStore.setState({ sidePanel: "character" });
     render(<CharacterSheet />);
-    expect(screen.getByText("Empty satchel.")).toBeInTheDocument();
-    expect(screen.getByText("0")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Inventory"));
+    expect(screen.getByText("Nothing carried yet.")).toBeInTheDocument();
   });
 
   it("should correctly handle negative ability modifiers", () => {
@@ -71,7 +76,7 @@ describe("CharacterSheet Component", () => {
     });
     useUIStore.setState({ sidePanel: "character" });
     render(<CharacterSheet />);
-    expect(screen.getByText(/DEX/i)).toBeInTheDocument();
+    expect(screen.getByText(/dexterity/i)).toBeInTheDocument();
     expect(screen.getByText("8")).toBeInTheDocument();
     expect(screen.getByText("-1")).toBeInTheDocument();
   });
