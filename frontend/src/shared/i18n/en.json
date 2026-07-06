@@ -40,6 +40,13 @@
     "history_error": "Couldn't load the story so far. Refresh the page to try again."
   },
   "campaign": {
+    "your_campaigns": "Your campaigns, {{name}}",
+    "loading": "Loading campaigns…",
+    "new_card": "New campaign",
+    "open": "Open",
+    "delete": "Delete",
+    "delete_title": "Delete this campaign?",
+    "delete_body": "\"{{name}}\" will be permanently deleted. This cannot be undone.",
     "new": "Begin a New Saga",
     "select_death_mode": "Choose Your Fate",
     "ironman": "Ironman",
