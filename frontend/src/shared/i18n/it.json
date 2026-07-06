@@ -85,6 +85,24 @@
     "creating": "Creazione…",
     "create_failed": "Impossibile creare la campagna. Riprova."
   },
+  "journal": {
+    "empty": "Nessuna missione per ora.",
+    "completed": "Completate",
+    "counts": "{{active}} attive · {{completed}} completate"
+  },
+  "settings": {
+    "audio": "Audio",
+    "dice_sound": "Suono dei dadi",
+    "motion": "Animazioni",
+    "motion_auto": "Auto (segui il sistema)",
+    "motion_reduced": "Ridotte",
+    "motion_full": "Complete",
+    "motion_note": "Preferenze animazioni — controllo completo in un prossimo aggiornamento.",
+    "display": "Schermo",
+    "text_size": "Dimensione testo",
+    "account": "Account",
+    "signed_in_as": "Connesso come"
+  },
   "char": {
     "stats": "Statistiche",
     "inventory": "Inventario",

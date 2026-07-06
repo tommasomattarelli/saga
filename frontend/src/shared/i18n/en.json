@@ -85,6 +85,24 @@
     "creating": "Creating…",
     "create_failed": "Couldn't create the campaign. Try again."
   },
+  "journal": {
+    "empty": "No quests yet.",
+    "completed": "Completed",
+    "counts": "{{active}} active · {{completed}} completed"
+  },
+  "settings": {
+    "audio": "Audio",
+    "dice_sound": "Dice sound",
+    "motion": "Motion",
+    "motion_auto": "Auto (follow OS)",
+    "motion_reduced": "Reduced",
+    "motion_full": "Full",
+    "motion_note": "Motion preferences — full control coming in a future update.",
+    "display": "Display",
+    "text_size": "Text size",
+    "account": "Account",
+    "signed_in_as": "Signed in as"
+  },
   "char": {
     "stats": "Stats",
     "inventory": "Inventory",

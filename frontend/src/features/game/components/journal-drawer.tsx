@@ -1,4 +1,5 @@
 import * as Accordion from "@radix-ui/react-accordion";
+import { useTranslation } from "react-i18next";
 import { useGameStore } from "../../../shared/stores/game-store";
 import { useUIStore } from "../../../shared/stores/ui-store";
 import { Drawer } from "../../../shared/ui/drawer";
@@ -9,31 +10,26 @@ function QuestEntry({ quest }: { quest: Quest }) {
 
   return (
     <div
-      className="mb-4 p-3"
+      className="mb-3 rounded-lg p-3"
       style={{
-        border: `1px solid ${isDone ? "var(--gold-deep)" : "var(--gold-bright)"}`,
-        background: isDone ? "transparent" : "rgba(212, 175, 55, 0.05)",
+        border: `1px solid ${isDone ? "var(--line)" : "var(--line-strong)"}`,
         opacity: isDone ? 0.6 : 1,
       }}
     >
-      <div className="flex items-center gap-2 mb-1">
-        <span style={{ color: "var(--gold-deep)", fontSize: 14 }}>✦</span>
-        <h4
-          className="font-display text-sm uppercase"
-          style={{
-            color: "var(--gold-bright)",
-            letterSpacing: "0.15em",
-            textDecoration: isDone ? "line-through" : "none",
-          }}
-        >
-          {quest.name}
-        </h4>
-      </div>
-      <p className="font-body italic text-sm mb-2" style={{ color: "var(--ink-primary)" }}>
+      <h4
+        className="mb-1 font-display text-sm font-semibold"
+        style={{
+          color: isDone ? "var(--ink-secondary)" : "var(--ink-primary)",
+          textDecoration: isDone ? "line-through" : "none",
+        }}
+      >
+        {quest.name}
+      </h4>
+      <p className="mb-2 font-body text-sm italic" style={{ color: "var(--ink-secondary)" }}>
         {quest.description}
       </p>
       {quest.objectives && quest.objectives.length > 0 && (
-        <ul className="space-y-0.5">
+        <ul className="space-y-1">
           {quest.objectives.map((obj, i) => {
             /* Convention: completed objectives prefixed with [x] from backend */
             const done = obj.startsWith("[x]") || obj.startsWith("[X]");
@@ -41,16 +37,17 @@ function QuestEntry({ quest }: { quest: Quest }) {
             return (
               <li
                 key={i}
-                className="flex items-start gap-2 font-body text-xs"
+                className="flex items-start gap-2 font-display text-xs"
                 style={{
                   color: done ? "var(--ink-faded)" : "var(--ink-secondary)",
                   textDecoration: done ? "line-through" : "none",
                 }}
               >
                 <span
-                  style={{ color: done ? "var(--gold-deep)" : "var(--ink-faded)", flexShrink: 0 }}
+                  aria-hidden="true"
+                  style={{ color: done ? "var(--accent)" : "var(--ink-faded)", flexShrink: 0 }}
                 >
-                  {done ? "◆" : "◇"}
+                  {done ? "●" : "○"}
                 </span>
                 {text}
               </li>
@@ -63,6 +60,7 @@ function QuestEntry({ quest }: { quest: Quest }) {
 }
 
 export default function JournalDrawer() {
+  const { t } = useTranslation();
   const campaign = useGameStore((s) => s.campaign);
   const sidePanel = useUIStore((s) => s.sidePanel);
   const setSidePanel = useUIStore((s) => s.setSidePanel);
@@ -72,18 +70,15 @@ export default function JournalDrawer() {
   const completedQuests: Quest[] = quests?.completed ?? [];
 
   return (
-    <Drawer open={sidePanel === "quests"} onClose={() => setSidePanel(null)} title="The Ledger">
-      <p
-        className="font-display text-[10px] uppercase mb-4"
-        style={{ color: "var(--ink-faded)", letterSpacing: "0.3em" }}
-      >
-        Deeds &amp; Oaths
-      </p>
-
+    <Drawer
+      open={sidePanel === "quests"}
+      onClose={() => setSidePanel(null)}
+      title={t("game.journal")}
+    >
       {/* Active quests */}
       {activeQuests.length === 0 ? (
-        <p className="font-body italic text-sm mb-6" style={{ color: "var(--ink-faded)" }}>
-          No oaths yet sworn.
+        <p className="mb-6 font-body text-sm italic" style={{ color: "var(--ink-faded)" }}>
+          {t("journal.empty")}
         </p>
       ) : (
         <div className="mb-6">
@@ -98,16 +93,12 @@ export default function JournalDrawer() {
         <Accordion.Root type="single" collapsible>
           <Accordion.Item value="completed">
             <Accordion.Trigger
-              className="flex items-center gap-2 w-full mb-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
+              className="mb-2 flex w-full items-center gap-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
               style={{ color: "var(--ink-faded)" }}
             >
-              <span
-                className="font-display text-[10px] uppercase"
-                style={{ letterSpacing: "0.25em" }}
-              >
-                Completed Deeds
+              <span className="font-display text-xs font-semibold">
+                {t("journal.completed")} ({completedQuests.length})
               </span>
-              <span className="font-body text-xs">({completedQuests.length})</span>
             </Accordion.Trigger>
             <Accordion.Content>
               {completedQuests.map((q, i) => (
@@ -120,14 +111,10 @@ export default function JournalDrawer() {
 
       {/* Footer count */}
       <div
-        className="mt-auto pt-4 font-display text-[9px] uppercase text-center"
-        style={{
-          color: "var(--ink-faded)",
-          letterSpacing: "0.2em",
-          borderTop: "1px solid var(--gold-deep)",
-        }}
+        className="mt-auto pt-4 text-center font-display text-[11px]"
+        style={{ color: "var(--ink-faded)", borderTop: "1px solid var(--line)" }}
       >
-        {activeQuests.length} active · {completedQuests.length} completed
+        {t("journal.counts", { active: activeQuests.length, completed: completedQuests.length })}
       </div>
     </Drawer>
   );
