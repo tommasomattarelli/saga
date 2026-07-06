@@ -1,14 +1,13 @@
 # ADR 0008 — World model: multi-layer, file-authored worlds with a deterministic spatial graph
 
-- **Status**: Proposed (direction + design decisions fixed via the 2026-06-15 design
-  interview; **hardened by a competitive/online research pass + adversarial validation**
-  on 2026-06-15 — see `scratch/research/adr0008_research.md`. **Implementation-planning
-  interview 2026-07-06**: resolved J-iii (NPC interim addressing), added the read-only
-  world map (B4), fixed the sprint split (§9). **Sprint 0 design pass 2026-07-06
-  (same-day interview): closed every open TODO** — headline revision: **world-defined
-  vocabularies (P0)** replace the fixed kind/terrain enums. Ready for Accepted on owner
-  sign-off.)
-- **Date**: 2026-06-15 (updated 2026-07-06)
+- **Status**: **Accepted** (2026-07-07, owner sign-off after the full implementation
+  cycle §9 landed green. History: direction fixed via the 2026-06-15 design interview;
+  hardened by a research pass + adversarial validation on 2026-06-15 — see
+  `scratch/research/adr0008_research.md`; implementation-planning interview 2026-07-06
+  resolved J-iii/B4/§9; Sprint 0 design pass 2026-07-06 closed every open TODO —
+  headline revision: **world-defined vocabularies (P0)** replace the fixed kind/terrain
+  enums. Frozen: future changes require a superseding ADR.)
+- **Date**: 2026-06-15 (accepted 2026-07-07)
 - **Context items**: Voyage analysis (`scratch/research/voyage.md`); research pass
   (`scratch/research/adr0008_research.md`); spun off from ADR 0007. Decisions come from a
   structured design interview (all choices by the project owner) and were then validated
