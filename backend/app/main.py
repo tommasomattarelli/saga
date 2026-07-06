@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from app.api import auth, campaigns, characters, export, journal, saves, templates, turns
+from app.api import auth, campaigns, characters, export, journal, saves, turns, worlds
 from app.api import settings as settings_api
 from app.api.rate_limit import limiter, rate_limit_exceeded_handler
 from app.config import settings
@@ -47,7 +47,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
     app.include_router(campaigns.router, prefix="/api/campaigns", tags=["campaigns"])
     app.include_router(characters.router, prefix="/api/characters", tags=["characters"])
-    app.include_router(templates.router, prefix="/api/templates", tags=["templates"])
+    app.include_router(worlds.router, prefix="/api/worlds", tags=["worlds"])
     app.include_router(saves.router, prefix="/api/saves", tags=["saves"])
     app.include_router(journal.router, prefix="/api/journal", tags=["journal"])
     app.include_router(settings_api.router, prefix="/api/settings", tags=["settings"])

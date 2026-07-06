@@ -36,7 +36,9 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), index=True
     )
-    template_id: Mapped[str] = mapped_column(String(100))
+    world_slug: Mapped[str] = mapped_column(String(100))
+    # World version stamped at instantiation (ADR 0008 C3b) — saves are frozen
+    world_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
     name: Mapped[str] = mapped_column(String(200))
     status: Mapped[CampaignStatus] = mapped_column(
         SAEnum(CampaignStatus), default=CampaignStatus.ACTIVE
@@ -47,7 +49,11 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
     # Character data (denormalized for fast access)
     character_data: Mapped[dict] = mapped_column(JSONB, default=dict)
 
-    # World state snapshot (companions, factions, locations, time, weather)
+    # Static authored world tree, written once at instantiation (ADR 0008 C7/C11);
+    # the turn loop never touches it — runtime deltas live in world_state
+    world_baseline: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    # World state overlay (npcs, factions, node status, clock, combat, position)
     world_state: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     # Active quests
