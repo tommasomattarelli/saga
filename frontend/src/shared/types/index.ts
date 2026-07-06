@@ -8,7 +8,7 @@ export interface User {
 export interface Campaign {
   id: string;
   name: string;
-  template_id: string;
+  world_slug: string;
   status: CampaignStatus;
   death_mode: DeathMode;
   turn_number: number;

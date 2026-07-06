@@ -5,7 +5,7 @@ import type { Campaign, TurnResponse } from "../../types";
 const makeCampaign = (overrides: Partial<Campaign> = {}): Campaign => ({
   id: "c1",
   name: "Test Saga",
-  template_id: "t1",
+  world_slug: "w1",
   status: "active",
   death_mode: "cronista",
   turn_number: 1,

@@ -30,7 +30,7 @@ describe("CampaignSelect Component", () => {
   const mockCampaigns: Campaign[] = [
     {
       id: "1",
-      template_id: "t1",
+      world_slug: "w1",
       name: "The Dragon Raid",
       status: "active",
       death_mode: "ironman",
