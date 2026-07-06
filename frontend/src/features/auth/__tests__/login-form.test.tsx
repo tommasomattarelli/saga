@@ -43,9 +43,9 @@ describe("LoginForm Component", () => {
 
   it("should render login form", () => {
     renderComponent();
-    expect(screen.getByLabelText("Name")).toBeInTheDocument();
-    expect(screen.getByLabelText("Word of Passage")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /cross the threshold/i })).toBeInTheDocument();
+    expect(screen.getByLabelText("Username")).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
   });
 
   it("should call login and navigate on success", async () => {
@@ -67,11 +67,11 @@ describe("LoginForm Component", () => {
 
     renderComponent();
 
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "testuser" } });
-    fireEvent.change(screen.getByLabelText("Word of Passage"), {
+    fireEvent.change(screen.getByLabelText("Username"), { target: { value: "testuser" } });
+    fireEvent.change(screen.getByLabelText("Password"), {
       target: { value: "password123" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /cross the threshold/i }));
+    fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
     await waitFor(() => expect(login).toHaveBeenCalledWith("testuser", "password123"), {
       timeout: 2000,
@@ -85,9 +85,9 @@ describe("LoginForm Component", () => {
 
     renderComponent();
 
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "baduser" } });
-    fireEvent.change(screen.getByLabelText("Word of Passage"), { target: { value: "badpass" } });
-    fireEvent.click(screen.getByRole("button", { name: /cross the threshold/i }));
+    fireEvent.change(screen.getByLabelText("Username"), { target: { value: "baduser" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "badpass" } });
+    fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
     expect(await screen.findByText("Invalid credentials.")).toBeInTheDocument();
   });
