@@ -1,20 +1,18 @@
 import { useState } from "react";
-import { useForcedTheme } from "../../../shared/hooks/use-forced-theme";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import * as Tooltip from "@radix-ui/react-tooltip";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { getCampaigns } from "../../../shared/api/client";
 import { useAuthStore } from "../../../shared/stores/auth-store";
 import { useDeleteCampaign } from "../hooks/use-delete-campaign";
 import type { Campaign } from "../../../shared/types";
-import { BookSpine, NewBookSpine } from "../../../assets/ornaments/book-spine";
-import { OrnamentDivider } from "../../../shared/ui/ornament-divider";
 import { ConfirmModal } from "../../../shared/ui/modal";
-import { SagaSeal } from "../../../assets/ornaments/saga-seal";
+import { Wordmark } from "../../../shared/ui/wordmark";
 
-function TomeCard({
+/* Campaign card — monogram now, cover image slot later (ADR 0013 A4) */
+function CampaignCard({
   campaign,
   onOpen,
   onDelete,
@@ -23,125 +21,108 @@ function TomeCard({
   onOpen: () => void;
   onDelete: () => void;
 }) {
-  const archetype = campaign.character_data?.archetype ?? "default";
+  const { t } = useTranslation();
+  const archetype = campaign.character_data?.archetype ?? "adventurer";
   const heroName = campaign.character_data?.name ?? "Unknown hero";
-  const ironman = campaign.death_mode === "ironman";
 
   return (
-    <Tooltip.Root delayDuration={300}>
-      <Tooltip.Trigger asChild>
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          whileHover={{ y: -10, rotate: -2 }}
-          transition={{ type: "spring", stiffness: 300, damping: 22 }}
-          className="relative group cursor-pointer"
-          style={{ width: 80, height: 260 }}
-        >
-          <button
-            onClick={onOpen}
-            aria-label={`Open ${campaign.name}`}
-            className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright rounded"
-          >
-            <BookSpine
-              campaignId={campaign.id}
-              title={campaign.name}
-              archetype={archetype}
-              turnNumber={campaign.turn_number}
-              ironman={ironman}
-            />
-          </button>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="group relative w-[210px] rounded-xl p-5 text-left"
+      style={{
+        background: "var(--parchment-base)",
+        border: "1px solid var(--line-strong)",
+      }}
+    >
+      <button
+        onClick={onOpen}
+        aria-label={`Open ${campaign.name}`}
+        className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+      />
 
-          {/* Hover glow */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-            style={{
-              boxShadow: "0 0 30px 4px rgba(212, 175, 55, 0.4)",
-              borderRadius: "4px",
-            }}
-          />
+      <div
+        aria-hidden="true"
+        className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg font-display text-xl font-semibold"
+        style={{ border: "1px solid var(--line-strong)", color: "var(--accent)" }}
+      >
+        {campaign.name[0]?.toUpperCase()}
+      </div>
 
-          {/* Dropdown menu trigger — appears on hover */}
-          <div
-            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-            role="presentation"
+      <div
+        className="font-display text-[15px] font-semibold"
+        style={{ color: "var(--ink-primary)" }}
+      >
+        {campaign.name}
+      </div>
+      <div className="mt-0.5 mb-4 font-display text-xs" style={{ color: "var(--ink-faded)" }}>
+        {heroName} · {archetype} · {campaign.death_mode}
+      </div>
+
+      <div
+        className="flex items-baseline justify-between border-t pt-2.5 font-display text-xs"
+        style={{ borderColor: "var(--line)", color: "var(--ink-faded)" }}
+      >
+        <span>{t("game.chapter")}</span>
+        <span className="font-semibold" style={{ color: "var(--ink-secondary)" }}>
+          {campaign.turn_number}
+        </span>
+      </div>
+
+      {/* Options — on hover/focus */}
+      <div
+        className="absolute top-3 right-3 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role="presentation"
+      >
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
+            aria-label="Campaign options"
+            className="flex h-6 w-6 items-center justify-center rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+            style={{ color: "var(--ink-faded)" }}
           >
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger
-                aria-label="Campaign options"
-                className="w-6 h-6 flex items-center justify-center rounded bg-black/60 text-gold-bright focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
+            ⋯
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              sideOffset={4}
+              align="end"
+              className="z-50 min-w-[140px] rounded-lg py-1 shadow-xl"
+              style={{
+                background: "var(--parchment-aged)",
+                border: "1px solid var(--line-strong)",
+              }}
+            >
+              <DropdownMenu.Item
+                onSelect={onOpen}
+                className="cursor-pointer px-3 py-1.5 font-display text-sm outline-none data-[highlighted]:bg-black/20"
+                style={{ color: "var(--ink-primary)" }}
               >
-                ⋯
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content
-                  sideOffset={4}
-                  align="end"
-                  className="min-w-[140px] py-1 shadow-xl z-50"
-                  style={{
-                    background: "var(--parchment-aged)",
-                    border: "1px solid var(--gold-deep)",
-                  }}
-                >
-                  <DropdownMenu.Item
-                    onSelect={onOpen}
-                    className="px-3 py-1.5 font-body text-sm cursor-pointer outline-none data-[highlighted]:bg-black/10"
-                    style={{ color: "var(--ink-primary)" }}
-                  >
-                    Open tome
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    onSelect={onDelete}
-                    className="px-3 py-1.5 font-body text-sm cursor-pointer outline-none data-[highlighted]:bg-black/10"
-                    style={{ color: "var(--blood)" }}
-                  >
-                    Burn tome
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
-          </div>
-        </motion.div>
-      </Tooltip.Trigger>
-      <Tooltip.Portal>
-        <Tooltip.Content
-          sideOffset={10}
-          className="z-50 px-3 py-2 max-w-[220px] font-body text-sm shadow-lg"
-          style={{
-            background: "var(--parchment-aged)",
-            color: "var(--ink-primary)",
-            border: "1px solid var(--gold-deep)",
-          }}
-        >
-          <div
-            className="font-display text-xs uppercase tracking-grimoire"
-            style={{ color: "var(--gold-bright)" }}
-          >
-            {campaign.name}
-          </div>
-          <div className="mt-1 italic" style={{ color: "var(--ink-secondary)" }}>
-            {heroName} · {archetype}
-          </div>
-          <div className="mt-1 text-xs" style={{ color: "var(--ink-faded)" }}>
-            Chapter {campaign.turn_number} · {campaign.death_mode}
-          </div>
-        </Tooltip.Content>
-      </Tooltip.Portal>
-    </Tooltip.Root>
+                {t("campaign.open")}
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                onSelect={onDelete}
+                className="cursor-pointer px-3 py-1.5 font-display text-sm outline-none data-[highlighted]:bg-black/20"
+                style={{ color: "var(--blood)" }}
+              >
+                {t("campaign.delete")}
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      </div>
+    </motion.div>
   );
 }
 
 export default function CampaignSelect() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
   const deleteMutation = useDeleteCampaign();
   const [toDelete, setToDelete] = useState<Campaign | null>(null);
-
-  useForcedTheme("dark");
 
   const { data: campaigns, isLoading } = useQuery({
     queryKey: ["campaigns"],
@@ -156,133 +137,75 @@ export default function CampaignSelect() {
   };
 
   return (
-    <Tooltip.Provider>
-      <div
-        className="min-h-screen w-full px-8 py-12"
-        style={{ background: "var(--parchment-base)" }}
-      >
-        {/* Header */}
-        <header className="max-w-6xl mx-auto flex items-start justify-between mb-10">
-          <div className="flex items-center gap-4">
-            <SagaSeal size={48} color="var(--gold-bright)" animate={false} />
-            <div>
-              <p
-                className="font-display text-[10px] uppercase"
-                style={{ color: "var(--ink-faded)", letterSpacing: "0.3em" }}
-              >
-                Welcome, {user?.username}
-              </p>
-              <h1
-                className="font-display text-4xl uppercase"
-                style={{ color: "var(--gold-bright)", letterSpacing: "0.18em" }}
-              >
-                The Shelf of Tales
-              </h1>
-            </div>
+    <div
+      className="min-h-screen w-full px-8 py-10"
+      style={{ background: "var(--parchment-shadow)" }}
+    >
+      {/* Header */}
+      <header className="mx-auto mb-10 flex max-w-5xl items-center justify-between">
+        <div className="flex items-baseline gap-4">
+          <Wordmark size="text-lg" />
+          <span className="font-display text-sm" style={{ color: "var(--ink-faded)" }}>
+            {t("campaign.your_campaigns", { name: user?.username })}
+          </span>
+        </div>
+        <button
+          onClick={() => {
+            logout();
+            navigate("/login");
+          }}
+          className="font-display text-sm px-2 py-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+          style={{ color: "var(--ink-faded)" }}
+        >
+          {t("auth.logout")}
+        </button>
+      </header>
+
+      {/* Grid */}
+      <main className="mx-auto max-w-5xl">
+        {isLoading ? (
+          <p className="py-16 font-display text-sm" style={{ color: "var(--ink-faded)" }}>
+            {t("campaign.loading")}
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-5">
+            {campaigns?.map((c) => (
+              <CampaignCard
+                key={c.id}
+                campaign={c}
+                onOpen={() => navigate(`/game/${c.id}`)}
+                onDelete={() => setToDelete(c)}
+              />
+            ))}
+
+            {/* New campaign */}
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={() => navigate("/campaigns/new")}
+              aria-label={t("campaign.new_card")}
+              className="flex min-h-[180px] w-[210px] items-center justify-center rounded-xl font-display text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+              style={{
+                border: "1px dashed var(--line-strong)",
+                color: "var(--ink-faded)",
+              }}
+            >
+              + {t("campaign.new_card")}
+            </motion.button>
           </div>
-          <button
-            onClick={() => {
-              logout();
-              navigate("/login");
-            }}
-            className="font-display text-xs uppercase tracking-grimoire-wide px-4 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
-            style={{ color: "var(--ink-faded)" }}
-          >
-            Depart
-          </button>
-        </header>
+        )}
+      </main>
 
-        <OrnamentDivider variant="flourish-a" className="max-w-5xl mx-auto" />
-
-        {/* Shelf */}
-        <main className="max-w-6xl mx-auto">
-          {isLoading ? (
-            <p className="text-center font-body italic py-16" style={{ color: "var(--ink-faded)" }}>
-              Retrieving the tomes…
-            </p>
-          ) : (
-            <>
-              <div className="relative mt-8 flex flex-wrap items-end justify-center gap-8 pb-8">
-                {campaigns?.map((c) => (
-                  <TomeCard
-                    key={c.id}
-                    campaign={c}
-                    onOpen={() => navigate(`/game/${c.id}`)}
-                    onDelete={() => setToDelete(c)}
-                  />
-                ))}
-
-                {/* New Saga tome */}
-                <motion.div
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  whileHover={{ y: -10, rotate: 2 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 22 }}
-                  className="relative group cursor-pointer"
-                  style={{ width: 80, height: 260 }}
-                >
-                  <button
-                    onClick={() => navigate("/campaigns/new")}
-                    aria-label="Begin a new saga"
-                    className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright rounded"
-                  >
-                    <NewBookSpine />
-                  </button>
-                  <div
-                    aria-hidden="true"
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                    style={{
-                      boxShadow: "0 0 40px 6px rgba(212, 175, 55, 0.55)",
-                      borderRadius: "4px",
-                    }}
-                  />
-                </motion.div>
-              </div>
-
-              {/* Wooden shelf ledge */}
-              <div
-                aria-hidden="true"
-                className="max-w-6xl mx-auto h-3"
-                style={{
-                  background:
-                    "linear-gradient(to bottom, var(--gold-deep) 0%, rgba(0,0,0,0.4) 50%, var(--gold-deep) 100%)",
-                  borderTop: "1px solid var(--gold)",
-                  borderBottom: "1px solid rgba(0,0,0,0.5)",
-                }}
-              />
-              <div
-                aria-hidden="true"
-                className="max-w-6xl mx-auto h-4"
-                style={{
-                  background: "linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(0,0,0,0))",
-                }}
-              />
-
-              {(!campaigns || campaigns.length === 0) && (
-                <p
-                  className="mt-10 text-center font-body italic text-lg"
-                  style={{ color: "var(--ink-faded)" }}
-                >
-                  The shelf is empty. Begin thy first saga.
-                </p>
-              )}
-            </>
-          )}
-        </main>
-
-        {/* Confirm delete modal */}
-        <ConfirmModal
-          open={!!toDelete}
-          onClose={() => setToDelete(null)}
-          onConfirm={handleConfirmDelete}
-          title="Burn this tome?"
-          description={
-            toDelete ? `"${toDelete.name}" will be lost to the ages. This cannot be undone.` : ""
-          }
-          confirmLabel="Burn"
-          isPending={deleteMutation.isPending}
-        />
-      </div>
-    </Tooltip.Provider>
+      {/* Confirm delete modal */}
+      <ConfirmModal
+        open={!!toDelete}
+        onClose={() => setToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title={t("campaign.delete_title")}
+        description={toDelete ? t("campaign.delete_body", { name: toDelete.name }) : ""}
+        confirmLabel={t("campaign.delete")}
+        isPending={deleteMutation.isPending}
+      />
+    </div>
   );
 }

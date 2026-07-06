@@ -1,6 +1,5 @@
 import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
-import { CornerFlourish } from "../../assets/ornaments/corner-flourish";
 
 interface Props {
   children: ReactNode;
@@ -25,57 +24,27 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div
-          className="relative flex min-h-screen flex-col items-center justify-center"
+          className="flex min-h-screen flex-col items-center justify-center"
           style={{ background: "var(--parchment-base)" }}
         >
-          {/* Corner flourishes */}
-          <span className="absolute top-6 left-6">
-            <CornerFlourish corner="tl" size={36} />
-          </span>
-          <span className="absolute top-6 right-6">
-            <CornerFlourish corner="tr" size={36} />
-          </span>
-          <span className="absolute bottom-6 left-6">
-            <CornerFlourish corner="bl" size={36} />
-          </span>
-          <span className="absolute bottom-6 right-6">
-            <CornerFlourish corner="br" size={36} />
-          </span>
-
-          {/* Torn parchment glyph */}
-          <div
-            className="mb-6 font-display"
-            style={{ fontSize: 64, color: "var(--gold-deep)", opacity: 0.4 }}
-            aria-hidden="true"
-          >
-            ✦
-          </div>
-
           <h1
-            className="font-display text-3xl uppercase mb-3 text-center"
-            style={{ color: "var(--gold-bright)", letterSpacing: "0.22em" }}
+            className="mb-2 text-center font-display text-lg font-semibold"
+            style={{ color: "var(--ink-primary)" }}
           >
-            The Weave tears…
+            Something went wrong
           </h1>
 
           <p
-            className="font-body italic text-lg mb-8 text-center max-w-sm"
-            style={{ color: "var(--ink-secondary)" }}
+            className="mb-8 max-w-sm text-center font-display text-sm"
+            style={{ color: "var(--ink-faded)" }}
           >
-            Something went wrong.
+            Reload the page to continue your story.
           </p>
 
-          {/* Ornate button */}
           <button
             onClick={() => window.location.reload()}
-            className="font-display text-sm uppercase tracking-grimoire-wide px-8 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright active:scale-95 transition-transform"
-            style={{
-              color: "var(--gold-bright)",
-              border: "1px solid var(--gold-bright)",
-              outline: "1px solid var(--gold-deep)",
-              outlineOffset: "3px",
-              background: "rgba(212, 175, 55, 0.08)",
-            }}
+            className="rounded-lg px-6 py-2.5 font-display text-sm font-semibold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+            style={{ color: "var(--accent)", border: "1px solid var(--accent)" }}
           >
             Reload
           </button>

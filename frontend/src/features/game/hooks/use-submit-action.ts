@@ -25,20 +25,13 @@ export function useSubmitAction(campaignId: string, scrollRef: RefObject<HTMLDiv
         if (!check.success) console.warn("[useSubmitAction] schema mismatch", check.error.issues);
       }
 
-      const {
-        addTurn,
-        updateWorldState,
-        updateCharacter,
-        updateTurnNumber,
-        setCurrentMood,
-        setCombatState,
-      } = useGameStore.getState();
+      const { addTurn, updateWorldState, updateCharacter, updateTurnNumber, setCombatState } =
+        useGameStore.getState();
 
       addTurn(turn);
       if (turn.world_state) updateWorldState(turn.world_state as Partial<WorldState>);
       if (turn.character_data) updateCharacter(turn.character_data as Partial<CharacterData>);
       if (turn.turn_number) updateTurnNumber(turn.turn_number);
-      if (turn.scene_mood) setCurrentMood(turn.scene_mood);
 
       if (turn.combat_state?.active) {
         setCombatState(turn.combat_state as CombatState);

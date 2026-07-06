@@ -33,7 +33,7 @@ describe("ErrorBoundary", () => {
         <Bomb shouldThrow={true} />
       </ErrorBoundary>,
     );
-    expect(screen.getByText("Something went wrong.")).toBeInTheDocument();
+    expect(screen.getByText("Something went wrong")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument();
   });
 

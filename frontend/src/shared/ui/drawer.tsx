@@ -34,28 +34,28 @@ export function Drawer({ open, onClose, title, children, width = "w-[480px]" }: 
                 initial={{ x: "100%" }}
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
-                transition={{ duration: 0.4, ease: [0.77, 0, 0.175, 1] }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
                 className={`fixed right-0 top-0 bottom-0 z-50 ${width} flex flex-col`}
                 style={{
                   background: "var(--parchment-aged)",
-                  borderLeft: "1px solid var(--gold-deep)",
+                  borderLeft: "1px solid var(--line-strong)",
                 }}
               >
                 {/* Header */}
                 <div
                   className="flex items-center justify-between px-6 py-4 shrink-0"
-                  style={{ borderBottom: "1px solid var(--gold-deep)", opacity: 0.9 }}
+                  style={{ borderBottom: "1px solid var(--line)" }}
                 >
                   <Dialog.Title
-                    className="font-display text-xl tracking-grimoire uppercase"
-                    style={{ color: "var(--gold-bright)" }}
+                    className="font-display text-base font-semibold"
+                    style={{ color: "var(--ink-primary)" }}
                   >
                     {title}
                   </Dialog.Title>
                   <Dialog.Close
                     aria-label="Close drawer"
-                    className="text-xl leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright focus-visible:ring-offset-2"
-                    style={{ color: "var(--gold-deep)" }}
+                    className="text-base leading-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                    style={{ color: "var(--ink-faded)" }}
                   >
                     ✕
                   </Dialog.Close>

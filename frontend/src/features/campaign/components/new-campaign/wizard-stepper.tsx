@@ -1,65 +1,43 @@
-/* 3-sigil stepper for the new-campaign ritual */
+import { useTranslation } from "react-i18next";
 
 interface WizardStepperProps {
   step: 1 | 2 | 3;
 }
 
-const GLYPHS: Array<{ glyph: string; label: string }> = [
-  { glyph: "✷", label: "The World" },
-  { glyph: "❖", label: "The Hero" },
-  { glyph: "⚔", label: "The Fate" },
-];
-
 export function WizardStepper({ step }: WizardStepperProps) {
+  const { t } = useTranslation();
+  const labels = [t("wizard.step_world"), t("wizard.step_hero"), t("wizard.step_fate")];
+
   return (
-    <div className="flex items-center justify-center gap-4 mb-8" aria-label={`Step ${step} of 3`}>
-      {GLYPHS.map((item, i) => {
+    <div className="mb-8 flex items-center justify-center gap-3" aria-label={`Step ${step} of 3`}>
+      {labels.map((label, i) => {
         const n = (i + 1) as 1 | 2 | 3;
         const isActive = n === step;
         const isDone = n < step;
         return (
-          <div key={i} className="flex items-center gap-4">
-            <div className="flex flex-col items-center gap-1">
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center transition-all"
-                style={{
-                  border: `1px solid ${isActive || isDone ? "var(--gold-bright)" : "var(--gold-deep)"}`,
-                  background: isActive ? "rgba(212, 175, 55, 0.12)" : "transparent",
-                  opacity: isActive ? 1 : isDone ? 0.85 : 0.45,
-                  boxShadow: isActive ? "0 0 16px rgba(212,175,55,0.35)" : "none",
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 22,
-                    color: isActive ? "var(--gold-bright)" : "var(--gold-deep)",
-                  }}
-                >
-                  {item.glyph}
-                </span>
-              </div>
+          <div key={label} className="flex items-center gap-3">
+            <div className="flex items-center gap-2" aria-current={isActive ? "step" : undefined}>
               <span
-                className="font-display text-[9px] uppercase"
+                className="flex h-6 w-6 items-center justify-center rounded-full font-display text-xs font-semibold"
                 style={{
-                  letterSpacing: "0.22em",
-                  color: isActive ? "var(--gold-bright)" : "var(--ink-faded)",
-                  opacity: isActive ? 1 : 0.75,
+                  border: `1px solid ${isActive || isDone ? "var(--accent)" : "var(--line-strong)"}`,
+                  color: isActive || isDone ? "var(--accent)" : "var(--ink-faded)",
                 }}
               >
-                {item.label}
+                {n}
+              </span>
+              <span
+                className="font-display text-[13px]"
+                style={{ color: isActive ? "var(--ink-primary)" : "var(--ink-faded)" }}
+              >
+                {label}
               </span>
             </div>
-
-            {/* Connecting line */}
-            {i < GLYPHS.length - 1 && (
-              <div
+            {i < labels.length - 1 && (
+              <span
                 aria-hidden="true"
-                className="w-16 h-px"
-                style={{
-                  background: "var(--gold-deep)",
-                  opacity: isDone ? 0.85 : 0.35,
-                }}
+                className="h-px w-10"
+                style={{ background: isDone ? "var(--accent)" : "var(--line)" }}
               />
             )}
           </div>
