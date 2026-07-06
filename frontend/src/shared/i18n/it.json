@@ -37,7 +37,8 @@
     "dm_writing": "Il DM sta scrivendo…",
     "empty_title": "La storia non è ancora iniziata",
     "empty_hint": "Scrivi la tua prima azione qui sotto.",
-    "history_error": "Impossibile caricare la storia. Ricarica la pagina per riprovare."
+    "history_error": "Impossibile caricare la storia. Ricarica la pagina per riprovare.",
+    "map": "Mappa"
   },
   "campaign": {
     "your_campaigns": "Le tue campagne, {{name}}",
@@ -126,5 +127,14 @@
     "request_failed": "Richiesta fallita. Controlla i dati inseriti.",
     "server_error": "Errore del server. Riprova più tardi.",
     "action_failed": "L'azione non è andata a buon fine. Il testo è ancora lì — riprova."
+  },
+  "map": {
+    "close": "Chiudi mappa",
+    "loading": "Srotolo la mappa…",
+    "empty": "Questa campagna non ha una mappa del mondo.",
+    "breadcrumb": "Livelli della mappa",
+    "hint": "Trascina per spostarti, rotella per lo zoom. I luoghi cerchiati aprono una mappa più dettagliata.",
+    "no_pins": "Niente di tracciato a questo livello.",
+    "canvas_label": "Mappa di {{name}}"
   }
 }

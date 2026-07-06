@@ -13,6 +13,7 @@ import CompanionBar from "../../character/components/companion-bar";
 import CombatTracker from "../../combat/components/combat-tracker";
 import JournalDrawer from "./journal-drawer";
 import SettingsDrawer from "./settings-drawer";
+import WorldMap from "../../map/components/world-map";
 // CharacterSheet manages its own fullscreen modal dialog internally
 
 /* Avatar disc + name / level / HP — the player identity cluster (ADR 0013 A4) */
@@ -116,6 +117,7 @@ export default function GameView() {
 
   const panels = [
     { key: "character" as const, label: t("game.character") },
+    { key: "map" as const, label: t("game.map") },
     { key: "quests" as const, label: t("game.journal") },
     { key: "settings" as const, label: t("game.settings") },
   ];
@@ -233,6 +235,9 @@ export default function GameView() {
       {/* Dedicated drawer components (self-contained with Radix Dialog) */}
       <JournalDrawer />
       <SettingsDrawer />
+
+      {/* Read-only world map (ADR 0008 B4) */}
+      {campaignId && <WorldMap campaignId={campaignId} />}
     </div>
   );
 }
