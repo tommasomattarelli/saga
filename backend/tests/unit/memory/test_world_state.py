@@ -95,3 +95,20 @@ def test_merge_world_state():
     assert merged["factions"]["guards"] == 50  # preserved
     assert merged["factions"]["thieves"] == 10  # added
     assert "invalid_key" not in merged
+
+
+def test_advance_clock_expires_timed_node_statuses():
+    from app.memory.world_state import advance_game_clock
+
+    state = {
+        "clock": {"total_minutes": 480},
+        "node_status": {
+            "node-a": {"status": "fire", "duration_minutes": 60, "applied_at": 480},
+            "node-b": {"status": "plague", "duration_minutes": None, "applied_at": 480},
+        },
+    }
+    advanced = advance_game_clock(state, 59)
+    assert "node-a" in advanced["node_status"]
+    advanced = advance_game_clock(state, 60)
+    assert "node-a" not in advanced["node_status"]
+    assert "node-b" in advanced["node_status"]  # permanent until lifted
