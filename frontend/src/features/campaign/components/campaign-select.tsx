@@ -149,16 +149,25 @@ export default function CampaignSelect() {
             {t("campaign.your_campaigns", { name: user?.username })}
           </span>
         </div>
-        <button
-          onClick={() => {
-            logout();
-            navigate("/login");
-          }}
-          className="font-display text-sm px-2 py-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
-          style={{ color: "var(--ink-faded)" }}
-        >
-          {t("auth.logout")}
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate("/worlds")}
+            className="font-display text-sm px-2 py-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+            style={{ color: "var(--ink-faded)" }}
+          >
+            {t("worlds.title")}
+          </button>
+          <button
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
+            className="font-display text-sm px-2 py-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+            style={{ color: "var(--ink-faded)" }}
+          >
+            {t("auth.logout")}
+          </button>
+        </div>
       </header>
 
       {/* Grid */}
