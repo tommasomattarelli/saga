@@ -1,6 +1,6 @@
 # ADR 0013 — Frontend visual redesign: clean modern dark (Voyage-informed, own identity)
 
-- **Status**: Proposed (direction + decisions fixed; two items are in-build TODOs — exact accent hue and the dice-reveal variant. Editable.)
+- **Status**: Accepted (2026-07-06, after Sprint 1 + Sprint 2 owner sign-off).
 - **Date**: 2026-07-04
 - **Context items / sources**:
   - `scratch/ui-map/01-04` — 4 current-state UI maps (design system, onboarding, play screen, narrative/combat) + bug lists, reconciled against real screenshots by a prior agent pass.
