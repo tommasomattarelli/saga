@@ -68,6 +68,7 @@ ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
         "node_status",
         "edge_overrides",
         "consumed_encounters",
+        "pending_travel",
     }
 )
 
@@ -208,4 +209,21 @@ def advance_game_clock(world_state: dict, minutes: int) -> dict:
     state["time_of_day"] = clock.time_of_day
     if "meta" in state:
         state["meta"]["current_season"] = clock.current_season
+    return _expire_node_statuses(state)
+
+
+def _expire_node_statuses(state: dict) -> dict:
+    """Drop timed node statuses whose duration has elapsed (ADR 0008 G4)."""
+    statuses = state.get("node_status")
+    if not statuses:
+        return state
+    now = state["clock"]["total_minutes"]
+    expired = [
+        node_id
+        for node_id, entry in statuses.items()
+        if entry.get("duration_minutes") is not None
+        and now >= entry.get("applied_at", 0) + entry["duration_minutes"]
+    ]
+    for node_id in expired:
+        del statuses[node_id]
     return state
