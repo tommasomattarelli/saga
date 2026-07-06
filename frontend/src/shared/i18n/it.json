@@ -85,6 +85,18 @@
     "creating": "Creazione…",
     "create_failed": "Impossibile creare la campagna. Riprova."
   },
+  "char": {
+    "stats": "Statistiche",
+    "inventory": "Inventario",
+    "skills": "Abilità",
+    "reputation": "Reputazione",
+    "background": "Background",
+    "empty_inventory": "Non porti ancora nulla.",
+    "empty_skills": "Nessuna abilità appresa.",
+    "empty_reputation": "Nessuna reputazione guadagnata.",
+    "empty_background": "Nessun background scritto.",
+    "no_data": "Nessun dato del personaggio."
+  },
   "saves": {
     "save": "Salva",
     "load": "Carica",
