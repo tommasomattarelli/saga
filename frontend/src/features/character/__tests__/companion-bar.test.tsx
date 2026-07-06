@@ -10,7 +10,7 @@ describe("CompanionBar Component", () => {
   const createMockCampaign = (worldState: WorldState): Campaign => ({
     id: "c1",
     name: "Test",
-    template_id: "t1",
+    world_slug: "w1",
     status: "active",
     death_mode: "destino",
     turn_number: 1,

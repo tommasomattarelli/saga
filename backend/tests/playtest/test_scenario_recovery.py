@@ -19,7 +19,7 @@ async def test_scenario_save_load_recovery(auth_client: AsyncClient, db_session)
         "/api/campaigns",
         json={
             "name": "Recovery Run",
-            "template_id": "tutorial",
+            "world_id": "the-awakening",
             "death_mode": "destino",
             "character_data": {"name": "Aldric", "hp": 30, "max_hp": 30, "level": 5},
         },
@@ -62,7 +62,7 @@ async def test_scenario_multiple_save_slots(auth_client: AsyncClient, db_session
         "/api/campaigns",
         json={
             "name": "MultiSave Camp",
-            "template_id": "tutorial",
+            "world_id": "the-awakening",
             "death_mode": "destino",
             "character_data": {"hp": 20},
         },

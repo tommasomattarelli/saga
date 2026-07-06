@@ -48,7 +48,7 @@ describe("useSubmitAction", () => {
       campaign: {
         id: "campaign-1",
         name: "Test",
-        template_id: "t",
+        world_slug: "w1",
         status: "active",
         death_mode: "cronista",
         turn_number: 1,

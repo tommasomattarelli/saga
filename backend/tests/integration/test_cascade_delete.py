@@ -29,7 +29,7 @@ def _make_user(prefix: str) -> User:
 def _make_campaign(user_id: uuid.UUID, name: str) -> Campaign:
     return Campaign(
         user_id=user_id,
-        template_id="tutorial",
+        world_slug="the-awakening",
         name=name,
         death_mode="destino",
         character_data={},
