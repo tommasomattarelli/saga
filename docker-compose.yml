@@ -34,7 +34,8 @@ services:
     volumes:
       - ./backend:/app:z
       - backend_venv:/app/.venv
-      - ./templates:/templates:z
+      - ./worlds:/worlds:z
+      - saga_home:/root/.saga
       - ./saga.config.yaml:/config/saga.config.yaml:z
     command: uv run --no-dev uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
@@ -55,3 +56,4 @@ services:
 volumes:
   postgres_data:
   backend_venv:
+  saga_home:
