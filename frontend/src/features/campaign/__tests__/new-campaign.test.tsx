@@ -65,7 +65,7 @@ describe("NewCampaign Component", () => {
 
     renderComponent();
 
-    expect(screen.getByText("The World Awaits")).toBeInTheDocument();
+    expect(screen.getByText("Choose a world")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("Classic Fantasy")).toBeInTheDocument());
   });
 
@@ -89,7 +89,7 @@ describe("NewCampaign Component", () => {
     const templateBtn = await screen.findByText("Classic Fantasy");
     fireEvent.click(templateBtn);
 
-    expect(screen.getByText("The Hero")).toBeInTheDocument();
+    expect(await screen.findByText("Your hero")).toBeInTheDocument();
   });
 
   it("should go back from step 2 to step 1", async () => {
@@ -111,10 +111,10 @@ describe("NewCampaign Component", () => {
     const templateBtn = await screen.findByText("Classic Fantasy");
     fireEvent.click(templateBtn);
 
-    const backBtn = await screen.findByText("← Back");
+    const backBtn = await screen.findByText(/Back/);
     fireEvent.click(backBtn);
 
-    expect(await screen.findByText("The World Awaits")).toBeInTheDocument();
+    expect(await screen.findByText("Choose a world")).toBeInTheDocument();
   });
 
   it("should call createCampaign on submit", async () => {
@@ -140,9 +140,9 @@ describe("NewCampaign Component", () => {
 
     const nameInput = await screen.findByPlaceholderText(/Leave blank/i);
     fireEvent.change(nameInput, { target: { value: "Durin" } });
-    fireEvent.click(screen.getByText(/Name thy Fate/));
+    fireEvent.click(screen.getByText(/Continue/));
 
-    const submitBtn = await screen.findByText("Let the Tale Begin");
+    const submitBtn = await screen.findByText("Create campaign");
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -172,20 +172,20 @@ describe("NewCampaign Component", () => {
     const templateBtn = await screen.findByText("Classic Fantasy");
     fireEvent.click(templateBtn);
 
-    fireEvent.click(await screen.findByText(/Name thy Fate/));
+    fireEvent.click(await screen.findByText(/Continue/));
 
-    const submitBtn = await screen.findByText("Let the Tale Begin");
+    const submitBtn = await screen.findByText("Create campaign");
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/Failed to create campaign/i)).toBeInTheDocument();
+      expect(screen.getByText(/couldn't create the campaign/i)).toBeInTheDocument();
     });
   });
 
   it("should navigate back to campaigns when clicking top back link", async () => {
     vi.mocked(getTemplates).mockResolvedValue(createMockResponse<TemplateOption[]>([]));
     renderComponent();
-    fireEvent.click(screen.getByText("← Return to the shelf"));
+    fireEvent.click(screen.getByText(/Campaigns/));
     expect(mockNavigate).toHaveBeenCalledWith("/campaigns");
   });
 });
