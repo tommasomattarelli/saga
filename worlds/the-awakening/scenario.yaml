@@ -1,0 +1,42 @@
+opening:
+  narration: >
+    Your eyes open to a canopy of ancient oaks. Sunlight filters through
+    the leaves in golden shafts, and the air smells of moss and wildflowers.
+    You're lying on cold stone — a circular platform surrounded by weathered
+    pillars carved with symbols you almost recognize.
+
+    Your head throbs. You remember... nothing. Not your name, not how you
+    got here, not why your hand grips the hilt of a sword you don't remember
+    owning.
+
+    A young woman in forest-green leather crouches nearby, watching you with
+    sharp eyes. "Easy," she says, a hand raised. "You've been out for hours.
+    I'm Lyra. I found you here at dawn." She glances at the pillars. "This
+    place... people don't just wake up here by accident."
+
+    Behind her, a path winds into the forest. In the distance, you can hear
+    the faint sound of a village — hammering, a rooster crowing.
+
+    "Can you stand?" Lyra asks. "Thornhaven isn't far. You look like you
+    could use a meal and some answers."
+  start_location: shrine-of-first-light
+  time_of_day: morning
+  weather: clear
+
+initial_quests:
+  - name: "Who Am I?"
+    description: "Discover your identity and why you woke at the Shrine of First Light."
+    objectives:
+      - "Ask the villagers of Thornhaven about strangers"
+      - "Examine the shrine's carved symbols"
+
+story_arcs:
+  - name: "The Hollow Threat"
+    trigger: "Player learns about the mines from villagers"
+    description: "Something dark stirs in the old mines. The village needs help."
+  - name: "The Lost Son"
+    trigger: "Player speaks with Aldric"
+    description: "Elder Aldric's son went to the mines and hasn't returned."
+  - name: "Marta's Secret"
+    trigger: "Player gains Marta's trust"
+    description: "The tavern keeper has an artifact connected to the shrine."

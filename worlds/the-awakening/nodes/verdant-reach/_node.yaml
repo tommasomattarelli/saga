@@ -1,0 +1,6 @@
+kind: region
+name: "The Verdant Reach"
+description: "Rolling forest country: tall oaks, ferns, and old stones. A single trade road crosses it north to south."
+position: {x: 10, y: 8}
+km_per_unit: 1
+terrain: forest

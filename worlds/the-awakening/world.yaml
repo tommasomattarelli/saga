@@ -1,0 +1,14 @@
+meta:
+  name: "The Awakening"
+  author: "SAGA Team"
+  version: "1.0.0"
+  description: "A tutorial world: a mysterious awakening at a forest shrine, a wary village, and something stirring in the old mines."
+  tags: ["tutorial", "fantasy", "beginner"]
+
+kind: world
+description: >
+  A verdant forest surrounds the ancient Shrine of First Light, where travelers
+  sometimes awaken with no memory of how they arrived. The nearby village of
+  Thornhaven sits at a crossroads, its people wary of strangers but not unkind.
+  Dark rumors speak of something stirring in the old mines to the north.
+km_per_unit: 5
