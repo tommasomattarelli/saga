@@ -1,0 +1,8 @@
+kind: site
+name: "Thornhaven"
+description: "A small village of timber-and-stone buildings. A tavern, a smithy, and a market square."
+position: {x: 4, y: 3}
+terrain: road
+params:
+  population: 240
+  danger: 1

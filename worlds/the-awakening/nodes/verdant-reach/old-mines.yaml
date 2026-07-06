@@ -1,0 +1,8 @@
+kind: site
+name: "Old Mines"
+description: "Abandoned iron mines. The entrance is boarded up, but boards have been recently broken."
+position: {x: 5, y: 7}
+terrain: mountain
+elevation_m: 350
+params:
+  danger: 7

@@ -1,0 +1,8 @@
+kind: room
+name: "Common Room"
+description: "Long tables, a crackling hearth, and Marta behind the counter."
+exits:
+  - {to: cellar}
+  - {to: outside}
+items:
+  - {name: "Notice board", qty: 1, notes: "Village postings; a reward for news from the mines."}

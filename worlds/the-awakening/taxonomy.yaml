@@ -1,0 +1,40 @@
+# Default SAGA taxonomy (ADR 0008 P0) — copy and adapt for your own world.
+# Kind/terrain/mode names are yours to change; the numeric fields are the
+# engine contract (scale, travel_multiplier, speed_kmh).
+
+kinds:
+  - name: world
+    scale: outdoor
+  - name: region
+    scale: outdoor
+  - name: area
+    scale: outdoor
+  - name: site
+    scale: outdoor
+    params:
+      - {name: population, type: int, min: 0}
+      - {name: danger, type: int, min: 0, max: 10}
+  - name: building
+    scale: interior
+  - name: room
+    scale: interior
+
+terrains:
+  - {name: road, travel_multiplier: 0.75}
+  - {name: trail, travel_multiplier: 0.9}
+  - {name: wilderness, travel_multiplier: 1.2}
+  - {name: forest, travel_multiplier: 1.5}
+  - {name: swamp, travel_multiplier: 2.0}
+  - {name: mountain, travel_multiplier: 2.5}
+  - {name: desert, travel_multiplier: 1.4}
+  - {name: arctic, travel_multiplier: 1.8}
+  - {name: coastal, travel_multiplier: 1.0}
+
+travel_modes:
+  - {name: foot, speed_kmh: 4}
+  - {name: horse, speed_kmh: 7}
+  - {name: ship, speed_kmh: 6}
+
+defaults:
+  terrain: wilderness
+  elevation_m: 0
