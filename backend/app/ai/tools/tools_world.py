@@ -11,7 +11,7 @@ from app.ai.tools.tools_base import DmTool, SceneMood, ToolResult, apply, regist
 
 @register
 class MoveTo(DmTool):
-    location: str = Field(description="Name of the new location")
+    location: str = Field(description="Name of the destination (place name or slug)")
 
     @classmethod
     def tool_name(cls) -> str:
@@ -19,31 +19,82 @@ class MoveTo(DmTool):
 
     @classmethod
     def tool_description(cls) -> str:
-        return "Update the player's current location when they move to a new area."
+        return (
+            "Move the player to another place. Travel is validated against the world's "
+            "routes, costs game time, and may trigger a travel encounter. On ambiguity "
+            "the tool lists candidates — re-call with the full name."
+        )
 
     def execute(self, world_state: dict, char_data: dict) -> ToolResult:
-        new_state, new_char = apply(
-            world_state, char_data, {"key": "location", "change": self.location}
+        return ToolResult(
+            description="Movement unavailable: this campaign has no world map.",
+            world_state=world_state,
+            char_data=char_data,
         )
-        # Also sync meta.current_location for context builder
-        new_state.setdefault("meta", {})["current_location"] = self.location
 
-        loc_data = new_state.get("locations", {}).get(self.location)
-        if loc_data:
-            desc = loc_data.get("description", "")
-            connections = ", ".join(loc_data.get("connections", []))
-            detail = f"Player moved to: {self.location}"
-            if desc:
-                detail += f"\nDescription: {desc}"
-            if connections:
-                detail += f"\nConnected to: {connections}"
+    def execute_with_baseline(
+        self, world_state: dict, char_data: dict, baseline: dict | None
+    ) -> ToolResult:
+        from app.config_loader import load_saga_config
+        from app.core.travel import TravelConfig, attempt_move
+        from app.core.world_access import WorldView
+        from app.memory.world_state import advance_game_clock
+
+        view = WorldView(baseline or {}, world_state)
+        if not view.has_world:
+            return self.execute(world_state, char_data)
+
+        travel_cfg = (load_saga_config().get("world") or {}).get("travel") or {}
+        config = TravelConfig(
+            elevation_coeff=float(travel_cfg.get("elevation_coeff", 7.92)),
+            local_move_minutes=int(travel_cfg.get("local_move_minutes", 5)),
+        )
+        outcome = attempt_move(view, self.location, config)
+        if not outcome.ok:
+            return ToolResult(
+                description=f"Move rejected: {outcome.reason}",
+                world_state=world_state,
+                char_data=char_data,
+            )
+
+        new_state = copy.deepcopy(world_state)
+        pending = new_state.pop("pending_travel", None)
+        minutes = outcome.minutes
+        if pending and pending.get("destination") == outcome.destination:
+            minutes = int(pending.get("minutes_remaining", minutes))
+
+        destination_name = view.require(outcome.destination or "")["name"]
+        if outcome.consumed_key and outcome.encounter and outcome.encounter.get("once"):
+            new_state.setdefault("consumed_encounters", {}).setdefault(
+                outcome.consumed_key, []
+            ).append(outcome.encounter["index"])
+
+        if outcome.encounter and outcome.encounter["type"] == "combat":
+            # Journey interrupted mid-route (F13): hold position, store the rest.
+            elapsed = max(1, minutes // 2)
+            new_state["pending_travel"] = {
+                "destination": outcome.destination,
+                "minutes_remaining": minutes - elapsed,
+            }
+            new_state = advance_game_clock(new_state, elapsed)
+            detail = (
+                f"Travel toward {destination_name} INTERRUPTED after {elapsed} minutes: "
+                f"{outcome.encounter['description']} (hostile — consider start_combat). "
+                f"Re-call move_to '{destination_name}' after the fight to continue."
+            )
         else:
-            detail = f"Player moved to: {self.location}"
+            new_state["player_position"] = outcome.destination
+            new_state.setdefault("meta", {})["current_location"] = outcome.destination
+            new_state = advance_game_clock(new_state, minutes)
+            route = " → ".join(outcome.path)
+            detail = f"Player moved to {destination_name} ({route}; {minutes} min of travel)."
+            if outcome.encounter:
+                detail += f"\nOn the way: {outcome.encounter['description']}"
 
         return ToolResult(
             description=detail,
             world_state=new_state,
-            char_data=new_char,
+            char_data=char_data,
         )
 
 

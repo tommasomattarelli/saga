@@ -124,9 +124,35 @@ def test_remove_item_removes_from_inventory():
 # ── World tools ───────────────────────────────────────────────────────────────
 
 
-def test_move_to_updates_location():
-    result = MoveTo(location="Ironforge Market").execute({}, {})
-    assert result.world_state.get("location") == "Ironforge Market"
+def _example_world():
+    from pathlib import Path
+
+    from app.core.world_instantiation import instantiate_world
+    from app.core.world_loader import load_world
+
+    world_dir = Path(__file__).parents[4] / "worlds" / "the-awakening"
+    baseline, state, _ = instantiate_world(load_world(world_dir))
+    return baseline, state
+
+
+def test_move_to_travels_and_advances_clock():
+    baseline, state = _example_world()
+    result = MoveTo(location="Thornhaven").execute_with_baseline(state, {}, baseline)
+    assert result.world_state["player_position"] == baseline["slug_map"]["thornhaven"]
+    assert result.world_state["clock"]["total_minutes"] > state["clock"]["total_minutes"]
+    assert "Thornhaven" in result.description
+
+
+def test_move_to_rejects_unknown_place():
+    baseline, state = _example_world()
+    result = MoveTo(location="Atlantis").execute_with_baseline(state, {}, baseline)
+    assert result.world_state is state or result.world_state == state
+    assert "rejected" in result.description.lower()
+
+
+def test_move_to_without_baseline_reports_no_map():
+    result = MoveTo(location="Anywhere").execute({}, {})
+    assert "no world map" in result.description.lower()
 
 
 def test_update_quest_adds_active_quest():
@@ -172,8 +198,9 @@ def test_set_scene_mood_invalid_falls_back_to_neutral():
 
 
 def test_execute_tool_valid():
-    result = execute_tool("move_to", {"location": "Tavern"}, {}, {})
-    assert result.world_state.get("location") == "Tavern"
+    baseline, state = _example_world()
+    result = execute_tool("move_to", {"location": "Thornhaven"}, state, {}, baseline=baseline)
+    assert result.world_state["player_position"] == baseline["slug_map"]["thornhaven"]
 
 
 def test_execute_tool_unknown_returns_gracefully():
