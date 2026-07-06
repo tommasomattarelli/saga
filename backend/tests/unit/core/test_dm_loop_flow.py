@@ -212,7 +212,7 @@ class TestNpcPrehook:
         ok, error = validate_or_create_npc("Guard", world_state, config)
 
         assert ok is False
-        assert "Castle" in error
+        assert "not present" in error
 
     def test_invoke_npc_no_location_field_passes(self):
         """NPC without location field is not blocked (location unknown = not blocking)."""

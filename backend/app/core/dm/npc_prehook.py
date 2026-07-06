@@ -23,7 +23,8 @@ def validate_or_create_npc(
         current_loc = world_state.get("meta", {}).get("current_location")
         npc_loc = npc.get("location")
         if current_loc and npc_loc and current_loc != npc_loc:
-            return False, f"{name} is in {npc_loc} and is not present here."
+            # Locations are node UUIDs (ADR 0008 J3) — no place name available here.
+            return False, f"{name} is elsewhere and is not present here."
 
         return True, ""
 

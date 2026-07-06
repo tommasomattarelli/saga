@@ -29,6 +29,7 @@ dependencies = [
     "psycopg[binary,pool]>=3.2.0",
     "langsmith>=0.7.30",
     "slowapi>=0.1.9",
+    "networkx>=3.6.1",
 ]
 
 [project.optional-dependencies]
@@ -41,6 +42,10 @@ plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
 module = "pgvector.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "networkx.*"
 ignore_missing_imports = true
 
 [tool.ruff]

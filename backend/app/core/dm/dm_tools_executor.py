@@ -157,7 +157,9 @@ async def tools_node(state: GameState) -> dict[str, Any]:
             continue
 
         # Regular tools
-        tool_result = execute_tool(name, args, world_state, char_data)
+        tool_result = execute_tool(
+            name, args, world_state, char_data, baseline=state.get("world_baseline")
+        )
         world_state = tool_result.world_state
         char_data = tool_result.char_data
 
