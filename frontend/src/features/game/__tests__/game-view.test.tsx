@@ -28,7 +28,7 @@ describe("GameView Component", () => {
 
   const mockCampaign: Campaign = {
     id: "c123",
-    template_id: "t123",
+    world_slug: "w1",
     name: "Epic Quest",
     status: "active",
     death_mode: "destino",
