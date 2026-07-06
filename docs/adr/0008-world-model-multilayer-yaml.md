@@ -2,9 +2,13 @@
 
 - **Status**: Proposed (direction + design decisions fixed via the 2026-06-15 design
   interview; **hardened by a competitive/online research pass + adversarial validation**
-  on 2026-06-15 — see `scratch/research/adr0008_research.md`. Open design TODOs remain
-  before this can move to Accepted; may still be revised.)
-- **Date**: 2026-06-15
+  on 2026-06-15 — see `scratch/research/adr0008_research.md`. **Implementation-planning
+  interview 2026-07-06**: resolved J-iii (NPC interim addressing), added the read-only
+  world map (B4), fixed the sprint split (§9). **Sprint 0 design pass 2026-07-06
+  (same-day interview): closed every open TODO** — headline revision: **world-defined
+  vocabularies (P0)** replace the fixed kind/terrain enums. Ready for Accepted on owner
+  sign-off.)
+- **Date**: 2026-06-15 (updated 2026-07-06)
 - **Context items**: Voyage analysis (`scratch/research/voyage.md`); research pass
   (`scratch/research/adr0008_research.md`); spun off from ADR 0007. Decisions come from a
   structured design interview (all choices by the project owner) and were then validated
@@ -15,8 +19,8 @@
   authoring surface. It deliberately stops at the **static starting photograph of the
   world**. The *engine that makes the world evolve* is ADR 0006 (Director); the *rich NPC
   model* is ADR 0009. This ADR is intentionally exhaustive so the eventual implementation
-  (split into sprints **later, not here**) needs no second analysis. Items marked **TODO**
-  or **Open assumption** are design decisions consciously deferred to implementation time.
+  (split into sprints in §9) needs no second analysis. All formerly-open TODOs were
+  closed in the 2026-07-06 Sprint 0 design pass.
 
 ---
 
@@ -68,7 +72,21 @@ world. Static richness now; life later.
 ## 3. Decisions
 
 > Legend: **Decided** = settled in the interview/validation. **Refined** = hardened by
-> the research pass. **TODO / Open assumption** = deferred to implementation.
+> the research pass. **Revised/Resolved (S0)** = changed or closed in the 2026-07-06
+> Sprint 0 design pass. No open TODOs remain.
+
+### P0. World-defined vocabularies — the engine-contract pattern (Decided S0)
+
+**No hardcoded taxonomy anywhere.** Kinds, terrains, travel modes, faction relation
+labels are **authored per world** in `taxonomy.yaml` — free names, as many as the
+creator wants. The engine contract: **each vocabulary entry carries the numeric or
+structural fields the engine consumes** (`scale` on kinds, `travel_multiplier` on
+terrains, `speed_kmh` on modes, `stance` on faction relations). **The engine reads the
+numbers and flags, never the names.** SAGA owns only the **meta-schema** (the Pydantic
+models that validate `taxonomy.yaml` itself) plus a **default taxonomy** shipped with
+the example World that creators copy and adapt. This supersedes the fixed kind set (old
+A2) and the fixed terrain enum (old B3), and replaces the per-kind discriminated union
+(old E1) with meta-schema + dynamic validation.
 
 ### A. Hierarchy & node model
 
@@ -78,15 +96,20 @@ world. Static richness now; life later.
 - **A1b — `max_depth` hard cap (Refined).** Variable depth gets a hard cap in
   `saga.config.yaml` (spirit of std 19 / no open-ended structures); tree-walk validation
   and rendering are bounded.
-- **A2 — Recommended `kind` set (Decided as starting taxonomy; final enum is TODO A-i).**
-  - **Map-scale (carry coordinates):** `world` → `region` → `area` (optional) → `site`.
-  - **Interior (adjacency graph, no coordinates):** `building` → `room`.
+- **A2 — Fully custom kinds via the world taxonomy (Revised S0; closes old TODO A-i).**
+  Kinds are **not** a SAGA enum: each World declares its own in `taxonomy.yaml` — free
+  names, **at least one**, each `{name, scale: outdoor|interior, params: [...]}` (per
+  P0). The old recommended set (`world/region/area/site/building/room`) survives only as
+  the **default taxonomy of the example World**. **Containment is free** — any kind may
+  contain any kind; the only structural rules are (a) an `interior` node can never
+  contain an `outdoor` node, and (b) the `max_depth` cap (A1b).
 - **A3 — Coordinate boundary rule (Decided).** A node is a **map node** (has coordinates)
   until you "enter" a structure; from there down it is **interior** (an adjacency graph).
-- **A3b — Explicit `scale: outdoor|interior` flag (Refined; resolves old TODO A-ii).**
-  The map-vs-interior nature is an **explicit flag on the node**, NOT derived from `kind`
-  alone, because `building` can be either (isolated tower = outdoor map node; house in a
-  city = interior). Coordinates are required iff `scale == outdoor`.
+- **A3b — `scale` is a fixed property of the kind (Revised S0).** Declared once per kind
+  in the taxonomy; every node inherits it — no per-node override, no ambiguity. The old
+  "building can be either" concern dissolves: with unlimited custom kinds the creator
+  defines `isolated_tower` (outdoor) and `house` (interior) as distinct kinds.
+  Coordinates are required iff the kind's `scale == outdoor`.
 - **A4 — Local frames for authoring + a composed GLOBAL coordinate transform (Decided —
   GLOBAL chosen over the "authored-edges-only" alternative).** Each map-scale parent
   defines the local coordinate space of its **direct children** (nested maps: city map =
@@ -109,30 +132,42 @@ world. Static richness now; life later.
   reference UUIDs only**, never display names — renames in the World asset must not break
   a frozen save's references.
 
-**TODOs (A):**
-- **TODO A-i:** finalize the `kind` enum (closed enum required by the Pydantic
-  discriminated union, E1); decide whether `area` is kept or merged.
-- **TODO A-ii:** the global-transform composition details (offset/scale per level) and
-  how it interacts with per-level `coordinate_scale` (B-i).
+- **A7 — Global transform = translation + uniform scale, no rotation (Resolved S0; closes
+  old TODOs A-i/A-ii).** `global_km = parent_global_km + child_local × km_per_unit(parent)`,
+  composed recursively at load and cached. Child frames never rotate — no use case for
+  RPG maps, pure added complexity. A-i is closed by A2 (custom kinds).
 
 ### B. Coordinates & spatial model
 
 - **B1 — Hybrid coordinates (Decided).** Coordinates at map levels; adjacency for
   interiors.
-- **B2 — 2D `(x, y)` (Decided); per-level scale + global transform (Refined).** Each
-  map-scale parent declares a `coordinate_scale` (e.g. region: 1 unit ≈ 10 km; city:
-  1 unit ≈ 10 m); the global transform (A4) composes these. Exact unit model is **TODO
-  B-i** (a hard prerequisite for the travel-time formula, F-ii).
-- **B3 — No Z axis (Decided).** Elevation is **not** a coordinate. `elevation_m` (meters,
-  absolute) + `terrain` (closed enum: road/trail/wilderness/forest/swamp/mountain/desert/
-  arctic/coastal) are node/edge attributes feeding the travel-time formula (Naismith,
-  F-ii) and flavor.
+- **B2 — 2D `(x, y)`; canonical unit = km, `km_per_unit` per frame (Revised S0; closes
+  old TODO B-i).** The world-root frame is **1 unit = 1 km**. Each outdoor parent
+  declares `km_per_unit` for its children's local frame (region 10, city 0.01, …); the
+  global transform (A4/A7) composes everything into km. Cross-region distance is real
+  km; Naismith speeds are already km/h — no conversion layer.
+- **B3 — No Z axis; custom terrain vocabulary (Revised S0 per P0; closes old TODO
+  B-ii).** Elevation is **not** a coordinate: `elevation_m` (meters, absolute) is a
+  node/edge attribute. `terrain` references the **world's own vocabulary**
+  (`taxonomy.yaml: terrains: [{name, travel_multiplier}]` — names free, multiplier is
+  the engine contract). Both are **optional with world defaults**
+  (`taxonomy.yaml: defaults: {terrain, elevation_m}`) — authoring stays light, Naismith
+  degrades gracefully.
 
-**TODOs (B):**
-- **TODO B-i:** the coordinate-scale/unit system (`units_per_km` per level) and frontend
-  map rendering (prior art: Leaflet `CRS.Simple` per-level image overlays + bounds +
-  drill-down; or Pixi.js).
-- **TODO B-ii:** finalize the `terrain` vocabulary and `elevation_m` ranges.
+- **B4 — Read-only world map in the play screen (Decided 2026-07-06).** The player gets a
+  navigable, per-level map view (pan/zoom, drill-down along the hierarchy) rendered from
+  the map-scale coordinates. **v1 rendering is parchment + pins**: a paper/parchment
+  texture background with node pins and travel edges drawn over it — a map, not a bare
+  graph — uniform across all levels. **Authored map images are deferred**: the node
+  schema **reserves an optional `map_image` field now** (plus image-bounds calibration)
+  so adding illustrated per-level maps later (Leaflet `CRS.Simple`-style image overlay +
+  pins) is purely additive — no schema refactor, but no asset pipeline (binaries in the
+  zip, image serving, bounds calibration) in this cycle. (Rejected for v1: authored image
+  + parchment fallback — pulls the whole asset pipeline into an already-large cycle;
+  image-only with hidden map tab — wizard-created worlds would have no map at all.)
+
+Map-view drill-down/interaction details land with Sprint 4 (§9) — UI detail, not a
+design TODO.
 
 ### C. World as a reusable asset vs the campaign save
 
@@ -166,12 +201,35 @@ world. Static richness now; life later.
   every turn, proportional to world size). Splitting keeps the static content out of the
   per-turn write path. This stays consistent with D1 (JSONB owns the runtime).
 
-**TODOs (C):**
-- **TODO C-i:** the `scenario` block schema and how it seeds the `campaign` row.
-- **TODO C-ii:** world-library on-disk layout in the game home; World slug/versioning.
-- **TODO C-iii:** export-zip structure + import validation/placement.
-- **TODO C-iv:** exact column/shape for `world_baseline` / `world_overlay` and how
-  reads merge them (overlay overrides baseline).
+- **C8 — `scenario.yaml` schema (Resolved S0; closes old TODO C-i).**
+  `opening: {narration, start_location (slug), time_of_day, weather}` +
+  `initial_quests[]` (name/description/objectives) + `story_arcs[]`
+  (name/trigger/description) + optional `dm_persona`. Instantiation seeds the campaign:
+  `start_location` → player position UUID, quests seeded, narration = first message.
+  Everything else the old `template.yaml` carried is **not** ported into scenario — it
+  lives in the proper collections (`nodes/`, `factions/`, `npcs/`) or dies with
+  `templates/` (C4).
+- **C9 — Game home = `~/.saga/`, worlds in `~/.saga/worlds/` (Resolved S0; closes old
+  TODO C-ii).** No game-home concept exists in the code today — this creates it.
+  Overridable via `SAGA_HOME` env + a `saga.config.yaml` key; created lazily on first
+  use; Docker mounts it as a volume. World identity/versioning: `world.yaml` carries
+  the meta block (name, author, version, tags) — C3b stamps `version` into the save at
+  instantiation. (Rejected: XDG per-OS paths — three paths to document/debug for a
+  self-hosted tool; inside the install dir — update/reinstall endangers user worlds,
+  against Data Sovereignty.)
+- **C10 — Export/import mechanics (Resolved S0; closes old TODO C-iii).** Export = zip
+  of the World directory as-is. Import = unzip to temp → full three-tier validation
+  (I4) → **slug collision with the library rejects with a clear message** (user renames
+  in the UI) → placed in the library → git init/commit (I5/I5b).
+- **C11 — Column shapes (Resolved S0; closes old TODO C-iv).** New JSONB column
+  `world_baseline` on `campaigns` — `{nodes (by UUID), edges, taxonomy, factions,
+  encounters, scenario, slug_map}` — written once at instantiation. **The existing
+  `world_state` column IS the overlay, no rename**: today's writers
+  (npcs/quests/combat_state/clock) stay untouched; it gains `node_status`,
+  `edge_overrides`, `player_position`, `consumed_encounters`, `pending_travel`. The
+  merge lives in a **single accessor module** — every reader (scene builder, tools,
+  combat) goes through it; no caller merges the two stores by hand (the ability-score
+  mis-keying bug came from three divergent read conventions — never again).
 
 ### D. Source of truth & file organization
 
@@ -194,50 +252,84 @@ world. Static richness now; life later.
   only that it is an authored, instantiated-once asset (a **frozen `rulebook` JSONB store** at
   runtime, mirroring the `world_baseline` lifecycle, C7), loaded by the same
   directory-convention loader (D3, category = folder).
-- **D3 — Directory-convention loader, no manifest (Decided).** Folder structure + per-file
-  `id` + `parent_id` (for the skip case) resolve the hierarchy; loader walks the tree
-  (`rglob`), builds an `{id: node}` registry, and **eagerly detects duplicate ids**.
-  **D3b (Refined):** the convention is documented precisely (TODO D-i) and a **startup
-  integrity check** compares expected-convention vs actual files (so the editor and
-  loader never drift silently). (Prior art: Jekyll/Hugo/dbt/Kustomize.)
+- **D3 — Directory-convention loader; the directory tree IS the world tree (Revised
+  S0).** A node with children = a **directory** containing `_node.yaml`; a leaf = a
+  single file. **Directory position is the parent — `parent_id` is removed** (one
+  source of truth; the old "skip case" needs no field: skipping levels is just nesting
+  whatever kind under whatever kind, per A2 free containment). Loader walks the tree
+  (`rglob`), builds a `{slug: node}` registry, **eagerly rejects duplicate slugs**.
+  **D3b (Refined):** a **startup integrity check** compares expected-convention vs
+  actual files (so the editor and loader never drift silently). (Prior art:
+  Jekyll/Hugo/dbt/Kustomize.)
+- **D3c — Filename IS the slug (Resolved S0; closes old TODO D-ii).** `karak.yaml` →
+  slug `karak`; directory `taverna/` → slug `taverna` (its `_node.yaml` carries no id).
+  No `id` field inside files — no id-vs-filename drift possible; rename = rename the
+  file. Slugs are kebab-case, **globally unique within the World** (edges, scenario,
+  and NPCs reference them cross-file). (Rejected: `id` field wins over filename —
+  reintroduces exactly the drift D3b guards against.)
 - **D4 — The world library is a git repository (Refined; see I5).** Enables atomic
   multi-file commits + free audit history; aligns with Data Sovereignty.
 
-**TODOs (D):**
-- **TODO D-i:** exact directory layout + naming convention (incl. `edges/`, `factions/`,
-  `encounters/`, `scenario.yaml`).
-- **TODO D-ii:** id/reference resolution rules and the `parent_id` skip semantics.
-- **TODO D-iii:** instantiation mapping (YAML tree → `world_baseline` JSONB), UUID
-  assignment (A6), and the new `schema_version`.
+- **D5 — World directory layout (Resolved S0; closes old TODO D-i).**
+
+  ```
+  my_world/
+    world.yaml       # root node + meta (name, author, version, tags)
+    taxonomy.yaml    # kinds + terrains + travel_modes + defaults (P0)
+    scenario.yaml    # C8
+    rulebook/        # ADR 0010 (shape owned there)
+    edges/           # D2b — outdoor travel edges
+    factions/        # G1
+    encounters/      # F-iii — encounter tables
+    npcs/            # minimal flat records (D6)
+    nodes/           # the world tree (D3): dirs + _node.yaml / leaf files
+  ```
+
+- **D6 — `npcs/` stays minimal, ADR 0009 owns the rich model (Resolved S0).** One file
+  per NPC with **today's flat shape** (name, role, location — a node slug, → UUID at
+  instantiation per J3 —, personality, motivation, secret, disposition, optional
+  `faction` slug). Zero invention here; 0009 enriches the record later.
+- **D7 — Instantiation mapping (Resolved S0; closes old TODO D-iii).** Walk the
+  directory → registry → three-tier validation (I4) → assign a UUID per node/edge (A6)
+  → write `world_baseline` (C11 shape, including the `slug_map` and an **alias index**
+  slug+display-name → UUID for F7 resolution) → seed `world_state` from `scenario.yaml`
+  (C8). The campaign `world_state` **`schema_version` bumps to v5** (new shape; no
+  migration of old saves, J2).
 
 ### E. Per-node parameter model
 
-- **E1 — Typed core + bounded free bag, via a Pydantic discriminated union (Decided +
-  Refined).** Each `kind` is its own Pydantic submodel (discriminated on `kind`) with its
-  own required fields and `extra="forbid"` on the core; plus
-  `params: dict[str, int|float|str|bool]` — a **closed bag of primitives** for custom
-  knobs (the "middle ground" the owner asked for). (Prior art: Foundry VTT `system.*`
-  typed vs `flags.*` open.)
-- **E2 — Mandatory-by-kind validation (Decided).** Required fields per kind, enforced by
-  Pydantic **at instantiation** (not only at load) to prevent the schema-drift seen in
-  competitor repos.
-- **E3 — Engine-computed vs LLM-flavor partition (Decided — resolves the "percentage of
-  what?" fragility).** The parameter catalog (E-i) is split into:
-  - **(a) Engine-computed fields** — anything the engine or the Director (0006) computes
-    on (economy drain/regen, encounter difficulty, travel) **must** have a defined formula
-    + reference quantity in `saga.config.yaml`. Absolute where needed (e.g. `population`).
-  - **(b) LLM-flavor fields** — narrative/atmosphere descriptors; **percentages (0–100,
-    `Field(ge=0,le=100)`) and qualitative scales are fine here.**
-  - Numeric guardrails (recommended range + hard min/max, std 14) apply to both.
+- **E1 — Typed base + taxonomy-driven params, via meta-schema (Revised S0 per P0 —
+  replaces the per-kind discriminated union).** Custom kinds make a static discriminated
+  union impossible. Instead: **Pydantic validates the meta-schema** (`taxonomy.yaml`
+  itself — `KindDef`, `TerrainDef`, `ModeDef`, `ParamDef{name, type, required, min,
+  max}`) plus a **single generic `Node` model** for the SAGA-owned base fields
+  (`extra="forbid"`); each node's `params` bag is then **validated dynamically against
+  its kind's `ParamDef`s** (type/required/range). Params stay a closed bag of primitives
+  (`int|float|str|bool`). (Prior art: Foundry VTT `system.*` typed vs `flags.*` open —
+  now with the "system" part world-authored.)
+- **E1b — Base node schema (Resolved S0).** SAGA-owned fields on every node: slug (from
+  the filename, D3c), `kind`, `name`, `description`; outdoor-only: `position {x, y}`,
+  optional `elevation_m` / `terrain` (defaults per B3), `km_per_unit` (if it has outdoor
+  children), reserved `map_image` (B4); everything: `params {}` (per taxonomy),
+  `items []` (H1), interior-only: `exits []` (F10).
+- **E2 — Mandatory-by-kind validation (Decided).** Required params per kind (declared in
+  the taxonomy), enforced **at instantiation** (not only at load) to prevent the
+  schema-drift seen in competitor repos.
+- **E3 — Engine-computed vs LLM-flavor partition (Decided; expressed via the P0 engine
+  contract).** Engine-consumed values are the **numeric fields on vocabulary entries**
+  (`travel_multiplier`, `speed_kmh`, `stance`, resource `quantity`, `elevation_m`) —
+  always absolute numbers with ranges, never percentages-of-nothing. Custom `params` are
+  LLM-flavor by definition (the engine ignores names it doesn't know); percentages and
+  qualitative scales are fine there. Numeric guardrails (recommended range + hard
+  min/max, std 14) apply to both.
+- **E4 — Code locations (Resolved S0; closes old TODO E-ii).** Meta-schema + Node models
+  in `backend/app/models/world.py`; the referential-integrity validator in
+  `backend/app/core/world_validator.py`.
 
-**TODOs (E):**
-- **TODO E-i (major):** the per-kind parameter catalog, partitioned per E3. Prior art to
-  draw from: NEQ `loca_schema.json` (`dangerLevel` enum, `dcChecks` "Skill DC N",
-  `doors{lockDC,breakDC,locked}`, `traps{detect/disable/trigger DC}`, `monsters{min,max}`);
-  open-tabletop-gm settlement (`population` abs, `wealth` enum, `lawAndOrder` 1–5); ai_rpg
-  `baseLevel`. Depends on A-i.
-- **TODO E-ii:** Pydantic models location (`backend/app/models/world.py`) + the
-  referential-integrity validator (`backend/app/core/world_validator.py`).
+Old **TODO E-i** (the SAGA-owned per-kind parameter catalog) is **dissolved by P0**: no
+central catalog exists — its replacement is (a) the meta-schema, (b) the engine
+contract, (c) the **default taxonomy shipped with the example World** (the old A2 kind
+set + the 9-terrain vocabulary + foot/horse/ship modes as copyable defaults).
 
 ### F. Travel & movement
 
@@ -248,10 +340,14 @@ world. Static richness now; life later.
 - **F3 — Route-graph as the travel source of truth; coordinates for the map + default
   distance (Decided).** Reachability/travel-time governed by an explicit **edge graph**;
   coordinates (now global, A4) give a **default** distance; authored edges win.
-- **F4 — Edge schema (Decided shape; exact fields TODO F-i).** Each edge:
-  `{id, from_id, to_id, mode (land|sea|mountain-pass|river|air), travel_time (authored, or
-  computed default), terrain, encounter_table (ref), conditions[] (season/status/
-  item-required), directed (bool)}`. (Prior art: ai_rpg `LocationExit`.)
+- **F4 — Edge schema (Resolved S0; closes old TODO F-i).** One YAML per edge in
+  `edges/` (D2b), filename = edge slug (D3c). Fields: `from` / `to` (node slugs),
+  `mode` (ref to the world's `travel_modes`, P0), `terrain` (ref, optional → default),
+  `travel_time` (optional authored override), `distance_km` (optional override of the
+  coordinate default), `encounter_table` (ref, optional), `encounter_chance` (optional),
+  `conditions[]` (season/status/item-required), `directed` (bool, default false).
+  Mode/terrain/table refs are validated in tier 3 (I4). (Prior art: ai_rpg
+  `LocationExit`.)
 - **F5 — Topology encodes real geography (Decided).** A sea ⇒ no direct land edge (route
   via `port → ship edge → port`); a mountain chain ⇒ a slow `mountain-pass` edge or a
   detour. The **travel graph is independent of the containment tree** (near-but-other-
@@ -273,34 +369,53 @@ world. Static richness now; life later.
   clock advances via `advance_time`. **Elapsed game-time** (not turn count) feeds ADR
   0006's world evolution.
 
-**TODOs (F):**
-- **TODO F-i:** finalize the edge schema; edges live in `edges/` (D2b).
-- **TODO F-ii:** the default travel-time formula — **Naismith/Scarf**
-  (`equiv_distance = dist + 7.92·elevation_gain_m; time = equiv / base_speed`) with
-  terrain multipliers (road .75 … swamp 2.0 … mountain 2.5) and mode speeds (foot 4,
-  horse 7, ship 6 km/h), all in `saga.config.yaml`. **Blocked on B-i** (`units_per_km`).
-  Authored `travel_time` always overrides.
-- **TODO F-iii:** encounter-table format — two layers (per-edge check freq/DC + weighted
-  table, `2d8` civilized / `d20` wild); `once:true` entries persist a
-  `consumed_encounters[]` per edge in `world_overlay`; resolution integrates the existing
-  `request_dice` / `start_combat`.
-- **TODO F-iv:** the scoped-resolution + ambiguity protocol details (alias index built at
-  load; ids are UUIDs, A6).
-- **TODO F-v:** pathfinding/runtime — **NetworkX `DiGraph`** (one-way via `directed`) +
-  `subgraph_view(filter_edge=…)` for mode/condition filtering; graph rebuilt from JSONB
-  per request (50–200 nodes → microseconds); mid-journey interruption state held in
-  `world_overlay.pending_travel`.
+- **F10 — Interior adjacency = `exits[]` on the room node (Resolved S0).** Interior
+  nodes list `exits: [{to: slug, locked?, hidden?, notes?}]` toward sibling rooms —
+  local and readable (open the room's file, see where it leads); a special
+  `to: outside` exit surfaces at the parent node. `edges/` stays outdoor-only
+  (cross-tree, D2b); the runtime graph (F13) merges both. (Rejected: interior adjacency
+  in `edges/` — understanding one tavern means opening N edge files; adjacency matrix
+  in the building file — rooms stop being self-contained, against D2.)
+- **F11 — Travel-time formula split app/world (Resolved S0; closes old TODO F-ii).**
+  **Naismith/Scarf** — `equiv_km = distance_km + elevation_coeff · elevation_gain_m;
+  time = equiv_km / (speed_kmh · terrain_multiplier)`. The **formula + elevation
+  coefficient (7.92) live in `saga.config.yaml`** (app-level physics); the **world
+  customizes only its vocabularies** — terrain multipliers and mode speeds in
+  `taxonomy.yaml` (P0). Distance default = global-km euclidean (A4/B2); authored
+  `travel_time`/`distance_km` always override. (Rejected: per-world elevation
+  coefficient — an obscure knob no creator understands; extreme
+  multipliers/speeds already express "strange" worlds.)
+- **F12 — Encounter tables in `encounters/`, per-table custom dice (Resolved S0; closes
+  old TODO F-iii).** One YAML per table: `dice` (the table's own roll, e.g. `2d8` —
+  nothing hardcoded, P0), `entries: [{roll: [min,max], type: event|combat, description,
+  once?}]`. Edges reference `encounter_table` + `encounter_chance` (F4). `once: true`
+  entries persist per-edge `consumed_encounters[]` in the overlay (C11); resolution
+  integrates the existing `request_dice` / `start_combat`. (Rejected: tables inline in
+  edges — zero reuse across edges sharing a road.)
+- **F13 — Resolution + pathfinding runtime (Resolved S0; closes old TODOs F-iv/F-v).**
+  The **alias index** (slug + display name → UUID) is built at instantiation into
+  `world_baseline` (D7); scoped precedence walks **current node → its ancestors →
+  global** (kind names are custom, so scoping is structural, not name-based). Runtime:
+  **NetworkX `DiGraph`** (one-way via `directed`) + `subgraph_view(filter_edge=…)` for
+  mode/condition filtering; graph rebuilt per request from baseline edges + interior
+  `exits` + overlay `edge_overrides` (50–200 nodes → microseconds); mid-journey
+  interruption state in `world_state.pending_travel`.
 
 ### G. Living-world seeds (authored here, simulated in ADR 0006)
 
-- **G1 — Faction agendas (Decided).** Factions authored with **goals / rivals /
-  resources** (fuel for the Director). **Refined schema** (prior art: ai_rpg `Faction`):
-  `goals[]`, `relations: {faction_id: {status: allied|neutral|hostile|rival, notes}}`
-  (rivals = a relation status, not a separate array), `reputation_tiers[{threshold, label,
-  perks[], penalties[]}]`, `resources[]` (typed per E3, see G2).
-- **G2 — Economy/resource seeds (Decided).** Settlements/factions author initial
-  resources; the **simulation (drain/regen) is the Director's job** (0006). Per E3,
-  engine-consumed resource fields carry a reference quantity + formula in config.
+- **G1 — Faction agendas; relations = numeric stance + custom label (Revised S0 per
+  P0).** One YAML per faction in `factions/`: `name`, `description`, `goals[]`,
+  `relations: {faction_slug: {stance: -10..+10, label: str}}` — **the engine/Director
+  reads the stance number; the label is free narrative text** (no
+  allied/neutral/hostile enum, consistent with P0),
+  `reputation_tiers[{threshold, label, perks[], penalties[]}]`, `resources[]` (G2).
+  (Prior art: ai_rpg `Faction`; rivals = a low stance, not a separate array.)
+- **G2 — Economy/resource seeds, minimal shape (Resolved S0).** `resources:
+  [{name, quantity, notes?}]` on factions/settlements — custom name + **absolute
+  numeric quantity** (the seed the Director will consume) + optional notes. Drain/regen
+  formulas are **ADR 0006's job**, not authored here; richer typing arrives there
+  without refactor. (Rejected: `regen_rate`/units now — designs the Director's
+  interface before the Director exists.)
 - **G3 — Structured per-node status overlay (Decided; lives in `world_overlay`).** Each
   node may hold a persistent status (`status`, `description`, `duration_minutes|null`,
   `applied_at`, `modifiers{field: delta}`) overriding the authored baseline. **G3b
@@ -309,17 +424,20 @@ world. Static richness now; life later.
   `statusEffects[]` with duration/tick/expire — the validator called this the strongest
   design in the ADR.)
 
-**TODOs (G):** G-i faction-schema finalization; G-ii economy-seed schema (types/units,
-reference quantities); G-iii status-overlay + `edge_overrides` schema and the tick/expire
-pass (coordinated with ADR 0006).
+- **G4 — Overlay shape + expiry (Resolved S0; closes old TODO G-iii).** Per-node status
+  as already decided in G3 (`status`, `description`, `duration_minutes|null`,
+  `applied_at`, `modifiers{field: delta}`) + `edge_overrides[]` (add/remove/modify,
+  G3b), both in `world_state` (C11). **Expiry is applied on `advance_time`** (elapsed
+  game-time, F9); richer per-tick simulation is coordinated with ADR 0006 when the
+  Director lands.
 
 ### H. World-placed items (light only)
 
-- **H1 — Light authored loot/stock per node (Decided).** A light list of notable items /
-  loot / shop stock per node. A full item catalog (definitions, properties, crafting) is a
-  **future ADR**. Player inventory unchanged.
-
-**TODO H:** the light loot/stock schema and its relation to `add_item`/`remove_item`.
+- **H1 — Light authored loot/stock per node (Decided; schema Resolved S0).**
+  `items: [{name, qty?, notes?}]` on **any** node (rooms included) — pure text, the DM
+  narrates them and uses the existing `add_item`/`remove_item`. A full item catalog
+  (definitions, properties, crafting) is a **future ADR**; it will add an optional
+  `ref` field, no refactor. Player inventory unchanged.
 
 ### I. In-game world editor (authoring surface)
 
@@ -340,10 +458,21 @@ pass (coordinated with ADR 0006).
   startup recovery — more code, no audit history; the filesystem is **not** natively
   atomic across multiple files, especially on Windows, so a plain multi-file write is
   unsafe.)
+- **I5b — Repo-local git identity (Refined 2026-07-06).** `git commit` fails on a machine
+  with no global `user.name`/`user.email` (the casual-installer audience). At library
+  initialization SAGA sets a **repo-local** identity default (e.g. `SAGA World Editor
+  <saga@localhost>`) — never touches the user's global git config.
 
-**TODOs (I):** I-i the exact validation rule set + git-commit flow (staging, message,
-failure handling); I-ii the wizard/per-entity edit surface; I-iii the deferred AI
-creator-agent's router/`AICallType` integration if/when built.
+- **I6 — Save flow + failure handling (Resolved S0; closes old TODO I-i).** Editor save
+  = three-tier validation (I4) → write files → `git add` → commit with an auto message
+  (`editor: update <slug>`); any failure after write = rollback via `git checkout`. The
+  validation rule set is exactly I4's three tiers — no fourth invented.
+- **I7 — v1 edit surface (Resolved S0; closes old TODO I-ii; built in Sprint 5).**
+  Create-world wizard (name + meta, copies the **default taxonomy** for the creator to
+  adapt, creates the root node) + per-entity forms driven by the taxonomy's `ParamDef`s;
+  references via **id pickers only** (I4, broken refs prevented by construction).
+- **I-iii (stays deferred):** the AI creator-agent's router/`AICallType` integration
+  if/when built (I1).
 
 ### J. Integration with the existing engine
 
@@ -359,33 +488,67 @@ creator-agent's router/`AICallType` integration if/when built.
 - **J2 — No migration (Decided).** No old saves exist (test Docker data deleted). New
   campaigns only; the flat `locations` dict + `meta.current_location` string are removed.
 
-**TODOs (J):** J-i exact `<scene>` rendering + config knobs (`max_breadcrumb_depth`,
-`show_travel_options`, `max_travel_options`, `include_node_status`,
-`description_max_chars`, `scene_context_max_tokens`); J-ii rework of `tools_world.MoveTo`,
-the `dm.py` scene builder, `campaign_service.build_initial_world_state`, and the
-world-state schema/migrations; J-iii how the NPC `location` field addresses the new
-hierarchy (coordinated with ADR 0009).
+- **J3 — NPC interim addressing = node UUID (Decided 2026-07-06; resolves old TODO
+  J-iii).** NPCs today carry a flat `location: str` matched by name
+  (`core/dm/npc_prehook.py`) — it breaks the moment flat locations are removed, and ADR
+  0009 (which owns the rich NPC model) is not implemented, so this cannot be wholly
+  deferred. Interim: `NPC.location` becomes a **node UUID**, resolved through the same
+  scoped resolution as `move_to` (F7) — the save stays UUID-only per A6, no third
+  addressing convention, and 0009 inherits the field already correct. (Rejected: authored
+  slug — reintroduces the slug-in-save duality A6 eliminated; name string via alias
+  index — fragile on renames and ambiguity.)
+
+- **J4 — Scene knobs (Resolved S0; closes old TODO J-i).** All in `saga.config.yaml`
+  (std 14): `max_breadcrumb_depth`, `show_travel_options`, `max_travel_options`,
+  `include_node_status`, `description_max_chars`, `scene_context_max_tokens`. The
+  breadcrumb renders ancestor **names** up the chain (kind names are custom, P0 — the
+  spine is structural, not kind-labeled). Rework surface (old J-ii, now implementation
+  work, §9 S2–S3): `tools_world.MoveTo`, the `dm.py` scene builder,
+  `campaign_service.build_initial_world_state`, world-state schema v5 (D7).
 
 ---
 
 ## 4. Decided vs Open — quick index
 
-**Decided/Refined:** A1, A1b, A2, A3, A3b, A4 (global transform), A5, A6, B1, B2, B3,
-C1–C7 (C7 = baseline/overlay split), D1, D2, D2b, D3, D3b, D4, E1, E2, E3, F1–F9, G1, G2,
-G3, G3b, H1, I1–I5, J1, J2.
+**Decided/Refined/Resolved:** P0 (world-defined vocabularies), A1, A1b, A2 (custom
+kinds), A3, A3b (scale on kind), A4 (global transform), A5, A6, A7 (transform math),
+B1, B2 (km canonical), B3 (custom terrains), B4 (read-only map, parchment+pins v1),
+C1–C7 (C7 = baseline/overlay split), C8 (scenario), C9 (game home), C10 (zip), C11
+(columns), D1, D2, D2b, D2c, D3 (dir-as-tree, no parent_id), D3b, D3c (filename=slug),
+D4, D5 (layout), D6 (npcs minimal), D7 (instantiation, schema v5), E1 (meta-schema),
+E1b (base node), E2, E3, E4, F1–F9, F10 (interior exits), F11 (formula split), F12
+(encounters), F13 (resolution+pathfinding), G1 (stance+label), G2, G3, G3b, G4, H1,
+I1–I5, I5b, I6, I7, J1, J2, J3 (NPC interim = node UUID), J4.
 
-**Open TODOs before Accepting (may still be revised):** A-i/ii, B-i/ii, C-i/ii/iii/iv,
-D-i/ii/iii, **E-i (major: per-kind parameter catalog, partitioned per E3)**, E-ii,
-F-i/ii/iii/iv/v, G-i/ii/iii, H, I-i/ii/iii, J-i/ii/iii.
-
-**Single biggest open item: E-i** — depends on finalizing the `kind` enum (A-i); a
-primary objective of the parameter-design pass (prior art catalogued in the research note).
+**Open:** nothing design-blocking. Deferred by explicit decision: multi-scenario (C5),
+portals/inter-world travel (A5), authored map images (B4), AI creator-agent (I1/I-iii),
+in-session live world editing (I3), full item catalog (H1), Director simulation
+formulas (G2/G4 → ADR 0006), rich NPC model (D6 → ADR 0009), rulebook shape (D2c → ADR
+0010).
 
 ---
 
 ## 5. Rejected alternatives
 
 - **Fixed-depth/named hierarchy** — rejected for the recursive typed node (A1).
+- **SAGA-owned `kind` enum + per-kind Pydantic discriminated union** — rejected (P0/A2/E1,
+  S0): the owner wants fully creator-defined taxonomies; the old recommended set survives
+  only as the example World's default taxonomy.
+- **Fixed terrain / travel-mode / relation-status enums** — rejected (P0, S0): custom
+  vocabulary entries carrying engine-contract numbers instead.
+- **`parent_id` field** — rejected (D3, S0): directory position is the only parent source.
+- **`id` field inside node files** — rejected (D3c, S0): filename is the slug.
+- **Per-node `scale` override** — rejected (A3b, S0): scale binds to the kind; unlimited
+  custom kinds cover the "building can be either" case.
+- **XDG per-OS paths / library inside the install dir** — rejected (C9, S0).
+- **Renaming `world_state` to `world_overlay`** — rejected (C11, S0): churn on every
+  existing writer for zero functional value.
+- **NPCs inside node files / rich NPC schema here** — rejected (D6, S0): flat records,
+  ADR 0009 owns the model.
+- **Encounter tables inline in edges** — rejected (F12, S0): no reuse.
+- **Frame rotation in the global transform** — rejected (A7, S0).
+- **dulwich (pure-Python git)** — rejected (S0): git binary in the Docker image + fail-fast
+  message when missing at editor save.
 - **Coordinates everywhere / true 3D** — rejected (B1, B3); interiors are adjacency;
   elevation is an attribute (Naismith handles time).
 - **Local-only frames with no global transform** — rejected (A4): made cross-region
@@ -420,9 +583,14 @@ primary objective of the parameter-design pass (prior art catalogued in the rese
 - **Risks (with mitigations now in the decisions):** TOAST write amplification → C7
   split; cross-region distance → A4 global transform; cross-tree edges → D2b; multi-file
   atomicity → I5 git; name ambiguity → F7; false determinism of percentages → E3; BYOAK
-  scene token cost → J1. Remaining big risk: E-i (large, balance-sensitive) → dedicated
-  parameter-design pass.
+  scene token cost → J1. The old E-i risk (central parameter catalog) is dissolved by
+  P0; its residue: **dynamic validation is more code than a static discriminated union**
+  (a meta-schema layer + a param-checking pass), and a bad creator-authored taxonomy is
+  now possible — mitigated by the meta-schema guardrails (types/ranges required) and the
+  copyable default taxonomy.
 - **New dependency:** NetworkX (pathfinding) — small, standard, fits the Python stack.
+  Runtime binaries: git (already an installer-managed dependency; added to the backend
+  Docker image, C9/I5b — read paths never need it, only editor saves).
 
 ---
 
@@ -443,6 +611,41 @@ Sources: `scratch/research/voyage.md` (competitor analysis) and
 online prior art + adversarial validation). Key prior art cited there: CK3 province
 graph; The One Ring 2e journeys; Unity ScriptableObject / Godot PackedScene / Bethesda
 ESM-ESS; Foundry VTT typed-vs-flags; NetworkX; Naismith's rule; ai_rpg, NeverEndingQuest,
-open-tabletop-gm. Exhaustive per the owner's instruction; sprint breakdown deferred to
-implementation time.
+open-tabletop-gm. Exhaustive per the owner's instruction; sprint breakdown fixed in §9
+(2026-07-06).
+
+---
+
+## 9. Implementation plan (fixed 2026-07-06)
+
+**Branch model:** one long-lived ADR branch `adr/0008-world-model` off `main`; each
+sprint runs on its own sub-branch (`0008/s1-models-loader`, …) and merges into the ADR
+branch; a single PR lands the whole cycle on `main` at the end.
+
+- **Sprint 0 — design pass (no code). DONE 2026-07-06** (same-day interview): closed
+  every open TODO; headline revision **P0 — world-defined vocabularies** (custom kinds,
+  terrains, modes; meta-schema replaces the discriminated union). Committed directly on
+  the ADR branch, no sub-branch.
+- **Sprint 1 — models + loader.** Meta-schema + generic Node models (E1/E1b/E4), dynamic
+  param validation (E2), directory-convention loader (D3/D3c/D5), three-tier validation
+  (I4), edges/encounters/factions/npcs collections (F4/F12/G1/D6), the single example
+  World with the default taxonomy (C4/P0). Pure backend, no DB changes.
+- **Sprint 2 — instantiation + persistence.** Game home + world library (C9, git-init +
+  repo-local identity I5b, git in the Docker image), `world_baseline` column + Alembic
+  (C7/C11, single merge-accessor), slug→UUID instantiation + alias index (A6/D7, schema
+  v5), `scenario.yaml` → the campaign row (C5/C8), `templates/` removed (C4), FE
+  campaign creation switches from template picker to World picker, NPC `location` →
+  node UUID (J3).
+- **Sprint 3 — travel + runtime.** NetworkX graph + condition filtering (F13), `move_to`
+  scoped resolution + reject-with-candidates (F7/F8), Naismith travel time (F11), edge
+  encounters (F12), clock integration (F9), status overlay + `edge_overrides` + expiry
+  (G3/G3b/G4), the new `<scene>` block (J1/J4).
+- **Sprint 4 — read-only world map (FE).** Parchment+pins per-level map in the play
+  screen (B4): pan/zoom, drill-down, travel edges; consumes Sprint 2/3 data only.
+- **Sprint 5 — editor.** Create-world wizard + taxonomy-driven per-entity forms (I2/I7),
+  git-commit save flow (I5/I6), export/import zip (C6/C10).
+
+Sprints 1–3 are backend-vertical and individually mergeable to the ADR branch; the cycle
+is shippable to `main` after Sprint 3 if needed (example world playable without map or
+editor), but the intended PR includes all six.
 </content>
