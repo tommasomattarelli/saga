@@ -17,3 +17,27 @@ async def test_list_worlds_returns_example(client: AsyncClient):
     assert awakening["name"] == "The Awakening"
     assert awakening["author"] == "SAGA Team"
     assert "tutorial" in awakening["tags"]
+
+
+@pytest.mark.asyncio
+async def test_campaign_map_endpoint(auth_client):
+    created = await auth_client.post(
+        "/api/campaigns",
+        json={
+            "world_id": "the-awakening",
+            "name": "Map Test",
+            "death_mode": "destino",
+            "character_data": {},
+        },
+    )
+    campaign_id = created.json()["id"]
+
+    resp = await auth_client.get(f"/api/campaigns/{campaign_id}/map")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert data["root"] in data["nodes"]
+    assert data["player_position"] in data["nodes"]
+    names = {n["name"] for n in data["nodes"].values()}
+    assert {"Thornhaven", "Old Mines", "Shrine of First Light"} <= names
+    assert any(e["mode"] == "foot" for e in data["edges"])
