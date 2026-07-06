@@ -37,7 +37,8 @@
     "dm_writing": "The DM is writing…",
     "empty_title": "The story hasn't started yet",
     "empty_hint": "Write your first action below.",
-    "history_error": "Couldn't load the story so far. Refresh the page to try again."
+    "history_error": "Couldn't load the story so far. Refresh the page to try again.",
+    "map": "Map"
   },
   "campaign": {
     "your_campaigns": "Your campaigns, {{name}}",
@@ -126,5 +127,14 @@
     "request_failed": "Request failed. Check your details.",
     "server_error": "Server error. Please try again later.",
     "action_failed": "Your action didn't go through. Your text is kept — try again."
+  },
+  "map": {
+    "close": "Close map",
+    "loading": "Unrolling the map…",
+    "empty": "This campaign has no world map.",
+    "breadcrumb": "Map levels",
+    "hint": "Drag to pan, scroll to zoom. Circled places open a more detailed map.",
+    "no_pins": "Nothing is charted at this level.",
+    "canvas_label": "Map of {{name}}"
   }
 }

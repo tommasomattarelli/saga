@@ -78,6 +78,26 @@ export interface WorldOption {
 
 export const getWorlds = () => api.get<WorldOption[]>("/worlds");
 
+export interface MapNode {
+  name: string;
+  kind: string;
+  scale: "outdoor" | "interior";
+  position: { x: number; y: number } | null;
+  parent: string | null;
+  children: string[];
+  has_status: boolean;
+}
+
+export interface MapData {
+  root: string;
+  player_position: string | null;
+  nodes: Record<string, MapNode>;
+  edges: { from: string; to: string; mode: string }[];
+}
+
+export const getCampaignMap = (campaignId: string) =>
+  api.get<MapData>(`/campaigns/${campaignId}/map`);
+
 export const getTurns = (campaignId: string) =>
   api.get<JournalTurn[]>(`/journal/${campaignId}`, { params: { limit: 200, offset: 0 } });
 
