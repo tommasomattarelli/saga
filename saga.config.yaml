@@ -103,6 +103,16 @@ gameplay:
 # ---------------------------------------------------------------------------
 world:
   max_depth: 8            # hard cap on world-tree depth (std 19)
+  travel:
+    elevation_coeff: 7.92      # Naismith/Scarf: equiv_km = km + coeff * climb_m / 1000
+    local_move_minutes: 5      # cost of an interior/containment step (room→room, enter/exit)
+  scene:                       # <scene> block (J1/J4) — spine-only, hard token cap
+    max_breadcrumb_depth: 4
+    show_travel_options: true
+    max_travel_options: 6
+    include_node_status: true
+    description_max_chars: 600
+    scene_context_max_tokens: 700
 
 # ---------------------------------------------------------------------------
 # API — rate limiting
