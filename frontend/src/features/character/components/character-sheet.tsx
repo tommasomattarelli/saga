@@ -2,7 +2,6 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "../../../shared/stores/game-store";
 import { useUIStore } from "../../../shared/stores/ui-store";
-import { CornerFlourish } from "../../../assets/ornaments/corner-flourish";
 import { CharacterSheetBody } from "./character-sheet-parts";
 
 export default function CharacterSheet() {
@@ -25,59 +24,35 @@ export default function CharacterSheet() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.2 }}
               />
             </Dialog.Overlay>
 
             <Dialog.Content asChild>
               <motion.div
                 className="fixed inset-4 z-50 flex items-center justify-center"
-                style={{ perspective: 2000 }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
               >
-                <motion.div
-                  className="relative w-full max-w-5xl max-h-[90vh] overflow-hidden"
+                <div
+                  className="relative flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl"
                   style={{
                     background: "var(--parchment-base)",
-                    border: "1px solid var(--gold-deep)",
-                    outline: "1px solid rgba(184, 134, 11, 0.2)",
-                    outlineOffset: "4px",
+                    border: "1px solid var(--line-strong)",
                   }}
-                  initial={{ rotateY: 90, opacity: 0 }}
-                  animate={{ rotateY: 0, opacity: 1 }}
-                  exit={{ rotateY: -90, opacity: 0 }}
-                  transition={{ duration: 0.7, ease: [0.77, 0, 0.175, 1] }}
                 >
-                  {/* Corner flourishes */}
-                  <span className="absolute top-0 left-0 -translate-x-1 -translate-y-1 pointer-events-none">
-                    <CornerFlourish corner="tl" size={28} />
-                  </span>
-                  <span className="absolute top-0 right-0 translate-x-1 -translate-y-1 pointer-events-none">
-                    <CornerFlourish corner="tr" size={28} />
-                  </span>
-                  <span className="absolute bottom-0 left-0 -translate-x-1 translate-y-1 pointer-events-none">
-                    <CornerFlourish corner="bl" size={28} />
-                  </span>
-                  <span className="absolute bottom-0 right-0 translate-x-1 translate-y-1 pointer-events-none">
-                    <CornerFlourish corner="br" size={28} />
-                  </span>
-
-                  {/* Close */}
                   <Dialog.Close
                     aria-label="Close character sheet"
-                    className="absolute top-4 right-4 z-10 font-display text-xl leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
-                    style={{ color: "var(--gold-deep)" }}
+                    className="absolute top-4 right-5 z-10 text-base leading-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                    style={{ color: "var(--ink-faded)" }}
                   >
                     ✕
                   </Dialog.Close>
 
-                  <div className="overflow-y-auto max-h-[90vh] p-8">
-                    <CharacterSheetBody char={campaign.character_data} />
-                  </div>
-                </motion.div>
+                  <CharacterSheetBody char={campaign.character_data} />
+                </div>
               </motion.div>
             </Dialog.Content>
           </Dialog.Portal>

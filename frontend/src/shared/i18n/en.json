@@ -85,6 +85,18 @@
     "creating": "Creating…",
     "create_failed": "Couldn't create the campaign. Try again."
   },
+  "char": {
+    "stats": "Stats",
+    "inventory": "Inventory",
+    "skills": "Skills",
+    "reputation": "Reputation",
+    "background": "Background",
+    "empty_inventory": "Nothing carried yet.",
+    "empty_skills": "No skills learned yet.",
+    "empty_reputation": "No reputation earned yet.",
+    "empty_background": "No background written.",
+    "no_data": "No character data."
+  },
   "saves": {
     "save": "Save",
     "load": "Load",
