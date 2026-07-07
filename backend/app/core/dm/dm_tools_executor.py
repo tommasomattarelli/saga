@@ -129,9 +129,7 @@ async def tools_node(state: GameState) -> dict[str, Any]:
                 npc_name,
                 world_state,
                 npc_config,
-                psychology=resolve_psychology(
-                    (state.get("world_baseline") or {}).get("taxonomy")
-                ),
+                psychology=resolve_psychology((state.get("world_baseline") or {}).get("taxonomy")),
             )
             if not ok:
                 tool_messages.append(ToolMessage(content=error_msg, tool_call_id=tc_id, name=name))
