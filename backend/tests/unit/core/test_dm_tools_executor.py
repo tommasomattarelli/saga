@@ -293,9 +293,7 @@ class TestHandleNpcResults:
         npc_result.axis_changes = {"trust": 8}
 
         baseline = {
-            "taxonomy": {
-                "psychology": {"axes": {"trust": {"bands": [{"min": 0, "label": "x"}]}}}
-            }
+            "taxonomy": {"psychology": {"axes": {"trust": {"bands": [{"min": 0, "label": "x"}]}}}}
         }
         with patch("app.core.dm.dm_tools_executor.apply_typed_updates") as mock_updates:
             mock_updates.return_value = ({}, {})
