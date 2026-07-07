@@ -102,6 +102,18 @@ export interface ParamDef {
   max?: number;
 }
 
+export interface PsychologyAxis {
+  range: [number, number];
+  default: number;
+  bands: { min: number; label: string }[];
+}
+
+export interface PsychologyDef {
+  first_impression_multiplier: number;
+  max_delta_per_turn: number;
+  axes: Record<string, PsychologyAxis>;
+}
+
 export interface EditableWorld {
   slug: string;
   meta: { name: string; author: string; version: string; description: string; tags: string[] };
@@ -111,6 +123,7 @@ export interface EditableWorld {
     terrains: { name: string; travel_multiplier: number }[];
     travel_modes: { name: string; speed_kmh: number }[];
     defaults?: { terrain?: string | null; elevation_m?: number };
+    psychology?: PsychologyDef | null;
   };
   scenario: Record<string, unknown> | null;
   nodes: EditableNode[];

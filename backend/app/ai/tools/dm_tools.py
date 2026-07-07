@@ -21,7 +21,7 @@ from app.ai.tools.tools_inventory import AddItem, RemoveItem
 from app.ai.tools.tools_special import InvokeNpc, RequestDice
 from app.ai.tools.tools_world import (
     AdvanceTime,
-    ChangeNpcDisposition,
+    ChangeNpcPsychology,
     LogEvent,
     MoveTo,
     SetSceneMood,
@@ -39,7 +39,7 @@ __all__ = [
     "AddItem",
     "AdvanceTime",
     "ApplyDamage",
-    "ChangeNpcDisposition",
+    "ChangeNpcPsychology",
     "DmTool",
     "EndCombat",
     "InvokeNpc",

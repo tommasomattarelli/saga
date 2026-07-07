@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { EditableWorld } from "../../../shared/api/client";
 import type { Selection } from "./editor-nav";
 import { Area, Field, GhostButton, Picker } from "./editor-inputs";
+import { DEFAULT_PSYCHOLOGY } from "./forms-psychology";
 
 interface Props {
   payload: EditableWorld;
@@ -211,6 +212,31 @@ export function CollectionForm({ payload, kind, slug, onChange, onSelect }: Prop
             value={value("secret")}
             onChange={(e) => patch({ secret: e.target.value })}
           />
+          <div className="space-y-1">
+            <span className="text-xs" style={{ color: "var(--ink-secondary)" }}>
+              {t("worlds.npc_psychology")}
+            </span>
+            <div className="grid grid-cols-4 gap-2">
+              {Object.keys((payload.taxonomy.psychology ?? DEFAULT_PSYCHOLOGY).axes).map((axis) => {
+                const seeds = (entity.psychology as Record<string, number>) ?? {};
+                return (
+                  <Field
+                    key={axis}
+                    id={`npc-psy-${axis}`}
+                    label={axis}
+                    type="number"
+                    value={seeds[axis] ?? ""}
+                    onChange={(e) => {
+                      const next = { ...seeds };
+                      if (e.target.value === "") delete next[axis];
+                      else next[axis] = Number(e.target.value);
+                      patch({ psychology: Object.keys(next).length ? next : undefined });
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
         </>
       )}
 

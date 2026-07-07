@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from app.ai.router import GameplayConfig
+from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
+from app.models.psychology import PsychologyDef
 
 
 def validate_or_create_npc(
-    name: str, world_state: dict, config: GameplayConfig
+    name: str,
+    world_state: dict,
+    config: GameplayConfig,
+    psychology: PsychologyDef | None = None,
 ) -> tuple[bool, str]:
     """Return (should_proceed, error_for_llm).
 
@@ -32,15 +37,16 @@ def validate_or_create_npc(
         return False, f"{name} is not a known NPC."
 
     world_state.setdefault("npcs", {})[name] = _create_npc_profile(
-        name, config.npc_auto_create_detail
+        name, config.npc_auto_create_detail, psychology or DEFAULT_PSYCHOLOGY
     )
     return True, ""
 
 
-def _create_npc_profile(name: str, detail: str) -> dict:
+def _create_npc_profile(name: str, detail: str, psychology: PsychologyDef) -> dict:
     base: dict = {
         "name": name,
-        "disposition_toward_player": 0,
+        "psychology": default_values(psychology),
+        "met_player": False,
         "last_interactions": [],
     }
     if detail == "minimal":

@@ -36,6 +36,25 @@ const WORLD: EditableWorld = {
     ],
     terrains: [{ name: "road", travel_multiplier: 0.75 }],
     travel_modes: [{ name: "foot", speed_kmh: 4 }],
+    psychology: {
+      first_impression_multiplier: 3,
+      max_delta_per_turn: 10,
+      axes: {
+        trust: {
+          range: [-100, 100],
+          default: 0,
+          bands: [
+            { min: -100, label: "wary" },
+            { min: -10, label: "neutral" },
+          ],
+        },
+        honor: {
+          range: [-50, 50],
+          default: 0,
+          bands: [{ min: -50, label: "shamed" }],
+        },
+      },
+    },
   },
   scenario: null,
   nodes: [
@@ -50,7 +69,7 @@ const WORLD: EditableWorld = {
   ],
   edges: [],
   factions: [],
-  npcs: [],
+  npcs: [{ slug: "kira", name: "Kira", role: "guard" }],
   encounters: [],
 };
 
@@ -101,6 +120,42 @@ describe("WorldEditor", () => {
       expect(saveWorld).toHaveBeenCalled();
       const sent = vi.mocked(saveWorld).mock.calls[0][1];
       expect(sent.nodes[0].params?.population).toBe(999);
+    });
+  });
+
+  it("renders the world's psychology axes in the taxonomy form", async () => {
+    vi.mocked(getWorld).mockResolvedValue(mockResponse(WORLD));
+    renderEditor();
+
+    fireEvent.click(await screen.findByText("Taxonomy"));
+    expect(await screen.findByDisplayValue("trust")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("honor")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("wary")).toBeInTheDocument();
+    expect(screen.getByLabelText("First impression multiplier")).toHaveValue(3);
+  });
+
+  it("edits an NPC psychology seed against the world axes", async () => {
+    vi.mocked(getWorld).mockResolvedValue(mockResponse(WORLD));
+    vi.mocked(saveWorld).mockResolvedValue(
+      mockResponse({
+        slug: "test-world",
+        name: "Test World",
+        description: "",
+        author: "t",
+        version: "1.0.0",
+        tags: [],
+      }),
+    );
+    renderEditor();
+
+    fireEvent.click(await screen.findByText("Kira"));
+    // axis inputs come from the world's own psychology taxonomy
+    fireEvent.change(await screen.findByLabelText("honor"), { target: { value: "-20" } });
+    fireEvent.click(screen.getByText("Save world"));
+
+    await waitFor(() => {
+      const sent = vi.mocked(saveWorld).mock.calls[0][1];
+      expect(sent.npcs[0].psychology).toEqual({ honor: -20 });
     });
   });
 
