@@ -30,6 +30,111 @@ class TestNPCDisposition:
         assert new_state["npcs"]["Grenda"]["disposition_toward_player"] == -100
 
 
+class TestNpcPsychology:
+    def met_npc(self, **psychology):
+        return {
+            "npcs": {
+                "Kira": {
+                    "name": "Kira",
+                    "psychology": {
+                        "trust": 0,
+                        "respect": 0,
+                        "affection": 0,
+                        "fear": 0,
+                        **psychology,
+                    },
+                    "met_player": True,
+                }
+            }
+        }
+
+    def test_applies_deltas_per_axis(self):
+        updates = [
+            {"key": "npc_psychology", "target": "Kira", "changes": {"trust": -4, "fear": 8}}
+        ]
+        new_state, _ = apply_typed_updates(self.met_npc(), {}, updates)
+        psy = new_state["npcs"]["Kira"]["psychology"]
+        assert psy["trust"] == -4
+        assert psy["fear"] == 8
+        assert psy["respect"] == 0
+
+    def test_delta_clamped_to_per_turn_cap(self):
+        updates = [{"key": "npc_psychology", "target": "Kira", "changes": {"trust": 90}}]
+        new_state, _ = apply_typed_updates(self.met_npc(), {}, updates)
+        assert new_state["npcs"]["Kira"]["psychology"]["trust"] == 10
+
+    def test_value_clamped_to_axis_range(self):
+        updates = [{"key": "npc_psychology", "target": "Kira", "changes": {"fear": 10}}]
+        new_state, _ = apply_typed_updates(self.met_npc(fear=95), {}, updates)
+        assert new_state["npcs"]["Kira"]["psychology"]["fear"] == 100
+
+    def test_unknown_axis_dropped(self):
+        updates = [
+            {"key": "npc_psychology", "target": "Kira", "changes": {"honor": 5, "trust": 3}}
+        ]
+        new_state, _ = apply_typed_updates(self.met_npc(), {}, updates)
+        psy = new_state["npcs"]["Kira"]["psychology"]
+        assert "honor" not in psy
+        assert psy["trust"] == 3
+
+    def test_first_impression_amplifies_then_flips(self):
+        state = {"npcs": {"Kira": {"name": "Kira", "met_player": False}}}
+        updates = [{"key": "npc_psychology", "target": "Kira", "changes": {"fear": 8}}]
+        new_state, _ = apply_typed_updates(state, {}, updates)
+        kira = new_state["npcs"]["Kira"]
+        assert kira["psychology"]["fear"] == 24  # 8 × 3.0
+        assert kira["met_player"] is True
+
+    def test_flip_is_immediate_within_same_turn(self):
+        state = {"npcs": {"Kira": {"name": "Kira", "met_player": False}}}
+        updates = [
+            {"key": "npc_psychology", "target": "Kira", "changes": {"fear": 8}},
+            {"key": "npc_psychology", "target": "Kira", "changes": {"fear": 8}},
+        ]
+        new_state, _ = apply_typed_updates(state, {}, updates)
+        assert new_state["npcs"]["Kira"]["psychology"]["fear"] == 32  # 24 + 8, no double ×3
+
+    def test_zero_delta_interaction_still_flips(self):
+        state = {"npcs": {"Kira": {"name": "Kira", "met_player": False}}}
+        updates = [{"key": "npc_psychology", "target": "Kira", "changes": {}}]
+        new_state, _ = apply_typed_updates(state, {}, updates)
+        assert new_state["npcs"]["Kira"]["met_player"] is True
+
+    def test_creates_missing_npc_at_defaults(self):
+        updates = [{"key": "npc_psychology", "target": "Ghost", "changes": {"trust": 2}}]
+        new_state, _ = apply_typed_updates({"npcs": {}}, {}, updates)
+        ghost = new_state["npcs"]["Ghost"]
+        assert ghost["psychology"]["trust"] == 6  # first impression ×3
+        assert ghost["psychology"]["respect"] == 0
+        assert ghost["met_player"] is True
+
+    def test_world_config_overrides_default(self):
+        config = {
+            "first_impression_multiplier": 2.0,
+            "max_delta_per_turn": 5,
+            "axes": {
+                "honor": {
+                    "range": [-50, 50],
+                    "default": 0,
+                    "bands": [{"min": -50, "label": "shamed"}, {"min": 0, "label": "honored"}],
+                }
+            },
+        }
+        state = {"npcs": {"Kira": {"name": "Kira", "met_player": False}}}
+        updates = [
+            {
+                "key": "npc_psychology",
+                "target": "Kira",
+                "changes": {"honor": 9, "trust": 9},
+                "config": config,
+            }
+        ]
+        new_state, _ = apply_typed_updates(state, {}, updates)
+        psy = new_state["npcs"]["Kira"]["psychology"]
+        assert psy["honor"] == 10  # clamped to 5, ×2
+        assert "trust" not in psy  # not an axis of this world
+
+
 class TestHPChange:
     def test_damage(self):
         char = {"hp": {"current": 20, "max": 30}}

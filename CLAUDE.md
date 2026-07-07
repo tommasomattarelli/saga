@@ -85,6 +85,7 @@ Every working session follows the same ritual so state is never lost between the
 - **Body**: only when the *why* isn't obvious from the subject — 1–3 short lines. Substantial rationale goes in an ADR, not the commit body.
 - **Never** add co-author trailers (`Co-Authored-By`, tool attribution, etc.). Plain messages only.
 - One logical change per commit (standard 10).
+- **Granularity**: sprint/feature work lands as a *series* of small commits — one per logical unit (a module + its tests, world content, docs). Never a single sprint-wide mega-commit: the sub-branch exists precisely to hold the series.
 
 ## Versioning & Releases
 

@@ -68,6 +68,40 @@ class TestValidWorld:
         assert errors_of(world_dir) == []
 
 
+class TestNpcPsychology:
+    # ADR 0005 C3 — authored seeds validated against the (default or world) axes.
+    def test_valid_seed_against_default_axes(self, world_dir):
+        write(world_dir / "npcs" / "kira.yaml", {"name": "Kira", "psychology": {"trust": -30}})
+        assert errors_of(world_dir) == []
+
+    def test_unknown_axis_rejected(self, world_dir):
+        write(world_dir / "npcs" / "kira.yaml", {"name": "Kira", "psychology": {"honor": 5}})
+        assert any("unknown psychology axis 'honor'" in e for e in errors_of(world_dir))
+
+    def test_value_outside_axis_range_rejected(self, world_dir):
+        write(world_dir / "npcs" / "kira.yaml", {"name": "Kira", "psychology": {"trust": 500}})
+        assert any("outside range" in e for e in errors_of(world_dir))
+
+    def test_world_defined_axes_override_default(self, world_dir):
+        taxonomy = {
+            **TAXONOMY,
+            "psychology": {
+                "axes": {
+                    "honor": {
+                        "range": [-50, 50],
+                        "default": 0,
+                        "bands": [{"min": -50, "label": "shamed"}, {"min": 0, "label": "honored"}],
+                    }
+                }
+            },
+        }
+        write(world_dir / "taxonomy.yaml", taxonomy)
+        write(world_dir / "npcs" / "kira.yaml", {"name": "Kira", "psychology": {"honor": 40}})
+        assert errors_of(world_dir) == []
+        write(world_dir / "npcs" / "kira.yaml", {"name": "Kira", "psychology": {"trust": 10}})
+        assert any("unknown psychology axis 'trust'" in e for e in errors_of(world_dir))
+
+
 class TestStructuralRules:
     def test_unknown_kind(self, world_dir):
         write(world_dir / "nodes" / "x.yaml", {"kind": "castle", "name": "X"})

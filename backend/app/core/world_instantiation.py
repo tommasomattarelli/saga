@@ -7,6 +7,7 @@ the initial overlay (`world_state`) + quests from `scenario.yaml`.
 
 from uuid import uuid4
 
+from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
 from app.core.world_loader import WorldAsset
 
 
@@ -81,6 +82,7 @@ def _build_baseline(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
 def _build_world_state(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
     opening = asset.scenario.opening if asset.scenario else None
     start_id = slug_map[opening.start_location] if opening else slug_map[asset.root_slug]
+    axis_defaults = default_values(asset.taxonomy.psychology or DEFAULT_PSYCHOLOGY)
     npcs: dict[str, dict] = {
         npc.name: {
             "role": npc.role,
@@ -89,14 +91,16 @@ def _build_world_state(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
             "motivation": npc.motivation,
             "secret": npc.secret,
             "faction": npc.faction,
-            "disposition_toward_player": npc.disposition,
+            # Authored seeds are baseline prejudice — they never flip met_player (B3).
+            "psychology": {**axis_defaults, **npc.psychology},
+            "met_player": False,
             "last_interactions": [],
         }
         for npc in asset.npcs.values()
     }
     return {
         "meta": {
-            "schema_version": 5,
+            "schema_version": 6,
             "world_name": asset.meta.name,
             "setting": asset.nodes[asset.root_slug].description,
             "current_location": start_id,

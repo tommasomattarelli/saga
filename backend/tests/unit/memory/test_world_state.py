@@ -10,7 +10,7 @@ def test_migrate_v0_to_latest():
     migrated = migrate_world_state(v0_state)
 
     assert "meta" in migrated
-    assert migrated["meta"]["schema_version"] == 5
+    assert migrated["meta"]["schema_version"] == 6
     assert migrated["meta"]["world_name"] == "Unknown Land"
     assert migrated["meta"]["current_season"] == "spring"
     assert migrated["locations"]["town"] == "visited"
@@ -30,16 +30,30 @@ def test_migrate_v3_to_v4():
         "narrative": {"event_log": []},
     }
     migrated = migrate_world_state(v3_state)
-    assert migrated["meta"]["schema_version"] == 5
+    assert migrated["meta"]["schema_version"] == 6
     assert migrated["locations"]["town"] == "visited"
     assert migrated["combat_state"]["active"] is False
     assert migrated["destino_lives"] == 3
     assert migrated is not v3_state
 
 
+def test_migrate_v5_to_v6_seeds_psychology():
+    # ADR 0005 C2: trivial rung — no scalar lift, defaults + met_player only.
+    v5_state = {
+        "meta": {"schema_version": 5, "world_name": "Test"},
+        "npcs": {"Bran": {"name": "Bran", "disposition_toward_player": 40}},
+    }
+    migrated = migrate_world_state(v5_state)
+    bran = migrated["npcs"]["Bran"]
+    assert migrated["meta"]["schema_version"] == 6
+    assert bran["psychology"] == {"trust": 0, "respect": 0, "affection": 0, "fear": 0}
+    assert bran["met_player"] is True
+    assert "disposition_toward_player" not in bran
+
+
 def test_migrate_up_to_date():
     v4_state = {
-        "meta": {"schema_version": 5, "world_name": "Test"},
+        "meta": {"schema_version": 6, "world_name": "Test"},
         "locations": {"town": "visited"},
         "clock": {"total_minutes": 480},
         "npcs": {},
@@ -54,7 +68,7 @@ def test_migrate_up_to_date():
         "destino_lives": 3,
     }
     migrated = migrate_world_state(v4_state)
-    assert migrated["meta"]["schema_version"] == 5
+    assert migrated["meta"]["schema_version"] == 6
     assert migrated["locations"]["town"] == "visited"
     assert migrated is not v4_state
 

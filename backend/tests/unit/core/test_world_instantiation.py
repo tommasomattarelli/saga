@@ -79,10 +79,10 @@ class TestBaseline:
 
 
 class TestOverlay:
-    def test_schema_v5_and_start_position(self):
+    def test_schema_v6_and_start_position(self):
         baseline, state, _ = instantiated()
         start_id = baseline["slug_map"]["shrine-of-first-light"]
-        assert state["meta"]["schema_version"] == 5
+        assert state["meta"]["schema_version"] == 6
         assert state["player_position"] == start_id
         assert state["meta"]["current_location"] == start_id
 
@@ -90,8 +90,21 @@ class TestOverlay:
         baseline, state, _ = instantiated()
         marta = state["npcs"]["Marta"]
         assert marta["location"] == baseline["slug_map"]["thornhaven"]
-        assert marta["disposition_toward_player"] == 0
         assert marta["last_interactions"] == []
+
+    def test_npc_psychology_seeded_at_defaults(self):
+        _, state, _ = instantiated()
+        marta = state["npcs"]["Marta"]
+        assert marta["psychology"] == {"trust": 0, "respect": 0, "affection": 0, "fear": 0}
+        assert marta["met_player"] is False
+        assert "disposition_toward_player" not in marta
+
+    def test_authored_psychology_merged_over_defaults(self):
+        _, state, _ = instantiated()
+        lyra = state["npcs"]["Lyra"]
+        assert lyra["psychology"]["trust"] == -20  # authored in lyra.yaml
+        assert lyra["psychology"]["respect"] == 0
+        assert lyra["met_player"] is False  # authored seed never flips it (B3)
 
     def test_runtime_containers_seeded(self):
         _, state, _ = instantiated()
