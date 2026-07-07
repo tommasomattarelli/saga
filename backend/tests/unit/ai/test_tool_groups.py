@@ -20,7 +20,7 @@ _SAMPLE_CONFIG = {
         },
         "social": {
             "when": "npcs_present",
-            "tools": ["invoke_npc", "change_npc_disposition"],
+            "tools": ["invoke_npc", "change_npc_psychology"],
         },
         "inventory": {
             "always": True,
@@ -65,7 +65,7 @@ def test_resolve_from_state_npcs_present():
         {"combat_state": {"active": False}, "npcs": {"Marta": {}}, "companions": {}}
     )
     assert "invoke_npc" in tools
-    assert "change_npc_disposition" in tools
+    assert "change_npc_psychology" in tools
 
 
 def test_resolve_from_state_no_npcs():

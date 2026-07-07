@@ -170,7 +170,7 @@ tool_groups:
     when: npcs_present
     tools:
       - invoke_npc
-      - change_npc_disposition
+      - change_npc_psychology
   inventory:
     always: true
     tools:
