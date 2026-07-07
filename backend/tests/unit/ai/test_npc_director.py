@@ -15,7 +15,10 @@ class TestInvokeSingleNPC:
     @pytest.mark.asyncio
     async def test_invoke_returns_dialogue(self):
         mock_provider = AsyncMock()
-        mock_provider.generate.return_value = '{"dialogue": "Well met!", "action": null, "disposition_change": 5, "reveals_secret": false}'
+        mock_provider.generate.return_value = (
+            '{"dialogue": "Well met!", "action": null,'
+            ' "axis_changes": {"trust": 5, "fear": -2}, "reveals_secret": false}'
+        )
 
         with (
             patch("app.ai.npc_director.get_provider", return_value=mock_provider),
@@ -36,7 +39,33 @@ class TestInvokeSingleNPC:
 
             assert result.npc_name == "Grenda"
             assert result.dialogue == "Well met!"
-            assert result.disposition_change == 5
+            assert result.axis_changes == {"trust": 5, "fear": -2}
+
+    @pytest.mark.asyncio
+    async def test_malformed_axis_changes_dropped(self):
+        mock_provider = AsyncMock()
+        mock_provider.generate.return_value = (
+            '{"dialogue": "Hm.", "axis_changes": {"trust": "lots", "fear": 3.7, "respect": true}}'
+        )
+
+        with (
+            patch("app.ai.npc_director.get_provider", return_value=mock_provider),
+            patch("app.ai.npc_director.route_ai_call", new_callable=AsyncMock) as mock_route,
+        ):
+            from app.ai.router import ModelConfig
+
+            mock_route.return_value = ModelConfig(
+                provider="openai", model="gpt-4o-mini", temperature=0.7, max_tokens=300
+            )
+
+            result = await invoke_single_npc(
+                npc_name="Grenda",
+                npc_profile={"name": "Grenda"},
+                player_action="hello",
+                dm_narration="You approach.",
+            )
+
+            assert result.axis_changes == {"fear": 3}
 
     @pytest.mark.asyncio
     async def test_invoke_fallback_on_error(self):
@@ -69,7 +98,7 @@ class TestInvokeNPCsParallel:
     async def test_respects_npc_cap(self):
         call_count = 0
 
-        async def mock_invoke(npc_name, npc_profile, player_action, dm_narration):
+        async def mock_invoke(npc_name, npc_profile, player_action, dm_narration, psychology=None):
             nonlocal call_count
             call_count += 1
             return NPCDialogue(npc_name=npc_name, dialogue="Hello.")
@@ -84,6 +113,7 @@ class TestInvokeNPCsParallel:
 
             campaign = AsyncMock()
             campaign.world_state = {"npcs": {}}
+            campaign.world_baseline = {}
 
             results = await invoke_npcs_parallel(
                 npc_names=["A", "B", "C", "D", "E"],
@@ -104,6 +134,7 @@ class TestInvokeNPCsParallel:
 
             campaign = AsyncMock()
             campaign.world_state = {"npcs": {}}
+            campaign.world_baseline = {}
 
             results = await invoke_npcs_parallel(
                 npc_names=["A", "B"],
