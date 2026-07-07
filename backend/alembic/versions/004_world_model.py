@@ -10,8 +10,9 @@ Create Date: 2026-07-06
 """
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 revision = "004_world_model"
 down_revision = "003_normalize_npc_disposition"
