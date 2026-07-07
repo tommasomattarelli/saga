@@ -1,3 +1,6 @@
+from app.core.psychology import DEFAULT_PSYCHOLOGY, band_label
+from app.models.psychology import PsychologyDef
+
 NPC_BASE_PROMPT = """You are an NPC in a tabletop RPG. You have your own life, goals, and psychology.
 
 ## Your Identity
@@ -10,7 +13,8 @@ NPC_BASE_PROMPT = """You are an NPC in a tabletop RPG. You have your own life, g
 - Motivation: {motivation}
 - Fear: {fear}
 - Secret: {secret}
-- Disposition toward player: {disposition} (scale: -100 hostile → 0 neutral → +100 loyal)
+- How you feel about the player:
+{axes_block}
 
 ## What just happened
 The player did: "{player_action}"
@@ -25,15 +29,29 @@ The DM narrated: "{dm_narration}"
 - Respond in 1-3 sentences, in character
 
 Respond as JSON:
-{{"dialogue": "What you say", "action": "What you do (or null)", "disposition_change": 0, "reveals_secret": false}}
+{{"dialogue": "What you say", "action": "What you do (or null)", "axis_changes": {{}}, "reveals_secret": false}}
+
+In axis_changes report how this exchange shifted your feelings — only these axes: {axis_names}.
+Integer deltas, max ±{max_delta} each; omit axes that did not move.
 
 IMPORTANT: respond with valid JSON only. No markdown fences, no explanation."""
+
+
+def _render_axes(npc_data: dict, pdef: PsychologyDef) -> str:
+    values = npc_data.get("psychology", {})
+    lines = []
+    for name, axis in pdef.axes.items():
+        value = values.get(name, axis.default)
+        lo, hi = axis.range
+        lines.append(f"  - {name}: {value} ({band_label(axis, value)}) [range {lo}..{hi}]")
+    return "\n".join(lines)
 
 
 def build_npc_prompt(
     npc_data: dict,
     player_action: str = "",
     dm_narration: str = "",
+    psychology: PsychologyDef | None = None,
 ) -> str:
     # Personality: handle both flat string (template) and dict (legacy)
     personality_raw = npc_data.get("personality", "")
@@ -65,7 +83,7 @@ def build_npc_prompt(
     # Fear: from personality.fears (legacy) or npc_data.fear (fallback)
     fear_str = ", ".join(fears) if fears else npc_data.get("fear", "")
 
-    disposition = npc_data.get("disposition_toward_player", npc_data.get("disposition", 0))
+    pdef = psychology or DEFAULT_PSYCHOLOGY
 
     # Last interactions (ring buffer, max 3)
     last_interactions: list[str] = npc_data.get("last_interactions", [])
@@ -83,7 +101,9 @@ def build_npc_prompt(
         motivation=motivation_str,
         fear=fear_str,
         secret=secret_str,
-        disposition=disposition,
+        axes_block=_render_axes(npc_data, pdef),
+        axis_names=", ".join(pdef.axes),
+        max_delta=pdef.max_delta_per_turn,
         player_action=player_action[:300],
         dm_narration=dm_narration[:500],
         recent_history=recent_history,
