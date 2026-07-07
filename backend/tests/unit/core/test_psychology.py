@@ -1,6 +1,7 @@
 """ADR 0005 S1 — psychology vocabulary models, band resolver, bundled default."""
 
 import pytest
+import yaml
 from pydantic import ValidationError
 
 from app.core.psychology import (
@@ -92,3 +93,14 @@ class TestDefaults:
     def test_resolve_reads_taxonomy_block(self):
         pdef = resolve_psychology({"psychology": {"axes": {"honor": AXIS}}})
         assert set(pdef.axes) == {"honor"}
+
+    def test_example_world_ships_the_default(self, example_taxonomy_path):
+        data = yaml.safe_load(example_taxonomy_path.read_text())
+        assert PsychologyDef(**data["psychology"]) == DEFAULT_PSYCHOLOGY
+
+
+@pytest.fixture
+def example_taxonomy_path(request):
+    path = request.config.rootpath.parent / "worlds" / "the-awakening" / "taxonomy.yaml"
+    assert path.exists()
+    return path
