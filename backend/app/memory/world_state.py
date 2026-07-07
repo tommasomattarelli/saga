@@ -8,6 +8,8 @@ from collections.abc import Callable
 import structlog
 from pydantic import BaseModel, computed_field
 
+from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
+
 logger = structlog.get_logger()
 
 
@@ -73,7 +75,7 @@ ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
 )
 
 
-CURRENT_SCHEMA_VERSION: int = 5
+CURRENT_SCHEMA_VERSION: int = 6
 
 _MIGRATIONS: dict[int, Callable[[dict], dict]] = {}
 
@@ -140,6 +142,19 @@ def _migrate_v4_to_v5(state: dict) -> dict:
     state.setdefault("edge_overrides", [])
     state.setdefault("consumed_encounters", {})
     state["meta"]["schema_version"] = 5
+    return state
+
+
+@_register_migration(5)
+def _migrate_v5_to_v6(state: dict) -> dict:
+    # ADR 0005: multi-axis psychology. No scalar lift — dev volume wiped,
+    # pre-1.0, no such saves exist (C2). met_player=True: never retro-amplify.
+    defaults = default_values(DEFAULT_PSYCHOLOGY)
+    for npc in state.get("npcs", {}).values():
+        npc.setdefault("psychology", dict(defaults))
+        npc.setdefault("met_player", True)
+        npc.pop("disposition_toward_player", None)
+    state["meta"]["schema_version"] = 6
     return state
 
 
