@@ -3,33 +3,6 @@
 from app.memory.updater import apply_typed_updates
 
 
-class TestNPCDisposition:
-    def test_update_existing_npc(self):
-        state = {"npcs": {"Grenda": {"name": "Grenda", "disposition_toward_player": 10}}}
-        updates = [{"key": "npc_disposition", "target": "Grenda", "change": 15}]
-        new_state, _ = apply_typed_updates(state, {}, updates)
-        assert new_state["npcs"]["Grenda"]["disposition_toward_player"] == 25
-
-    def test_create_npc_if_missing(self):
-        state = {"npcs": {}}
-        updates = [{"key": "npc_disposition", "target": "NewNPC", "change": 5}]
-        new_state, _ = apply_typed_updates(state, {}, updates)
-        assert "NewNPC" in new_state["npcs"]
-        assert new_state["npcs"]["NewNPC"]["disposition_toward_player"] == 5
-
-    def test_clamp_disposition_max(self):
-        state = {"npcs": {"Grenda": {"name": "Grenda", "disposition_toward_player": 95}}}
-        updates = [{"key": "npc_disposition", "target": "Grenda", "change": 20}]
-        new_state, _ = apply_typed_updates(state, {}, updates)
-        assert new_state["npcs"]["Grenda"]["disposition_toward_player"] == 100
-
-    def test_clamp_disposition_min(self):
-        state = {"npcs": {"Grenda": {"name": "Grenda", "disposition_toward_player": -90}}}
-        updates = [{"key": "npc_disposition", "target": "Grenda", "change": -20}]
-        new_state, _ = apply_typed_updates(state, {}, updates)
-        assert new_state["npcs"]["Grenda"]["disposition_toward_player"] == -100
-
-
 class TestNpcPsychology:
     def met_npc(self, **psychology):
         return {
@@ -244,14 +217,14 @@ class TestGenericFallback:
 
 class TestMultipleUpdates:
     def test_sequential_updates(self):
-        state = {"npcs": {"Grenda": {"name": "Grenda", "disposition_toward_player": 0}}}
+        state = {"npcs": {"Grenda": {"name": "Grenda", "met_player": True, "psychology": {}}}}
         char = {"hp": {"current": 20, "max": 30}, "inventory": []}
         updates = [
-            {"key": "npc_disposition", "target": "Grenda", "change": 10},
+            {"key": "npc_psychology", "target": "Grenda", "changes": {"trust": 10}},
             {"key": "hp_change", "change": -5},
             {"key": "inventory_change", "target": "Potion", "change": "add"},
         ]
         new_state, new_char = apply_typed_updates(state, char, updates)
-        assert new_state["npcs"]["Grenda"]["disposition_toward_player"] == 10
+        assert new_state["npcs"]["Grenda"]["psychology"]["trust"] == 10
         assert new_char["hp"]["current"] == 15
         assert len(new_char["inventory"]) == 1

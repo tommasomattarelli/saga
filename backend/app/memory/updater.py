@@ -24,19 +24,6 @@ def _register_handler(update_type: str):
     return decorator
 
 
-@_register_handler("npc_disposition")
-def _handle_npc_disposition(state: dict, update: dict, char_data: dict) -> dict:
-    """Update an NPC's disposition toward the player."""
-    target = update.get("target", "")
-    change = update.get("change", 0)
-    npcs = state.setdefault("npcs", {})
-    if target not in npcs:
-        npcs[target] = {"name": target, "disposition_toward_player": 0}
-    current = npcs[target].get("disposition_toward_player", 0)
-    npcs[target]["disposition_toward_player"] = max(-100, min(100, current + int(change)))
-    return state
-
-
 @_register_handler("npc_psychology")
 def _handle_npc_psychology(state: dict, update: dict, char_data: dict) -> dict:
     """Apply per-axis psychology deltas to an NPC (ADR 0005 B1/B3)."""
