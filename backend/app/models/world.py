@@ -11,6 +11,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.models.psychology import PsychologyDef
+
 SLUG_PATTERN = r"^[a-z0-9]+(-[a-z0-9]+)*$"
 DICE_PATTERN = r"^\d+d\d+([+-]\d+)?$"
 
@@ -71,6 +73,8 @@ class Taxonomy(BaseModel):
     terrains: list[TerrainDef] = []
     travel_modes: list[TravelModeDef] = []
     defaults: TaxonomyDefaults = TaxonomyDefaults()
+    # ADR 0005: optional world-defined psychology axes; None → bundled default.
+    psychology: PsychologyDef | None = None
 
     @model_validator(mode="after")
     def _check_uniqueness_and_defaults(self) -> "Taxonomy":
@@ -224,7 +228,7 @@ class NpcRecord(BaseModel):
     personality: str = ""
     motivation: str = ""
     secret: str = ""
-    disposition: int = 0
+    psychology: dict[str, int] = {}
     faction: str | None = None
 
 

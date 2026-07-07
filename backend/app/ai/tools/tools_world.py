@@ -1,4 +1,4 @@
-"""Silent world-state tools — location, quests, NPC disposition, events, mood, time."""
+"""Silent world-state tools — location, quests, NPC psychology, events, mood, time."""
 
 from __future__ import annotations
 
@@ -7,6 +7,8 @@ import copy
 from pydantic import Field
 
 from app.ai.tools.tools_base import DmTool, SceneMood, ToolResult, apply, register
+from app.core.psychology import DEFAULT_PSYCHOLOGY, band_label
+from app.models.psychology import PsychologyDef
 
 
 @register
@@ -139,31 +141,55 @@ class UpdateQuest(DmTool):
 
 
 @register
-class ChangeNpcDisposition(DmTool):
+class ChangeNpcPsychology(DmTool):
     npc: str = Field(description="NPC name")
-    delta: int = Field(
-        description="Disposition change: positive = friendlier, negative = more hostile. Range: -100 to 100."
+    changes: dict[str, int] = Field(
+        description='Per-axis integer deltas, e.g. {"trust": -5, "fear": 8}. '
+        "Positive = more of that feeling toward the player."
     )
     reason: str = Field(default="", description="Brief reason for the change")
 
     @classmethod
     def tool_name(cls) -> str:
-        return "change_npc_disposition"
+        return "change_npc_psychology"
 
     @classmethod
     def tool_description(cls) -> str:
-        return "Update an NPC's disposition toward the player after a meaningful interaction."
+        return (
+            "Shift an NPC's psychology axes toward the player after a meaningful "
+            "interaction. Axes are defined by the world (see the scene block)."
+        )
 
     def execute(self, world_state: dict, char_data: dict) -> ToolResult:
-        new_state, new_char = apply(
-            world_state,
-            char_data,
-            {"key": "npc_disposition", "target": self.npc, "change": self.delta},
-        )
-        npcs = new_state.get("npcs", {})
-        new_disp = npcs.get(self.npc, {}).get("disposition_toward_player", 0)
+        return self.execute_with_baseline(world_state, char_data, None)
+
+    def execute_with_baseline(
+        self, world_state: dict, char_data: dict, baseline: dict | None
+    ) -> ToolResult:
+        config = ((baseline or {}).get("taxonomy") or {}).get("psychology")
+        pdef = PsychologyDef(**config) if config else DEFAULT_PSYCHOLOGY
+        unknown = [axis for axis in self.changes if axis not in pdef.axes]
+        if unknown:
+            # Reject-with-candidates (0008 F7): the DM loop can retry.
+            return ToolResult(
+                description=(
+                    f"Unknown axis '{unknown[0]}'. This world's axes: {', '.join(pdef.axes)}."
+                ),
+                world_state=world_state,
+                char_data=char_data,
+            )
+        update: dict = {"key": "npc_psychology", "target": self.npc, "changes": dict(self.changes)}
+        if config:
+            update["config"] = config
+        new_state, new_char = apply(world_state, char_data, update)
+        values = new_state.get("npcs", {}).get(self.npc, {}).get("psychology", {})
+        parts = [
+            f"{axis}: {values.get(axis, 0)} ({band_label(pdef.axes[axis], values.get(axis, 0))})"
+            for axis in self.changes
+        ]
+        suffix = f" ({self.reason})" if self.reason else ""
         return ToolResult(
-            description=f"{self.npc} disposition: {new_disp:+d} ({self.reason})",
+            description=f"{self.npc} psychology → {', '.join(parts)}{suffix}",
             world_state=new_state,
             char_data=new_char,
         )

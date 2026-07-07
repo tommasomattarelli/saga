@@ -16,6 +16,7 @@ from app.core.dice import ability_check
 from app.core.dm.dm_helpers import get_or_create_segment, sync_narration_to_segment
 from app.core.dm.game_state import GameState
 from app.core.dm.npc_prehook import validate_or_create_npc
+from app.core.psychology import resolve_psychology
 from app.memory.updater import apply_typed_updates
 
 
@@ -124,7 +125,12 @@ async def tools_node(state: GameState) -> dict[str, Any]:
                 continue
 
             npc_config = get_gameplay_config()
-            ok, error_msg = validate_or_create_npc(npc_name, world_state, npc_config)
+            ok, error_msg = validate_or_create_npc(
+                npc_name,
+                world_state,
+                npc_config,
+                psychology=resolve_psychology((state.get("world_baseline") or {}).get("taxonomy")),
+            )
             if not ok:
                 tool_messages.append(ToolMessage(content=error_msg, tool_call_id=tc_id, name=name))
                 continue
@@ -152,6 +158,7 @@ async def tools_node(state: GameState) -> dict[str, Any]:
                 step,
                 world_state,
                 char_data,
+                baseline=state.get("world_baseline"),
             )
             tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
             continue
@@ -266,6 +273,7 @@ def _handle_npc_results(
     step: int,
     world_state: dict,
     char_data: dict,
+    baseline: dict | None = None,
 ) -> tuple[str, dict, dict]:
     dialogue_parts: list[str] = []
     kept = get_gameplay_config().npc_last_interactions_kept
@@ -289,18 +297,16 @@ def _handle_npc_results(
             if len(history) > kept:
                 history[:] = history[-kept:]
 
-        if npc.disposition_change != 0:
-            world_state, char_data = apply_typed_updates(
-                world_state,
-                char_data,
-                [
-                    {
-                        "key": "npc_disposition",
-                        "target": npc.npc_name,
-                        "change": npc.disposition_change,
-                    }
-                ],
-            )
+        # Always applied: a completed dialogue flips met_player even with zero deltas (B3).
+        update: dict = {
+            "key": "npc_psychology",
+            "target": npc.npc_name,
+            "changes": dict(npc.axis_changes),
+        }
+        psychology_config = ((baseline or {}).get("taxonomy") or {}).get("psychology")
+        if psychology_config:
+            update["config"] = psychology_config
+        world_state, char_data = apply_typed_updates(world_state, char_data, [update])
 
     result_str = " | ".join(dialogue_parts) if dialogue_parts else f"{npc_name} does not respond."
     return result_str, world_state, char_data

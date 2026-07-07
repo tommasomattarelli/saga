@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import structlog
 
@@ -12,7 +12,9 @@ from app.ai.prompts.npc import build_npc_prompt
 from app.ai.providers.base import get_provider, logged_generate
 from app.ai.router import AICallType, get_gameplay_config, route_ai_call
 from app.ai.sanitizer import strip_code_fences
+from app.core.psychology import resolve_psychology
 from app.models.campaign import Campaign
+from app.models.psychology import PsychologyDef
 
 logger = structlog.get_logger()
 
@@ -22,8 +24,18 @@ class NPCDialogue:
     npc_name: str
     dialogue: str
     action: str | None = None
-    disposition_change: int = 0
+    axis_changes: dict[str, int] = field(default_factory=dict)
     reveals_secret: bool = False
+
+
+def _parse_axis_changes(raw: object) -> dict[str, int]:
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        str(axis): int(delta)
+        for axis, delta in raw.items()
+        if isinstance(delta, (int, float)) and not isinstance(delta, bool)
+    }
 
 
 async def invoke_single_npc(
@@ -31,11 +43,17 @@ async def invoke_single_npc(
     npc_profile: dict,
     player_action: str,
     dm_narration: str,
+    psychology: PsychologyDef | None = None,
 ) -> NPCDialogue:
     """Call a budget LLM for a single NPC's response."""
     from app.ai.context import GameContext
 
-    prompt = build_npc_prompt(npc_profile, player_action=player_action, dm_narration=dm_narration)
+    prompt = build_npc_prompt(
+        npc_profile,
+        player_action=player_action,
+        dm_narration=dm_narration,
+        psychology=psychology,
+    )
 
     dummy_context = GameContext(
         system_prompt="",
@@ -71,7 +89,7 @@ async def invoke_single_npc(
             npc_name=npc_name,
             dialogue=data.get("dialogue", "..."),
             action=data.get("action"),
-            disposition_change=int(data.get("disposition_change", 0)),
+            axis_changes=_parse_axis_changes(data.get("axis_changes")),
             reveals_secret=bool(data.get("reveals_secret", False)),
         )
 
@@ -95,6 +113,7 @@ async def invoke_npcs_parallel(
 
     names = npc_names[:max_npcs]
     npcs_data = campaign.world_state.get("npcs", {}) if campaign.world_state else {}
+    psychology = resolve_psychology((campaign.world_baseline or {}).get("taxonomy"))
 
     tasks = []
     for name in names:
@@ -109,6 +128,7 @@ async def invoke_npcs_parallel(
                 npc_profile=profile,
                 player_action=player_action,
                 dm_narration=dm_narration,
+                psychology=psychology,
             )
         )
 

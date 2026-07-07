@@ -183,7 +183,7 @@ class TestHandleNpcResults:
         npc_result.npc_name = "Aria"
         npc_result.dialogue = "Greetings, traveler."
         npc_result.action = None
-        npc_result.disposition_change = 0
+        npc_result.axis_changes = {}
 
         result_str, ws, cd = _handle_npc_results(
             npc_name="Aria",
@@ -205,7 +205,7 @@ class TestHandleNpcResults:
         npc_result.npc_name = "Guard"
         npc_result.dialogue = "Halt!"
         npc_result.action = "blocks the path"
-        npc_result.disposition_change = 0
+        npc_result.axis_changes = {}
 
         result_str, _, _ = _handle_npc_results(
             npc_name="Guard",
@@ -241,7 +241,7 @@ class TestHandleNpcResults:
         npc_result.npc_name = "Merchant"
         npc_result.dialogue = "Wares for sale!"
         npc_result.action = None
-        npc_result.disposition_change = 0
+        npc_result.axis_changes = {}
 
         world_state = {"npcs": {"Merchant": {"role": "trader"}}}
         _handle_npc_results(
@@ -267,7 +267,7 @@ class TestHandleNpcResults:
         npc_result.npc_name = "NPC"
         npc_result.dialogue = "new line"
         npc_result.action = None
-        npc_result.disposition_change = 0
+        npc_result.axis_changes = {}
 
         _handle_npc_results(
             npc_name="NPC",
@@ -283,15 +283,18 @@ class TestHandleNpcResults:
         assert len(history) == 3
         assert '"new line"' in history
 
-    def test_disposition_change_calls_apply_updates(self):
+    def test_axis_changes_applied_with_world_config(self):
         from app.core.dm.dm_tools_executor import _handle_npc_results
 
         npc_result = MagicMock()
         npc_result.npc_name = "Elder"
         npc_result.dialogue = "You have earned my trust."
         npc_result.action = None
-        npc_result.disposition_change = 10
+        npc_result.axis_changes = {"trust": 8}
 
+        baseline = {
+            "taxonomy": {"psychology": {"axes": {"trust": {"bands": [{"min": 0, "label": "x"}]}}}}
+        }
         with patch("app.core.dm.dm_tools_executor.apply_typed_updates") as mock_updates:
             mock_updates.return_value = ({}, {})
             _handle_npc_results(
@@ -302,29 +305,35 @@ class TestHandleNpcResults:
                 step=0,
                 world_state={},
                 char_data={},
+                baseline=baseline,
             )
             mock_updates.assert_called_once()
+            update = mock_updates.call_args[0][2][0]
+            assert update["key"] == "npc_psychology"
+            assert update["changes"] == {"trust": 8}
+            assert update["config"] == baseline["taxonomy"]["psychology"]
 
-    def test_no_disposition_change_skips_apply_updates(self):
+    def test_zero_changes_still_apply_to_flip_met_player(self):
+        # ADR 0005 B3: a completed dialogue is an interaction — met is met.
         from app.core.dm.dm_tools_executor import _handle_npc_results
 
         npc_result = MagicMock()
         npc_result.npc_name = "Farmer"
         npc_result.dialogue = "Good day."
         npc_result.action = None
-        npc_result.disposition_change = 0
+        npc_result.axis_changes = {}
 
-        with patch("app.core.dm.dm_tools_executor.apply_typed_updates") as mock_updates:
-            _handle_npc_results(
-                npc_name="Farmer",
-                npc_results=[npc_result],
-                npc_dialogues=[],
-                narration_segments=[],
-                step=0,
-                world_state={},
-                char_data={},
-            )
-            mock_updates.assert_not_called()
+        world_state = {"npcs": {"Farmer": {"name": "Farmer", "met_player": False}}}
+        _, ws, _ = _handle_npc_results(
+            npc_name="Farmer",
+            npc_results=[npc_result],
+            npc_dialogues=[],
+            narration_segments=[],
+            step=0,
+            world_state=world_state,
+            char_data={},
+        )
+        assert ws["npcs"]["Farmer"]["met_player"] is True
 
     def test_npc_dialogues_list_updated(self):
         from app.core.dm.dm_tools_executor import _handle_npc_results
@@ -333,7 +342,7 @@ class TestHandleNpcResults:
         npc_result.npc_name = "Wizard"
         npc_result.dialogue = "Magic!"
         npc_result.action = "waves wand"
-        npc_result.disposition_change = 0
+        npc_result.axis_changes = {}
 
         npc_dialogues: list[dict] = []
         _handle_npc_results(
