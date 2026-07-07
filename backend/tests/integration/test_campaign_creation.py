@@ -25,7 +25,7 @@ async def test_create_campaign_instantiates_world(auth_client, test_user):
     marta = world_state["npcs"]["Marta"]
     assert marta["personality"] == "Warm but shrewd. Knows everyone's business."
     assert marta["role"] == "Tavern keeper"
-    assert marta["disposition_toward_player"] == 0
+    assert marta["psychology"] == {"trust": 0, "respect": 0, "affection": 0, "fear": 0}
     assert marta["last_interactions"] == []
     assert "Aldric" in world_state["npcs"]
     assert "Lyra" in world_state["npcs"]
@@ -44,7 +44,7 @@ async def test_create_campaign_instantiates_world(auth_client, test_user):
     assert "canopy of ancient oaks" in world_state["meta"]["opening_narration"]
 
     # Schema v5 overlay containers
-    assert world_state["meta"]["schema_version"] == 5
+    assert world_state["meta"]["schema_version"] == 6
     assert world_state["clock"]["total_minutes"] == 480
     assert world_state["combat_state"]["active"] is False
     assert world_state["node_status"] == {}
