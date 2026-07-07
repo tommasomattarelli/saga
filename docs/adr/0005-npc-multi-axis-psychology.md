@@ -143,11 +143,15 @@ psychology:
   The B1/B2 asymmetry (silent-drop vs reject) is intentional: the tool has a feedback
   channel, the parallel dialogue calls do not.
 - **B3 — first impression**: explicit **`met_player: bool`** flag on the NPC record,
-  `false` at creation/seed, flips to `true` after the **first applied axis mutation from
-  any source** (dialogue or DM tool). While `false`, applied deltas are multiplied by
-  `first_impression_multiplier`. Authored seeds (C3) do **not** flip it: authored
-  prejudice is baseline; the first real meeting still amplifies on top. Migration marks
-  existing NPCs `true` (never retro-amplify).
+  `false` at creation/seed, flips to `true` at the **first interaction event of any
+  kind** — a completed `invoke_npc` dialogue (even with zero/omitted deltas) or an
+  applied axis mutation, whichever comes first ("met is met": a first chat with no
+  emotional shift still consumes the first impression). The flip is **immediate**: if
+  the same turn carries a second mutation on the same NPC (e.g. dialogue deltas plus a
+  DM tool call), only the first applied one is amplified. While `false`, applied deltas
+  are multiplied by `first_impression_multiplier`. Authored seeds (C3) do **not** flip
+  it: authored prejudice is baseline; the first real meeting still amplifies on top.
+  Migration marks existing NPCs `true` (never retro-amplify).
 
 ### C. Data & migration (Decided)
 
@@ -180,8 +184,9 @@ psychology:
 **Decided**: P (world-defined, default bundled, fallback), A1 (4 default axes), A2
 (±100 default), A4 (5 per-axis bands, free count), A5/D2 (salient-only scene,
 default-band suppression), B1 (`axis_changes` dict, silent-drop, cap-then-multiplier),
-B2 (`change_npc_psychology`, reject-with-candidates), B3 (`met_player`, any-source,
-authored seeds don't flip), C1 (nested `psychology`), C2 (trivial rung, no lift), C3
+B2 (`change_npc_psychology`, reject-with-candidates), B3 (`met_player`, flips at first
+interaction event of any kind, immediate flip, authored seeds don't flip), C1 (nested
+`psychology`), C2 (trivial rung, no lift), C3
 (optional authored `psychology`, validated, editor field), C4 (factions out), D1
 (number+label+taught contract), D3 (labels in bands).
 
@@ -205,7 +210,9 @@ placement, prompt wording) are free within the decisions above.
 - **First-meeting inference from `last_interactions`** — a display ring buffer written
   only by dialogues; a DM tool change before the first dialogue would double-amplify.
   **Multiplier on first dialogue only** — a DM-narrated intimidation before any dialogue
-  (common) would lose amplification.
+  (common) would lose amplification. **Flip only on first *non-zero* mutation** — a
+  first chat with zero deltas would leave the ×3 armed for the Nth encounter;
+  unpredictable ("met is met" chosen instead).
 - **Scalar→axis lifting migration** (onto trust and/or affection) — moot: volume wiped,
   pre-1.0, no saves to lift (J2); a trivial rung keeps the ladder intact at zero cost.
 - **Authored NPCs always neutral** — regresses authoring (the scalar seed already
