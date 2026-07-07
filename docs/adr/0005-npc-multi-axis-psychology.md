@@ -1,9 +1,10 @@
 # ADR 0005 — Multi-axis NPC psychology (world-defined axes)
 
-- **Status**: Proposed — **design fixed** (S0 design pass 2026-07-07: every fork closed by
-  owner interview, implementation plan fixed below). Accepted only when the cycle is
-  implemented and green, per the 0008 precedent.
-- **Date**: 2026-06-09 (direction) · 2026-07-07 (S0 design pass)
+- **Status**: Accepted — **implemented 2026-07-07**, full cycle S0–S3 on
+  `adr/0005-npc-psychology` (suites green: 548 unit + 41 integration/playtest BE, 129 FE,
+  mypy/ruff clean). Pending, tracked in `TODO.md`: manual playtest of budget-model delta
+  quality (the ADR's #1 risk — fix would be prompt wording, not schema) and the PR to `main`.
+- **Date**: 2026-06-09 (direction) · 2026-07-07 (S0 design pass + implementation)
 - **Context items**: Research session 2026-06-09 (NEQ + 6 OS repos) — Fork D; S0 design
   interview 2026-07-07 (all choices by the project owner), grounded live in
   `npc_director.py`, `memory/updater.py`, `tools_world.py`, `prompts/npc.py`,
@@ -273,16 +274,16 @@ digested in the original research session.
 - **Sprint 0 — design pass (no code). DONE 2026-07-07** (this interview): closed every
   fork; headline revision — axes **world-defined** (P0 pattern), not config-global as
   the original Decision text said. Committed directly on the ADR branch.
-- **Sprint 1 — taxonomy + core.** `psychology` block in the taxonomy meta-schema +
+- **Sprint 1 — taxonomy + core. DONE 2026-07-07.** `psychology` block in the taxonomy meta-schema +
   bundled default; loader/validator (incl. referential check of `NpcRecord.psychology`);
   band resolver (value → band/label, default-band test for A5); updater handler
   multi-axis + clamp + `met_player` flip; schema rung v5→v6; instantiation seeds
   (taxonomy defaults ⊕ authored values). Pure backend, LLM contracts untouched.
-- **Sprint 2 — LLM surfaces.** `npc_director` contract + prompt (D1); executor applies
+- **Sprint 2 — LLM surfaces. DONE 2026-07-07.** `npc_director` contract + prompt (D1); executor applies
   `axis_changes` with cap→multiplier order; `change_npc_psychology` tool (B2) +
   `saga.config.yaml` prompt-block rename; prehook auto-create seeds axes; DM `<scene>`
   salient render (A5).
-- **Sprint 3 — editor (FE).** Psychology section in the taxonomy editor form; `psychology`
+- **Sprint 3 — editor (FE). DONE 2026-07-07.** Psychology section in the taxonomy editor form; `psychology`
   field in the NPC form (validated refs, 0008 I7 pattern); i18n for editor chrome only
   (band labels are author content, D3).
 
