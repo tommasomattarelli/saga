@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { EditableWorld } from "../../../shared/api/client";
 import { Area, Field, GhostButton, Picker } from "./editor-inputs";
+import { PsychologySection } from "./forms-psychology";
 
 interface FormProps {
   payload: EditableWorld;
@@ -215,6 +216,8 @@ export function TaxonomyForm({ payload, onChange }: FormProps) {
           + {t("worlds.add")}
         </GhostButton>
       </section>
+
+      <PsychologySection payload={payload} onChange={onChange} />
     </div>
   );
 }
