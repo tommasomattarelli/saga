@@ -170,6 +170,32 @@ class TestNpcPrehook:
         assert error == ""
         assert "Aria" in world_state["npcs"]
         assert world_state["npcs"]["Aria"]["role"] == "Commoner"
+        # ADR 0005: auto-created NPCs start at axis defaults, first impression armed
+        aria = world_state["npcs"]["Aria"]
+        assert aria["psychology"] == {"trust": 0, "respect": 0, "affection": 0, "fear": 0}
+        assert aria["met_player"] is False
+
+    def test_auto_create_seeds_world_defined_axes(self):
+        from app.ai.router import GameplayConfig
+        from app.core.dm.npc_prehook import validate_or_create_npc
+        from app.models.psychology import PsychologyDef
+
+        pdef = PsychologyDef(
+            axes={
+                "honor": {
+                    "range": [-50, 50],
+                    "default": 10,
+                    "bands": [{"min": -50, "label": "shamed"}, {"min": 0, "label": "honored"}],
+                }
+            }
+        )
+        world_state: dict = {"npcs": {}}
+        config = GameplayConfig(auto_create_npcs=True, npc_auto_create_detail="minimal")
+
+        ok, _ = validate_or_create_npc("Kira", world_state, config, psychology=pdef)
+
+        assert ok is True
+        assert world_state["npcs"]["Kira"]["psychology"] == {"honor": 10}
 
     def test_invoke_npc_absent_minimal_detail(self):
         """Auto-created minimal NPC has only base fields."""
