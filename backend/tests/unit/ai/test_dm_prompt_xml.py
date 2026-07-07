@@ -14,6 +14,7 @@ def _make_campaign(
     c.character_data = character_data
     c.quests = quests or {}
     c.death_mode = DeathMode.DESTINO
+    c.world_baseline = None
     return c
 
 
@@ -29,9 +30,13 @@ _WORLD_STATE = {
         }
     },
     "npcs": {
-        "Marta": {"role": "Tavern keeper", "location": "Thornhaven", "disposition": 0},
-        "Guard": {"role": "Watch", "location": "Thornhaven", "disposition": 0},
-        "Aldric": {"role": "Village elder", "location": "North Road", "disposition": 5},
+        "Marta": {
+            "role": "Tavern keeper",
+            "location": "Thornhaven",
+            "psychology": {"trust": 45, "fear": 80},
+        },
+        "Guard": {"role": "Watch", "location": "Thornhaven", "psychology": {"trust": 5}},
+        "Aldric": {"role": "Village elder", "location": "North Road"},
     },
     "combat_state": {"active": False, "round": 0, "initiative_order": []},
 }
@@ -95,6 +100,16 @@ def test_npcs_filtered_to_current_location():
     assert 'name="Guard"' in prompt
     # Aldric is at North Road → should NOT appear
     assert 'name="Aldric"' not in prompt
+
+
+def test_scene_npc_shows_salient_axes_only():
+    # ADR 0005 A5: only axes outside the default band appear.
+    campaign = _make_campaign(_WORLD_STATE, _CHAR_DATA)
+    prompt = build_dm_system_prompt(campaign)
+
+    assert '<npc name="Marta" role="Tavern keeper" trust="trusting" fear="terrified"/>' in prompt
+    # Guard's trust=5 sits in the default band → clean line, no axis attrs
+    assert '<npc name="Guard" role="Watch"/>' in prompt
 
 
 def test_time_and_weather_in_scene():

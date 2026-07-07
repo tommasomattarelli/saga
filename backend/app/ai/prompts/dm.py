@@ -6,8 +6,10 @@ import yaml
 
 from app.ai.prompts.presets import PERSONA_PRESETS
 from app.ai.prompts.scene import render_location_block
+from app.core.psychology import band_label, is_salient, resolve_psychology
 from app.core.world_access import WorldView
 from app.models.campaign import Campaign
+from app.models.psychology import PsychologyDef
 
 _PROMPTS = yaml.safe_load((Path(__file__).parent / "dm.yaml").read_text(encoding="utf-8"))
 
@@ -24,16 +26,15 @@ def _npcs_at_current_location(world_state: dict) -> dict[str, dict]:
     return {name: data for name, data in npcs.items() if data.get("location") == current_location}
 
 
-def _disposition_label(value: int) -> str:
-    if value > 30:
-        return "loyal"
-    if value > 10:
-        return "friendly"
-    if value >= -10:
-        return "neutral"
-    if value >= -30:
-        return "unfriendly"
-    return "hostile"
+def _salient_axis_attrs(npc: dict, psychology: PsychologyDef) -> str:
+    """Axes outside their default band, as XML attributes (ADR 0005 A5)."""
+    values = npc.get("psychology", {})
+    attrs = []
+    for name, axis in psychology.axes.items():
+        value = values.get(name, axis.default)
+        if is_salient(axis, value):
+            attrs.append(f'{name}="{band_label(axis, value)}"')
+    return (" " + " ".join(attrs)) if attrs else ""
 
 
 def build_dm_system_prompt(
@@ -135,11 +136,15 @@ def build_dm_system_prompt(
         lines.append("  </location>")
 
     if npcs_present:
+        baseline = getattr(campaign, "world_baseline", None)
+        psychology = resolve_psychology(
+            baseline.get("taxonomy") if isinstance(baseline, dict) else None
+        )
         lines.append("  <npcs_present>")
         for npc_name, npc in npcs_present.items():
-            disp = _disposition_label(npc.get("disposition_toward_player", 0))
             role = npc.get("role", "")
-            lines.append(f'    <npc name="{npc_name}" disposition="{disp}" role="{role}"/>')
+            axes = _salient_axis_attrs(npc, psychology)
+            lines.append(f'    <npc name="{npc_name}" role="{role}"{axes}/>')
         lines.append("  </npcs_present>")
 
     if time_str:

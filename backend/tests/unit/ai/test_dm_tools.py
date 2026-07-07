@@ -4,7 +4,7 @@ from app.ai.tools.dm_tools import (
     VISIBLE_TOOLS,
     AddItem,
     ApplyDamage,
-    ChangeNpcDisposition,
+    ChangeNpcPsychology,
     EndCombat,
     LogEvent,
     MoveTo,
@@ -43,7 +43,7 @@ def test_visible_tools_set():
     assert "apply_damage" in VISIBLE_TOOLS
     assert "start_combat" in VISIBLE_TOOLS
     assert "log_event" not in VISIBLE_TOOLS
-    assert "change_npc_disposition" not in VISIBLE_TOOLS
+    assert "change_npc_psychology" not in VISIBLE_TOOLS
 
 
 # ── Combat tools ──────────────────────────────────────────────────────────────
@@ -170,10 +170,47 @@ def test_update_quest_completes_quest():
     assert all(q["name"] != "Dragon Hunt" for q in result.char_data.get("active_quests", []))
 
 
-def test_change_npc_disposition_updates_npc():
-    ws = {}
-    result = ChangeNpcDisposition(npc="Grenda", delta=20, reason="helped her").execute(ws, {})
-    assert result.world_state["npcs"]["Grenda"]["disposition_toward_player"] == 20
+def test_change_npc_psychology_updates_axes():
+    ws = {"npcs": {"Grenda": {"name": "Grenda", "met_player": True, "psychology": {"trust": 0}}}}
+    result = ChangeNpcPsychology(npc="Grenda", changes={"trust": 8}, reason="helped her").execute(
+        ws, {}
+    )
+    assert result.world_state["npcs"]["Grenda"]["psychology"]["trust"] == 8
+    assert "trust: 8 (neutral)" in result.description
+    assert "(helped her)" in result.description
+
+
+def test_change_npc_psychology_rejects_unknown_axis_with_candidates():
+    ws = {"npcs": {"Grenda": {"name": "Grenda"}}}
+    result = ChangeNpcPsychology(npc="Grenda", changes={"honor": 5}).execute(ws, {})
+    assert "Unknown axis 'honor'" in result.description
+    assert "trust, respect, affection, fear" in result.description
+    assert result.world_state == ws  # state untouched on reject
+
+
+def test_change_npc_psychology_uses_world_axes_from_baseline():
+    baseline = {
+        "taxonomy": {
+            "psychology": {
+                "axes": {
+                    "honor": {
+                        "range": [-50, 50],
+                        "default": 0,
+                        "bands": [{"min": -50, "label": "shamed"}, {"min": 0, "label": "honored"}],
+                    }
+                }
+            }
+        }
+    }
+    ws = {"npcs": {"Kira": {"name": "Kira", "met_player": True}}}
+    result = ChangeNpcPsychology(npc="Kira", changes={"honor": 5}).execute_with_baseline(
+        ws, {}, baseline
+    )
+    assert result.world_state["npcs"]["Kira"]["psychology"]["honor"] == 5
+    reject = ChangeNpcPsychology(npc="Kira", changes={"trust": 5}).execute_with_baseline(
+        ws, {}, baseline
+    )
+    assert "Unknown axis 'trust'" in reject.description
 
 
 def test_log_event_appends_entry():
