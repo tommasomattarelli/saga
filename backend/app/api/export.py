@@ -45,9 +45,11 @@ async def export_campaign(
     return {
         "campaign": {
             "name": campaign.name,
-            "template_id": campaign.template_id,
+            "world_slug": campaign.world_slug,
+            "world_version": campaign.world_version,
             "death_mode": campaign.death_mode,
             "character_data": campaign.character_data,
+            "world_baseline": campaign.world_baseline,
             "world_state": campaign.world_state,
             "quests": campaign.quests,
         },

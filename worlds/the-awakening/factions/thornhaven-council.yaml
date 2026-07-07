@@ -1,0 +1,12 @@
+name: "Thornhaven Council"
+description: "The village elders who govern Thornhaven."
+goals:
+  - "Keep the village safe and fed"
+  - "Find out what broke into the old mines"
+relations:
+  the-hollow:
+    stance: -7
+    label: "fearful hostility"
+resources:
+  - {name: grain, quantity: 200}
+  - {name: coin, quantity: 350}

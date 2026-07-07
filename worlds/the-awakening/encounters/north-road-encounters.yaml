@@ -1,0 +1,15 @@
+dice: 2d8
+entries:
+  - roll: [2, 4]
+    type: combat
+    description: "Hollow scouts in tattered cloaks block the road, blades drawn."
+  - roll: [5, 10]
+    type: event
+    description: "A merchant's cart with a broken wheel. He trades gossip for a hand."
+  - roll: [11, 14]
+    type: event
+    description: "Crows scatter from a dead tree. Something watched you pass."
+  - roll: [15, 16]
+    type: event
+    once: true
+    description: "A hidden wayshrine off the road — its candle is still burning."

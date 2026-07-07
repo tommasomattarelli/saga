@@ -70,6 +70,7 @@ async def submit_action(
         turn_number = claim.scalar_one()
         prior_world_state = migrate_world_state(campaign.world_state or {})
         prior_char_data = campaign.character_data or {}
+        world_baseline = campaign.world_baseline or {}
         await db.commit()
 
     # Build initial GameState (no session held).
@@ -79,6 +80,7 @@ async def submit_action(
         "messages": [],
         "world_state": prior_world_state,
         "char_data": prior_char_data,
+        "world_baseline": world_baseline,
         "narration": "",
         "narration_segments": [],
         "scene_mood": "neutral",

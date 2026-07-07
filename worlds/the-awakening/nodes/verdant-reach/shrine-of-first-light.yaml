@@ -1,0 +1,7 @@
+kind: site
+name: "Shrine of First Light"
+description: "An ancient stone circle in a forest clearing. Moss-covered pillars hum with faint magic."
+position: {x: 2, y: 3}
+terrain: forest
+items:
+  - {name: "Weathered sword", qty: 1, notes: "Gripped by whoever wakes on the platform."}

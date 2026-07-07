@@ -13,7 +13,7 @@ async def test_export_empty_campaign(auth_client: AsyncClient, db_session):
         "/api/campaigns",
         json={
             "name": "Export Test",
-            "template_id": "tutorial",
+            "world_id": "the-awakening",
             "death_mode": "destino",
             "character_data": {"name": "Tester", "hp": 10},
         },
@@ -45,7 +45,7 @@ async def test_export_campaign_with_turns(auth_client: AsyncClient, db_session):
         "/api/campaigns",
         json={
             "name": "Story Export",
-            "template_id": "tutorial",
+            "world_id": "the-awakening",
             "death_mode": "destino",
             "character_data": {},
         },
@@ -92,7 +92,7 @@ async def test_export_forbidden_for_other_user(
         "/api/campaigns",
         json={
             "name": "Private Camp",
-            "template_id": "tutorial",
+            "world_id": "the-awakening",
             "death_mode": "destino",
             "character_data": {},
         },
