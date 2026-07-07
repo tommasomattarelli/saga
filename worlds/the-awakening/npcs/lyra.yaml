@@ -1,6 +1,8 @@
 name: "Lyra"
 role: "Forest ranger"
 location: shrine-of-first-light
+psychology:
+  trust: -20
 personality: "Sharp-eyed, practical, quietly curious."
 motivation: "Understand why people keep waking at the shrine."
 secret: "She woke at the shrine herself, three years ago."

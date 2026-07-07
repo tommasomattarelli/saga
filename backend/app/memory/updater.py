@@ -7,7 +7,9 @@ from collections.abc import Callable
 
 import structlog
 
+from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
 from app.memory.world_state import merge_world_state
+from app.models.psychology import PsychologyDef
 
 logger = structlog.get_logger()
 
@@ -32,6 +34,35 @@ def _handle_npc_disposition(state: dict, update: dict, char_data: dict) -> dict:
         npcs[target] = {"name": target, "disposition_toward_player": 0}
     current = npcs[target].get("disposition_toward_player", 0)
     npcs[target]["disposition_toward_player"] = max(-100, min(100, current + int(change)))
+    return state
+
+
+@_register_handler("npc_psychology")
+def _handle_npc_psychology(state: dict, update: dict, char_data: dict) -> dict:
+    """Apply per-axis psychology deltas to an NPC (ADR 0005 B1/B3)."""
+    target = update.get("target", "")
+    changes = update.get("changes") or {}
+    config = update.get("config")
+    pdef = PsychologyDef(**config) if config else DEFAULT_PSYCHOLOGY
+
+    npcs = state.setdefault("npcs", {})
+    npc = npcs.setdefault(target, {"name": target, "last_interactions": []})
+    psychology = npc.setdefault("psychology", default_values(pdef))
+    # First interaction of any kind consumes the first impression (B3).
+    multiplier = 1.0 if npc.get("met_player", False) else pdef.first_impression_multiplier
+    cap = pdef.max_delta_per_turn
+
+    for axis_name, delta in changes.items():
+        axis = pdef.axes.get(axis_name)
+        if axis is None:
+            logger.warning("npc_psychology_unknown_axis", npc=target, axis=axis_name)
+            continue
+        clamped = max(-cap, min(cap, int(delta)))
+        lo, hi = axis.range
+        current = psychology.get(axis_name, axis.default)
+        psychology[axis_name] = int(max(lo, min(hi, round(current + clamped * multiplier))))
+
+    npc["met_player"] = True
     return state
 
 

@@ -38,3 +38,46 @@ travel_modes:
 defaults:
   terrain: wilderness
   elevation_m: 0
+
+# NPC psychology axes (ADR 0005) — yours to change: add axes (honor, faith, ...),
+# reshape bands per axis. Numeric fields are the engine contract.
+psychology:
+  first_impression_multiplier: 3.0
+  max_delta_per_turn: 10
+  axes:
+    trust:
+      range: [-100, 100]
+      default: 0
+      bands:
+        - {min: -100, label: "betrayed-wary"}
+        - {min: -30, label: "suspicious"}
+        - {min: -10, label: "neutral"}
+        - {min: 30, label: "trusting"}
+        - {min: 70, label: "confides fully"}
+    respect:
+      range: [-100, 100]
+      default: 0
+      bands:
+        - {min: -100, label: "contemptuous"}
+        - {min: -30, label: "dismissive"}
+        - {min: -10, label: "neutral"}
+        - {min: 30, label: "respectful"}
+        - {min: 70, label: "in awe"}
+    affection:
+      range: [-100, 100]
+      default: 0
+      bands:
+        - {min: -100, label: "loathing"}
+        - {min: -30, label: "cold"}
+        - {min: -10, label: "neutral"}
+        - {min: 30, label: "fond"}
+        - {min: 70, label: "devoted"}
+    fear:
+      range: [-100, 100]
+      default: 0
+      bands:
+        - {min: -100, label: "fearless of you"}
+        - {min: -30, label: "at ease"}
+        - {min: -10, label: "neutral"}
+        - {min: 30, label: "uneasy"}
+        - {min: 70, label: "terrified"}
