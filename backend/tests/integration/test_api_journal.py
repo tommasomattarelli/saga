@@ -12,7 +12,7 @@ async def test_journal_retrieval_from_turns(auth_client: AsyncClient, db_session
         "/api/campaigns",
         json={
             "name": "Journal Test",
-            "template_id": "tutorial",
+            "world_id": "the-awakening",
             "death_mode": "destino",
             "character_data": {"name": "Scribe"},
         },

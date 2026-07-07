@@ -12,7 +12,7 @@ import {
 import type { ComponentType } from "react";
 import { CLASS_PRESETS } from "../../../data/class-presets";
 import { abilityMod } from "../../../../../shared/utils/dnd";
-import type { TemplateOption } from "../../../../../shared/api/client";
+import type { WorldOption } from "../../../../../shared/api/client";
 
 interface HeroForm {
   heroName: string;
@@ -21,7 +21,7 @@ interface HeroForm {
 
 interface Props {
   form: HeroForm;
-  selectedTemplate: TemplateOption;
+  selectedWorld: WorldOption;
   onChange: (patch: Partial<HeroForm>) => void;
   onBack: () => void;
   onNext: () => void;
@@ -38,7 +38,7 @@ const CLASS_ICONS: Record<string, ComponentType> = {
 
 const FALLBACK_ICON: ComponentType = CrystalBall;
 
-export default function StepHero({ form, selectedTemplate, onChange, onBack, onNext }: Props) {
+export default function StepHero({ form, selectedWorld, onChange, onBack, onNext }: Props) {
   const { t } = useTranslation();
   const preset = CLASS_PRESETS[form.archetype];
 
@@ -49,7 +49,7 @@ export default function StepHero({ form, selectedTemplate, onChange, onBack, onN
           {t("wizard.hero_title")}
         </h2>
         <p className="mt-1 font-display text-sm" style={{ color: "var(--ink-faded)" }}>
-          {t("wizard.hero_hint", { world: selectedTemplate.name })}
+          {t("wizard.hero_hint", { world: selectedWorld.name })}
         </p>
       </div>
 

@@ -10,7 +10,7 @@ def test_migrate_v0_to_latest():
     migrated = migrate_world_state(v0_state)
 
     assert "meta" in migrated
-    assert migrated["meta"]["schema_version"] == 4
+    assert migrated["meta"]["schema_version"] == 5
     assert migrated["meta"]["world_name"] == "Unknown Land"
     assert migrated["meta"]["current_season"] == "spring"
     assert migrated["locations"]["town"] == "visited"
@@ -30,7 +30,7 @@ def test_migrate_v3_to_v4():
         "narrative": {"event_log": []},
     }
     migrated = migrate_world_state(v3_state)
-    assert migrated["meta"]["schema_version"] == 4
+    assert migrated["meta"]["schema_version"] == 5
     assert migrated["locations"]["town"] == "visited"
     assert migrated["combat_state"]["active"] is False
     assert migrated["destino_lives"] == 3
@@ -39,7 +39,7 @@ def test_migrate_v3_to_v4():
 
 def test_migrate_up_to_date():
     v4_state = {
-        "meta": {"schema_version": 4, "world_name": "Test"},
+        "meta": {"schema_version": 5, "world_name": "Test"},
         "locations": {"town": "visited"},
         "clock": {"total_minutes": 480},
         "npcs": {},
@@ -54,7 +54,7 @@ def test_migrate_up_to_date():
         "destino_lives": 3,
     }
     migrated = migrate_world_state(v4_state)
-    assert migrated["meta"]["schema_version"] == 4
+    assert migrated["meta"]["schema_version"] == 5
     assert migrated["locations"]["town"] == "visited"
     assert migrated is not v4_state
 
@@ -95,3 +95,20 @@ def test_merge_world_state():
     assert merged["factions"]["guards"] == 50  # preserved
     assert merged["factions"]["thieves"] == 10  # added
     assert "invalid_key" not in merged
+
+
+def test_advance_clock_expires_timed_node_statuses():
+    from app.memory.world_state import advance_game_clock
+
+    state = {
+        "clock": {"total_minutes": 480},
+        "node_status": {
+            "node-a": {"status": "fire", "duration_minutes": 60, "applied_at": 480},
+            "node-b": {"status": "plague", "duration_minutes": None, "applied_at": 480},
+        },
+    }
+    advanced = advance_game_clock(state, 59)
+    assert "node-a" in advanced["node_status"]
+    advanced = advance_game_clock(state, 60)
+    assert "node-a" not in advanced["node_status"]
+    assert "node-b" in advanced["node_status"]  # permanent until lifted

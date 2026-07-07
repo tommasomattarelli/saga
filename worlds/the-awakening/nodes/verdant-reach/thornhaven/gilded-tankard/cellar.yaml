@@ -1,0 +1,7 @@
+kind: room
+name: "Cellar"
+description: "Casks, dust, and a locked strongbox under the stairs."
+exits:
+  - {to: common-room}
+items:
+  - {name: "Strongbox", qty: 1, notes: "Locked. Marta keeps the key."}

@@ -9,6 +9,8 @@ import RegisterForm from "./features/auth/components/register-form";
 import GameView from "./features/game/components/game-view";
 import CampaignSelect from "./features/campaign/components/campaign-select";
 import NewCampaign from "./features/campaign/components/new-campaign";
+import WorldLibrary from "./features/worlds/components/world-library";
+import WorldEditor from "./features/worlds/components/world-editor";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -59,6 +61,22 @@ function AnimatedRoutes() {
             element={
               <ProtectedRoute>
                 <CampaignSelect />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/worlds"
+            element={
+              <ProtectedRoute>
+                <WorldLibrary />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/worlds/:slug"
+            element={
+              <ProtectedRoute>
+                <WorldEditor />
               </ProtectedRoute>
             }
           />

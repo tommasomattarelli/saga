@@ -64,11 +64,16 @@ ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
         "narrative",
         "combat_state",
         "destino_lives",
+        "player_position",
+        "node_status",
+        "edge_overrides",
+        "consumed_encounters",
+        "pending_travel",
     }
 )
 
 
-CURRENT_SCHEMA_VERSION: int = 4
+CURRENT_SCHEMA_VERSION: int = 5
 
 _MIGRATIONS: dict[int, Callable[[dict], dict]] = {}
 
@@ -123,6 +128,18 @@ def _migrate_v3_to_v4(state: dict) -> dict:
     )
     state.setdefault("destino_lives", 3)
     state["meta"]["schema_version"] = 4
+    return state
+
+
+@_register_migration(4)
+def _migrate_v4_to_v5(state: dict) -> dict:
+    # ADR 0008: hierarchical world overlay containers (C11). Old flat-location
+    # saves gain the keys but not a baseline — pre-1.0, no such saves exist (J2).
+    state.setdefault("player_position", None)
+    state.setdefault("node_status", {})
+    state.setdefault("edge_overrides", [])
+    state.setdefault("consumed_encounters", {})
+    state["meta"]["schema_version"] = 5
     return state
 
 
@@ -192,4 +209,21 @@ def advance_game_clock(world_state: dict, minutes: int) -> dict:
     state["time_of_day"] = clock.time_of_day
     if "meta" in state:
         state["meta"]["current_season"] = clock.current_season
+    return _expire_node_statuses(state)
+
+
+def _expire_node_statuses(state: dict) -> dict:
+    """Drop timed node statuses whose duration has elapsed (ADR 0008 G4)."""
+    statuses = state.get("node_status")
+    if not statuses:
+        return state
+    now = state["clock"]["total_minutes"]
+    expired = [
+        node_id
+        for node_id, entry in statuses.items()
+        if entry.get("duration_minutes") is not None
+        and now >= entry.get("applied_at", 0) + entry["duration_minutes"]
+    ]
+    for node_id in expired:
+        del statuses[node_id]
     return state

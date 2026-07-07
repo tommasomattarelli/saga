@@ -58,7 +58,7 @@ export const getCampaign = (id: string) => api.get<Campaign>(`/campaigns/${id}`)
 export const deleteCampaign = (id: string) => api.delete(`/campaigns/${id}`);
 
 export const createCampaign = (data: {
-  template_id: string;
+  world_id: string;
   name: string;
   death_mode: string;
   character_data?: Record<string, unknown>;
@@ -67,17 +67,99 @@ export const createCampaign = (data: {
 export const submitAction = (campaignId: string, action: string) =>
   api.post<TurnResponse>(`/campaigns/${campaignId}/action`, { action });
 
-export interface TemplateOption {
-  id: string;
+export interface WorldOption {
   slug: string;
   name: string;
   description: string;
   author: string;
-  difficulty: number;
+  version: string;
   tags: string[];
 }
 
-export const getTemplates = () => api.get<TemplateOption[]>("/templates");
+export const getWorlds = () => api.get<WorldOption[]>("/worlds");
+
+export interface EditableNode {
+  slug: string;
+  parent: string | null;
+  kind: string;
+  name: string;
+  description?: string;
+  position?: { x: number; y: number };
+  elevation_m?: number;
+  terrain?: string;
+  km_per_unit?: number;
+  map_image?: string;
+  params?: Record<string, number | string | boolean>;
+  items?: { name: string; qty?: number; notes?: string }[];
+  exits?: { to: string; locked?: boolean; hidden?: boolean; notes?: string }[];
+}
+
+export interface ParamDef {
+  name: string;
+  type?: "int" | "float" | "str" | "bool";
+  required?: boolean;
+  min?: number;
+  max?: number;
+}
+
+export interface EditableWorld {
+  slug: string;
+  meta: { name: string; author: string; version: string; description: string; tags: string[] };
+  root: Record<string, unknown> & { kind: string; description?: string };
+  taxonomy: {
+    kinds: { name: string; scale: "outdoor" | "interior"; params?: ParamDef[] }[];
+    terrains: { name: string; travel_multiplier: number }[];
+    travel_modes: { name: string; speed_kmh: number }[];
+    defaults?: { terrain?: string | null; elevation_m?: number };
+  };
+  scenario: Record<string, unknown> | null;
+  nodes: EditableNode[];
+  edges: Record<string, unknown>[];
+  factions: Record<string, unknown>[];
+  npcs: Record<string, unknown>[];
+  encounters: Record<string, unknown>[];
+}
+
+export const getWorld = (slug: string) => api.get<EditableWorld>(`/worlds/${slug}`);
+
+export const createWorld = (data: { name: string; author?: string; description?: string }) =>
+  api.post<WorldOption>("/worlds", data);
+
+export const saveWorld = (slug: string, payload: EditableWorld) =>
+  api.put<WorldOption>(`/worlds/${slug}`, payload);
+
+export const deleteWorld = (slug: string) => api.delete(`/worlds/${slug}`);
+
+export const exportWorld = (slug: string) =>
+  api.get<Blob>(`/worlds/${slug}/export`, { responseType: "blob" });
+
+export const importWorld = (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post<WorldOption>("/worlds/import", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
+export interface MapNode {
+  name: string;
+  kind: string;
+  scale: "outdoor" | "interior";
+  position: { x: number; y: number } | null;
+  parent: string | null;
+  children: string[];
+  has_status: boolean;
+}
+
+export interface MapData {
+  root: string;
+  player_position: string | null;
+  nodes: Record<string, MapNode>;
+  edges: { from: string; to: string; mode: string }[];
+}
+
+export const getCampaignMap = (campaignId: string) =>
+  api.get<MapData>(`/campaigns/${campaignId}/map`);
 
 export const getTurns = (campaignId: string) =>
   api.get<JournalTurn[]>(`/journal/${campaignId}`, { params: { limit: 200, offset: 0 } });
