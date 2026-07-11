@@ -96,6 +96,8 @@ gameplay:
   auto_create_npcs: true          # if true, invoke_npc auto-creates missing NPCs
   npc_auto_create_detail: standard # detail level for auto-created NPCs: minimal|standard|rich
   npc_last_interactions_kept: 3   # recent NPC lines kept in world_state per NPC
+  npc_condition_max_chars: 80     # cap on the free-form NPC condition descriptor (ADR 0009 A4)
+  npc_name_match_threshold: 0.85  # fuzzy cutoff before update_npc may create a new NPC (ADR 0009 B4)
   consecutive_empty_steps_max: 2  # max tool-only steps with no narration before forcing loop exit
 
 # ---------------------------------------------------------------------------
@@ -155,6 +157,7 @@ tool_groups:
       - set_scene_mood
       - log_event
       - update_quest
+      - update_npc
   combat_entry:
     always: true
     tools:
@@ -171,6 +174,9 @@ tool_groups:
     tools:
       - invoke_npc
       - change_npc_psychology
+      - kill_npc
+      - remove_npc
+      - restore_npc
   inventory:
     always: true
     tools:

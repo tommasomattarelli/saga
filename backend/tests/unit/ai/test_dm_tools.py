@@ -22,7 +22,7 @@ from app.ai.tools.dm_tools import (
 
 def test_get_tool_schemas_returns_all():
     schemas = get_tool_schemas()
-    assert len(schemas) == 14
+    assert len(schemas) == 18
     names = {s["function"]["name"] for s in schemas}
     assert "start_combat" in names
     assert "request_dice" in names
