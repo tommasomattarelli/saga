@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Callable
+from uuid import uuid4
 
 import structlog
 
+from app.core.npc_resolver import resolve_npc
 from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
 from app.memory.world_state import merge_world_state
+from app.models.npc import NpcEngineRecord
 from app.models.psychology import PsychologyDef
 
 logger = structlog.get_logger()
@@ -26,14 +29,27 @@ def _register_handler(update_type: str):
 
 @_register_handler("npc_psychology")
 def _handle_npc_psychology(state: dict, update: dict, char_data: dict) -> dict:
-    """Apply per-axis psychology deltas to an NPC (ADR 0005 B1/B3)."""
+    """Apply per-axis psychology deltas to an NPC (ADR 0005 B1/B3).
+
+    `target` is an npc UUID (direct key) or a name resolved via F2. Deterministic
+    path: on ambiguity there is no LLM to answer — log and skip (ADR 0009).
+    """
     target = update.get("target", "")
     changes = update.get("changes") or {}
     config = update.get("config")
     pdef = PsychologyDef(**config) if config else DEFAULT_PSYCHOLOGY
 
     npcs = state.setdefault("npcs", {})
-    npc = npcs.setdefault(target, {"name": target, "last_interactions": []})
+    npc = npcs.get(target)
+    if npc is None:
+        resolution = resolve_npc(target, state)
+        if resolution.candidates:
+            logger.warning("npc_psychology_ambiguous_target", target=target)
+            return state
+        npc = npcs.get(resolution.npc_id) if resolution.npc_id else None
+    if npc is None:
+        npc = NpcEngineRecord(name=target, psychology=default_values(pdef)).model_dump()
+        npcs[str(uuid4())] = npc
     psychology = npc.setdefault("psychology", default_values(pdef))
     # First interaction of any kind consumes the first impression (B3).
     multiplier = 1.0 if npc.get("met_player", False) else pdef.first_impression_multiplier

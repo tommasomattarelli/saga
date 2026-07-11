@@ -10,7 +10,7 @@ def test_migrate_v0_to_latest():
     migrated = migrate_world_state(v0_state)
 
     assert "meta" in migrated
-    assert migrated["meta"]["schema_version"] == 6
+    assert migrated["meta"]["schema_version"] == 7
     assert migrated["meta"]["world_name"] == "Unknown Land"
     assert migrated["meta"]["current_season"] == "spring"
     assert migrated["locations"]["town"] == "visited"
@@ -30,7 +30,7 @@ def test_migrate_v3_to_v4():
         "narrative": {"event_log": []},
     }
     migrated = migrate_world_state(v3_state)
-    assert migrated["meta"]["schema_version"] == 6
+    assert migrated["meta"]["schema_version"] == 7
     assert migrated["locations"]["town"] == "visited"
     assert migrated["combat_state"]["active"] is False
     assert migrated["destino_lives"] == 3
@@ -44,16 +44,52 @@ def test_migrate_v5_to_v6_seeds_psychology():
         "npcs": {"Bran": {"name": "Bran", "disposition_toward_player": 40}},
     }
     migrated = migrate_world_state(v5_state)
-    bran = migrated["npcs"]["Bran"]
-    assert migrated["meta"]["schema_version"] == 6
+    bran = next(n for n in migrated["npcs"].values() if n["name"] == "Bran")
+    assert migrated["meta"]["schema_version"] == 7
     assert bran["psychology"] == {"trust": 0, "respect": 0, "affection": 0, "fear": 0}
     assert bran["met_player"] is True
     assert "disposition_toward_player" not in bran
 
 
+def test_migrate_v6_to_v7_rekeys_and_splits_traits():
+    # ADR 0009 F4: name backfilled from the old key BEFORE the uuid rekey;
+    # descriptives fold into traits; stray is_dead/status lifted defensively.
+    v6_state = {
+        "meta": {"schema_version": 6, "world_name": "Test"},
+        "npcs": {
+            "Marta": {
+                "role": "Innkeeper",
+                "personality": "warm",
+                "psychology": {"trust": 10},
+                "met_player": True,
+                "last_interactions": ["hello"],
+            },
+            "Old Bandit": {"name": "Old Bandit", "is_dead": True},
+            "Drifter": {"status": "removed"},
+        },
+    }
+    migrated = migrate_world_state(v6_state)
+    assert migrated["meta"]["schema_version"] == 7
+    by_name = {n["name"]: (key, n) for key, n in migrated["npcs"].items()}
+
+    key, marta = by_name["Marta"]  # name backfilled from the old dict key
+    assert key != "Marta" and "-" in key  # rekeyed to a uuid
+    assert marta["traits"] == {"role": "Innkeeper", "personality": "warm"}
+    assert "role" not in marta and "personality" not in marta
+    assert marta["lifecycle"] == "alive"
+    assert marta["condition"] is None
+    assert marta["slug"] is None
+    assert marta["last_interactions"] == ["hello"]  # engine fields untouched
+
+    assert by_name["Old Bandit"][1]["lifecycle"] == "dead"
+    assert "is_dead" not in by_name["Old Bandit"][1]
+    assert by_name["Drifter"][1]["lifecycle"] == "removed"
+    assert "status" not in by_name["Drifter"][1]
+
+
 def test_migrate_up_to_date():
     v4_state = {
-        "meta": {"schema_version": 6, "world_name": "Test"},
+        "meta": {"schema_version": 7, "world_name": "Test"},
         "locations": {"town": "visited"},
         "clock": {"total_minutes": 480},
         "npcs": {},
@@ -68,7 +104,7 @@ def test_migrate_up_to_date():
         "destino_lives": 3,
     }
     migrated = migrate_world_state(v4_state)
-    assert migrated["meta"]["schema_version"] == 6
+    assert migrated["meta"]["schema_version"] == 7
     assert migrated["locations"]["town"] == "visited"
     assert migrated is not v4_state
 
