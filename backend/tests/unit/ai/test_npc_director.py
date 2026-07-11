@@ -98,7 +98,14 @@ class TestInvokeNPCsParallel:
     async def test_respects_npc_cap(self):
         call_count = 0
 
-        async def mock_invoke(npc_name, npc_profile, player_action, dm_narration, psychology=None):
+        async def mock_invoke(
+            npc_name,
+            npc_profile,
+            player_action,
+            dm_narration,
+            psychology=None,
+            fill_empty_traits=False,
+        ):
             nonlocal call_count
             call_count += 1
             return NPCDialogue(npc_name=npc_name, dialogue="Hello.")
