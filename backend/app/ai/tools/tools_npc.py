@@ -12,15 +12,13 @@ from uuid import uuid4
 
 from pydantic import Field
 
+from app.ai.router import get_gameplay_config
 from app.ai.tools.tools_base import DmTool, ToolResult, register
 from app.core.npc_fields import resolve_npc_fields
 from app.core.npc_resolver import resolve_npc
 from app.core.npc_scaffold import create_npc_record
 from app.core.psychology import resolve_psychology
 from app.core.world_access import WorldView
-
-# Wired to saga.config.yaml in the config commit (std 14).
-DEFAULT_NAME_MATCH_THRESHOLD = 0.85
 
 _ENGINE_WRITABLE = ("name", "condition", "location", "faction")
 
@@ -71,6 +69,7 @@ class UpdateNpc(DmTool):
 
         taxonomy = (baseline or {}).get("taxonomy")
         declared = [f.name for f in resolve_npc_fields(taxonomy)]
+        gameplay = get_gameplay_config()
 
         for key in self.updates:
             if key not in _ENGINE_WRITABLE and key not in declared:
@@ -79,6 +78,13 @@ class UpdateNpc(DmTool):
                     f"+ traits: {', '.join(declared)}. Life state and psychology have "
                     "dedicated tools."
                 )
+
+        condition = self.updates.get("condition")
+        if condition and len(condition) > gameplay.npc_condition_max_chars:
+            return reject(
+                f"condition too long ({len(condition)} chars, "
+                f"max {gameplay.npc_condition_max_chars}) — shorten it."
+            )
 
         location_error, updates = self._resolve_location(dict(self.updates), world_state, baseline)
         if location_error:
@@ -96,7 +102,7 @@ class UpdateNpc(DmTool):
                 self.name,
                 _npc_aliases(world_state),
                 n=3,
-                cutoff=DEFAULT_NAME_MATCH_THRESHOLD,
+                cutoff=gameplay.npc_name_match_threshold,
             )
             if near and not self.create:
                 return reject(
