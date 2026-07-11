@@ -243,7 +243,7 @@ class TestHandleNpcResults:
         npc_result.action = None
         npc_result.axis_changes = {}
 
-        world_state = {"npcs": {"Merchant": {"role": "trader"}}}
+        world_state = {"npcs": {"Merchant": {"name": "Merchant", "role": "trader"}}}
         _handle_npc_results(
             npc_name="Merchant",
             npc_results=[npc_result],
@@ -261,7 +261,9 @@ class TestHandleNpcResults:
         from app.core.dm.dm_tools_executor import _handle_npc_results
 
         existing_history = ['"old1"', '"old2"', '"old3"']
-        world_state = {"npcs": {"NPC": {"last_interactions": existing_history.copy()}}}
+        world_state = {
+            "npcs": {"NPC": {"name": "NPC", "last_interactions": existing_history.copy()}}
+        }
 
         npc_result = MagicMock()
         npc_result.npc_name = "NPC"

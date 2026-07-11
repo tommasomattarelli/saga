@@ -12,6 +12,7 @@ from app.ai.prompts.npc import build_npc_prompt
 from app.ai.providers.base import get_provider, logged_generate
 from app.ai.router import AICallType, get_gameplay_config, route_ai_call
 from app.ai.sanitizer import strip_code_fences
+from app.core.npc_resolver import resolve_npc
 from app.core.psychology import resolve_psychology
 from app.models.campaign import Campaign
 from app.models.psychology import PsychologyDef
@@ -117,10 +118,13 @@ async def invoke_npcs_parallel(
 
     tasks = []
     for name in names:
-        # Look up NPC profile from world_state, or create a minimal one
-        profile = npcs_data.get(name, {"name": name})
-        if "name" not in profile:
-            profile["name"] = name
+        # Resolve the profile by name/slug (F2 — records are uuid-keyed).
+        resolution = resolve_npc(name, {"npcs": npcs_data})
+        profile = (
+            npcs_data.get(resolution.npc_id, {"name": name})
+            if resolution.npc_id
+            else {"name": name}
+        )
 
         tasks.append(
             invoke_single_npc(

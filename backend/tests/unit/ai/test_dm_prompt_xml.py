@@ -30,13 +30,27 @@ _WORLD_STATE = {
         }
     },
     "npcs": {
-        "Marta": {
-            "role": "Tavern keeper",
+        # uuid-keyed engine records (ADR 0009 F1); names live in the record.
+        "11111111-0000-0000-0000-000000000001": {
+            "name": "Marta",
+            "lifecycle": "alive",
+            "traits": {"role": "Tavern keeper"},
             "location": "Thornhaven",
             "psychology": {"trust": 45, "fear": 80},
         },
-        "Guard": {"role": "Watch", "location": "Thornhaven", "psychology": {"trust": 5}},
-        "Aldric": {"role": "Village elder", "location": "North Road"},
+        "11111111-0000-0000-0000-000000000002": {
+            "name": "Guard",
+            "lifecycle": "alive",
+            "traits": {"role": "Watch"},
+            "location": "Thornhaven",
+            "psychology": {"trust": 5},
+        },
+        "11111111-0000-0000-0000-000000000003": {
+            "name": "Aldric",
+            "lifecycle": "alive",
+            "traits": {"role": "Village elder"},
+            "location": "North Road",
+        },
     },
     "combat_state": {"active": False, "round": 0, "initiative_order": []},
 }
@@ -167,9 +181,8 @@ def test_no_combat_block_when_inactive():
 
 def test_npcs_at_current_location_helper():
     result = _npcs_at_current_location(_WORLD_STATE)
-    assert "Marta" in result
-    assert "Guard" in result
-    assert "Aldric" not in result  # different location
+    names = {n["name"] for n in result.values()}
+    assert names == {"Marta", "Guard"}  # Aldric is elsewhere
 
 
 def test_npcs_at_current_location_empty_location_returns_all():

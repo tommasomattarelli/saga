@@ -47,6 +47,12 @@ def _render_axes(npc_data: dict, pdef: PsychologyDef) -> str:
     return "\n".join(lines)
 
 
+def _trait(npc_data: dict, key: str, legacy_key: str | None = None) -> str | dict:
+    # ADR 0009 G1: descriptives live in traits; flat reads kept as legacy fallback.
+    traits = npc_data.get("traits", {})
+    return traits.get(key) or npc_data.get(legacy_key or key, "")
+
+
 def build_npc_prompt(
     npc_data: dict,
     player_action: str = "",
@@ -54,19 +60,19 @@ def build_npc_prompt(
     psychology: PsychologyDef | None = None,
 ) -> str:
     # Personality: handle both flat string (template) and dict (legacy)
-    personality_raw = npc_data.get("personality", "")
+    fears: list[str] = []
+    dict_secrets: list[str] = []
+    personality_raw = _trait(npc_data, "personality")
     if isinstance(personality_raw, dict):
         traits = personality_raw.get("traits", [])
         fears = personality_raw.get("fears", [])
         dict_secrets = personality_raw.get("secrets", [])
         personality_str = ", ".join(traits) if traits else "unremarkable"
     else:
-        fears = []
-        dict_secrets = []
         personality_str = str(personality_raw) if personality_raw else "unremarkable"
 
     # Motivation: flat string (template) or list via "goals" (legacy)
-    motivation_raw = npc_data.get("motivation", "")
+    motivation_raw = _trait(npc_data, "motivation")
     if not motivation_raw:
         goals = npc_data.get("goals", ["Survive"])
         motivation_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
@@ -77,11 +83,11 @@ def build_npc_prompt(
     if dict_secrets:
         secret_str = ", ".join(dict_secrets)
     else:
-        secret_raw = npc_data.get("secret", "")
+        secret_raw = _trait(npc_data, "secret")
         secret_str = str(secret_raw) if secret_raw else "None"
 
-    # Fear: from personality.fears (legacy) or npc_data.fear (fallback)
-    fear_str = ", ".join(fears) if fears else npc_data.get("fear", "")
+    # Dreads (renamed from fear, ADR 0009 G2): legacy personality.fears / fear fallback
+    fear_str = ", ".join(fears) if fears else _trait(npc_data, "dreads", "fear")
 
     pdef = psychology or DEFAULT_PSYCHOLOGY
 
@@ -95,7 +101,7 @@ def build_npc_prompt(
 
     return NPC_BASE_PROMPT.format(
         name=npc_data.get("name", "Unknown"),
-        role=npc_data.get("role", "Commoner"),
+        role=_trait(npc_data, "role") or "Commoner",
         location=npc_data.get("location", "Unknown"),
         personality=personality_str,
         motivation=motivation_str,

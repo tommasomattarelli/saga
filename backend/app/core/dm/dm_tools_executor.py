@@ -16,6 +16,7 @@ from app.core.dice import ability_check
 from app.core.dm.dm_helpers import get_or_create_segment, sync_narration_to_segment
 from app.core.dm.game_state import GameState
 from app.core.dm.npc_prehook import validate_or_create_npc
+from app.core.npc_resolver import resolve_npc
 from app.core.psychology import resolve_psychology
 from app.memory.updater import apply_typed_updates
 
@@ -290,8 +291,9 @@ def _handle_npc_results(
             part += f" [{npc.action}]"
         dialogue_parts.append(part)
 
-        npc_ws = world_state.get("npcs", {}).get(npc.npc_name)
-        if npc_ws is not None:
+        resolution = resolve_npc(npc.npc_name, world_state)
+        if resolution.npc_id is not None:
+            npc_ws = world_state["npcs"][resolution.npc_id]
             history: list[str] = npc_ws.setdefault("last_interactions", [])
             history.append(f'"{npc.dialogue}"')
             if len(history) > kept:
@@ -300,7 +302,7 @@ def _handle_npc_results(
         # Always applied: a completed dialogue flips met_player even with zero deltas (B3).
         update: dict = {
             "key": "npc_psychology",
-            "target": npc.npc_name,
+            "target": resolution.npc_id or npc.npc_name,
             "changes": dict(npc.axis_changes),
         }
         psychology_config = ((baseline or {}).get("taxonomy") or {}).get("psychology")
