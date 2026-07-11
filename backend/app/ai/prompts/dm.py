@@ -18,12 +18,15 @@ DEATH_MODE_PROMPTS: dict[str, str] = _PROMPTS["death_mode_prompts"]
 
 
 def _npcs_at_current_location(world_state: dict) -> dict[str, dict]:
-    """Return NPCs whose location matches the current world location."""
+    """Living NPCs at the current location, keyed by uuid (ADR 0009 F1/A5)."""
     npcs = world_state.get("npcs", {})
     current_location = world_state.get("meta", {}).get("current_location", "")
-    if not current_location:
-        return npcs  # no location set — show all (fallback)
-    return {name: data for name, data in npcs.items() if data.get("location") == current_location}
+    return {
+        npc_id: data
+        for npc_id, data in npcs.items()
+        if data.get("lifecycle", "alive") == "alive"
+        and (not current_location or data.get("location") == current_location)
+    }
 
 
 def _salient_axis_attrs(npc: dict, psychology: PsychologyDef) -> str:
@@ -141,10 +144,10 @@ def build_dm_system_prompt(
             baseline.get("taxonomy") if isinstance(baseline, dict) else None
         )
         lines.append("  <npcs_present>")
-        for npc_name, npc in npcs_present.items():
-            role = npc.get("role", "")
+        for npc in npcs_present.values():
+            role = npc.get("traits", {}).get("role", npc.get("role", ""))
             axes = _salient_axis_attrs(npc, psychology)
-            lines.append(f'    <npc name="{npc_name}" role="{role}"{axes}/>')
+            lines.append(f'    <npc name="{npc.get("name", "")}" role="{role}"{axes}/>')
         lines.append("  </npcs_present>")
 
     if time_str:

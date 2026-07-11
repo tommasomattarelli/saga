@@ -76,10 +76,12 @@ class TestNpcPsychology:
     def test_creates_missing_npc_at_defaults(self):
         updates = [{"key": "npc_psychology", "target": "Ghost", "changes": {"trust": 2}}]
         new_state, _ = apply_typed_updates({"npcs": {}}, {}, updates)
-        ghost = new_state["npcs"]["Ghost"]
+        # ADR 0009: the defensive stub is uuid-keyed with the engine shape.
+        ghost = next(n for n in new_state["npcs"].values() if n["name"] == "Ghost")
         assert ghost["psychology"]["trust"] == 6  # first impression ×3
         assert ghost["psychology"]["respect"] == 0
         assert ghost["met_player"] is True
+        assert ghost["lifecycle"] == "alive"
 
     def test_world_config_overrides_default(self):
         config = {
