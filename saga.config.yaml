@@ -155,6 +155,7 @@ tool_groups:
       - set_scene_mood
       - log_event
       - update_quest
+      - update_npc
   combat_entry:
     always: true
     tools:
