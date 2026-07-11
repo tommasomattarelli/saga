@@ -16,6 +16,7 @@ from app.core.dice import ability_check
 from app.core.dm.dm_helpers import get_or_create_segment, sync_narration_to_segment
 from app.core.dm.game_state import GameState
 from app.core.dm.npc_prehook import validate_or_create_npc
+from app.core.npc_fields import resolve_npc_fields
 from app.core.npc_resolver import resolve_npc
 from app.core.psychology import resolve_psychology
 from app.memory.updater import apply_typed_updates
@@ -126,11 +127,13 @@ async def tools_node(state: GameState) -> dict[str, Any]:
                 continue
 
             npc_config = get_gameplay_config()
+            taxonomy = (state.get("world_baseline") or {}).get("taxonomy")
             ok, error_msg = validate_or_create_npc(
                 npc_name,
                 world_state,
                 npc_config,
-                psychology=resolve_psychology((state.get("world_baseline") or {}).get("taxonomy")),
+                psychology=resolve_psychology(taxonomy),
+                npc_fields=resolve_npc_fields(taxonomy),
             )
             if not ok:
                 tool_messages.append(ToolMessage(content=error_msg, tool_call_id=tc_id, name=name))
