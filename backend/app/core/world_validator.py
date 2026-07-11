@@ -5,6 +5,7 @@ errors (empty = valid). Structural rules, cross-file references, and the
 per-kind param contract the static models cannot check.
 """
 
+from app.core.npc_fields import DEFAULT_NPC_FIELDS
 from app.core.psychology import DEFAULT_PSYCHOLOGY
 from app.core.world_loader import WorldAsset
 from app.models.world import KindDef, ParamDef, ParamValue, WorldNode
@@ -99,11 +100,19 @@ def _check_edges(asset: WorldAsset) -> list[str]:
 def _check_references(asset: WorldAsset) -> list[str]:
     errors = []
     psychology = asset.taxonomy.psychology or DEFAULT_PSYCHOLOGY
+    npc_fields = asset.taxonomy.npc_fields or DEFAULT_NPC_FIELDS
+    declared = [f.name for f in npc_fields]
     for npc in asset.npcs.values():
         if npc.location is not None and npc.location not in asset.nodes:
             errors.append(f"npc {npc.slug}: location '{npc.location}' does not exist")
         if npc.faction is not None and npc.faction not in asset.factions:
             errors.append(f"npc {npc.slug}: faction '{npc.faction}' does not exist")
+        for key in npc.descriptives():
+            if key not in declared:
+                errors.append(
+                    f"npc {npc.slug}: unknown npc field '{key}' — "
+                    f"declared fields: {', '.join(declared)}"
+                )
         for axis_name, value in npc.psychology.items():
             axis = psychology.axes.get(axis_name)
             if axis is None:

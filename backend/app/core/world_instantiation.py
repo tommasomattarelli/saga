@@ -83,13 +83,14 @@ def _build_world_state(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
     opening = asset.scenario.opening if asset.scenario else None
     start_id = slug_map[opening.start_location] if opening else slug_map[asset.root_slug]
     axis_defaults = default_values(asset.taxonomy.psychology or DEFAULT_PSYCHOLOGY)
+    # Interim shape — the S1.4 rekey folds descriptives into `traits` (ADR 0009).
     npcs: dict[str, dict] = {
         npc.name: {
-            "role": npc.role,
+            "role": npc.descriptives().get("role", ""),
             "location": slug_map[npc.location] if npc.location else None,
-            "personality": npc.personality,
-            "motivation": npc.motivation,
-            "secret": npc.secret,
+            "personality": npc.descriptives().get("personality", ""),
+            "motivation": npc.descriptives().get("motivation", ""),
+            "secret": npc.descriptives().get("secret", ""),
             "faction": npc.faction,
             # Authored seeds are baseline prejudice — they never flip met_player (B3).
             "psychology": {**axis_defaults, **npc.psychology},
