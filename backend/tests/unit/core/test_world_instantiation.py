@@ -78,30 +78,52 @@ class TestBaseline:
         assert baseline["world_version"] == "1.0.0"
 
 
+def npc_named(state: dict, name: str) -> dict:
+    return next(n for n in state["npcs"].values() if n["name"] == name)
+
+
 class TestOverlay:
-    def test_schema_v6_and_start_position(self):
+    def test_schema_v7_and_start_position(self):
         baseline, state, _ = instantiated()
         start_id = baseline["slug_map"]["shrine-of-first-light"]
-        assert state["meta"]["schema_version"] == 6
+        assert state["meta"]["schema_version"] == 7
         assert state["player_position"] == start_id
         assert state["meta"]["current_location"] == start_id
 
+    def test_npcs_keyed_by_uuid_with_slug_alias(self):
+        # ADR 0009 F1 — runtime UUIDs; slug + name become resolution aliases.
+        _, state, _ = instantiated()
+        for key, npc in state["npcs"].items():
+            assert is_uuid(key)
+            assert npc["name"]
+        assert npc_named(state, "Lyra")["slug"] == "lyra"
+
     def test_npcs_seeded_with_uuid_locations(self):
         baseline, state, _ = instantiated()
-        marta = state["npcs"]["Marta"]
+        marta = npc_named(state, "Marta")
         assert marta["location"] == baseline["slug_map"]["thornhaven"]
         assert marta["last_interactions"] == []
+        assert marta["lifecycle"] == "alive"
+        assert marta["condition"] is None
+
+    def test_npc_traits_seeded_from_defaults_and_authored(self):
+        # ADR 0009 G1 — taxonomy defaults ⊕ authored flat descriptives.
+        _, state, _ = instantiated()
+        lyra = npc_named(state, "Lyra")
+        assert lyra["traits"]["role"] == "Forest ranger"  # authored
+        assert lyra["traits"]["ideal"] == ""  # taxonomy default
+        assert "role" not in lyra  # descriptives live only in traits
 
     def test_npc_psychology_seeded_at_defaults(self):
         _, state, _ = instantiated()
-        marta = state["npcs"]["Marta"]
+        marta = npc_named(state, "Marta")
         assert marta["psychology"] == {"trust": 0, "respect": 0, "affection": 0, "fear": 0}
         assert marta["met_player"] is False
         assert "disposition_toward_player" not in marta
 
     def test_authored_psychology_merged_over_defaults(self):
         _, state, _ = instantiated()
-        lyra = state["npcs"]["Lyra"]
+        lyra = npc_named(state, "Lyra")
         assert lyra["psychology"]["trust"] == -20  # authored in lyra.yaml
         assert lyra["psychology"]["respect"] == 0
         assert lyra["met_player"] is False  # authored seed never flips it (B3)

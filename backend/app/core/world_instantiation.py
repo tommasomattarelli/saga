@@ -7,8 +7,10 @@ the initial overlay (`world_state`) + quests from `scenario.yaml`.
 
 from uuid import uuid4
 
+from app.core.npc_fields import DEFAULT_NPC_FIELDS, default_traits
 from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
 from app.core.world_loader import WorldAsset
+from app.models.npc import NpcEngineRecord
 
 
 def _global_km(asset: WorldAsset, slug: str, cache: dict[str, dict | None]) -> dict | None:
@@ -83,24 +85,23 @@ def _build_world_state(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
     opening = asset.scenario.opening if asset.scenario else None
     start_id = slug_map[opening.start_location] if opening else slug_map[asset.root_slug]
     axis_defaults = default_values(asset.taxonomy.psychology or DEFAULT_PSYCHOLOGY)
+    trait_defaults = default_traits(asset.taxonomy.npc_fields or DEFAULT_NPC_FIELDS)
+    # ADR 0009 F1: runtime UUID keys — authored slugs become resolution aliases.
     npcs: dict[str, dict] = {
-        npc.name: {
-            "role": npc.role,
-            "location": slug_map[npc.location] if npc.location else None,
-            "personality": npc.personality,
-            "motivation": npc.motivation,
-            "secret": npc.secret,
-            "faction": npc.faction,
+        str(uuid4()): NpcEngineRecord(
+            slug=npc.slug,
+            name=npc.name,
+            location=slug_map[npc.location] if npc.location else None,
+            faction=npc.faction,
             # Authored seeds are baseline prejudice — they never flip met_player (B3).
-            "psychology": {**axis_defaults, **npc.psychology},
-            "met_player": False,
-            "last_interactions": [],
-        }
+            psychology={**axis_defaults, **npc.psychology},
+            traits={**trait_defaults, **npc.descriptives()},
+        ).model_dump()
         for npc in asset.npcs.values()
     }
     return {
         "meta": {
-            "schema_version": 6,
+            "schema_version": 7,
             "world_name": asset.meta.name,
             "setting": asset.nodes[asset.root_slug].description,
             "current_location": start_id,

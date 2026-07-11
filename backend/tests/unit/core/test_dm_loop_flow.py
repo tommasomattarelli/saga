@@ -168,10 +168,11 @@ class TestNpcPrehook:
 
         assert ok is True
         assert error == ""
-        assert "Aria" in world_state["npcs"]
-        assert world_state["npcs"]["Aria"]["role"] == "Commoner"
+        # ADR 0009 F1: auto-created NPCs are uuid-keyed; descriptives in traits.
+        aria = next(n for n in world_state["npcs"].values() if n["name"] == "Aria")
+        assert aria["traits"]["role"] == "Commoner"
+        assert aria["lifecycle"] == "alive"
         # ADR 0005: auto-created NPCs start at axis defaults, first impression armed
-        aria = world_state["npcs"]["Aria"]
         assert aria["psychology"] == {"trust": 0, "respect": 0, "affection": 0, "fear": 0}
         assert aria["met_player"] is False
 
@@ -195,7 +196,8 @@ class TestNpcPrehook:
         ok, _ = validate_or_create_npc("Kira", world_state, config, psychology=pdef)
 
         assert ok is True
-        assert world_state["npcs"]["Kira"]["psychology"] == {"honor": 10}
+        kira = next(n for n in world_state["npcs"].values() if n["name"] == "Kira")
+        assert kira["psychology"] == {"honor": 10}
 
     def test_invoke_npc_absent_minimal_detail(self):
         """Auto-created minimal NPC has only base fields."""
@@ -208,7 +210,8 @@ class TestNpcPrehook:
         ok, _ = validate_or_create_npc("Bob", world_state, config)
 
         assert ok is True
-        assert "role" not in world_state["npcs"]["Bob"]
+        bob = next(n for n in world_state["npcs"].values() if n["name"] == "Bob")
+        assert bob["traits"] == {}
 
     def test_invoke_npc_absent_auto_create_disabled_returns_error(self):
         """When auto_create_npcs=False, missing NPC returns (False, error)."""
@@ -261,7 +264,7 @@ class TestNpcPrehook:
         from app.ai.router import GameplayConfig
         from app.core.dm.npc_prehook import validate_or_create_npc
 
-        world_state = {"npcs": {"Elder": {"name": "Elder", "is_dead": True}}}
+        world_state = {"npcs": {"Elder": {"name": "Elder", "lifecycle": "dead"}}}
         config = GameplayConfig(auto_create_npcs=True, npc_auto_create_detail="standard")
 
         ok, error = validate_or_create_npc("Elder", world_state, config)

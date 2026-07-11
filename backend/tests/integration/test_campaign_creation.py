@@ -21,14 +21,16 @@ async def test_create_campaign_instantiates_world(auth_client, test_user):
 
     world_state = data["world_state"]
 
-    # NPCs seeded from npcs/ with UUID locations (J3)
-    marta = world_state["npcs"]["Marta"]
-    assert marta["personality"] == "Warm but shrewd. Knows everyone's business."
-    assert marta["role"] == "Tavern keeper"
+    # NPCs uuid-keyed (ADR 0009 F1), seeded from npcs/ with UUID locations (J3)
+    npc_names = {n["name"] for n in world_state["npcs"].values()}
+    assert {"Marta", "Aldric", "Lyra"} <= npc_names
+    marta = next(n for n in world_state["npcs"].values() if n["name"] == "Marta")
+    assert marta["traits"]["personality"] == "Warm but shrewd. Knows everyone's business."
+    assert marta["traits"]["role"] == "Tavern keeper"
+    assert marta["slug"] == "marta"
+    assert marta["lifecycle"] == "alive"
     assert marta["psychology"] == {"trust": 0, "respect": 0, "affection": 0, "fear": 0}
     assert marta["last_interactions"] == []
-    assert "Aldric" in world_state["npcs"]
-    assert "Lyra" in world_state["npcs"]
 
     # Player starts at the scenario start_location, addressed by UUID
     start = world_state["player_position"]
@@ -44,7 +46,7 @@ async def test_create_campaign_instantiates_world(auth_client, test_user):
     assert "canopy of ancient oaks" in world_state["meta"]["opening_narration"]
 
     # Schema v5 overlay containers
-    assert world_state["meta"]["schema_version"] == 6
+    assert world_state["meta"]["schema_version"] == 7
     assert world_state["clock"]["total_minutes"] == 480
     assert world_state["combat_state"]["active"] is False
     assert world_state["node_status"] == {}
