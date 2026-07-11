@@ -172,6 +172,9 @@ tool_groups:
     tools:
       - invoke_npc
       - change_npc_psychology
+      - kill_npc
+      - remove_npc
+      - restore_npc
   inventory:
     always: true
     tools:

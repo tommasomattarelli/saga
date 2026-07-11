@@ -18,7 +18,7 @@ from app.ai.tools.tools_base import (
 )
 from app.ai.tools.tools_combat import ApplyDamage, EndCombat, StartCombat, UpdateHp
 from app.ai.tools.tools_inventory import AddItem, RemoveItem
-from app.ai.tools.tools_npc import UpdateNpc
+from app.ai.tools.tools_npc import KillNpc, RemoveNpc, RestoreNpc, UpdateNpc
 from app.ai.tools.tools_special import InvokeNpc, RequestDice
 from app.ai.tools.tools_world import (
     AdvanceTime,
@@ -44,10 +44,13 @@ __all__ = [
     "DmTool",
     "EndCombat",
     "InvokeNpc",
+    "KillNpc",
     "LogEvent",
     "MEANINGFUL_TOOLS",
     "MoveTo",
     "RemoveItem",
+    "RemoveNpc",
+    "RestoreNpc",
     "RequestDice",
     "SceneMood",
     "SetSceneMood",

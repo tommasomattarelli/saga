@@ -102,6 +102,80 @@ class TestAmbiguity:
         assert "specify" in result.description.lower()
 
 
+class TestKillNpc:
+    def test_kill_present_npc(self):
+        result = execute_tool("kill_npc", {"name": "Lyra", "cause": "duel"}, state_with_lyra(), {})
+        lyra = result.world_state["npcs"][LYRA_ID]
+        assert lyra["lifecycle"] == "dead"
+        assert "duel" in result.description
+
+    def test_kill_npc_elsewhere_rejected(self):
+        state = state_with_lyra()
+        state["npcs"][LYRA_ID]["location"] = "node-2"
+        result = execute_tool("kill_npc", {"name": "Lyra", "cause": "duel"}, state, {})
+        assert result.world_state["npcs"][LYRA_ID]["lifecycle"] == "alive"
+        assert "elsewhere" in result.description
+
+    def test_kill_dead_npc_rejected(self):
+        state = state_with_lyra()
+        state["npcs"][LYRA_ID]["lifecycle"] = "dead"
+        result = execute_tool("kill_npc", {"name": "Lyra", "cause": "again"}, state, {})
+        assert "dead" in result.description
+
+    def test_kill_ambiguous_rejected(self):
+        state = {
+            "meta": {"current_location": "node-1"},
+            "npcs": {
+                G1_ID: {"name": "Guard", "lifecycle": "alive", "location": "node-1"},
+                G2_ID: {"name": "Guard", "lifecycle": "alive", "location": "node-1"},
+            },
+        }
+        result = execute_tool("kill_npc", {"name": "Guard", "cause": "duel"}, state, {})
+        assert all(n["lifecycle"] == "alive" for n in result.world_state["npcs"].values())
+        assert "Multiple" in result.description
+
+    def test_lifecycle_not_writable_via_update_npc(self):
+        # A3: the generic field write can never flip life state.
+        result, ws = run({"name": "Lyra", "updates": {"lifecycle": "dead"}})
+        assert ws["npcs"][LYRA_ID]["lifecycle"] == "alive"
+
+
+class TestRemoveRestore:
+    def test_remove_then_restore_roundtrip(self):
+        state = state_with_lyra()
+        result = execute_tool("remove_npc", {"name": "Lyra", "reason": "left town"}, state, {})
+        assert result.world_state["npcs"][LYRA_ID]["lifecycle"] == "removed"
+        assert "left town" in result.description
+
+        result = execute_tool("restore_npc", {"name": "Lyra"}, result.world_state, {})
+        assert result.world_state["npcs"][LYRA_ID]["lifecycle"] == "alive"
+
+    def test_restore_dead_rejected_terminal(self):
+        state = state_with_lyra()
+        state["npcs"][LYRA_ID]["lifecycle"] = "dead"
+        result = execute_tool("restore_npc", {"name": "Lyra"}, state, {})
+        assert result.world_state["npcs"][LYRA_ID]["lifecycle"] == "dead"
+        assert "final" in result.description
+
+    def test_restore_alive_rejected(self):
+        result = execute_tool("restore_npc", {"name": "Lyra"}, state_with_lyra(), {})
+        assert "already present" in result.description
+
+    def test_restore_with_location_resolves_place(self):
+        baseline = {
+            "nodes": {"node-2": {"name": "Thornhaven", "parent": None}},
+            "alias": {"thornhaven": ["node-2"]},
+        }
+        state = state_with_lyra()
+        state["npcs"][LYRA_ID]["lifecycle"] = "removed"
+        result = execute_tool(
+            "restore_npc", {"name": "Lyra", "location": "Thornhaven"}, state, {}, baseline=baseline
+        )
+        lyra = result.world_state["npcs"][LYRA_ID]
+        assert lyra["lifecycle"] == "alive"
+        assert lyra["location"] == "node-2"
+
+
 class TestLocationResolution:
     def test_location_resolved_to_node_uuid_via_baseline(self):
         baseline = {
