@@ -138,3 +138,130 @@ class UpdateNpc(DmTool):
             return f"Unknown place '{place}' — the NPC's location was not changed.", updates
         updates["location"] = result.match
         return "", updates
+
+
+# ── Lifecycle tools (H2/H3) — the only DM-facing lifecycle writers ───────────
+
+
+def _reject(world_state: dict, char_data: dict, message: str) -> ToolResult:
+    return ToolResult(description=message, world_state=world_state, char_data=char_data)
+
+
+@register
+class KillNpc(DmTool):
+    name: str = Field(description="Exact name of the NPC that dies")
+    cause: str = Field(description="Brief cause of death (e.g. 'duel', 'poison')")
+
+    @classmethod
+    def tool_name(cls) -> str:
+        return "kill_npc"
+
+    @classmethod
+    def tool_description(cls) -> str:
+        return (
+            "Kill an NPC on-screen, outside combat (execution, poison, story). "
+            "Irreversible. The NPC must be present in the current scene. "
+            "In combat, death happens automatically at 0 HP — don't call this."
+        )
+
+    @classmethod
+    def visible(cls) -> bool:
+        return True
+
+    def execute(self, world_state: dict, char_data: dict) -> ToolResult:
+        resolution = resolve_npc(self.name, world_state)
+        if resolution.npc_id is None:
+            return _reject(world_state, char_data, resolution.error)
+        npc = world_state["npcs"][resolution.npc_id]
+        current = world_state.get("meta", {}).get("current_location")
+        if current and npc.get("location") and npc["location"] != current:
+            return _reject(
+                world_state, char_data, f"{npc['name']} is elsewhere and cannot be killed here."
+            )
+        npc["lifecycle"] = "dead"
+        return ToolResult(
+            description=f"{npc['name']} is dead ({self.cause}). Narrate the death.",
+            world_state=world_state,
+            char_data=char_data,
+        )
+
+
+@register
+class RemoveNpc(DmTool):
+    name: str = Field(description="Exact name of the NPC leaving the story")
+    reason: str = Field(description="Why they leave (e.g. 'departed for the capital')")
+
+    @classmethod
+    def tool_name(cls) -> str:
+        return "remove_npc"
+
+    @classmethod
+    def tool_description(cls) -> str:
+        return (
+            "Move a living NPC off-stage (departed, exiled, vanished). The record is "
+            "kept and the NPC can return later via restore_npc. Not a death."
+        )
+
+    @classmethod
+    def visible(cls) -> bool:
+        return True
+
+    def execute(self, world_state: dict, char_data: dict) -> ToolResult:
+        resolution = resolve_npc(self.name, world_state)
+        if resolution.npc_id is None:
+            return _reject(world_state, char_data, resolution.error)
+        npc = world_state["npcs"][resolution.npc_id]
+        npc["lifecycle"] = "removed"
+        return ToolResult(
+            description=f"{npc['name']} leaves the story ({self.reason}).",
+            world_state=world_state,
+            char_data=char_data,
+        )
+
+
+@register
+class RestoreNpc(DmTool):
+    name: str = Field(description="Exact name of the removed NPC returning to the story")
+    location: str | None = Field(default=None, description="Where they reappear (place name)")
+
+    @classmethod
+    def tool_name(cls) -> str:
+        return "restore_npc"
+
+    @classmethod
+    def tool_description(cls) -> str:
+        return "Bring a previously removed NPC back on-stage. Dead NPCs cannot return."
+
+    @classmethod
+    def visible(cls) -> bool:
+        return True
+
+    def execute(self, world_state: dict, char_data: dict) -> ToolResult:
+        return self.execute_with_baseline(world_state, char_data, None)
+
+    def execute_with_baseline(
+        self, world_state: dict, char_data: dict, baseline: dict | None
+    ) -> ToolResult:
+        resolution = resolve_npc(self.name, world_state, include_gone=True)
+        if resolution.npc_id is None:
+            if resolution.candidates:
+                return _reject(
+                    world_state, char_data, f"Multiple NPCs match '{self.name}' — specify."
+                )
+            return _reject(world_state, char_data, resolution.error)
+        npc = world_state["npcs"][resolution.npc_id]
+        if npc.get("lifecycle") == "dead":
+            return _reject(world_state, char_data, f"{npc['name']} is dead — death is final.")
+        if npc.get("lifecycle") != "removed":
+            return _reject(world_state, char_data, f"{npc['name']} is already present.")
+        if self.location and baseline:
+            result = WorldView(baseline, world_state).resolve(self.location)
+            if result.match is None:
+                return _reject(world_state, char_data, f"Unknown place '{self.location}'.")
+            npc["location"] = result.match
+        npc["lifecycle"] = "alive"
+        return ToolResult(
+            description=f"{npc['name']} returns to the story.",
+            world_state=world_state,
+            char_data=char_data,
+        )
