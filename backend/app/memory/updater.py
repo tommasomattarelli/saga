@@ -220,6 +220,26 @@ def _handle_combat_end(state: dict, update: dict, char_data: dict) -> dict:
     return state
 
 
+def _mark_npc_dead(state: dict, combatant_name: str) -> None:
+    """ADR 0009 H1 — the engine death writer, deterministic at HP 0.
+
+    Writes lifecycle=dead only when the combatant name resolves to a unique
+    living NPC at the current location; mooks and ambiguous names get only
+    the defeated flag (no LLM can answer a reject here — log and skip).
+    """
+    resolution = resolve_npc(combatant_name, state)
+    if resolution.npc_id is None:
+        if resolution.candidates:
+            logger.warning("npc_death_ambiguous", combatant=combatant_name)
+        return
+    npc = state["npcs"][resolution.npc_id]
+    current = state.get("meta", {}).get("current_location")
+    if current and npc.get("location") and npc["location"] != current:
+        logger.warning("npc_death_location_mismatch", combatant=combatant_name)
+        return
+    npc["lifecycle"] = "dead"
+
+
 @_register_handler("combat_damage")
 def _handle_combat_damage(state: dict, update: dict, char_data: dict) -> dict:
     """Apply damage to a combatant. Negative change = damage, positive = healing."""
@@ -253,6 +273,9 @@ def _handle_combat_damage(state: dict, update: dict, char_data: dict) -> dict:
             matched["hp"] = hp["current"]
         else:
             matched["hp"] = max(0, matched["hp"] + change)
+            if matched["hp"] == 0 and not matched.get("defeated"):
+                matched["defeated"] = True
+                _mark_npc_dead(state, matched["name"])
     else:
         logger.warning("combat_damage_target_not_found", target=target)
 
