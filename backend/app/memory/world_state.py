@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Callable
+from uuid import uuid4
 
 import structlog
 from pydantic import BaseModel, computed_field
 
 from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
+from app.models.npc import NpcEngineRecord
 
 logger = structlog.get_logger()
 
@@ -75,7 +77,7 @@ ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
 )
 
 
-CURRENT_SCHEMA_VERSION: int = 6
+CURRENT_SCHEMA_VERSION: int = 7
 
 _MIGRATIONS: dict[int, Callable[[dict], dict]] = {}
 
@@ -155,6 +157,30 @@ def _migrate_v5_to_v6(state: dict) -> dict:
         npc.setdefault("met_player", True)
         npc.pop("disposition_toward_player", None)
     state["meta"]["schema_version"] = 6
+    return state
+
+
+@_register_migration(6)
+def _migrate_v6_to_v7(state: dict) -> dict:
+    # ADR 0009 F4: UUID identity + engine/traits split. Defensive — pre-1.0
+    # dev saves wiped (J2); normalizes any stray data. Order matters:
+    # name backfill from the old dict key MUST precede the rekey.
+    engine_keys = set(NpcEngineRecord.model_fields)
+    rekeyed: dict[str, dict] = {}
+    for old_key, npc in state.get("npcs", {}).items():
+        npc.setdefault("name", old_key)
+        status = npc.pop("status", "alive")
+        if npc.pop("is_dead", False):
+            status = "dead"
+        npc.setdefault("lifecycle", status if status in ("alive", "dead", "removed") else "alive")
+        npc.setdefault("condition", None)
+        npc.setdefault("slug", None)
+        traits = npc.setdefault("traits", {})
+        for key in [k for k in npc if k not in engine_keys]:
+            traits[key] = npc.pop(key)
+        rekeyed[str(uuid4())] = npc
+    state["npcs"] = rekeyed
+    state["meta"]["schema_version"] = 7
     return state
 
 
