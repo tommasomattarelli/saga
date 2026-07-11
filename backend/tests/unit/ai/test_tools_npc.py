@@ -102,6 +102,19 @@ class TestAmbiguity:
         assert "specify" in result.description.lower()
 
 
+class TestConditionCap:
+    def test_condition_over_cap_rejected(self):
+        # A4/std 14: cap from saga.config.yaml (default 80 chars).
+        long_condition = "wounded and " + "very " * 30 + "angry"
+        result, ws = run({"name": "Lyra", "updates": {"condition": long_condition}})
+        assert ws["npcs"][LYRA_ID]["condition"] is None
+        assert "too long" in result.description
+
+    def test_condition_within_cap_accepted(self):
+        _, ws = run({"name": "Lyra", "updates": {"condition": "wounded, wary"}})
+        assert ws["npcs"][LYRA_ID]["condition"] == "wounded, wary"
+
+
 class TestKillNpc:
     def test_kill_present_npc(self):
         result = execute_tool("kill_npc", {"name": "Lyra", "cause": "duel"}, state_with_lyra(), {})
