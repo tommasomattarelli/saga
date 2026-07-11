@@ -6,7 +6,8 @@ from uuid import uuid4
 
 from app.ai.router import GameplayConfig
 from app.core.npc_resolver import resolve_npc
-from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
+from app.core.npc_scaffold import create_npc_record
+from app.models.npc_fields import NpcFieldDef
 from app.models.psychology import PsychologyDef
 
 
@@ -15,6 +16,7 @@ def validate_or_create_npc(
     world_state: dict,
     config: GameplayConfig,
     psychology: PsychologyDef | None = None,
+    npc_fields: list[NpcFieldDef] | None = None,
 ) -> tuple[bool, str]:
     """Return (should_proceed, error_for_llm).
 
@@ -39,33 +41,10 @@ def validate_or_create_npc(
     if not config.auto_create_npcs:
         return False, f"{name} is not a known NPC."
 
-    world_state.setdefault("npcs", {})[str(uuid4())] = _create_npc_profile(
-        name, config.npc_auto_create_detail, psychology or DEFAULT_PSYCHOLOGY
+    world_state.setdefault("npcs", {})[str(uuid4())] = create_npc_record(
+        name,
+        detail=config.npc_auto_create_detail,
+        psychology=psychology,
+        npc_fields=npc_fields,
     )
     return True, ""
-
-
-def _create_npc_profile(name: str, detail: str, psychology: PsychologyDef) -> dict:
-    base: dict = {
-        "slug": None,
-        "name": name,
-        "lifecycle": "alive",
-        "condition": None,
-        "location": None,
-        "faction": None,
-        "psychology": default_values(psychology),
-        "met_player": False,
-        "last_interactions": [],
-        "traits": {},
-    }
-    if detail == "minimal":
-        return base
-    standard = {
-        **base,
-        "traits": {"role": "Commoner", "personality": "unremarkable", "motivation": "survive"},
-    }
-    if detail == "standard":
-        return standard
-    standard["traits"]["secret"] = "None"
-    standard["traits"]["dreads"] = "death"
-    return standard

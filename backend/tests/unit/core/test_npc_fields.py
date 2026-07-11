@@ -87,6 +87,34 @@ class TestTaxonomyBlock:
             Taxonomy(**MINIMAL_TAXONOMY, npc_fields=[{"name": "role"}, {"name": "role"}])
 
 
+class TestCreationScaffold:
+    # ADR 0009 D1/D2 — one scaffold for every creation path.
+    def test_minimal_is_engine_contract_only(self):
+        from app.core.npc_scaffold import create_npc_record
+
+        npc = create_npc_record("Bob", detail="minimal")
+        assert npc["name"] == "Bob"
+        assert npc["lifecycle"] == "alive"
+        assert npc["traits"] == {}
+        assert npc["psychology"] == {"trust": 0, "respect": 0, "affection": 0, "fear": 0}
+        assert npc["met_player"] is False
+
+    def test_standard_seeds_taxonomy_defaults(self):
+        from app.core.npc_scaffold import create_npc_record
+
+        npc = create_npc_record("Bob", detail="standard")
+        assert npc["traits"]["role"] == "Commoner"
+        assert set(npc["traits"]) == {f.name for f in DEFAULT_NPC_FIELDS}
+        assert "fear" not in npc["traits"]  # the hardcoded fear seed is retired (G2)
+
+    def test_world_npc_fields_drive_the_seed(self):
+        from app.core.npc_scaffold import create_npc_record
+
+        fields = [NpcFieldDef(name="honor_code", default="none")]
+        npc = create_npc_record("Bob", detail="rich", npc_fields=fields)
+        assert npc["traits"] == {"honor_code": "none"}
+
+
 class TestNpcRecordDescriptives:
     def test_descriptives_collects_extras(self):
         npc = NpcRecord(slug="lyra", name="Lyra", role="Ranger", honor_code="strict")
