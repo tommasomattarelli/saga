@@ -438,7 +438,9 @@ Commit-level units, in dependency order:
 1. `<npcs_present>`: `condition` + `scene: true` traits next to the 0005 salient axes
    (under the 0008 scene token cap).
 2. `prompts/npc.py`: full-traits rendering + the rich-level "fill empty traits in
-   character" guidance (D2).
+   character" guidance (D2). Also fix a pre-existing 0008 leftover: the prompt renders
+   `Location: {location}` — a raw node UUID since J3; resolve it to the place name
+   from the baseline (or drop the line).
 3. Editor: `npc_fields` section in the taxonomy form (add/rename/remove, `scene` flag,
    defaults; pre-0009 worlds get a "customize" seed of the bundled default, like 0005
    axes) + prune-on-removal with UI confirm (G5) **including the 0005 axis fix**.
