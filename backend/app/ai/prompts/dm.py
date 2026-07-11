@@ -6,6 +6,7 @@ import yaml
 
 from app.ai.prompts.presets import PERSONA_PRESETS
 from app.ai.prompts.scene import render_location_block
+from app.core.npc_fields import resolve_npc_fields
 from app.core.psychology import band_label, is_salient, resolve_psychology
 from app.core.world_access import WorldView
 from app.models.campaign import Campaign
@@ -140,14 +141,20 @@ def build_dm_system_prompt(
 
     if npcs_present:
         baseline = getattr(campaign, "world_baseline", None)
-        psychology = resolve_psychology(
-            baseline.get("taxonomy") if isinstance(baseline, dict) else None
-        )
+        taxonomy = baseline.get("taxonomy") if isinstance(baseline, dict) else None
+        psychology = resolve_psychology(taxonomy)
+        # G3: only scene-flagged traits reach the DM; the rest is npc_director-only.
+        scene_fields = [f.name for f in resolve_npc_fields(taxonomy) if f.scene]
         lines.append("  <npcs_present>")
         for npc in npcs_present.values():
-            role = npc.get("traits", {}).get("role", npc.get("role", ""))
+            traits = npc.get("traits", {})
+            attrs = "".join(
+                f' {name}="{traits[name]}"' for name in scene_fields if traits.get(name)
+            )
+            if npc.get("condition"):
+                attrs += f' condition="{npc["condition"]}"'
             axes = _salient_axis_attrs(npc, psychology)
-            lines.append(f'    <npc name="{npc.get("name", "")}" role="{role}"{axes}/>')
+            lines.append(f'    <npc name="{npc.get("name", "")}"{attrs}{axes}/>')
         lines.append("  </npcs_present>")
 
     if time_str:
