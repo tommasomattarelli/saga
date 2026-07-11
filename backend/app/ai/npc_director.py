@@ -45,6 +45,7 @@ async def invoke_single_npc(
     player_action: str,
     dm_narration: str,
     psychology: PsychologyDef | None = None,
+    fill_empty_traits: bool = False,
 ) -> NPCDialogue:
     """Call a budget LLM for a single NPC's response."""
     from app.ai.context import GameContext
@@ -54,6 +55,7 @@ async def invoke_single_npc(
         player_action=player_action,
         dm_narration=dm_narration,
         psychology=psychology,
+        fill_empty_traits=fill_empty_traits,
     )
 
     dummy_context = GameContext(
@@ -114,7 +116,10 @@ async def invoke_npcs_parallel(
 
     names = npc_names[:max_npcs]
     npcs_data = campaign.world_state.get("npcs", {}) if campaign.world_state else {}
-    psychology = resolve_psychology((campaign.world_baseline or {}).get("taxonomy"))
+    baseline = campaign.world_baseline or {}
+    psychology = resolve_psychology(baseline.get("taxonomy"))
+    # D2: at rich detail the NPC is told to invent its missing traits in character.
+    fill_empty = config.npc_auto_create_detail == "rich"
 
     tasks = []
     for name in names:
@@ -125,6 +130,9 @@ async def invoke_npcs_parallel(
             if resolution.npc_id
             else {"name": name}
         )
+        # Location is a node uuid (J3) — resolve the display name for the prompt.
+        node = baseline.get("nodes", {}).get(profile.get("location") or "")
+        profile = {**profile, "location_name": (node or {}).get("name")}
 
         tasks.append(
             invoke_single_npc(
@@ -133,6 +141,7 @@ async def invoke_npcs_parallel(
                 player_action=player_action,
                 dm_narration=dm_narration,
                 psychology=psychology,
+                fill_empty_traits=fill_empty,
             )
         )
 

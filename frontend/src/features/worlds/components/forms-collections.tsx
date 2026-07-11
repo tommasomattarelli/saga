@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { EditableWorld } from "../../../shared/api/client";
 import type { Selection } from "./editor-nav";
 import { Area, Field, GhostButton, Picker } from "./editor-inputs";
+import { DEFAULT_NPC_FIELDS } from "./forms-npc-fields";
 import { DEFAULT_PSYCHOLOGY } from "./forms-psychology";
 
 interface Props {
@@ -156,20 +157,12 @@ export function CollectionForm({ payload, kind, slug, onChange, onSelect }: Prop
 
       {kind === "npc" && (
         <>
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              id="npc-name"
-              label={t("worlds.name")}
-              value={value("name")}
-              onChange={(e) => patch({ name: e.target.value })}
-            />
-            <Field
-              id="npc-role"
-              label={t("worlds.role")}
-              value={value("role")}
-              onChange={(e) => patch({ role: e.target.value })}
-            />
-          </div>
+          <Field
+            id="npc-name"
+            label={t("worlds.name")}
+            value={value("name")}
+            onChange={(e) => patch({ name: e.target.value })}
+          />
           <div className="grid grid-cols-2 gap-3">
             <Picker
               id="npc-location"
@@ -191,27 +184,17 @@ export function CollectionForm({ payload, kind, slug, onChange, onSelect }: Prop
               onChange={(e) => patch({ faction: e.target.value || undefined })}
             />
           </div>
-          <Area
-            id="npc-personality"
-            label={t("worlds.personality")}
-            rows={2}
-            value={value("personality")}
-            onChange={(e) => patch({ personality: e.target.value })}
-          />
-          <Area
-            id="npc-motivation"
-            label={t("worlds.motivation")}
-            rows={2}
-            value={value("motivation")}
-            onChange={(e) => patch({ motivation: e.target.value })}
-          />
-          <Area
-            id="npc-secret"
-            label={t("worlds.secret")}
-            rows={2}
-            value={value("secret")}
-            onChange={(e) => patch({ secret: e.target.value })}
-          />
+          {/* ADR 0009 G1/G4: descriptive fields are world-defined (flat authored). */}
+          {(payload.taxonomy.npc_fields ?? DEFAULT_NPC_FIELDS).map((field) => (
+            <Area
+              key={field.name}
+              id={`npc-trait-${field.name}`}
+              label={field.name}
+              rows={2}
+              value={value(field.name)}
+              onChange={(e) => patch({ [field.name]: e.target.value || undefined })}
+            />
+          ))}
           <div className="space-y-1">
             <span className="text-xs" style={{ color: "var(--ink-secondary)" }}>
               {t("worlds.npc_psychology")}

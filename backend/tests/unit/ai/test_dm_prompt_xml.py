@@ -122,6 +122,38 @@ def test_scene_npc_shows_salient_axes_only():
     prompt = build_dm_system_prompt(campaign)
 
     assert '<npc name="Marta" role="Tavern keeper" trust="trusting" fear="terrified"/>' in prompt
+
+
+def test_scene_npc_shows_condition_and_scene_traits_only():
+    # ADR 0009 A5/G3: condition + scene-flagged traits (role, appearance) reach
+    # the DM; interiority traits (secret, personality, ...) never do.
+    ws = {
+        **_WORLD_STATE,
+        "npcs": {
+            "u-1": {
+                "name": "Marta",
+                "lifecycle": "alive",
+                "condition": "wounded arm",
+                "location": "Thornhaven",
+                "traits": {
+                    "role": "Tavern keeper",
+                    "appearance": "stout, flour-dusted",
+                    "secret": "poisons the ale",
+                },
+            },
+            "u-2": {
+                "name": "Guard",
+                "lifecycle": "alive",
+                "location": "Thornhaven",
+                "psychology": {"trust": 5},
+                "traits": {"role": "Watch"},
+            },
+        },
+    }
+    prompt = build_dm_system_prompt(_make_campaign(ws, _CHAR_DATA))
+    assert 'appearance="stout, flour-dusted"' in prompt
+    assert 'condition="wounded arm"' in prompt
+    assert "poisons the ale" not in prompt
     # Guard's trust=5 sits in the default band → clean line, no axis attrs
     assert '<npc name="Guard" role="Watch"/>' in prompt
 

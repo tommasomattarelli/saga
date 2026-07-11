@@ -49,6 +49,33 @@ def test_write_world_builds_dirs_only_where_needed(tmp_path):
     assert not (target / "nodes" / "verdant-reach" / "old-mines").is_dir()
 
 
+def test_round_trip_with_custom_npc_fields(tmp_path):
+    # ADR 0009 G1/G4: declared npc_fields + flat authored custom trait survive
+    # the write → load → validate cycle.
+    from app.core.world_validator import validate_world
+
+    payload = to_editable(load_world(EXAMPLE_WORLD))
+    payload["taxonomy"]["npc_fields"] = [
+        {"name": "role", "default": "Commoner", "scene": True},
+        {"name": "honor_code", "default": "", "scene": False},
+    ]
+    lyra = next(n for n in payload["npcs"] if n["slug"] == "lyra")
+    lyra["honor_code"] = "never lies"
+    for npc in payload["npcs"]:  # drop fields the new declaration no longer allows
+        for stale in ("personality", "motivation", "secret"):
+            npc.pop(stale, None)
+
+    target = tmp_path / "the-awakening"
+    write_world(payload, target)
+    reloaded = load_world(target)
+
+    assert validate_world(reloaded, max_depth=8) == []
+    fields = {f.name: f for f in reloaded.taxonomy.npc_fields}
+    assert fields["role"].scene is True
+    assert reloaded.npcs["lyra"].descriptives()["honor_code"] == "never lies"
+    assert to_editable(reloaded) == payload
+
+
 def test_write_world_edit_then_reload(tmp_path):
     payload = to_editable(load_world(EXAMPLE_WORLD))
     thorn = next(n for n in payload["nodes"] if n["slug"] == "thornhaven")
