@@ -5,6 +5,7 @@
 [x] **ADR 0009 npc enrichment → IMPLEMENTATO** (S1-S3 mergiati su `adr/0009-npc-enrichment`, 2026-07-11): identità UUID + rung v7, modello engine tipizzato + `npc_fields` world-defined + resolver F2, tools `update_npc`/`kill_npc`/`remove_npc`/`restore_npc` + writer morte HP≤0, surfaces (scene/npc prompt) + editor npc_fields + prune-on-removal G5 (incl. fix bug assi 0005) + FE. Suite verde: 627 unit BE + 132 FE, ruff ok. ADR ancora Proposed → chiude con playtest + PR.
 [ ] **ADR 0009 — integration + playtest + PR su main** (PR la apre l'owner): girare integration BE (`make test-infra-up`), poi playtest a mano in chat pulita (NPC omonimi, rename-as-reveal, kill + remove/restore, `update_npc` con typo, `npc_field` custom nell'editor); bug fixati SUL branch `adr/0009-npc-enrichment` (no branch bugfix separato, no PR intermedia); poi PR unica → main → flip ADR ad Accepted.
 [ ] **release dopo la PR di 0009 su main**: cut con `scripts/release.sh <version>` (dry-run prima); regroup Highlights per area, tag `v` su main.
+[ ] **ADR 0003 — implementazione S1-S4** (design pass 2026-07-12: ADR espanso a "risoluzione unificata", tutte le fork chiuse dall'owner): S1 resolver 6 livelli + bande fisse + clamp / S2 combat senza modalità (tool `attack` simmetrico, statblock sui record 0009, barre vita di scena) / S3 difficoltà campagna (via `DeathMode`) / S4 surfaces FE+editor. Partire DOPO la PR 0009 su main. Piano e contratti in ADR §7.
 [ ] **ADR 0005 — playtest veloce + PR su main** (PR la apre l'owner): validare a mano la qualità dei delta dal modello budget (rischio #1 dell'ADR, nessun test automatico possibile) — Lyra guardinga (trust −20 authored), minaccia a sconosciuto (×3 visibile in scena), favore+bugia (assi giusti si muovono), editor con asse custom. Se delta scarsi → fix = prompt wording (vedi riga prompt-tuning in backlog).
 [ ] **ADR 0008 — validazione manuale + PR su main**: playtest a mano del ciclo (creazione campagna da world, move_to/viaggio/encounter, mappa, editor: crea/modifica/salva/export/import) in una chat a contesto pulito; i bug emersi si fixano sul branch `adr/0008-world-model`; poi PR unica verso main. NB: il branch NON è ancora su main — le campagne del DB dev vecchie non hanno baseline (J2: wipe accettato, pre-1.0). Nota tecnica: `npm ci` locale richiede `--legacy-peer-deps` (conflitto peer eslint@10 pre-esistente nel lockfile) — da sanare con le dependency updates.
 [x] **UI redesign → ADR 0013** (Accepted, `docs/adr/0013-ui-visual-redesign.md`): dark moderno pulito, Voyage-informed identità nostra, re-skin su architettura tokenizzata. Sprint 1 (play screen, pattern-setter): font Newsreader+Instrument Sans, accento verdigris `#8fb8ac`, atmosfera stripped, dado tier-arc. Sprint 2 (propagazione): auth card, campaign grid, wizard flat, character modal a rail, journal/settings/combat re-skinnati, ornamenti morti rimossi. Branch `redesign/ui-dark-a` (merge di sprint-1 + sprint-2), owner sign-off dato, PR verso main da chiudere. PARCHEGGIATO (ADR suoi): "player input come ispirazione" (gameplay), bug `getTurns` empty-render.
@@ -65,9 +66,9 @@
 [ ] continuity_checklist: flag booleani machine-readable per NPC/location ("vivo: true", "sa_di_X: false") accanto alla prosa, per coerenza multi-sessione [spunto: aidm]
 
 ## combat
-[ ] timeout esplicito per singola tool-call LLM in combat (oltre al recursion cap), con fallback "il turno prosegue" [spunto: llm-rpg]
-[ ] formalizzare il circumstance modifier nel roll tool: {amount: -10..+10, reason: str}, mostrato al player [spunto: ai_rpg]
-[ ] effetti temporizzati: tick per round su combat_state con auto-expire + annuncio (verificare se gia' in dm_tools_executor) [spunto: open-tabletop-gm]
+[ ] timeout esplicito per singola tool-call LLM in combat (oltre al recursion cap), con fallback "il turno prosegue" [spunto: llm-rpg] — NB ridimensionato da ADR 0003 B1: il combat non fa più chiamate LLM per le azioni nemiche; resta il timeout generico per tool-call
+[x] formalizzare il circumstance modifier nel roll tool → SUPERSEDED da ADR 0003 A5 (advantage/disadvantage binario con reason; il ±N numerico è respinto esplicitamente)
+[x] effetti temporizzati: tick per round → SPOSTATO a ADR 0012 (ADR 0003 C2: niente più round; sistema durate unico status+cooldown quando si fa 0012)
 
 ## prosa / output
 [ ] **prompt tuning pass dedicato (DOPO ADR 0009)**: sessione/ADR per rivedere e calibrare i prompt DM/NPC su playtest reali — include la qualità di `axis_changes` (ADR 0005) e i prompt che 0009 aggiungerà
@@ -101,9 +102,7 @@
 [ ] relationship graph: grafo relazioni NPC/fazioni/luoghi (tabella Postgres o JSONB) con query scene_context(place, present_npcs) BFS 2-hop; popolamento semi-auto dal session log via estrazione deterministica (verb-table); complementare al pgvector (tema vs scena) [spunto: open-tabletop-gm]
 
 ## fork B -> ADR 0003 (risoluzione a soglie fisse + danno server-side)
-[ ] sostituire il DC deciso dall'LLM con soglie fisse stile PbtA: d20 + mod vs bande fisse (niente DC arbitrario), mantenendo i 6 outcome tier di dice.py
-[ ] mappare outcome_tier -> danno lato server (FULL=pieno, PARTIAL=meta'+conseguenza, ...); l'LLM non tocca piu' gli HP
-[ ] bande di risoluzione e mappature tier->danno in saga.config.yaml (std 14)
+[x] design pass 2026-07-12: le tre righe originali (bande fisse, tier->danno server-side, config-first) sono decise e superate dall'ADR espanso (risoluzione unificata per TUTTI i check, non solo combat); piano S1-S4 nell'ADR §7, tracking implementazione in ## NOW
 
 ## fork C -> ADR 0004 (dm_core / game_system + tono per campagna)
 [ ] separare dm_core (principi GM universali, immutabili) da game_system (regole D&D) caricabile -> predispone multi-TTRPG (Pathfinder/VtM) [spunto: open-tabletop-gm]
