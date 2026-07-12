@@ -121,7 +121,10 @@ rumors. The DM stays the sole authority on the scene in front of the player.
   B2 readback of applied/discarded moves costs nothing extra; (c) the ADR-0001-style race
   disappears by construction (Director INSERTs; the turn path `SELECT … FOR UPDATE`s pending
   rows — never the same row contended). Rows are kept forever (small; audit; retention knob
-  only if it ever hurts). Rejected: *JSONB column with atomic append/swap* (no audit, no
+  only if it ever hurts). **Generalized by 0007 §1-B (2026-07-13)**: the table carries a
+  `source` column (`director | state_audit`) and serves as the shared background-writer
+  queue — per-source guard policies, one take/apply/mark mechanism; whichever ADR lands
+  first creates it with `source`. Rejected: *JSONB column with atomic append/swap* (no audit, no
   readback); *queue inside `world_state`* (two writers on one JSONB column — the exact race
   this design exists to avoid — plus TOAST write amplification, 0008 C7).
 - **C3 — Apply mechanics: exactly-once, before the DM (Decided).** In the turn path, after

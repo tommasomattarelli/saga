@@ -156,8 +156,8 @@
 # ============================================================
 
 ## ADR 0007 (Proposed) — direzioni adottate dalla Voyage
-[ ] state-audit pass: secondo passaggio CHEAP, async e fuori dal critical path, che estrae/riconcilia lo stato implicato dalla narrazione vs i tool realmente eseguiti e patcha il drift (estrazione, NON decisione; niente two-pass pieno) [ADR 0007 §1]
-[ ] massima configurabilita' della memoria + modelli per-sottosistema [ADR 0007 §2-3]
+[x] state-audit pass → PROGETTATO (design pass 2026-07-13, ADR §1): perimetro inventario/quest/location + npc remove|restore reversibili + tempo cappato (MAI kill/engine-authoritative), apply via queue 0006 generalizzata (colonna source, guard per-source), guard anti-allucinazione (solo-aggiunta, precondizioni drop+log, location = set posizione MAI travel engine), audited_at transazionale, AICallType.STATE_AUDIT on-by-default. Sprint unico, gate soft = tabella queue condivisa (ADR §S1).
+[ ] massima configurabilita' della memoria + modelli per-sottosistema [ADR 0007 §2 — direzione; primi frutti: whitelist 0004, famiglia recall.* in 0002 S1]
 
 ## ADR 0008 (Proposed — design fissato, TODO aperti prima di Accepted) — world model multi-layer YAML + grafo spaziale deterministico
 [ ] chiudere i TODO di design: enum `kind` (A-i), transform/scale globale per livello (A-ii), sistema unita'/coordinate (B-i), vocabolario `terrain` + range `elevation_m` (B-ii), schema blocco `scenario` + seed della campagna (C-i)

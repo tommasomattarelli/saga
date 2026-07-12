@@ -1,118 +1,138 @@
 # ADR 0007 — Directions adopted from the Voyage competitive analysis
 
-- **Status**: Proposed
-- **Date**: 2026-06-15
+- **Status**: Proposed (directions 2026-06-15; **§1 state-audit fully designed** by the
+  2026-07-13 pass — every fork closed by owner interview. §2 stands as direction (its first
+  fruit shipped into 0004's whitelist design); §3 stays deferred.)
+- **Date**: 2026-06-15; §1 design pass 2026-07-13.
 - **Context items**: Voyage (Latitude/AI Dungeon) analysis — `scratch/research/voyage.md`
-  (built from a real session HAR + interrogation of Voyage's in-world "Narrator
-  Assistant", 2026-06-15)
-- **Scope note**: this is a **direction-setting** record. It fixes the *shape* of the
-  lighter directions that came out of the Voyage analysis and do **not** warrant their
-  own ADR. The three heavy refactors (world model, NPC enrichment, PG customization)
-  get dedicated ADRs — see *Spin-off ADRs* at the end.
+  (real-session HAR + in-world "Narrator Assistant" interrogation, 2026-06-15); owner
+  interview 2026-07-13.
+- **Scope note**: §1 is now an implementable spec; §2/§3 remain direction-setting. The
+  three heavy refactors spun off in June each have their own ADR (0008/0009/0010).
+
+Legend: **Decided** = settled by owner. **Refined** = shape fixed, values at
+implementation. **TODO** = consciously open.
 
 ## Context
 
-We obtained beta access to **Voyage**, Latitude's AI-native RPG platform, and
-reverse-engineered its architecture from a real-session HAR and from targeted
-questions to its in-world "Narrator Assistant". The full analysis lives in
-`scratch/research/voyage.md`. The headline finding: Voyage and SAGA share the same
-core thesis (authoritative state + two-tier model routing + semantic memory), which
-validates SAGA's bets. Voyage's cost-optimization machinery (per-feature
-`costMicros`, fine-tuned cheap models, a usage pool) is **largely irrelevant to
-SAGA**, because SAGA is BYOAK + self-hosted single-instance: the user pays their own
-API bill, so there is no pool to optimize and any pattern that doubles per-turn LLM
-calls is a real cost to the operator, not a free win.
+Voyage runs a dedicated small **state engine** computing state deltas *before* a separate
+**story engine** narrates ("DB = reality, narration = perception"). Copying that literally
+on SAGA's BYOAK generic models hands the *hardest* reasoning (deciding outcomes) to the
+*weakest* model — rejected in June for a **hybrid**: the strong DM keeps deciding inline
+(BACKSTOP rule), and a cheap async **state-audit** pass patches the drift the DM leaves
+behind: narration says "you pick up the sword" but `add_item` never fired — story and
+state silently diverge, and today the only defense is prompt discipline.
 
-This ADR records the directions that survived that lens and are light enough to live
-in one place.
+Grounded 2026-07-13: everything the auditor needs is already persisted per turn —
+`Turn.narration` + `Turn.world_updates.tool_events` (`turns.py:148`) — so the audit is a
+pure post-hoc reader. And the 2026-07 design passes shrank the auditable surface: HP,
+damage, dice, prices and equip are now **engine-authoritative** (0003/0010/0015) — the
+audit must never touch them.
 
-## Decision
+## 1. State-audit pass — designed (2026-07-13)
 
-### 1. Per-turn state reliability — **hybrid state-audit pass** (not full two-pass)
+- **§1-A — Auditable drift classes (Decided; owner-extended, then bounded).**
+  **Inventory** (acquired/lost narrated without `add_item`/`remove_item`), **quest**
+  (progress narrated without `update_quest`), **location** (movement narrated without
+  `move_to`), **NPC `remove`/`restore`** (departures/returns — *reversible* lifecycle ops
+  only), **time** (missing `advance_time`, additive, minutes cap in config). **Never**:
+  `kill`/`dead` — terminal per 0009, a cheap-model false positive is *unrecoverable*
+  corruption, and real death already has two guarded writers (HP→0 engine writer,
+  `kill_npc`); never anything engine-authoritative (0003/0010/0015); never psychology.
+  Class list is config so playtest can grow it. Rejected: *kill in scope* (irreversible +
+  already owned); *inventory-only* (quest/location drift is the same mechanism for free).
+- **§1-B — Apply path: the 0006 queue, generalized (Decided).** The `director_changes`
+  table becomes the **background-writer queue**: a `source` column
+  (`director | state_audit`), same INSERT-by-task / take→guard→apply→mark exactly-once
+  transaction at turn start, same audit trail. **Guards are per-source**: the Director is
+  forbidden on-screen; the audit is the opposite (it patches the just-narrated scene) —
+  different guard policies, one mechanism, one test surface. Whichever ADR lands first
+  creates the table with `source` (cross-note added to 0006). Apply order = `created_at`
+  across sources. Rejected: *dedicated pending column* (the design 0006 already rejected —
+  no trail, and two exactly-once paths to keep coherent); *direct post-task write* (the
+  ADR-0001 lost-update race, already paid for once).
+- **§1-C — Anti-hallucination guards (Decided).** The audit **only adds missing
+  effects** — it can never contradict an executed tool. Per-type preconditions at apply,
+  drop+log on failure, never guessing (F7): item dedup (not already in inventory — also
+  catches the stale-patch case where the player picked it up manually before the patch
+  landed); **location = a direct position set** via 0008 scoped resolution — *never the
+  travel engine* (time/encounters must not be rolled for an already-narrated arrival;
+  unresolvable place → drop); quest must exist; NPC ops on unique resolve only. Input =
+  DM narration + `tool_events` + a minimal state slice (inventory names, active quests,
+  position) so the model diffs instead of imagining; NPC dialogue lines excluded v1
+  (TODO). Output = typed patch JSON validated per-entry (drop+log), expressed in the
+  existing updater/tool semantics (items follow 0010-I2 resolve-or-create).
+  `audit_max_patches_per_turn` cap (std 19/14). No self-reported confidence scores — the
+  precondition is the filter, not a number the model grades itself on.
+- **§1-D — Cadence, routing, idempotency (Decided).** Fire-and-forget after every turn
+  (the `_background_*` pattern), **on by default** (`state_audit.enabled: true` — a safety
+  net that ships off protects only those who don't need it; cost = 1 budget call/turn,
+  kill-switch in config). New `AICallType.STATE_AUDIT`, budget tier. Idempotency:
+  `audited_at` stamp on Turn — the first real incarnation of the `chronicled_at` TODO
+  pattern — written **in the same transaction** as the patch INSERTs (no double audit on
+  crash/retry). Failure = skip + log, never a blocked turn; rule-15 session discipline.
+- **§1-E — Accepted trade-off (unchanged from June).** The correction lands at the next
+  turn's start, not synchronously — narrated sword appears in the inventory one turn
+  later. That lag is the price of zero added latency on the player turn.
 
-Voyage runs a dedicated small **state engine** that computes state deltas *before* a
-separate **story engine** narrates ("DB = reality, narration = perception"). Copying
-this literally is a trap on SAGA's BYOAK generic models: it hands the *hardest*
-reasoning (deciding outcomes — did the lockpick break? did the blow land?) to the
-*weakest* model. Voyage gets away with it because their state engine is fine-tuned
-for the task; SAGA has no such model.
+## 2. Maximum configurability of memory + per-subsystem models (direction, stands)
 
-Adopted shape instead:
+Raw knobs over presets, all in `saga.config.yaml` (std 14), every knob with an enforced
+hard min/max; model + params per subsystem (now including `STATE_AUDIT` and `DIRECTOR`).
+First fruit already shipped in design: 0004's **whitelisted per-campaign
+`config_override`** is exactly this principle's guardrail applied per-campaign. The
+memory-depth knobs land with 0002 S1 (`recall.*` family). No further design needed here.
 
-- The **strong DM model keeps narrating and deciding outcomes inline** with its tool
-  calls (unchanged from today's single-pass loop and the BACKSTOP rule).
-- Add a **cheap secondary "state-audit" pass** whose only job is the *easy* task:
-  extract/reconcile the structured state implied by the narration against the tool
-  calls that actually ran, and patch the drift (e.g. narration says "you pick up the
-  sword" but `add_item` never fired → emit it). Extraction, not decision — safe for a
-  cheap model.
-- The audit can run **async / off the player's critical path** (no added latency),
-  with the correction landing as a deterministic patch.
+## 3. Narrator-corrector / turn editing — deferred (unchanged)
 
-This delivers Voyage's "state is the truth" reliability without giving outcome
-decisions to a weak model and without doubling the expensive narrative call.
-
-### 2. **Maximum configurability** of memory + per-subsystem models (config-first, std 14)
-
-Voyage exposes memory as preset depth levels (standard/enhanced/deep) and a model
-variant per subsystem. SAGA's principle is stronger: **expose the raw knobs, not
-presets**, all in `saga.config.yaml` (std 14).
-
-- **Memory depth as raw numbers**: `context_window_turns`, retrieved-facts count,
-  token cap, summary cadence, etc. are all directly configurable — *not* bucketed
-  into named levels.
-- **Guardrails are mandatory**: every such knob has an enforced **recommended range
-  with a hard min and max** (e.g. you cannot set 9999 context turns and blow up the
-  prompt; a sane minimum is also enforced). The exact ranges are provisional and
-  settled at implementation.
-- **Per-subsystem model + params**: SAGA already routes per subsystem (DM low/med/high
-  tiers, NPC, compression). Extend this so the model and generation params of *every*
-  subsystem — including the new state-audit pass — are configurable knobs.
-
-### 3. **Narrator-corrector / turn editing** — deferred (future)
-
-Voyage's "Narrator Assistant" is a meta agent, separate from the DM: read-only on
-state, able to **edit a past turn** (`rewriteLastStory`-style) and patch state, running
-*outside* the turn loop and asking confirmation before applying. SAGA has nothing like
-this. It is an attractive feature — particularly **the ability to edit/rewind a turn** —
-but **deferred**: not scheduled here. Captured so it is not lost.
+Voyage's meta agent (read-only on state, can rewrite a past turn and patch state, asks
+confirmation) remains attractive and remains **deferred** — captured so it is not lost.
+Note the boundary: §1 audits *forward* (missing effects of the last turn); §3 would edit
+*backward* (rewriting history). Different machines; do not conflate.
 
 ## Rejected alternatives
 
-- **Full two-pass (state engine then story engine)** — gives outcome decisions to the
-  weaker/cheaper model on BYOAK generic models, risking *worse* state, and doubles
-  per-turn LLM calls. Rejected for the hybrid audit. Reconsider **only** if SAGA ever
-  ships a fine-tuned state-extraction model (then full two-pass becomes attractive).
-- **Single-pass only (status quo)** — no safety net against "narrated but no tool
-  called" drift beyond prompt discipline. Rejected in favour of adding the audit pass.
-- **Preset memory levels (standard/enhanced/deep)** — less flexible than raw numeric
-  knobs; contradicts the "everything configurable, with guardrails" goal. Rejected.
+- **Full two-pass (state engine → story engine)** — outcome decisions to the weakest
+  model + doubled per-turn calls; reconsider only with a fine-tuned extraction model.
+- **Single-pass only (status quo)** — prompt discipline as the only defense against
+  silent drift.
+- **Preset memory levels** — contradicts raw-knobs-with-guardrails.
+- §1 pass: kill-capable audit; inventory-only scope; dedicated pending column; direct
+  writes; travel-engine location patches; confidence self-scores.
 
 ## Consequences
 
-- **Positive**: state reliability improves without latency on the player turn and
-  without handing decisions to a weak model; the engine becomes maximally tunable per
-  self-hosted deployment; the turn-editing idea is preserved for later.
-- **Trade-off**: the state-audit pass is a new (cheap) LLM call and a new
-  reconciliation code path; its correctness must itself be tested. Config guardrails
-  add validation surface to `config.py`.
-- **Trade-off**: correction from the audit lands as a patch (possibly visible to the
-  next turn), not synchronously within the narration.
+- **Positive**: "state is the truth" reliability without giving decisions to a weak model
+  and with zero player-visible latency; the queue mechanism, guards, audit trail and
+  exactly-once apply are shared with 0006 (one implementation, two writers); every knob
+  config-first.
+- **Trade-off**: +1 budget LLM call per turn (default on, kill-switch); a new
+  reconciliation path whose correctness needs its own contract tests (fixture narration +
+  tool_events → expected patches).
+- **Trade-off**: one-turn patch lag (accepted, §1-E).
 
-## Spin-off ADRs (heavy, dedicated)
+## Relationship to other ADRs
 
-The three large refactors from the analysis each get their own record. **All three are
-WIP — direction noted, nothing decided, requiring deep dedicated analysis before
-acceptance:**
+- **0006** — shares the generalized background-writer queue (`source` column, per-source
+  guards); proactive off-screen vs reactive on-screen: the two "second brains" stay
+  distinct in authority, now unified in plumbing.
+- **0003/0010/0015** — define the engine-authoritative surface the audit must never touch;
+  item patches follow 0010-I2 semantics.
+- **0008** — scoped place resolution for location patches (position set, never travel).
+- **0009** — reversible lifecycle ops only; `dead` stays behind its two guarded writers.
+- **0004** — §2's guardrail principle landed there as the config_override whitelist.
 
-- **World model → multi-layer YAML refactor → ADR 0008.**
-- **NPC enrichment (`status`, `update_npc`, removed-NPC archive) → ADR 0009.**
-- **Player-character customization (skill progression + configurable ability scores)
-  → ADR 0010.**
+## Implementation plan (single sprint)
 
-## Notes
+**S1**: `source` column on the shared queue (create the table if 0006 S1 hasn't — schema
+aligned with 0006 §C2); auditor task (context assembly from Turn rows, prompt, typed
+output validation); per-type preconditions + guards; `audited_at` migration + transactional
+stamp; `AICallType.STATE_AUDIT` + config block; contract tests (fixtures → expected
+patches) + integration tests on apply/dedup/stale-patch/position-set.
 
-Relationship to existing ADRs: **ADR 0006 (AI Director) is not superseded** — it owns
-*proactive, off-screen* world movement (background), which is orthogonal to this ADR's
-*reactive, per-turn* state-audit. The two are distinct "second brains". Source
-analysis: `scratch/research/voyage.md` (local, gitignored research note).
+## Notes / sources
+
+Source analysis: `scratch/research/voyage.md` (local, gitignored). §1 design pass grounded
+in code (turn persistence, tool_events, updater handlers, 0006/0008/0009/0010 contracts);
+no external validation needed — the June external claim (Voyage's architecture) was
+already validated by the HAR analysis.
