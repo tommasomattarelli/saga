@@ -1,34 +1,30 @@
-# ADR 0012 — Active abilities (player-triggered special moves with cooldown)
+# ADR 0012 — Active abilities (player-triggered special moves) + the structured input rail
 
-- **Status**: Proposed (spun off from **ADR 0010** on 2026-06-23; trigger / ownership /
-  cooldown fixed via the design interview; **resolution mechanics, Power semantics and the
-  ability-point economy remain explicit TODOs**, may still be revised).
-- **Date**: 2026-06-23
-- **Context items**: Voyage analysis (`scratch/research/voyage.md` §3bis — **direct in-game
-  observation** 2026-06-22); design interview 2026-06-23 (all choices by the project owner);
-  grounded in `ai/tools/tools_special.py`, `core/dm/dm_tools_executor.py`, `models/campaign.py`.
-- **Scope note**: this ADR owns the **active-ability system** — a player-triggered "special
-  move" with a cooldown. It is the sibling of **ADR 0010** (configurable rulebook + skills +
-  progression + resolution feed): 0010 owns the attribute/skill core, 0012 owns active
-  abilities. The **resolution** of an ability's effect (Power → outcome/damage) is owned by
-  **ADR 0003**; this ADR fixes the *invocation* model and defers the *effect math* to 0003.
+- **Status**: Proposed (spun off from **ADR 0010** on 2026-06-23; trigger/ownership/cooldown
+  fixed then; **the 2026-07-12 design pass closed the effect semantics, the point economy, the
+  loadout model and the rail shape**. Remaining TODOs: status/duration system design, numeric
+  rulebook defaults).
+- **Date**: 2026-06-23; design pass 2026-07-12.
+- **Context items**: Voyage §3bis (direct observation 2026-06-22); design interviews
+  2026-06-23 + 2026-07-12 (all calls by the project owner); ADR 0003 (expanded 2026-07-12 —
+  the resolution vocabulary this ADR composes); grounded in `ai/tools/tools_special.py`,
+  `api/turns.py` (no structured input exists: free text straight into the graph).
+- **Scope note**: owns **active abilities** (invocation, effects, loadout, points) and the
+  **design of the structured player-input rail** (UI action → engine, no LLM). 0010 owns the
+  rulebook store, `character_data` state, ability points supply, items (`grants_abilities`),
+  and implements the **first rail slice** (equip + `use_item`, its S4). Effect *math* is
+  0003's resolver — this ADR adds no math of its own.
 
 ---
 
 ## 1. Context
 
-Voyage exposes (§3bis, observed in-game) **active abilities** distinct from skills: each has a
-**Power** (e.g. 8, 6) and a **Cooldown in actions** (e.g. 3 / 10), gated by an **Ability Points**
-economy, themed to the character's class/talents (Assassinate, Shadow Step, Shadowcloak…). They
-are **special moves**, not narrative-breaking superpowers.
-
-SAGA today has **no ability concept** — `tools_special.py` has only `request_dice` and
-`invoke_npc`; there is no player-side action type beyond free-text. Greenfield.
-
-This system was originally being absorbed into ADR 0010 mid-interview; on review it is a
-**distinct paradigm** (player-triggered, cooldown, a *new structured input path*, an ability-point
-economy) and was **spun off here** by decision, consistent with SAGA's ADR-boundary discipline
-(world → 0008, affect → 0005, off-screen → 0006).
+Voyage exposes active abilities distinct from skills (Power + cooldown + ability points,
+themed: Assassinate, Shadow Step…) — special moves, not superpowers. SAGA has no ability
+concept and **no structured player input**: `submit_action` takes free text only. The expanded
+0003 changed the design space: a bounded resolution vocabulary now exists (difficulty levels,
+advantage, damage/heal classes, tiers), and 0003-B7b **binds self-heals to this rail**
+(potions/spells resolved engine-only, no LLM in the loop).
 
 ---
 
@@ -36,78 +32,122 @@ economy) and was **spun off here** by decision, consistent with SAGA's ADR-bound
 
 > Legend: **Decided** / **TODO**.
 
-- **A1 — Ability is a rulebook kind (Decided).** Defined per-world in the 0010 rulebook,
-  following the 0010-B1 pattern (typed core + E1/E3): `{id, name, description(flavor), power,
-  cooldown, cost?(resource ref), granted_by}`. Lives in the same frozen `rulebook` store
-  (ADR 0010-A3).
-- **A2 — Player-only trigger; the DM has NO `use_ability` tool (Decided — the crux).** An
-  ability is invoked **only** by the player (a UI toggle, like a video-game ability button).
-  The DM **cannot** fire abilities — there is no `use_ability` tool in the DM's set, so the LLM
-  never decides to deploy a special move. The engine enforces **cooldown + cost** at invocation.
-  Rejected: a DM-invokable ability tool (hands special moves to the model; breaks the
-  player-agency framing).
-- **A3 — The OUTCOME is adjudicated by DM + engine, not an auto-effect (Decided — resolves the
-  applicability/gating gap).** The **trigger** is deterministic/player-only; the **outcome**
-  (does it land, damage, narration) is resolved **normally** (DM narration + engine rules), so
-  an ability **can fail** and **cannot bypass** narrative plausibility or plot protection — the
-  normal resolution **is** the gate. *"Special move, not superpower."* This is the abilities
-  counterpart of 0010's "skill: DM arbitra". The exact effect math (Power → outcome/success) is
-  a **TODO coordinated with ADR 0003**. Rejected: a guaranteed deterministic effect that the DM
-  merely narrates (would let a player auto-kill a plot-critical NPC / teleport out of a sealed
-  room — even Voyage gates this, §3.9).
-- **A4 — Cooldown in turns/actions (Decided; from 0010-D5).** `cooldown_remaining` ticks down
-  **each player turn**; using an ability **is** a turn. The engine **rejects** a use that is on
-  cooldown with a structured error (`{error: ability_on_cooldown, remaining: N}`, std 6/13,
-  F7-style). Cooldown state is stored in `character_data` (0010-A4) and ticked engine-side.
-  Rejected: cooldown in game-time minutes (a long `advance_time` would reset combat cooldowns —
-  unnatural); per-ability unit (deferred; two tick paths).
-- **A5 — Abilities are granted by bundles and/or ability-point unlock (Decided direction).**
-  `grants_abilities` on Trait-bundles (0010-B3) grant abilities at creation; an **ability-point
-  economy** can unlock/upgrade more. The ability-point earn/spend rules are a **TODO**, linked
-  to the character-level-up effect (0010-G, soft TODO).
-- **A6 — An ability may cost a resource (Decided).** `cost` references a Resource (0010-B4);
-  the engine deducts it at invocation (alongside the cooldown gate).
+### A. Ability model
 
-**Consequence — a new structured player-input path.** Ability use is a **player input type**
-distinct from free-text action (API + frontend): the player toggles an ability → the backend
-validates cooldown/cost (+ applicability, A3) → the DM narrates the resolved result. The frontend
-may grey out on-cooldown abilities for UX, but the **backend is the authority**.
+- **A1 — Ability is a rulebook kind (Decided, shape fixed 2026-07-12).** Per-world, in the
+  0010 `rulebook` store. **No numeric "Power"** — an ability **composes the 0003 vocabulary**
+  (rejected: an authored Power int + conversion table = a second scale parallel to the
+  classes):
 
-**TODO (0012):** `Power → effect/success` model (coordinate ADR 0003); the **ability-point**
-earn + spend rules (coordinate 0010-G); the **input-path** API/FE shape; how an ability
-**targets** (and the applicability checks that back A3).
+  ```yaml
+  ability assassinate:            # rulebook, tier-3 validated
+    check: {skill: sneak}         # what rolls (skill or attribute ref)
+    grants: {advantage: true}     # engine-granted on the ability's own roll
+    effect: {attack: {damage_class: heavy}}
+    cooldown: 10                  # player turns
+    cost: {stamina: 3}            # Resource ref (0010-B4)
+    levels:                       # optional upgrades (A5)
+      2: {effect: {attack: {damage_class: heavy}}, grants: {advantage: true}, cost_points: 2}
+  ```
+
+  Effect primitives v1 (closed enum, dropdown-editable, never free text):
+  `{attack: damage_class}` · `{heal: heal_class}` · `{grants: advantage}`. A `check` ref is
+  validated against the rulebook (reject-with-candidates).
+- **A2 — Player-only trigger (Decided, unchanged — the crux).** No DM `use_ability` tool; the
+  LLM never deploys special moves. Engine enforces cooldown + cost + loadout at invocation.
+- **A3 — Two effect families; the outcome is never a free pass (Decided, sharpened
+  2026-07-12).**
+  - **Contested** (attack-like): the ability triggers a **normal 0003 roll** (full E3
+    modifier, target defense draw, bands) with its engine-granted perks — it **can fail**, and
+    damage is the bounded class pipeline. Worked anti-one-shot example: *Assassinate vs a
+    boss dragon* = advantage + 1d12, but the `near_impossible`-grade defense draw crushes the
+    roll and even a hit is ~5–17 vs an HP pool of 200 — "kill" only ever means HP→0 through
+    the death writer, many rolls later. An "execute" auto-effect is exactly what this decision
+    forbids; helpless-target executions are fiction (`kill_npc`), not ability mechanics.
+  - **Non-contested** (heal / self-buff): no opposition → **succeeds**, but the magnitude is
+    the **% range draw of its class** (same as potions, 0003-B7); cooldown + cost are the
+    balance. A `grants: advantage` buff applies **only to the ability's own roll** — buffs
+    with duration need the status system (§D TODO).
+- **A4 — Cooldown in player turns (Decided, unchanged).** Ticks each player turn; engine
+  rejects on-cooldown use with a structured error. State in `character_data.abilities`.
+- **A5 — Points economy (Decided 2026-07-12).** Earn: **+1 ability point per character
+  level-up** (0010-G2). Spend: **unlock** (`unlock_cost` + optional `requires: {skill/level,
+  bundle}`) and **upgrade** — an ability may declare `levels`, each an **authored effect
+  block** (same closed vocabulary) with its `cost_points`; no emergent numbers. Bundles still
+  grant starting abilities (`grants_abilities`, 0010).
+- **A6 — Loadout cap (Decided 2026-07-12).** The player owns unlimited abilities but only
+  **K active slots** (config, default ~6); swapping is a rail action between turns; **an
+  ability on cooldown cannot be swapped out** (kills the "use it, rotate it, dodge the
+  cooldown" exploit). Engine-enforced; the FE bar greys out — backend is the authority.
+
+### B. The structured input rail (design owned here; first slice in 0010 S4)
+
+- **B1 — One endpoint, typed actions (Decided).**
+  `POST /campaigns/{id}/action/structured` with
+  `{type: use_ability | use_item | equip | swap_ability, ref, target?}`. Engine order: gates
+  (ownership, cooldown, cost, loadout, rate limits) → deterministic effects (consume item,
+  heal draw, equip layers) → for adjudicated abilities, inject the activation into the DM turn
+  context; the roll goes through the 0003 resolver with the granted perks and the DM narrates
+  the resolved outcome. **Every** rail action (item use included) injects its fact into the DM
+  context — the DM must know you drank the potion.
+- **B2 — Turn economy (Decided 2026-07-12 — closes the free-chain hole).** `use_ability`
+  **consumes the player's turn** (it *is* the action; no free-text action that round).
+  `use_item` / `swap_ability` / `equip` are free actions but **rate-limited per turn**
+  (config, default 1 each). Rejected: everything-consumes-a-turn (equipping costing a turn is
+  punitive).
+- **B3 — Targeting (Decided).** An ability declares `target: self | npc | none`; NPC targets
+  resolve via the 0009 F2 resolver and must be **present in scene**. Fiction-level
+  applicability stays with the DM + the roll (A3) — the engine checks only mechanical gates.
+- **B4 — Self-heal migration (binding, from 0003-B7b).** When this rail lands, potion/spell
+  self-heals run engine-only here; the DM `heal` tool shrinks to other-actor heals and its
+  `dm_heal_cap` stays as the jailbreak wall.
+
+### C. Consequences (FE/API)
+
+Ability bar (K slots, cooldown/cost display, grey-out), unlock/upgrade spend UI, swap UI;
+`character_data.abilities` state (0010-F1); prompt projection lists **ready** abilities only
+(0010-F2).
+
+### D. Open TODOs
+
+**Status/duration system** (absorbed from 0003-C2: lingering poisons/buffs, durations in
+player turns — design at implementation, one system for statuses AND anything 0012 needs
+beyond same-roll buffs) · magnitude XP/point numeric defaults (rulebook) · ability-bar UX
+details.
 
 ---
 
-## 3. Decided vs Open
+## 3. Rejected alternatives
 
-**Decided:** A1–A6 (+ the new-input-path consequence).
-
-**Open TODOs:** Power/effect resolution (→ 0003); ability-point economy (→ 0010-G); the
-structured-input API + frontend; ability targeting + applicability gate.
-
----
-
-## 4. Rejected alternatives
-
-- **A DM-invokable `use_ability` tool** — rejected; player-only trigger (A2).
-- **A guaranteed deterministic effect the DM only narrates** — rejected; the outcome is
-  adjudicated (A3), so abilities can't break the narrative / plot protection.
-- **Cooldown in game-time minutes** / **per-ability unit** — rejected for turn-based (A4).
+DM-invokable `use_ability` (breaks player agency); guaranteed deterministic effects (auto-kill
+/ plot bypass); game-time or per-ability cooldown units; **numeric authored Power + conversion
+table** (second scale parallel to the 0003 classes — the composition vocabulary already says
+everything); free-text effect definitions (unvalidatable); unbounded rail actions per turn
+(free 6-ability chains); swapping out on-cooldown abilities.
 
 ---
 
-## 5. Relationship to other ADRs
+## 4. Relationship to other ADRs
 
-- **ADR 0010 (player-character customization)** — **parent**; the Ability kind, the frozen
-  `rulebook` store, the `character_data` cooldown state, and the turn-based unit all come from
-  0010. Ability-point ↔ 0010-G (char level-up).
-- **ADR 0003 (deterministic combat resolution)** — owns `Power → effect/outcome` (A3 TODO);
-  0010-E4 already lists the Power→effect ask to 0003.
-- **ADR 0007 (Voyage directions)** — grand-parent direction (PG customization).
+- **0010** — parent: rulebook store, `character_data` state, ability points (G2),
+  `grants_abilities` items/bundles; implements the **first rail slice** (equip + use_item,
+  S4) per this design.
+- **0003** — supplies the whole effect vocabulary (rolls, advantage, damage/heal classes,
+  tiers, clamp); B7b binds self-heals to this rail; its C2 defers durations here (§D).
+- **0009** — F2 target resolution; NPC abilities explicitly rejected (statblock is the NPC
+  sheet; revisit only with companions).
+- **0007** — grand-parent direction.
+
+## 5. Implementation plan (fixed; prerequisite: 0010 S1–S4 landed, incl. the rail slice)
+
+- **S1 — Backend core:** Ability kind (levels/costs/composition) + engine gates
+  (cooldown/cost/loadout/rate limits) + resolver integration (granted perks) + per-turn tick.
+- **S2 — Rail completion + FE:** `use_ability` + `swap_ability` on the rail; ability bar
+  (K slots, grey-out); turn-economy enforcement; self-heal migration (B4).
+- **S3 — Economy:** earn/unlock/upgrade + spend UI + playtest → PR → Accepted.
 
 ## 6. Notes / sources
 
-`scratch/research/voyage.md` §3bis (direct in-game observation 2026-06-22). Decisions from the
-2026-06-23 interview (all calls by the project owner), grounded in `ai/tools/tools_special.py`,
-`core/dm/dm_tools_executor.py`, `models/campaign.py`.
+`scratch/research/voyage.md` §3bis. Interviews 2026-06-23 + 2026-07-12 (owner calls throughout;
+headline reversal: Power number dropped for 0003-vocabulary composition). Verified live:
+`api/turns.py::submit_action` takes free text only — the rail is greenfield.

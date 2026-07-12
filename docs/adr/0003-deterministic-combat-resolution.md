@@ -132,17 +132,36 @@ unbounded numbers).
   (hero badge). Rejected: hybrid record+ephemeral stores (two damage paths — the bug class
   0009 just closed); named-only HP (narrated mook damage = leak #2 back through the window).
 - **B3 — Statblock on every combatant, player included (Decided).** New engine fields on the
-  0009 record (B2-partition update: all four are engine-owned/mutable):
+  0009 record (B2-partition update: all engine-owned/mutable):
   `hp / max_hp` · `defense` (one of the **6 A2 levels** — reuses the enum, no second scale) ·
   `attack_mod` (small int, authored by hand where the world says so; generated/absent →
   default `0`, always clamped by config) · `damage_class` (see B5 — a *stat*, not an item: the
-  enemy's bite/greatsword is flavor in narration, no item system needed). Authored world NPCs
-  may declare a statblock (optional, tier-3 validated, editor inputs); absent fields fall to
-  `statblock_defaults`. **The player is an NPC to the engine**: same shape, `defense` from
-  `player_defense_default` (armor will modulate it — B6/0010) — with one deliberate
-  exception: the player has **no `attack_mod` field**. The player's to-hit is always the
-  **sheet-produced modifier** (attribute via `weapon_class_to_stat`, future skills — clamped
-  by A6), never a static statblock number; `attack_mod` exists only for NPCs.
+  enemy's bite/greatsword is flavor in narration, no item system needed) · `npc_class` (see
+  B3b). Authored world NPCs may declare a statblock (optional, tier-3 validated, editor
+  inputs); absent fields fall to `statblock_defaults`. **The player is an NPC to the engine**:
+  same shape, `defense` from `player_defense_default` **shifted by DEX at config thresholds**
+  (±1 level max, e.g. mod ≥ +4 → one step harder to hit, ≤ −2 → one easier — decided with
+  0010-E6, the dex-vs-str balance rationale lives there; armor never shifts defense, it is DR —
+  B6) — with one deliberate exception: the player has **no `attack_mod` field**. The player's
+  to-hit is always the **sheet-produced modifier** (attribute via `weapon_class_to_stat`, or
+  the equipped weapon's declared **skill** through the full 0010-E5 formula once 0010 lands —
+  clamped by A6), never a static statblock number; `attack_mod` exists only for NPCs.
+- **B3b — `npc_class` anchors statblock coherence (Decided).** The world taxonomy declares
+  **`npc_classes`** (generic archetypes: commoner, guard, soldier, commander, royale, beast…
+  — world-defined, few and coarse) each carrying a **statblock template**
+  (`hp_class` / `defense` / `damage_class` defaults; 0010-I8 later adds each class's item
+  pool). Every NPC record carries `npc_class` (authored, or classified by the LLM into the
+  enum — reject-with-candidates on unknown); the free-text `role` trait ("imperatore",
+  "panettiere") stays descriptive, the class carries the mechanics — a butcher can never have
+  general-grade numbers because his class template forbids it. On-the-fly creation (an attack
+  on a brand-new name, `update_npc`) accepts **bounded creation classes** — `npc_class`,
+  `hp_class` (`weak/standard/tough/boss` → **hp drawn from a config range**), `defense`,
+  `damage_class` — LLM emits classes, the engine draws every number; absent → the class
+  template, then `statblock_defaults`. The UI shows a **derived threat rating** computed from
+  the statblock (rejected: an authored numeric NPC level — a second scaling scale duplicating
+  the classes). Fix folded in: the 0009 creation scaffold currently leaves `location = None` —
+  auto-created NPCs get **`location = current node`** (the presence guards and the death
+  writer rely on it).
 - **B4 — One symmetric tool: `attack(attacker, target)` (Decided).** Any pair: player→NPC,
   NPC→player, **NPC→NPC** (companions-ready — the mercenary ally attacking a goblin is
   inexpressible in a player-always-rolls model, which is why that model lost). D&D model: the
@@ -268,11 +287,15 @@ tools live in the always-on `core` group.
 (defaults fixed at S1): `resolution.outcome_bands`, `resolution.difficulty_levels` (6 × range),
 `resolution.char_mod_clamp`; `combat.damage_classes`, `combat.weapon_class_to_stat`,
 `combat.tier_damage_scale`, `combat.attack_mod_clamp`, `combat.statblock_defaults`,
-`combat.player_defense_default`, `combat.damage_reduction_cap`, `combat.dead_unnamed_prune`;
+`combat.hp_classes` (weak/standard/tough/boss → hp ranges, B3b),
+`combat.player_defense_default` + `combat.defense_dex_shift` (thresholds, B3),
+`combat.damage_reduction_cap`, `combat.dead_unnamed_prune`;
 `hazards.classes` + `hazards.tier_scale`; `healing.classes` + `healing.dm_heal_cap` (B7b);
 `campaign_difficulty.death_policy`
-(+ reserved neutral `multipliers`). Advantage has no keys (it is not a number). Tool groups:
-`combat`/`combat_entry` removed, `attack`/`request_dice`/`heal` join `core`.
+(+ reserved neutral `multipliers`). Advantage has no keys (it is not a number). The
+`npc_classes` statblock templates are **world taxonomy**, not config (world-defined
+vocabulary, 0008 P0 pattern). Tool groups: `combat`/`combat_entry` removed,
+`attack`/`request_dice`/`heal` join `core`.
 
 ### F. Migration / compatibility
 
@@ -302,12 +325,14 @@ free HP number anymore (the removed-tools set stays removed).
 
 ## 3. Decided vs Open — quick index
 
-**Decided**: A1–A6, B1–B8 (incl. B7b healing paths), C1–C2, D, E (keys), F, G, sprint plan (§7).
+**Decided**: A1–A6, B1–B8 (incl. B3b npc_class + B7b healing paths), C1–C2, D, E (keys), F, G,
+sprint plan (§7); player DEX defense shift (B3, with 0010-E6); weapon-skill to-hit seam
+(B3/0010-E5).
 **Open (TODO)**: config default *values* (bands 5/10/15 and clamp [−5,+11] fixed; level
 ranges, damage dice, % ranges, caps proposed at S1 and tuned in playtest) · `Power → effect`
 mapping for 0012 abilities (owned here, settled when 0012 lands — 0010-E4c) · 0010
 integrations: `skill|attribute` ids in `request_dice` (0010-E2), armor DR classes + item-declared
-weapon classes, whether target DEX modulates `defense` (deferred fine-mechanic) · prune policy
+weapon classes (DEX-defense: settled, B3/0010-E6) · prune policy
 details · the "hostiles engaged" importance signal derivation · prompt wording pass (backlog:
 post-implementation tuning session).
 
@@ -359,7 +384,10 @@ redundant) · llm-rpg `base × LLM-scaling` damage (the tier is the scaling).
   sheet-produced value **clamped by A6** (the "±N circumstance" wording in E4a is superseded
   by A5); (b) `skill|attribute` ids swap into `request_dice` when 0010 lands (E2); (c) armor =
   DR% classes + item-declared weapon classes + the single-apply reducer hook (B6); (d) items
-  carry `heal_class` semantics for the self-heal rail (B7b). 0003 lands first; 0010 plugs in.
+  carry `heal_class` semantics for the self-heal rail (B7b); (e) weapon items declare a skill
+  ref feeding the full to-hit formula (0010-E5) and DEX shifts player defense (0010-E6, math
+  in B3); (f) `npc_classes` item pools complete the B3b templates (0010-I8). 0003 lands
+  first; 0010 plugs in.
 - **0012 (active abilities)** — ability effects resolve through this resolver; `Power →
   outcome/damage` mapping owned here, settled with 0012. The **duration system** (statuses,
   cooldowns) is 0012's, absorbing this ADR's C2 cut. Its **structured input path** (UI-selected
@@ -383,10 +411,12 @@ and the game playable; small commits per logical unit (repo standard).
   `difficulty`/`advantage`/`disadvantage`/`hazard_class`); tool always-on; `resolution.*` +
   `hazards.*` + `healing.*` config; `heal` tool; prompt minimal edit (drop DC guide, teach
   levels); unit + integration for the generic path.
-- **S2 — Combat engine.** Statblock fields on records + rung v7→v8; `attack` tool + damage
-  pipeline + single apply function with reducer slot; mook auto-create hook; death-writer
-  rewire; removal of the 4 tools + `combat_state` + both initiative paths + tool groups;
-  `combat.*` config; `dm.yaml` combat rewrite; importance signal swap; integration suite.
+- **S2 — Combat engine.** Statblock fields on records + rung v7→v8; `npc_classes` taxonomy
+  templates + `hp_class` draws + creation classes (B3b) + the scaffold `location = current
+  node` fix; `attack` tool + damage pipeline + single apply function with reducer slot; mook
+  auto-create hook; death-writer rewire; removal of the 4 tools + `combat_state` + both
+  initiative paths + tool groups; `combat.*` config; `dm.yaml` combat rewrite; importance
+  signal swap; integration suite.
 - **S3 — Campaign difficulty + death.** Alembic `death_mode`→`difficulty` + mapping;
   `check_player_death` reparameterized; static prompt block removed; wizard step + i18n;
   reserved-neutral multiplier keys; tests on the three policies.
