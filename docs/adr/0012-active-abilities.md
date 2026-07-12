@@ -55,6 +55,9 @@ advantage, damage/heal classes, tiers), and 0003-B7b **binds self-heals to this 
   validated against the rulebook (reject-with-candidates).
 - **A2 — Player-only trigger (Decided, unchanged — the crux).** No DM `use_ability` tool; the
   LLM never deploys special moves. Engine enforces cooldown + cost + loadout at invocation.
+  The "revisit only with companions" note is resolved by **ADR 0014**: promoted NPCs
+  (companions/elites) use abilities through their own engine-gated acting call — the
+  prohibition on *player* abilities stands untouched.
 - **A3 — Two effect families; the outcome is never a free pass (Decided, sharpened
   2026-07-12).**
   - **Contested** (attack-like): the ability triggers a **normal 0003 roll** (full E3
