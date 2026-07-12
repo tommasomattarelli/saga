@@ -80,11 +80,11 @@
 ## world / player agency
 [ ] **ADR futuro: commercio e compravendita in game** — prezzi, negozi, valuta (le monete esistono già come item stackable da 0010-I7, ma niente economia): comprare/vendere con mercanti, prezzi authored o per classe item, contrattazione via psicologia 0005? Deciso fuori scope in 0010 (2026-07-12).
 [ ] override strutturati player->DM: NPC_PROTECTION / CONTENT_CONSTRAINT / TONE / NARRATIVE_DEMAND con scope (campaign/session/arc), persistiti e iniettati nel prompt ogni turno [spunto: aidm]
-[ ] DM hidden notes / "mystery box": campo JSONB dm_notes (pensieri NPC nascosti, misteri decisi in anticipo, tensioni) aggiornato ogni N turni, per coerenza narrativa [spunto: ai_rpg]
-[ ] narrative arc: blocco narrative_arc nel JSONB (beat "what_changes" + world_pressure) che il coordinator consulta per calibrare la pressione (NON plot rigido) [spunto: open-tabletop-gm, aidm]
+[x] DM hidden notes / "mystery box" → ASSORBITA in ADR 0006 (design pass 2026-07-12): `narrative.dm_notes` Director-owned, resa al DM nel blocco advisory (D1)
+[x] narrative arc: blocco narrative_arc → ASSORBITA in ADR 0006 (design pass 2026-07-12): `narrative.arc` advisory, mai plot vincolante (A3 #12, D1)
 [ ] WorldBuilder accept-not-reject: il DM accetta le asserzioni del player come canon salvo ambiguita' fisica (player co-autore), niente REJECT [spunto: aidm]
-[ ] faction_moves: log esplicito delle azioni fazioni off-screen tra sessioni (verificare se il living-world gia' lo fa) [spunto: open-tabletop-gm]
-[ ] living world: trigger su transizione oraria (dawn/dusk via GameClock gia' presente) oltre al counter turni [spunto: ai_rpg]
+[x] faction_moves: log esplicito → ASSORBITA in ADR 0006 (design pass 2026-07-12): `factions.{}.moves` scritto dal Director (A3 #7); verificato: il living-world oggi NON lo fa (factions mai scritte)
+[x] living world: trigger su transizione oraria → ASSORBITA in ADR 0006 (design pass 2026-07-12): trigger ibrido N turni OR M minuti di clock (B1)
 [ ] meta-channel: intent /meta che NON consuma un turno di gioco (feedback al DM fuori dalla narrativa) [spunto: aidm]
 
 ## homebrew / custom
@@ -112,7 +112,7 @@
 
 ## fork D -> ADR 0005 (psicologia NPC multi-asse)
 [x] ridisegnare npc_psychology JSONB come multi-asse → design fissato in ADR 0005 (S0 2026-07-07); ciclo implementativo in `## NOW`
-[ ] fazioni: `disposition` scalare fazione→player ESCLUSO da ADR 0005 (C4) — è relazione inter-entità, rework quando si implementa ADR 0002 (relationship graph) / 0006 (Director)
+[ ] fazioni: `disposition` scalare fazione→player ESCLUSO da ADR 0005 (C4) — è relazione inter-entità; il design pass 0006 (2026-07-12) l'ha confermata di competenza di ADR 0002 (relationship graph): il Director scrive solo `agenda`/`moves`, mai la disposition
 
 # ============================================================
 # SECONDARI / deferred (giu 2026) — promossi dal long-tail multi-repo.
@@ -127,7 +127,7 @@
 
 ## secondari — memoria / world
 [ ] lorebook "constant entries" sempre iniettate (regole mondo/magia) [ai_rpg]
-[ ] foreshadowing-seeds con lifecycle (PLANTED->RESOLVED) + ratifica -> di competenza dell'AI Director (vedi ADR 0006) [aidm]
+[x] foreshadowing-seeds con lifecycle → ASSORBITA in ADR 0006 (design pass 2026-07-12): `narrative.seeds` planted→advanced→resolved/expired + payoff meccanico via scheduled events (A3 #9-10)
 [ ] tool di ricerca keyword/fulltext sul log di campagna [otgm]
 
 ## secondari — world-gen / template (alimentano la riga "template fatti bene" sopra)
@@ -150,10 +150,7 @@
 [ ] Hero globali riusabili tra campagne (Hero vs Character) [dnd-llm-game]
 
 ## v2.5 — AI Director (vedi ADR 0006)
-[ ] AI Director: background ogni N turni, autorita' SOLO off-screen (fazioni/NPC assenti/clock/arc/semi), DM owns on-screen
-[ ] coda pending_world_changes applicata dal turn path al turno successivo (single writer, niente race) + validazione consistenza all'apply (scarta/riconcilia se la precondizione non regge)
-[ ] output = world data (fatti=hard ground-truth, pressione narrativa=soft advisory che il DM interpreta)
-[ ] nuovo AICallType.DIRECTOR (thinking tier) + max_iterations cap (std 19) + disciplina sessioni rule-15
+[x] design pass 2026-07-12: le quattro righe originali sono decise e superate dall'ADR espanso (taxonomy 14 capacità con bool per capacità, guard node-scoped all'apply, tabella `director_changes` + apply exactly-once, trigger ibrido turni/clock, rumors grounded + `tell_rumor`, creazione NPC/fazioni con guardrail, rung v8). Piano S1-S4 e Decided/Open index nell'ADR §7/§3 — implementazione v2.5, NON in `## NOW` finché l'owner non la schedula.
 
 # ============================================================
 # ADR 0007-0011 (giu 2026) -> follow-up. 0007-0010 = analisi Voyage; 0011 = refactor FE.
