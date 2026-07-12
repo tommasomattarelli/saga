@@ -64,6 +64,7 @@ rumors. The DM stays the sole authority on the scene in front of the player.
   | 12 | calibrate tension/arc (advisory) | `narrative.arc` |
   | 13 | keep the mystery box | `narrative.dm_notes` |
   | 14 | world flags | `global_flags` |
+  | 15 | promote NPCs to elites (sheet, off-screen) — see ADR 0014 | `npc.sheet` via the 0014 promotion pipeline |
 
   **Always forbidden**: player/`char_data`, `quests` (a quest is a DM↔player contract — an
   off-screen quest flip would surface un-narrated; the DM reacts to Director *facts* and
@@ -217,7 +218,7 @@ provisional 10), `every_game_minutes` (M, provisional 720), `max_changes_per_cyc
 (provisional 6), `context_token_cap`, `max_created_factions`, `faction_creation_cooldown_days`,
 plus **one bool per A3 capability** (`move_npcs`, `evolve_npcs`, `npc_agendas`, `lifecycle`,
 `create_npcs`, `create_factions`, `faction_agendas`, `place_status`, `rumors`,
-`scheduled_events`, `seeds_arc_notes`, `global_flags`). A disabled capability is excluded
+`scheduled_events`, `seeds_arc_notes`, `global_flags`, `promote_npcs` — ADR 0014). A disabled capability is excluded
 from the Director prompt **and** rejected at apply (defense in depth, `discard_reason:
 "capability disabled"`). All numbers provisional (Refined).
 
