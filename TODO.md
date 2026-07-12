@@ -72,7 +72,7 @@
 
 ## prosa / output
 [ ] **prompt tuning pass dedicato (DOPO ADR 0009)**: sessione/ADR per rivedere e calibrare i prompt DM/NPC su playtest reali — include la qualità di `axis_changes` (ADR 0005) e i prompt che 0009 aggiungerà
-[ ] prompt-as-yaml: uniformare TUTTI i prompt in yaml dedicati (oggi `dm.yaml` sì; `npc.py` e altri template sono inline) — cartella prompt unica
+[x] prompt-as-yaml → ASSORBITA in ADR 0004 (design pass 2026-07-13): veicolo dello sprint S2 (npc.py → yaml, cartella unica, obblighi tool generati)
 [ ] LangSmith: verificare su tracce reali cosa entra davvero nel contesto per ogni nodo del grafo (prompt effettivi, non presunti) — base empirica per il tuning pass
 [ ] slop-buster: lista parole/n-gram in saga.config.yaml + check post-prosa nel DM (qualita' prosa = pillar) [spunto: ai_rpg]
 [ ] popolare suggested_actions (oggi None) con blocklist di placeholder per filtrare scelte malformate [spunto: dnd-llm-game]
@@ -105,9 +105,7 @@
 [x] design pass 2026-07-12: le tre righe originali (bande fisse, tier->danno server-side, config-first) sono decise e superate dall'ADR espanso (risoluzione unificata per TUTTI i check, non solo combat); piano S1-S4 nell'ADR §7, tracking implementazione in ## NOW
 
 ## fork C -> ADR 0004 (dm_core / game_system + tono per campagna)
-[ ] separare dm_core (principi GM universali, immutabili) da game_system (regole D&D) caricabile -> predispone multi-TTRPG (Pathfinder/VtM) [spunto: open-tabletop-gm]
-[ ] parametri di tono per campagna (darkness/pacing/lethality/magic) iniettati nel prompt DM [spunto: aidm DNA, ai_rpg]
-[ ] system_prompt_addendum + writing_style_notes per campagna; config_override (JSONB) per-campagna mergiato con saga.config.yaml [spunto: NEQ, ai_rpg]
+[x] design pass 2026-07-13: le tre righe decise e superate dall'ADR espanso — il "game_system caricabile" è superseded nella sostanza (sistema = engine 0003 + rulebook 0010, dati); 0004 = factoring prompt (dm_core yaml + obblighi GENERATI dai tool group + flavor), tono = personas esistenti + writing_style_notes (knob numerici RESPINTI: lethality→0003, magic→world, darkness→persona; system_prompt_addendum ridondante con persona_xml), config_override JSONB WHITELISTATO (precedenza campaign > yaml > default, merge puro, re-validazione all'import). Piano: S1 tono+override SENZA gate / S2 factoring DOPO l'implementazione 0003 (ADR §7).
 
 ## fork D -> ADR 0005 (psicologia NPC multi-asse)
 [x] ridisegnare npc_psychology JSONB come multi-asse → design fissato in ADR 0005 (S0 2026-07-07); ciclo implementativo in `## NOW`
