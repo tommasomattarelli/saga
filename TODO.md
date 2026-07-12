@@ -60,7 +60,7 @@
 [ ] **Gemini 2.5/3.x: `thought_signature` mancante rompe il tool-calling multi-turno (400 INVALID_ARGUMENT).** Riprodotto con `gemini-3.5-flash` su un secondo tool-call nello stesso turno (`set_scene_mood` dopo `invoke_npc`). Root cause in `app/ai/providers/google.py`: `generate_with_tools` (righe 175-218) estrae da `part.function_call` solo `name`+`args` nel `ToolCall`, scartando l'eventuale `thought_signature` che Gemini richiede echeggiato nel turno successivo; `_to_contents` (righe 39-103) ricostruisce lo storico assistant/tool_calls senza mai riscriverlo nel `function_call` part. Fix: propagare `thought_signature` da `ToolCall`/schema fino alla ricostruzione dei messages. Vedi https://ai.google.dev/gemini-api/docs/thought-signatures.
 
 ## memoria
-[ ] recall pgvector: usare come query "azione + ultimi N turni" invece della sola query nuda (semantic.py) [spunto: dnd-llm-game]
+[x] recall pgvector query composta → ASSORBITA in ADR 0002 (design pass 2026-07-13): query = azione + entità di scena + K summary, un solo embedding, cap lunghezza (R2)
 [ ] summarization per "scena" (cambio location/combat) invece che a finestra fissa di turni; conservare i quotes[] dei dialoghi chiave [spunto: ai_rpg]
 [ ] idempotency guard sui background task (turns.py): campo chronicled_at su Turn per non rieseguire fact-extraction/compression [spunto: aidm]
 [ ] continuity_checklist: flag booleani machine-readable per NPC/location ("vivo: true", "sa_di_X: false") accanto alla prosa, per coerenza multi-sessione [spunto: aidm]
@@ -99,8 +99,7 @@
 # ============================================================
 
 ## fork A -> ADR 0002 (relationship graph + recall enrichment)
-[ ] recall pgvector: aggiungere recency-weighting/decay + boost-on-access (oltre al top-K cosine puro) [spunto: aidm heat decay]
-[ ] relationship graph: grafo relazioni NPC/fazioni/luoghi (tabella Postgres o JSONB) con query scene_context(place, present_npcs) BFS 2-hop; popolamento semi-auto dal session log via estrazione deterministica (verb-table); complementare al pgvector (tema vs scena) [spunto: open-tabletop-gm]
+[x] design pass 2026-07-13: entrambe le righe decise e superate dall'ADR espanso — score composito SQL (decay+boost, campi nuovi, seam reranker spento), query composta, grafo edge tipizzati in `world_state.relations` (fazione→player unifica disposition/reputation/tiers morti, factions rekeyed by slug, 4 writer incl. estensione guardata del fact extractor — la verb-table originale è respinta). Piano S1-S3 nell'ADR §7 — NESSUN gate esterno: primo implementabile della coda ADR.
 
 ## fork B -> ADR 0003 (risoluzione a soglie fisse + danno server-side)
 [x] design pass 2026-07-12: le tre righe originali (bande fisse, tier->danno server-side, config-first) sono decise e superate dall'ADR espanso (risoluzione unificata per TUTTI i check, non solo combat); piano S1-S4 nell'ADR §7, tracking implementazione in ## NOW
@@ -112,7 +111,7 @@
 
 ## fork D -> ADR 0005 (psicologia NPC multi-asse)
 [x] ridisegnare npc_psychology JSONB come multi-asse → design fissato in ADR 0005 (S0 2026-07-07); ciclo implementativo in `## NOW`
-[ ] fazioni: `disposition` scalare fazione→player ESCLUSO da ADR 0005 (C4) — è relazione inter-entità; il design pass 0006 (2026-07-12) l'ha confermata di competenza di ADR 0002 (relationship graph): il Director scrive solo `agenda`/`moves`, mai la disposition
+[x] fazioni: `disposition` fazione→player → RISOLTA da ADR 0002 (design pass 2026-07-13, G1/G6): edge fazione→player nel graph (stance -100..100, bande dai reputation_tiers authored); i tre frammenti morti (overlay disposition / char_data.reputation / tiers) unificati e ritirati. Implementazione con 0002 S2.
 
 # ============================================================
 # SECONDARI / deferred (giu 2026) — promossi dal long-tail multi-repo.
