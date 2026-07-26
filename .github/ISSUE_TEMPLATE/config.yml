@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/tommasomattarelli/saga/blob/main/docs/README.md
+    about: Where everything lives — architecture, ADRs, guides.
+  - name: Architecture decisions (ADRs)
+    url: https://github.com/tommasomattarelli/saga/tree/main/docs/adr
+    about: Why SAGA works the way it does. Read before proposing a design change.

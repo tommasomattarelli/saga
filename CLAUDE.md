@@ -87,6 +87,21 @@ Every working session follows the same ritual so state is never lost between the
 - One logical change per commit (standard 10).
 - **Granularity**: sprint/feature work lands as a *series* of small commits — one per logical unit (a module + its tests, world content, docs). Never a single sprint-wide mega-commit: the sub-branch exists precisely to hold the series.
 
+## Issue Convention
+
+Issues use the **same title grammar as commits**, so issue → branch → commit → PR reads as one line.
+
+- **Title**: `type(scope): subject` — e.g. `fix(dm): npc resolver loops on a near-miss name`. Same types and scopes as commits.
+- **Labels — three orthogonal axes**, one value each from the first two:
+  - `type:` — `bug` · `feature` · `enhancement` · `docs` · `refactor` · `question`
+  - `prio:` — `P0-critical` (blocks play, corrupts data, leaks secrets) · `P1-high` (major feature broken, no workaround) · `P2-medium` (wrong but has a workaround) · `P3-low` (cosmetic/polish)
+  - `area:` — mirrors the commit scopes (`dm`, `ai`, `world`, `combat`, `memory`, `frontend`, `api`, `auth`, `config`, `installer`, `infra`); more than one is fine.
+  - Status labels are additive: `needs-repro`, `blocked`, `good first issue`, `help wanted`.
+- **`prio:` is set at triage, never by the reporter** — the templates deliberately don't ask for it.
+- **Templates**: YAML forms in `.github/ISSUE_TEMPLATE/` (blank issues disabled). The bug form requires version + install method + provider + repro; keep those fields current when the install paths change.
+- **Closing the loop**: the fix commit names the issue — `fix(dm): … (#NN)` — and the PR body says `Closes #NN`. `release.sh` then tags the release note `(#NN)`.
+- **Issue vs `TODO.md`**: a defect or a user-visible ask → issue. Forward design work, refactors, and directions stay in `TODO.md` (see Documentation).
+
 ## Versioning & Releases
 
 [SemVer](https://semver.org), still pre-1.0 (schema/API churns freely until `1.0.0`).
