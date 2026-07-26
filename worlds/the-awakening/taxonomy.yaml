@@ -81,3 +81,19 @@ psychology:
         - {min: -10, label: "neutral"}
         - {min: 30, label: "uneasy"}
         - {min: 70, label: "terrified"}
+
+# NPC descriptive fields (ADR 0009) — yours to change: add fields (honor_code,
+# clan, ...), drop what you don't use. `scene: true` = also shown to the DM in
+# the scene block; otherwise only the NPC itself sees it when speaking.
+npc_fields:
+  - {name: role, default: "Commoner", scene: true}
+  - {name: appearance, scene: true}
+  - {name: personality}
+  - {name: motivation}
+  - {name: background}
+  - {name: ideal}
+  - {name: bond}
+  - {name: flaw}
+  - {name: mannerisms}
+  - {name: secret}
+  - {name: dreads}

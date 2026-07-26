@@ -114,6 +114,12 @@ export interface PsychologyDef {
   axes: Record<string, PsychologyAxis>;
 }
 
+export interface NpcFieldDef {
+  name: string;
+  default?: string;
+  scene?: boolean;
+}
+
 export interface EditableWorld {
   slug: string;
   meta: { name: string; author: string; version: string; description: string; tags: string[] };
@@ -124,6 +130,7 @@ export interface EditableWorld {
     travel_modes: { name: string; speed_kmh: number }[];
     defaults?: { terrain?: string | null; elevation_m?: number };
     psychology?: PsychologyDef | null;
+    npc_fields?: NpcFieldDef[] | null;
   };
   scenario: Record<string, unknown> | null;
   nodes: EditableNode[];

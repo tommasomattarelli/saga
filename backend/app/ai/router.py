@@ -113,6 +113,8 @@ class GameplayConfig:
     consecutive_empty_steps_max: int = 2
     npc_last_interactions_kept: int = 3
     global_summary_max_input_chars: int = 4000
+    npc_condition_max_chars: int = 80
+    npc_name_match_threshold: float = 0.85
 
     @property
     def max_npc_calls(self) -> int:
@@ -188,6 +190,18 @@ def get_gameplay_config() -> GameplayConfig:
             os.getenv(
                 "SAGA_GLOBAL_SUMMARY_MAX_INPUT_CHARS",
                 gs.get("max_input_chars", 4000),
+            )
+        ),
+        npc_condition_max_chars=int(
+            os.getenv(
+                "SAGA_GAMEPLAY_NPC_CONDITION_MAX_CHARS",
+                gp.get("npc_condition_max_chars", 80),
+            )
+        ),
+        npc_name_match_threshold=float(
+            os.getenv(
+                "SAGA_GAMEPLAY_NPC_NAME_MATCH_THRESHOLD",
+                gp.get("npc_name_match_threshold", 0.85),
             )
         ),
     )

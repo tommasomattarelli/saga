@@ -78,6 +78,34 @@ class TestNpcPsychology:
         write(world_dir / "npcs" / "kira.yaml", {"name": "Kira", "psychology": {"honor": 5}})
         assert any("unknown psychology axis 'honor'" in e for e in errors_of(world_dir))
 
+
+class TestNpcDescriptiveFields:
+    # ADR 0009 G2/G4 — flat authored descriptives validated against npc_fields.
+    def test_bundled_default_fields_accepted(self, world_dir):
+        write(
+            world_dir / "npcs" / "kira.yaml",
+            {"name": "Kira", "role": "Guard", "personality": "stern", "dreads": "fire"},
+        )
+        assert errors_of(world_dir) == []
+
+    def test_undeclared_field_rejected_with_candidates(self, world_dir):
+        write(world_dir / "npcs" / "kira.yaml", {"name": "Kira", "honor_code": "strict"})
+        errs = errors_of(world_dir)
+        assert any("unknown npc field 'honor_code'" in e for e in errs)
+        assert any("role" in e for e in errs)  # candidates listed
+
+    def test_world_declared_custom_field_accepted(self, world_dir):
+        taxonomy = {**TAXONOMY, "npc_fields": [{"name": "honor_code", "scene": True}]}
+        write(world_dir / "taxonomy.yaml", taxonomy)
+        write(world_dir / "npcs" / "kira.yaml", {"name": "Kira", "honor_code": "strict"})
+        assert errors_of(world_dir) == []
+
+    def test_world_block_replaces_default(self, world_dir):
+        # Declaring npc_fields replaces the bundled default entirely.
+        write(world_dir / "taxonomy.yaml", {**TAXONOMY, "npc_fields": [{"name": "role"}]})
+        write(world_dir / "npcs" / "kira.yaml", {"name": "Kira", "personality": "stern"})
+        assert any("unknown npc field 'personality'" in e for e in errors_of(world_dir))
+
     def test_value_outside_axis_range_rejected(self, world_dir):
         write(world_dir / "npcs" / "kira.yaml", {"name": "Kira", "psychology": {"trust": 500}})
         assert any("outside range" in e for e in errors_of(world_dir))

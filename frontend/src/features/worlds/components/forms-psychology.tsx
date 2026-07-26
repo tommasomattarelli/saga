@@ -58,8 +58,8 @@ interface Props {
 export function PsychologySection({ payload, onChange }: Props) {
   const { t } = useTranslation();
   const psychology = payload.taxonomy.psychology;
-  const patch = (next: PsychologyDef) =>
-    onChange({ ...payload, taxonomy: { ...payload.taxonomy, psychology: next } });
+  const patch = (next: PsychologyDef, npcs = payload.npcs) =>
+    onChange({ ...payload, npcs, taxonomy: { ...payload.taxonomy, psychology: next } });
 
   if (!psychology) {
     return (
@@ -83,18 +83,41 @@ export function PsychologySection({ payload, onChange }: Props) {
   const patchAxis = (name: string, axis: PsychologyAxis) =>
     patch({ ...psychology, axes: { ...psychology.axes, [name]: axis } });
 
-  const renameAxis = (from: string, to: string) =>
-    patch({
-      ...psychology,
-      axes: Object.fromEntries(
-        Object.entries(psychology.axes).map(([k, v]) => [k === from ? to : k, v]),
-      ),
+  const seedsOf = (npc: Record<string, unknown>) =>
+    (npc.psychology as Record<string, number> | undefined) ?? {};
+
+  const renameAxis = (from: string, to: string) => {
+    // ADR 0009 G5: carry authored seeds over so no orphan value is left behind.
+    const npcs = payload.npcs.map((npc) => {
+      const seeds = seedsOf(npc);
+      if (!(from in seeds)) return npc;
+      const { [from]: value, ...rest } = seeds;
+      return { ...npc, psychology: { ...rest, [to]: value } };
     });
+    patch(
+      {
+        ...psychology,
+        axes: Object.fromEntries(
+          Object.entries(psychology.axes).map(([k, v]) => [k === from ? to : k, v]),
+        ),
+      },
+      npcs,
+    );
+  };
 
   const removeAxis = (name: string) => {
+    // ADR 0009 G5: prune authored seeds (a stale seed makes tier-3 reject the world).
+    const affected = payload.npcs.filter((npc) => name in seedsOf(npc)).length;
+    if (affected > 0 && !window.confirm(t("worlds.axis_remove_confirm", { count: affected })))
+      return;
+    const npcs = payload.npcs.map((npc) => {
+      const rest = { ...seedsOf(npc) };
+      delete rest[name];
+      return { ...npc, psychology: Object.keys(rest).length ? rest : undefined };
+    });
     const axes = { ...psychology.axes };
     delete axes[name];
-    patch({ ...psychology, axes });
+    patch({ ...psychology, axes }, npcs);
   };
 
   return (
