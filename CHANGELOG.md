@@ -12,3 +12,6 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 `[Unreleased]` is reset; this root file keeps only `[Unreleased]`.
 
 ## [Unreleased]
+
+### Internal
+- Issue tracking conventions (CLAUDE.md "Issue Convention"): issue titles follow the commit grammar `type(scope): subject`, and labels split into three orthogonal axes — `type:`, `prio:` (set at triage, never by the reporter), `area:` (mirrors the commit scopes) — plus additive status labels. The GitHub default labels that mixed those axes were removed. New YAML issue forms in `.github/ISSUE_TEMPLATE/` (blank issues disabled): the bug form requires version, install method, area, AI provider and repro steps; the feature form points at `TODO.md` and the ADRs first.

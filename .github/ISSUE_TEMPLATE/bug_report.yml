@@ -1,0 +1,129 @@
+name: Bug report
+description: Something in SAGA is broken or behaves wrongly
+title: "fix(scope): "
+labels: ["type: bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please keep the title in the project's commit style —
+        `fix(scope): short imperative subject` (scopes: `dm`, `ai`, `world`, `combat`,
+        `memory`, `frontend`, `api`, `auth`, `config`, `installer`, `infra`).
+
+        Priority (`prio:`) and area (`area:`) labels are assigned during triage —
+        no need to set them.
+
+  - type: input
+    id: version
+    attributes:
+      label: SAGA version
+      description: The release tag you are running, or the commit SHA if you build from source.
+      placeholder: v0.2.0-beta.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - Native installer (Windows)
+        - Native installer (Linux)
+        - Native installer (macOS)
+        - Docker Compose
+        - From source (uv + npm run dev)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Best guess is fine.
+      options:
+        - dm (DM loop, prompts, tools, NPC director)
+        - ai (providers, router, embeddings)
+        - world (places, travel, world editor)
+        - combat (combat and dice resolution)
+        - memory (recall, world state)
+        - frontend (UI, i18n)
+        - api (REST endpoints)
+        - auth (login, sessions)
+        - config (saga.config.yaml, env)
+        - installer
+        - infra (Docker, CI, database)
+        - not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: AI provider
+      description: Leave as "not applicable" if the bug does not involve a model call.
+      options:
+        - Anthropic
+        - OpenAI
+        - Google Gemini
+        - OpenRouter
+        - Other / self-hosted
+        - Not applicable
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Model(s)
+      description: Which model was routed for the failing turn, if known.
+      placeholder: gemini-3.5-flash
+
+  - type: input
+    id: world
+    attributes:
+      label: World
+      description: The world the campaign was created from.
+      placeholder: the-awakening
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Number the steps. Include the exact player action or DM turn if the bug is in play.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / errors
+      description: Backend output, browser console, or installer output. Redact API keys.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: I redacted any API key, token, or password from the pasted output.
+          required: true

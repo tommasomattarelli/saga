@@ -1,0 +1,62 @@
+name: Feature request
+description: Propose a new capability or an improvement to an existing one
+title: "feat(scope): "
+labels: ["type: feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep the title in the project's commit style — `feat(scope): short imperative
+        subject`. Much of the roadmap already lives in [`TODO.md`](../../blob/main/TODO.md)
+        and in the [ADRs](../../tree/main/docs/adr); please skim them first, an idea may
+        already be designed and scheduled.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is hard, impossible, or annoying today? Describe the situation, not the solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What you would like SAGA to do. Rough is fine.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - dm (DM loop, prompts, tools, NPC director)
+        - ai (providers, router, embeddings)
+        - world (places, travel, world editor)
+        - combat (combat and dice resolution)
+        - memory (recall, world state)
+        - frontend (UI, i18n)
+        - api (REST endpoints)
+        - auth (login, sessions)
+        - config (saga.config.yaml, env)
+        - installer
+        - infra (Docker, CI, database)
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other ways to solve the same problem, and why you prefer yours.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked `TODO.md` and `docs/adr/` — this is not already planned.
+          required: true
