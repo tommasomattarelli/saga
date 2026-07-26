@@ -133,7 +133,7 @@
 # nota: calendario fantasy (mesi/stagioni/festivita') = gia' coperto dalla riga "template fatti bene"
 
 ## secondari — infra / dev
-[ ] narrative-probe v2 per calibrare quali modelli nei tier del router [otgm]
+[ ] narrative-probe v2 per calibrare quali modelli nei tier del router [otgm] — primo mattone posato: `backend/scripts/model_smoke.py` misura già la compliance ai tool sul prompt DM vero. Manca il pezzo "qualità narrativa" e il collegamento ai tier di ADR 0016.
 [ ] LLM-fixture-file per test end-to-end deterministici [ai_rpg]
 [ ] subprocess isolation per generazione modulo AI lunga [NEQ]
 [ ] cached_property per il config loader [llm-rpg]
