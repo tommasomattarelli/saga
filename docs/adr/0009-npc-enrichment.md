@@ -1,10 +1,13 @@
 # ADR 0009 — NPC enrichment (identity, lifecycle/condition, world-defined traits, `update_npc`)
 
-- **Status**: Proposed (S0 design pass completed 2026-07-07 — every major fork closed by
-  owner interview, grounded in the post-0005/0008 code; a few scoped TODOs remain, may
-  still be revised before Accepted). Supersedes the 2026-06-21 direction-only version of
-  this ADR, which itself superseded the "WIP, nothing decided" stub.
-- **Date**: 2026-06-21 (direction), 2026-07-07 (S0 design pass)
+- **Status**: **Accepted** (2026-07-26, on the merge of the full cycle to `main` — PR #49,
+  suites green: 627 unit BE, 132 FE, ruff/mypy clean). History: S0 design pass 2026-07-07
+  closed every major fork by owner interview, grounded in the post-0005/0008 code; S1–S3
+  implemented 2026-07-11 on `adr/0009-npc-enrichment`. Supersedes the 2026-06-21
+  direction-only version of this ADR, which itself superseded the "WIP, nothing decided"
+  stub. Frozen: future changes require a superseding ADR. The implementation-time TODOs
+  listed in §5 stay open as scoped follow-ups, not as reopened decisions.
+- **Date**: 2026-06-21 (direction), 2026-07-07 (S0 design pass), 2026-07-26 (accepted)
 - **Context items**: Voyage analysis (`scratch/research/voyage.md` §3.5); spun off from
   ADR 0007; design interviews 2026-06-21 and 2026-07-07 (all choices by the project
   owner), grounded in `npc_prehook.py`, `world_instantiation.py`, `memory/updater.py`,
