@@ -165,10 +165,7 @@ describe("WorldEditor", () => {
       ...WORLD,
       taxonomy: {
         ...WORLD.taxonomy,
-        npc_fields: [
-          { name: "role", default: "Commoner", scene: true },
-          { name: "honor_code" },
-        ],
+        npc_fields: [{ name: "role", default: "Commoner", scene: true }, { name: "honor_code" }],
       },
       npcs: [{ slug: "kira", name: "Kira", role: "guard", honor_code: "strict" }],
     };
