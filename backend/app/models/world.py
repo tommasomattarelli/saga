@@ -11,6 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.models.npc_fields import NpcFieldDef
 from app.models.psychology import PsychologyDef
 
 SLUG_PATTERN = r"^[a-z0-9]+(-[a-z0-9]+)*$"
@@ -75,6 +76,8 @@ class Taxonomy(BaseModel):
     defaults: TaxonomyDefaults = TaxonomyDefaults()
     # ADR 0005: optional world-defined psychology axes; None → bundled default.
     psychology: PsychologyDef | None = None
+    # ADR 0009: optional world-defined NPC descriptive fields; None → bundled default.
+    npc_fields: list[NpcFieldDef] | None = None
 
     @model_validator(mode="after")
     def _check_uniqueness_and_defaults(self) -> "Taxonomy":
@@ -82,6 +85,7 @@ class Taxonomy(BaseModel):
             ("kind", [k.name for k in self.kinds]),
             ("terrain", [t.name for t in self.terrains]),
             ("travel_mode", [m.name for m in self.travel_modes]),
+            ("npc_field", [f.name for f in self.npc_fields or []]),
         ]:
             if len(names) != len(set(names)):
                 raise ValueError(f"duplicate {label} names in taxonomy")
@@ -97,6 +101,9 @@ class Taxonomy(BaseModel):
 
     def mode(self, name: str) -> TravelModeDef | None:
         return next((m for m in self.travel_modes if m.name == name), None)
+
+    def npc_field(self, name: str) -> NpcFieldDef | None:
+        return next((f for f in self.npc_fields or [] if f.name == name), None)
 
 
 class Position(BaseModel):
@@ -217,19 +224,22 @@ class FactionDef(BaseModel):
 
 
 class NpcRecord(BaseModel):
-    """Minimal flat NPC record (D6) — ADR 0009 owns the rich model."""
+    """Engine-authored NPC fields; descriptives are world-defined (ADR 0009 G1/G4).
 
-    model_config = ConfigDict(extra="forbid")
+    Extra keys are the flat-authored descriptive fields — collected via
+    `descriptives()` and tier-3-validated against the taxonomy's `npc_fields`.
+    """
+
+    model_config = ConfigDict(extra="allow")
 
     slug: str = Field(pattern=SLUG_PATTERN)
     name: str
-    role: str = ""
     location: str | None = None
-    personality: str = ""
-    motivation: str = ""
-    secret: str = ""
     psychology: dict[str, int] = {}
     faction: str | None = None
+
+    def descriptives(self) -> dict[str, str]:
+        return dict(self.model_extra or {})
 
 
 class InitialQuest(BaseModel):

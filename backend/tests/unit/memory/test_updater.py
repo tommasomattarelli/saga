@@ -76,10 +76,12 @@ class TestNpcPsychology:
     def test_creates_missing_npc_at_defaults(self):
         updates = [{"key": "npc_psychology", "target": "Ghost", "changes": {"trust": 2}}]
         new_state, _ = apply_typed_updates({"npcs": {}}, {}, updates)
-        ghost = new_state["npcs"]["Ghost"]
+        # ADR 0009: the defensive stub is uuid-keyed with the engine shape.
+        ghost = next(n for n in new_state["npcs"].values() if n["name"] == "Ghost")
         assert ghost["psychology"]["trust"] == 6  # first impression ×3
         assert ghost["psychology"]["respect"] == 0
         assert ghost["met_player"] is True
+        assert ghost["lifecycle"] == "alive"
 
     def test_world_config_overrides_default(self):
         config = {
@@ -106,6 +108,77 @@ class TestNpcPsychology:
         psy = new_state["npcs"]["Kira"]["psychology"]
         assert psy["honor"] == 10  # clamped to 5, ×2
         assert "trust" not in psy  # not an axis of this world
+
+
+class TestCombatDamageDeathWriter:
+    def test_enemy_at_zero_hp_kills_registered_npc(self):
+        # ADR 0009 H1: deterministic death writer — unique living NPC at location.
+        state = {
+            "meta": {"current_location": "node-1"},
+            "npcs": {
+                "u-1": {"name": "Bandit", "lifecycle": "alive", "location": "node-1"},
+            },
+            "combat_state": {
+                "active": True,
+                "initiative_order": [{"name": "Bandit", "type": "enemy", "hp": 4, "max_hp": 10}],
+                "current_turn_index": 0,
+            },
+        }
+        update = {"key": "combat_damage", "target": "Bandit", "change": -6}
+        new_state, _ = apply_typed_updates(state, {}, [update])
+        combatant = new_state["combat_state"]["initiative_order"][0]
+        assert combatant["hp"] == 0
+        assert combatant["defeated"] is True
+        assert new_state["npcs"]["u-1"]["lifecycle"] == "dead"
+
+    def test_mook_at_zero_hp_gets_defeated_only(self):
+        # A free {name, hp} enemy with no NPC record: no lifecycle write anywhere.
+        state = {
+            "npcs": {},
+            "combat_state": {
+                "active": True,
+                "initiative_order": [{"name": "Goblin", "type": "enemy", "hp": 2, "max_hp": 5}],
+                "current_turn_index": 0,
+            },
+        }
+        update = {"key": "combat_damage", "target": "Goblin", "change": -2}
+        new_state, _ = apply_typed_updates(state, {}, [update])
+        assert new_state["combat_state"]["initiative_order"][0]["defeated"] is True
+        assert new_state["npcs"] == {}
+
+    def test_ambiguous_combatant_name_no_silent_kill(self):
+        state = {
+            "meta": {"current_location": "node-1"},
+            "npcs": {
+                "u-1": {"name": "Guard", "lifecycle": "alive", "location": "node-1"},
+                "u-2": {"name": "Guard", "lifecycle": "alive", "location": "node-1"},
+            },
+            "combat_state": {
+                "active": True,
+                "initiative_order": [{"name": "Guard", "type": "enemy", "hp": 1, "max_hp": 5}],
+                "current_turn_index": 0,
+            },
+        }
+        update = {"key": "combat_damage", "target": "Guard", "change": -1}
+        new_state, _ = apply_typed_updates(state, {}, [update])
+        assert new_state["combat_state"]["initiative_order"][0]["defeated"] is True
+        assert all(n["lifecycle"] == "alive" for n in new_state["npcs"].values())
+
+    def test_healing_from_zero_does_not_resurrect(self):
+        # defeated already set → the writer fires once; healing won't re-trigger it.
+        state = {
+            "npcs": {"u-1": {"name": "Bandit", "lifecycle": "dead", "location": None}},
+            "combat_state": {
+                "active": True,
+                "initiative_order": [
+                    {"name": "Bandit", "type": "enemy", "hp": 0, "max_hp": 10, "defeated": True}
+                ],
+                "current_turn_index": 0,
+            },
+        }
+        update = {"key": "combat_damage", "target": "Bandit", "change": 5}
+        new_state, _ = apply_typed_updates(state, {}, [update])
+        assert new_state["npcs"]["u-1"]["lifecycle"] == "dead"
 
 
 class TestHPChange:

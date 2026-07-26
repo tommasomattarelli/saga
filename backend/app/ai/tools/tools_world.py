@@ -7,6 +7,7 @@ import copy
 from pydantic import Field
 
 from app.ai.tools.tools_base import DmTool, SceneMood, ToolResult, apply, register
+from app.core.npc_resolver import resolve_npc
 from app.core.psychology import DEFAULT_PSYCHOLOGY, band_label
 from app.models.psychology import PsychologyDef
 
@@ -178,11 +179,22 @@ class ChangeNpcPsychology(DmTool):
                 world_state=world_state,
                 char_data=char_data,
             )
-        update: dict = {"key": "npc_psychology", "target": self.npc, "changes": dict(self.changes)}
+        resolution = resolve_npc(self.npc, world_state)
+        if resolution.npc_id is None:
+            return ToolResult(
+                description=resolution.error,
+                world_state=world_state,
+                char_data=char_data,
+            )
+        update: dict = {
+            "key": "npc_psychology",
+            "target": resolution.npc_id,
+            "changes": dict(self.changes),
+        }
         if config:
             update["config"] = config
         new_state, new_char = apply(world_state, char_data, update)
-        values = new_state.get("npcs", {}).get(self.npc, {}).get("psychology", {})
+        values = new_state.get("npcs", {}).get(resolution.npc_id, {}).get("psychology", {})
         parts = [
             f"{axis}: {values.get(axis, 0)} ({band_label(pdef.axes[axis], values.get(axis, 0))})"
             for axis in self.changes

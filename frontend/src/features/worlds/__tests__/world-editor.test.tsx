@@ -159,6 +159,102 @@ describe("WorldEditor", () => {
     });
   });
 
+  it("renders world npc_fields in the taxonomy form and the NPC form", async () => {
+    // ADR 0009 G1/G3: declared fields drive both the taxonomy section and the NPC form.
+    const world = {
+      ...WORLD,
+      taxonomy: {
+        ...WORLD.taxonomy,
+        npc_fields: [{ name: "role", default: "Commoner", scene: true }, { name: "honor_code" }],
+      },
+      npcs: [{ slug: "kira", name: "Kira", role: "guard", honor_code: "strict" }],
+    };
+    vi.mocked(getWorld).mockResolvedValue(mockResponse(world));
+    renderEditor();
+
+    fireEvent.click(await screen.findByText("Taxonomy"));
+    expect(await screen.findByDisplayValue("honor_code")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Commoner")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Kira"));
+    expect(await screen.findByLabelText("honor_code")).toHaveValue("strict");
+    expect(screen.getByLabelText("role")).toHaveValue("guard");
+  });
+
+  it("removing an npc_field prunes authored values behind a confirm (G5)", async () => {
+    const world = {
+      ...WORLD,
+      taxonomy: {
+        ...WORLD.taxonomy,
+        npc_fields: [{ name: "role", scene: true }, { name: "honor_code" }],
+      },
+      npcs: [{ slug: "kira", name: "Kira", honor_code: "strict" }],
+    };
+    vi.mocked(getWorld).mockResolvedValue(mockResponse(world));
+    vi.mocked(saveWorld).mockResolvedValue(
+      mockResponse({
+        slug: "test-world",
+        name: "Test World",
+        description: "",
+        author: "t",
+        version: "1.0.0",
+        tags: [],
+      }),
+    );
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderEditor();
+
+    fireEvent.click(await screen.findByText("Taxonomy"));
+    await screen.findByDisplayValue("honor_code");
+    // remove buttons of the npc_fields rows are the last ✕ pair; click honor_code's
+    const row = screen.getByDisplayValue("honor_code").closest("div")!.parentElement!;
+    fireEvent.click(row.querySelector("button")!);
+    expect(confirmSpy).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("Save world"));
+    await waitFor(() => {
+      const sent = vi.mocked(saveWorld).mock.calls[0][1];
+      expect(sent.taxonomy.npc_fields).toEqual([{ name: "role", scene: true }]);
+      expect(sent.npcs[0]).not.toHaveProperty("honor_code");
+    });
+    confirmSpy.mockRestore();
+  });
+
+  it("removing a psychology axis prunes NPC seeds behind a confirm (G5)", async () => {
+    const world = {
+      ...WORLD,
+      npcs: [{ slug: "kira", name: "Kira", psychology: { honor: -20 } }],
+    };
+    vi.mocked(getWorld).mockResolvedValue(mockResponse(world));
+    vi.mocked(saveWorld).mockResolvedValue(
+      mockResponse({
+        slug: "test-world",
+        name: "Test World",
+        description: "",
+        author: "t",
+        version: "1.0.0",
+        tags: [],
+      }),
+    );
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderEditor();
+
+    fireEvent.click(await screen.findByText("Taxonomy"));
+    const honorInput = await screen.findByDisplayValue("honor");
+    const axisRow = honorInput.closest("div")!.parentElement!;
+    const removeBtn = [...axisRow.querySelectorAll("button")].find((b) => b.textContent === "✕")!;
+    fireEvent.click(removeBtn);
+    expect(confirmSpy).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("Save world"));
+    await waitFor(() => {
+      const sent = vi.mocked(saveWorld).mock.calls[0][1];
+      expect(Object.keys(sent.taxonomy.psychology!.axes)).toEqual(["trust"]);
+      expect(sent.npcs[0].psychology).toBeUndefined();
+    });
+    confirmSpy.mockRestore();
+  });
+
   it("shows validation errors from a rejected save", async () => {
     vi.mocked(getWorld).mockResolvedValue(mockResponse(WORLD));
     vi.mocked(saveWorld).mockRejectedValue({

@@ -1,3 +1,5 @@
+"""NPC prompt — the NPC playing itself sees its full traits (ADR 0009 G3)."""
+
 from app.core.psychology import DEFAULT_PSYCHOLOGY, band_label
 from app.models.psychology import PsychologyDef
 
@@ -5,15 +7,12 @@ NPC_BASE_PROMPT = """You are an NPC in a tabletop RPG. You have your own life, g
 
 ## Your Identity
 - Name: {name}
-- Role: {role}
 - Location: {location}
 
-## Your Psychology
-- Personality: {personality}
-- Motivation: {motivation}
-- Fear: {fear}
-- Secret: {secret}
-- How you feel about the player:
+## Your Character
+{traits_block}
+{fill_guidance}
+## How you feel about the player
 {axes_block}
 
 ## What just happened
@@ -47,45 +46,37 @@ def _render_axes(npc_data: dict, pdef: PsychologyDef) -> str:
     return "\n".join(lines)
 
 
+def _render_traits(traits: dict) -> tuple[str, list[str]]:
+    """Returns (block of established facts, names of empty traits)."""
+    lines: list[str] = []
+    empty: list[str] = []
+    for key, value in traits.items():
+        if value:
+            lines.append(f"- {key.replace('_', ' ').capitalize()}: {value}")
+        else:
+            empty.append(key)
+    block = "\n".join(lines) or "- (no established facts about you yet)"
+    return block, empty
+
+
 def build_npc_prompt(
     npc_data: dict,
     player_action: str = "",
     dm_narration: str = "",
     psychology: PsychologyDef | None = None,
+    fill_empty_traits: bool = False,
 ) -> str:
-    # Personality: handle both flat string (template) and dict (legacy)
-    personality_raw = npc_data.get("personality", "")
-    if isinstance(personality_raw, dict):
-        traits = personality_raw.get("traits", [])
-        fears = personality_raw.get("fears", [])
-        dict_secrets = personality_raw.get("secrets", [])
-        personality_str = ", ".join(traits) if traits else "unremarkable"
-    else:
-        fears = []
-        dict_secrets = []
-        personality_str = str(personality_raw) if personality_raw else "unremarkable"
-
-    # Motivation: flat string (template) or list via "goals" (legacy)
-    motivation_raw = npc_data.get("motivation", "")
-    if not motivation_raw:
-        goals = npc_data.get("goals", ["Survive"])
-        motivation_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
-    else:
-        motivation_str = str(motivation_raw)
-
-    # Secret: dict.secrets (legacy) → flat secret (template) → fallback
-    if dict_secrets:
-        secret_str = ", ".join(dict_secrets)
-    else:
-        secret_raw = npc_data.get("secret", "")
-        secret_str = str(secret_raw) if secret_raw else "None"
-
-    # Fear: from personality.fears (legacy) or npc_data.fear (fallback)
-    fear_str = ", ".join(fears) if fears else npc_data.get("fear", "")
-
     pdef = psychology or DEFAULT_PSYCHOLOGY
+    traits_block, empty = _render_traits(npc_data.get("traits", {}))
 
-    # Last interactions (ring buffer, max 3)
+    # D2 rich level: the NPC invents its own missing facts, in character.
+    fill_guidance = ""
+    if fill_empty_traits and empty:
+        fill_guidance = (
+            f"\nNot yet established about you: {', '.join(empty)}. "
+            "Invent them in character as they come up, and stay consistent.\n"
+        )
+
     last_interactions: list[str] = npc_data.get("last_interactions", [])
     if last_interactions:
         history_lines = "\n".join(f"  - {entry}" for entry in last_interactions[-3:])
@@ -95,12 +86,9 @@ def build_npc_prompt(
 
     return NPC_BASE_PROMPT.format(
         name=npc_data.get("name", "Unknown"),
-        role=npc_data.get("role", "Commoner"),
-        location=npc_data.get("location", "Unknown"),
-        personality=personality_str,
-        motivation=motivation_str,
-        fear=fear_str,
-        secret=secret_str,
+        location=npc_data.get("location_name") or "Unknown",
+        traits_block=traits_block,
+        fill_guidance=fill_guidance,
         axes_block=_render_axes(npc_data, pdef),
         axis_names=", ".join(pdef.axes),
         max_delta=pdef.max_delta_per_turn,

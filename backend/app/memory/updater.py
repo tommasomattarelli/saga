@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Callable
+from uuid import uuid4
 
 import structlog
 
+from app.core.npc_resolver import resolve_npc
 from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
 from app.memory.world_state import merge_world_state
+from app.models.npc import NpcEngineRecord
 from app.models.psychology import PsychologyDef
 
 logger = structlog.get_logger()
@@ -26,14 +29,27 @@ def _register_handler(update_type: str):
 
 @_register_handler("npc_psychology")
 def _handle_npc_psychology(state: dict, update: dict, char_data: dict) -> dict:
-    """Apply per-axis psychology deltas to an NPC (ADR 0005 B1/B3)."""
+    """Apply per-axis psychology deltas to an NPC (ADR 0005 B1/B3).
+
+    `target` is an npc UUID (direct key) or a name resolved via F2. Deterministic
+    path: on ambiguity there is no LLM to answer — log and skip (ADR 0009).
+    """
     target = update.get("target", "")
     changes = update.get("changes") or {}
     config = update.get("config")
     pdef = PsychologyDef(**config) if config else DEFAULT_PSYCHOLOGY
 
     npcs = state.setdefault("npcs", {})
-    npc = npcs.setdefault(target, {"name": target, "last_interactions": []})
+    npc = npcs.get(target)
+    if npc is None:
+        resolution = resolve_npc(target, state)
+        if resolution.candidates:
+            logger.warning("npc_psychology_ambiguous_target", target=target)
+            return state
+        npc = npcs.get(resolution.npc_id) if resolution.npc_id else None
+    if npc is None:
+        npc = NpcEngineRecord(name=target, psychology=default_values(pdef)).model_dump()
+        npcs[str(uuid4())] = npc
     psychology = npc.setdefault("psychology", default_values(pdef))
     # First interaction of any kind consumes the first impression (B3).
     multiplier = 1.0 if npc.get("met_player", False) else pdef.first_impression_multiplier
@@ -204,6 +220,26 @@ def _handle_combat_end(state: dict, update: dict, char_data: dict) -> dict:
     return state
 
 
+def _mark_npc_dead(state: dict, combatant_name: str) -> None:
+    """ADR 0009 H1 — the engine death writer, deterministic at HP 0.
+
+    Writes lifecycle=dead only when the combatant name resolves to a unique
+    living NPC at the current location; mooks and ambiguous names get only
+    the defeated flag (no LLM can answer a reject here — log and skip).
+    """
+    resolution = resolve_npc(combatant_name, state)
+    if resolution.npc_id is None:
+        if resolution.candidates:
+            logger.warning("npc_death_ambiguous", combatant=combatant_name)
+        return
+    npc = state["npcs"][resolution.npc_id]
+    current = state.get("meta", {}).get("current_location")
+    if current and npc.get("location") and npc["location"] != current:
+        logger.warning("npc_death_location_mismatch", combatant=combatant_name)
+        return
+    npc["lifecycle"] = "dead"
+
+
 @_register_handler("combat_damage")
 def _handle_combat_damage(state: dict, update: dict, char_data: dict) -> dict:
     """Apply damage to a combatant. Negative change = damage, positive = healing."""
@@ -237,6 +273,9 @@ def _handle_combat_damage(state: dict, update: dict, char_data: dict) -> dict:
             matched["hp"] = hp["current"]
         else:
             matched["hp"] = max(0, matched["hp"] + change)
+            if matched["hp"] == 0 and not matched.get("defeated"):
+                matched["defeated"] = True
+                _mark_npc_dead(state, matched["name"])
     else:
         logger.warning("combat_damage_target_not_found", target=target)
 

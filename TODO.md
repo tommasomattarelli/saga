@@ -2,23 +2,23 @@
 
 ## NOW / prossimi
 <!-- Lavoro attivo near-term: /catchup legge questa sezione, /wrap-up la aggiorna. Il resto del file e' backlog curato. -->
-[x] **ADR 0008 world model → IMPLEMENTATO, Accepted (2026-07-07)** — ciclo completo S0–S5 sul branch `adr/0008-world-model` (5 sprint mergiati, suite verde: 516 unit + 41 integration/playtest BE, 127 test FE, mypy/ruff ok). S0 design pass (P0 vocabolari world-defined); S1 meta-schema+loader+validator+example world; S2 game home `~/.saga` + libreria git + `world_baseline` (Alembic 004) + UUID/alias + **templates RIMOSSI** (`/api/worlds`); S3 travel engine (NetworkX, Naismith, encounters, `pending_travel`, `WorldView` accessor, `<scene>` gerarchico); S4 mappa read-only FE (pergamena+pin); S5 editor (writer round-trip, save git-committed, export/import zip, pagina Mondi + form taxonomy-driven).
-[x] **ADR 0005 npc psychology → IMPLEMENTATO, Accepted (2026-07-07)** — ciclo S0–S3 su `adr/0005-npc-psychology` (~22 commit granulari, suite verdi: 548 unit + 41 integration BE, 129 FE, mypy/ruff ok): assi world-defined in `taxonomy.yaml` + default bundled, bande nominate, `axis_changes` + cap + `met_player` ×3, tool `change_npc_psychology` (reject-with-candidates), scena DM assi salienti, rung v5→v6, editor (sezione assi + seed per-NPC).
+[x] **ADR 0009 npc enrichment → IMPLEMENTATO** (S1-S3 mergiati su `adr/0009-npc-enrichment`, 2026-07-11): identità UUID + rung v7, modello engine tipizzato + `npc_fields` world-defined + resolver F2, tools `update_npc`/`kill_npc`/`remove_npc`/`restore_npc` + writer morte HP≤0, surfaces (scene/npc prompt) + editor npc_fields + prune-on-removal G5 (incl. fix bug assi 0005) + FE. Suite verde: 627 unit BE + 132 FE, ruff ok. ADR ancora Proposed → chiude con playtest + PR.
+[ ] **ADR 0009 — integration + playtest + PR su main** (PR la apre l'owner): girare integration BE (`make test-infra-up`), poi playtest a mano in chat pulita (NPC omonimi, rename-as-reveal, kill + remove/restore, `update_npc` con typo, `npc_field` custom nell'editor); bug fixati SUL branch `adr/0009-npc-enrichment` (no branch bugfix separato, no PR intermedia); poi PR unica → main → flip ADR ad Accepted.
+[ ] **release dopo la PR di 0009 su main**: cut con `scripts/release.sh <version>` (dry-run prima); regroup Highlights per area, tag `v` su main.
+[ ] **ADR 0003 — implementazione S1-S4** (design pass 2026-07-12: ADR espanso a "risoluzione unificata", tutte le fork chiuse dall'owner): S1 resolver 6 livelli + bande fisse + clamp / S2 combat senza modalità (tool `attack` simmetrico, statblock sui record 0009, barre vita di scena) / S3 difficoltà campagna (via `DeathMode`) / S4 surfaces FE+editor. Partire DOPO la PR 0009 su main. Piano e contratti in ADR §7.
 [ ] **ADR 0005 — playtest veloce + PR su main** (PR la apre l'owner): validare a mano la qualità dei delta dal modello budget (rischio #1 dell'ADR, nessun test automatico possibile) — Lyra guardinga (trust −20 authored), minaccia a sconosciuto (×3 visibile in scena), favore+bugia (assi giusti si muovono), editor con asse custom. Se delta scarsi → fix = prompt wording (vedi riga prompt-tuning in backlog).
 [ ] **ADR 0008 — validazione manuale + PR su main**: playtest a mano del ciclo (creazione campagna da world, move_to/viaggio/encounter, mappa, editor: crea/modifica/salva/export/import) in una chat a contesto pulito; i bug emersi si fixano sul branch `adr/0008-world-model`; poi PR unica verso main. NB: il branch NON è ancora su main — le campagne del DB dev vecchie non hanno baseline (J2: wipe accettato, pre-1.0). Nota tecnica: `npm ci` locale richiede `--legacy-peer-deps` (conflitto peer eslint@10 pre-esistente nel lockfile) — da sanare con le dependency updates.
 [x] **UI redesign → ADR 0013** (Accepted, `docs/adr/0013-ui-visual-redesign.md`): dark moderno pulito, Voyage-informed identità nostra, re-skin su architettura tokenizzata. Sprint 1 (play screen, pattern-setter): font Newsreader+Instrument Sans, accento verdigris `#8fb8ac`, atmosfera stripped, dado tier-arc. Sprint 2 (propagazione): auth card, campaign grid, wizard flat, character modal a rail, journal/settings/combat re-skinnati, ornamenti morti rimossi. Branch `redesign/ui-dark-a` (merge di sprint-1 + sprint-2), owner sign-off dato, PR verso main da chiudere. PARCHEGGIATO (ADR suoi): "player input come ispirazione" (gameplay), bug `getTurns` empty-render.
 [ ] **UI redesign — polish pass** (post ADR 0013 Sprint 1+2, minor): fix visivi minori rimasti sulla play screen e altrove, segnalati dall'owner ma non bloccanti ("ora è giocabile, prima no"). Da fare insieme al prossimo giro sul frontend, dopo il lavoro backend/test in corso.
 [x] **fix(dice) — ability scores INERTI in ogni check (mis-keying, bug LIVE nel playtest).** FATTO (commit 80fe1ec): `_STAT_FULL_NAMES` abbrev→nome pieno in `_handle_dice` + test sul formato chiavi reale FE, 394 unit verdi. Prompt-block e normalizzazione unica restano a `0010-F1`. Decoupled da ADR 0010 (vedi `0010-H1`). PROBLEMA: il FE salva `character_data.abilities` con **nomi pieni lowercase** (`{strength:16, dexterity:12, …}`, `frontend/src/features/campaign/data/class-presets.ts`); ma il risolutore del dado `core/dm/dm_tools_executor.py:217` legge `abilities.get(stat, abilities.get(stat.lower(), 10))` con `stat` = `"DEX"`/`"STR"`/… → cerca `"DEX"` poi `"dex"`, **non matcha `"dexterity"`** → fallback a 10 → `modifier = (10-10)//2 = 0` **SEMPRE**. Quindi **ogni `request_dice` ignora gli ability score** (tira a +0). Per contrasto: `core/combat/combat_graph.py:35` legge `abilities.get("DEX", abilities.get("dexterity", 10))` → matcha (iniziativa combat ok); `ai/prompts/dm.py:71` legge flat `char_data["dex"]` → mai popolato → il blocco `<abilities>` non compare nel prompt. **Tre convenzioni divergenti.** FIX MINIMO: allineare il lettore del dado (e il blocco prompt) alle chiavi reali del FE (nomi pieni lowercase) o normalizzare a un punto unico. NB: throwaway quando `0010-F1` ritipizza `character_data` (Pydantic), ma è ~1 riga e sana un bug che falsa OGNI tiro. Aggiungere un test: `request_dice` su DEX alta → `modifier > 0`.
-[x] installer: merge del branch su `main` (squash) — sblocca il bottone "Run" dello smoke (`workflow_dispatch`)
 [x] installer: validato il ramo auto-install su **Linux vergine** (podman Ubuntu 24.04, utente non-root, `SAGA_FROM_LOCAL=1`): uv + node portable + pg16/pgvector + initdb + .env + uv sync + vite build → OK end-to-end (exit 0). Trovato e FIXATO un bug: eseguito come root moriva su `initdb: cannot be run as root` DOPO aver già apt-installato Postgres → aggiunto guard no-root (commit ba5b23d). PROBLEMA PORTABILITÀ emerso: vedi sezione follow-up sotto (Debian/Fedora rotti).
 [ ] installer: validare il ramo "auto-installa git/node/uv se mancanti" su VM/PC Windows VERGINE (NON testabile da Linux: il bundle PG sono exe win64, pwsh-su-Linux solo parsa; serve VM Windows o Windows Sandbox)
-[ ] companion: implementarli
-[x] versioning: prima release **v0.1.0-beta.1** (manifest gia' a 0.1.0, nessun bump; SemVer + tag `v` + bump 0.x in CLAUDE.md). Tag dopo il merge di install-from-tag.
+[x] companion → **ADR 0014 (npc-promotion), design pass 2026-07-12**: scope generalizzato a "promozione NPC" (companion + elite/boss — stessa scheda, stesso cervello dedicato, segno opposto; boss autorati, o promossi dal Director 0006). Tutte le fork chiuse: party list + record 0009 per la vita, sheet snella senza XP, lealtà = assi 0005, pipeline promozione det+refine background, call autonoma sempre-se-presenti (spazio azione pieno incl. tradimento), equip-layer che fixa 0010-I8, transfer_item + auto-equip strictly-better, rung v9. Implementazione GATED dietro 0010 S1-S4 + 0012 S1 — piano S1-S4 e TODO nell'ADR §7/§3, NON in ## NOW.
 [ ] passare in rassegna le funzioni marcate #TODO nel codice (capire se servono)
+[ ] code quality: barrel export puliti — `index.ts` per feature/modulo FE che ri-esportano l'API pubblica (import più puliti tra moduli). Per il BE valutare `__init__.py` con re-export MA attenzione ai cicli d'import (Python preferisce path espliciti — barrel meno idiomatico che in TS; farlo solo dove riduce davvero il rumore).
+[ ] verificare/riprodurre i bug Gemini trovati testando (vedi sezione "provider AI — bug" sotto): `thought_signature` multi-turno (400 INVALID_ARGUMENT) + embedding hardcoded su OpenAI. Riprodurre e fixare.
 [x] mypy backend: `[tool.mypy]` + verde (82 file) + gateato su pre-push E in CI (branch `fix/mypy`, PR aperta) — plugin pydantic, override import `pgvector`, stub types; boundary SDK e `computed_field` con `# type: ignore[code]` mirati; forward-ref ORM via `TYPE_CHECKING` (giu 2026)
 [x] vulture in CI (gate dead-code BE, speculare a knip FE): FATTO (commit a94f84e, `ci.yml:28` — `uv run vulture app --min-confidence 80`, verde, 0 findings). È euristico → se in futuro un falso positivo blocca una PR (route FastAPI, fixture pytest, `relationship` SQLAlchemy, attributi dinamici) NON abbassare la soglia: aggiungere un file whitelist vulture (equivalente di `knip.json`). Validare alla prima PR che tocca codice nuovo.
-[x] installare `gh` CLI — fatto (giu 2026)
-[x] validare la CI del branch `feat/claude-skills` via PR (il nuovo `prettier --check` in CI non ha ancora girato — scatta solo su PR o push a `main`)
 
 ## roadmap / release
 [x] pipeline GitHub (CI) — fatto (`.github/workflows/ci.yml`: lint, unit, integration+playtest con service container pgvector, frontend, docker build-smoke, parse-check installer; nessuna API key, tutto mockato). CD/release ancora da fare (sarà `release.yml`)
@@ -53,37 +53,38 @@
 # ============================================================
 
 ## router / costi
-[ ] **RIFARE `score_importance` (da analizzare per bene, studio dedicato).** PRECISAZIONE (la vecchia riga era sbagliata): il routing low/med/high NON e' inerte. `turns.py:91` `"importance_score": 5` e' solo il seed iniziale dello stato del grafo, **sovrascritto** da `context_node` (`core/dm/dm_nodes.py:64`) col valore calcolato da `score_importance` (`ai/context.py:182`); `route_ai_call` (`ai/router.py:210`) sceglie il tier proprio da quel valore. Quindi oggi il routing gira DAVVERO, ma sull'euristica keyword grezza di `score_importance` (`+2` su parole tipo attack/betray, `-2` su look-around/rest, `+2` in combat) — **troppo deterministica per un gioco in linguaggio naturale**. Serve un'analisi dedicata su come derivare l'importance in modo robusto: pre-classificatore (mini-LLM) o euristica migliore, con validazione su azioni reali. Decidere le meccaniche PRIMA di riscrivere. [spunto: NEQ action_predictor]
+[x] score_importance → **ADR 0016 (importance-scoring), design pass 2026-07-13**: studio fatto, tutte le fork chiuse — scoperto che oggi il routing è di fatto inerte per il gioco in italiano (keyword English-only → sempre 5 → sempre medium) e il bump combat legge una chiave che nessuno scrive (dead code). Design: score a 3 layer ZERO chiamate nuove — segnali stato engine (combat window 0014, boss presenti, hp, tensione 0006) + ancore embedding (batch nella chiamata recall esistente, cattura perifrasi cross-lingua, ±2) + stakes-rating dal summarizer post-turno (lag 1 turno) — pesi/soglie config, breakdown loggato per turno per il tuning empirico. Pre-classifier LLM respinto (latenza+costo BYOAK). Sprint unico, nessun gate (ADR §7).
 
 ## provider AI — bug trovati testando OpenRouter/Gemini Flash (lug 2026)
 [ ] **embedding hardcoded su OpenAI, ignora il provider configurato.** `app/ai/embeddings.py:18` chiama sempre `api.openai.com/v1/embeddings` con `settings.openai_api_key`, a prescindere da `SAGA_GLOBAL_PROVIDER`. Se il provider globale è Google/OpenRouter/altro e non è settata anche `OPENAI_API_KEY`, ogni embedding fallisce con 401 (silenzioso: la funzione ritorna `None`, non rompe il turno ma il recall semantico pgvector non funziona mai). Serve wiring dell'embedding sul provider configurato (Google ha endpoint embedding proprio; OpenRouter no — serve capire fallback).
 [ ] **Gemini 2.5/3.x: `thought_signature` mancante rompe il tool-calling multi-turno (400 INVALID_ARGUMENT).** Riprodotto con `gemini-3.5-flash` su un secondo tool-call nello stesso turno (`set_scene_mood` dopo `invoke_npc`). Root cause in `app/ai/providers/google.py`: `generate_with_tools` (righe 175-218) estrae da `part.function_call` solo `name`+`args` nel `ToolCall`, scartando l'eventuale `thought_signature` che Gemini richiede echeggiato nel turno successivo; `_to_contents` (righe 39-103) ricostruisce lo storico assistant/tool_calls senza mai riscriverlo nel `function_call` part. Fix: propagare `thought_signature` da `ToolCall`/schema fino alla ricostruzione dei messages. Vedi https://ai.google.dev/gemini-api/docs/thought-signatures.
 
 ## memoria
-[ ] recall pgvector: usare come query "azione + ultimi N turni" invece della sola query nuda (semantic.py) [spunto: dnd-llm-game]
+[x] recall pgvector query composta → ASSORBITA in ADR 0002 (design pass 2026-07-13): query = azione + entità di scena + K summary, un solo embedding, cap lunghezza (R2)
 [ ] summarization per "scena" (cambio location/combat) invece che a finestra fissa di turni; conservare i quotes[] dei dialoghi chiave [spunto: ai_rpg]
 [ ] idempotency guard sui background task (turns.py): campo chronicled_at su Turn per non rieseguire fact-extraction/compression [spunto: aidm]
 [ ] continuity_checklist: flag booleani machine-readable per NPC/location ("vivo: true", "sa_di_X: false") accanto alla prosa, per coerenza multi-sessione [spunto: aidm]
 
 ## combat
-[ ] timeout esplicito per singola tool-call LLM in combat (oltre al recursion cap), con fallback "il turno prosegue" [spunto: llm-rpg]
-[ ] formalizzare il circumstance modifier nel roll tool: {amount: -10..+10, reason: str}, mostrato al player [spunto: ai_rpg]
-[ ] effetti temporizzati: tick per round su combat_state con auto-expire + annuncio (verificare se gia' in dm_tools_executor) [spunto: open-tabletop-gm]
+[ ] timeout esplicito per singola tool-call LLM in combat (oltre al recursion cap), con fallback "il turno prosegue" [spunto: llm-rpg] — NB ridimensionato da ADR 0003 B1: il combat non fa più chiamate LLM per le azioni nemiche; resta il timeout generico per tool-call
+[x] formalizzare il circumstance modifier nel roll tool → SUPERSEDED da ADR 0003 A5 (advantage/disadvantage binario con reason; il ±N numerico è respinto esplicitamente)
+[x] effetti temporizzati: tick per round → SPOSTATO a ADR 0012 (ADR 0003 C2: niente più round; sistema durate unico status+cooldown quando si fa 0012)
 
 ## prosa / output
 [ ] **prompt tuning pass dedicato (DOPO ADR 0009)**: sessione/ADR per rivedere e calibrare i prompt DM/NPC su playtest reali — include la qualità di `axis_changes` (ADR 0005) e i prompt che 0009 aggiungerà
-[ ] prompt-as-yaml: uniformare TUTTI i prompt in yaml dedicati (oggi `dm.yaml` sì; `npc.py` e altri template sono inline) — cartella prompt unica
+[x] prompt-as-yaml → ASSORBITA in ADR 0004 (design pass 2026-07-13): veicolo dello sprint S2 (npc.py → yaml, cartella unica, obblighi tool generati)
 [ ] LangSmith: verificare su tracce reali cosa entra davvero nel contesto per ogni nodo del grafo (prompt effettivi, non presunti) — base empirica per il tuning pass
 [ ] slop-buster: lista parole/n-gram in saga.config.yaml + check post-prosa nel DM (qualita' prosa = pillar) [spunto: ai_rpg]
 [ ] popolare suggested_actions (oggi None) con blocklist di placeholder per filtrare scelte malformate [spunto: dnd-llm-game]
 
 ## world / player agency
+[x] commercio → **ADR 0015 (commerce), design pass 2026-07-13**: tutte le fork chiuse — value authored|range|derivato dalle classi con draw per-transazione cachato/giorno, invariante hard anti-arbitraggio, tutti commerciano + shop_classes world-defined (pattern npc_classes: stock/restock lazy/portafoglio finito/haggle_difficulty), valuta 1-3 tagli schema-capped (senza valuta = niente commercio, baratto TODO), transazione deterministica all'accettazione player (rail + offerte NPC prezzate engine, DM mai sui soldi), trade disposition 0-100 da pesi world-defined + soglie config, haggle = check 0003 via pointer rulebook (mai nome hardcoded) 1×/giorno con fail critico che irrita, servizi come item virtuali (enum chiuso rest/heal/passaggi). Implementazione GATED dietro 0010 S4 — piano S1-S3 nell'ADR §7, NON in ## NOW.
 [ ] override strutturati player->DM: NPC_PROTECTION / CONTENT_CONSTRAINT / TONE / NARRATIVE_DEMAND con scope (campaign/session/arc), persistiti e iniettati nel prompt ogni turno [spunto: aidm]
-[ ] DM hidden notes / "mystery box": campo JSONB dm_notes (pensieri NPC nascosti, misteri decisi in anticipo, tensioni) aggiornato ogni N turni, per coerenza narrativa [spunto: ai_rpg]
-[ ] narrative arc: blocco narrative_arc nel JSONB (beat "what_changes" + world_pressure) che il coordinator consulta per calibrare la pressione (NON plot rigido) [spunto: open-tabletop-gm, aidm]
+[x] DM hidden notes / "mystery box" → ASSORBITA in ADR 0006 (design pass 2026-07-12): `narrative.dm_notes` Director-owned, resa al DM nel blocco advisory (D1)
+[x] narrative arc: blocco narrative_arc → ASSORBITA in ADR 0006 (design pass 2026-07-12): `narrative.arc` advisory, mai plot vincolante (A3 #12, D1)
 [ ] WorldBuilder accept-not-reject: il DM accetta le asserzioni del player come canon salvo ambiguita' fisica (player co-autore), niente REJECT [spunto: aidm]
-[ ] faction_moves: log esplicito delle azioni fazioni off-screen tra sessioni (verificare se il living-world gia' lo fa) [spunto: open-tabletop-gm]
-[ ] living world: trigger su transizione oraria (dawn/dusk via GameClock gia' presente) oltre al counter turni [spunto: ai_rpg]
+[x] faction_moves: log esplicito → ASSORBITA in ADR 0006 (design pass 2026-07-12): `factions.{}.moves` scritto dal Director (A3 #7); verificato: il living-world oggi NON lo fa (factions mai scritte)
+[x] living world: trigger su transizione oraria → ASSORBITA in ADR 0006 (design pass 2026-07-12): trigger ibrido N turni OR M minuti di clock (B1)
 [ ] meta-channel: intent /meta che NON consuma un turno di gioco (feedback al DM fuori dalla narrativa) [spunto: aidm]
 
 ## homebrew / custom
@@ -98,22 +99,17 @@
 # ============================================================
 
 ## fork A -> ADR 0002 (relationship graph + recall enrichment)
-[ ] recall pgvector: aggiungere recency-weighting/decay + boost-on-access (oltre al top-K cosine puro) [spunto: aidm heat decay]
-[ ] relationship graph: grafo relazioni NPC/fazioni/luoghi (tabella Postgres o JSONB) con query scene_context(place, present_npcs) BFS 2-hop; popolamento semi-auto dal session log via estrazione deterministica (verb-table); complementare al pgvector (tema vs scena) [spunto: open-tabletop-gm]
+[x] design pass 2026-07-13: entrambe le righe decise e superate dall'ADR espanso — score composito SQL (decay+boost, campi nuovi, seam reranker spento), query composta, grafo edge tipizzati in `world_state.relations` (fazione→player unifica disposition/reputation/tiers morti, factions rekeyed by slug, 4 writer incl. estensione guardata del fact extractor — la verb-table originale è respinta). Piano S1-S3 nell'ADR §7 — NESSUN gate esterno: primo implementabile della coda ADR.
 
 ## fork B -> ADR 0003 (risoluzione a soglie fisse + danno server-side)
-[ ] sostituire il DC deciso dall'LLM con soglie fisse stile PbtA: d20 + mod vs bande fisse (niente DC arbitrario), mantenendo i 6 outcome tier di dice.py
-[ ] mappare outcome_tier -> danno lato server (FULL=pieno, PARTIAL=meta'+conseguenza, ...); l'LLM non tocca piu' gli HP
-[ ] bande di risoluzione e mappature tier->danno in saga.config.yaml (std 14)
+[x] design pass 2026-07-12: le tre righe originali (bande fisse, tier->danno server-side, config-first) sono decise e superate dall'ADR espanso (risoluzione unificata per TUTTI i check, non solo combat); piano S1-S4 nell'ADR §7, tracking implementazione in ## NOW
 
 ## fork C -> ADR 0004 (dm_core / game_system + tono per campagna)
-[ ] separare dm_core (principi GM universali, immutabili) da game_system (regole D&D) caricabile -> predispone multi-TTRPG (Pathfinder/VtM) [spunto: open-tabletop-gm]
-[ ] parametri di tono per campagna (darkness/pacing/lethality/magic) iniettati nel prompt DM [spunto: aidm DNA, ai_rpg]
-[ ] system_prompt_addendum + writing_style_notes per campagna; config_override (JSONB) per-campagna mergiato con saga.config.yaml [spunto: NEQ, ai_rpg]
+[x] design pass 2026-07-13: le tre righe decise e superate dall'ADR espanso — il "game_system caricabile" è superseded nella sostanza (sistema = engine 0003 + rulebook 0010, dati); 0004 = factoring prompt (dm_core yaml + obblighi GENERATI dai tool group + flavor), tono = personas esistenti + writing_style_notes (knob numerici RESPINTI: lethality→0003, magic→world, darkness→persona; system_prompt_addendum ridondante con persona_xml), config_override JSONB WHITELISTATO (precedenza campaign > yaml > default, merge puro, re-validazione all'import). Piano: S1 tono+override SENZA gate / S2 factoring DOPO l'implementazione 0003 (ADR §7).
 
 ## fork D -> ADR 0005 (psicologia NPC multi-asse)
 [x] ridisegnare npc_psychology JSONB come multi-asse → design fissato in ADR 0005 (S0 2026-07-07); ciclo implementativo in `## NOW`
-[ ] fazioni: `disposition` scalare fazione→player ESCLUSO da ADR 0005 (C4) — è relazione inter-entità, rework quando si implementa ADR 0002 (relationship graph) / 0006 (Director)
+[x] fazioni: `disposition` fazione→player → RISOLTA da ADR 0002 (design pass 2026-07-13, G1/G6): edge fazione→player nel graph (stance -100..100, bande dai reputation_tiers authored); i tre frammenti morti (overlay disposition / char_data.reputation / tiers) unificati e ritirati. Implementazione con 0002 S2.
 
 # ============================================================
 # SECONDARI / deferred (giu 2026) — promossi dal long-tail multi-repo.
@@ -128,7 +124,7 @@
 
 ## secondari — memoria / world
 [ ] lorebook "constant entries" sempre iniettate (regole mondo/magia) [ai_rpg]
-[ ] foreshadowing-seeds con lifecycle (PLANTED->RESOLVED) + ratifica -> di competenza dell'AI Director (vedi ADR 0006) [aidm]
+[x] foreshadowing-seeds con lifecycle → ASSORBITA in ADR 0006 (design pass 2026-07-12): `narrative.seeds` planted→advanced→resolved/expired + payoff meccanico via scheduled events (A3 #9-10)
 [ ] tool di ricerca keyword/fulltext sul log di campagna [otgm]
 
 ## secondari — world-gen / template (alimentano la riga "template fatti bene" sopra)
@@ -151,10 +147,7 @@
 [ ] Hero globali riusabili tra campagne (Hero vs Character) [dnd-llm-game]
 
 ## v2.5 — AI Director (vedi ADR 0006)
-[ ] AI Director: background ogni N turni, autorita' SOLO off-screen (fazioni/NPC assenti/clock/arc/semi), DM owns on-screen
-[ ] coda pending_world_changes applicata dal turn path al turno successivo (single writer, niente race) + validazione consistenza all'apply (scarta/riconcilia se la precondizione non regge)
-[ ] output = world data (fatti=hard ground-truth, pressione narrativa=soft advisory che il DM interpreta)
-[ ] nuovo AICallType.DIRECTOR (thinking tier) + max_iterations cap (std 19) + disciplina sessioni rule-15
+[x] design pass 2026-07-12: le quattro righe originali sono decise e superate dall'ADR espanso (taxonomy 14 capacità con bool per capacità, guard node-scoped all'apply, tabella `director_changes` + apply exactly-once, trigger ibrido turni/clock, rumors grounded + `tell_rumor`, creazione NPC/fazioni con guardrail, rung v8). Piano S1-S4 e Decided/Open index nell'ADR §7/§3 — implementazione v2.5, NON in `## NOW` finché l'owner non la schedula.
 
 # ============================================================
 # ADR 0007-0011 (giu 2026) -> follow-up. 0007-0010 = analisi Voyage; 0011 = refactor FE.
@@ -163,15 +156,15 @@
 # ============================================================
 
 ## ADR 0007 (Proposed) — direzioni adottate dalla Voyage
-[ ] state-audit pass: secondo passaggio CHEAP, async e fuori dal critical path, che estrae/riconcilia lo stato implicato dalla narrazione vs i tool realmente eseguiti e patcha il drift (estrazione, NON decisione; niente two-pass pieno) [ADR 0007 §1]
-[ ] massima configurabilita' della memoria + modelli per-sottosistema [ADR 0007 §2-3]
+[x] state-audit pass → PROGETTATO (design pass 2026-07-13, ADR §1): perimetro inventario/quest/location + npc remove|restore reversibili + tempo cappato (MAI kill/engine-authoritative), apply via queue 0006 generalizzata (colonna source, guard per-source), guard anti-allucinazione (solo-aggiunta, precondizioni drop+log, location = set posizione MAI travel engine), audited_at transazionale, AICallType.STATE_AUDIT on-by-default. Sprint unico, gate soft = tabella queue condivisa (ADR §S1).
+[ ] massima configurabilita' della memoria + modelli per-sottosistema [ADR 0007 §2 — direzione; primi frutti: whitelist 0004, famiglia recall.* in 0002 S1]
 
 ## ADR 0008 (Proposed — design fissato, TODO aperti prima di Accepted) — world model multi-layer YAML + grafo spaziale deterministico
 [ ] chiudere i TODO di design: enum `kind` (A-i), transform/scale globale per livello (A-ii), sistema unita'/coordinate (B-i), vocabolario `terrain` + range `elevation_m` (B-ii), schema blocco `scenario` + seed della campagna (C-i)
 [ ] poi: split in sprint di implementazione
 
-## ADR 0009 (WIP, nulla deciso) — NPC enrichment (status, update_npc, archivio NPC rimossi)
-[ ] analisi dedicata: decidere le meccaniche PRIMA di implementare (oggi e' solo direzione)
+## ADR 0009 (Proposed — S0 design pass 2026-07-07) — NPC enrichment (identità UUID, lifecycle/condition, traits world-defined, update_npc)
+[x] analisi dedicata → S0 completato 2026-07-07/08: fork chiusi da interview + advisor Opus (identità UUID mirror 0008, record ibrido typed+traits da taxonomy `npc_fields`, writer morte engine HP≤0 + kill/remove/restore engine-checked, update_npc con partizione esaustiva + fuzzy guard); ciclo implementativo S1-S3 in `## NOW`
 
 ## ADR 0010 (WIP, nulla deciso) — customizzazione PG (skill progression + abilities configurabili)
 [ ] analisi dedicata: decidere le meccaniche PRIMA di implementare (oggi e' solo direzione)
