@@ -1,0 +1,258 @@
+# Turns 1-10 — the shrine, and the road to Thornhaven.
+#
+# Turn length is calibrated against production: the real playtest averaged 1375
+# characters of narration per turn (range 837-2018, measured over the turns in the
+# dev database). A thinner transcript under-fills the active window, which is the
+# largest single block of the prompt, and the fixture ends up easier than the thing
+# it is supposed to stand in for.
+
+- n: 1
+  player: "Who are you? Where am I? I don't remember anything."
+  dm: >
+    The throbbing behind your eyes settles into something duller as you push
+    yourself up onto one elbow. The stone beneath your palm is cold in a way the
+    morning does not account for, and faintly ridged — carved with a pattern that
+    runs away from your hand in a slow spiral and does not stop where you expect it
+    to. Around the platform seven pillars lean fractionally inward, weathered to the
+    colour of bone, and the effect is less like architecture than like a circle of
+    people who have been standing very still for a long time.
+
+    Sunlight comes down through the oaks in flat golden columns. Somewhere above and
+    behind you a wood pigeon works through the same three notes over and over. Your
+    mouth tastes of iron and cold water. There is no pack beside you, no bedroll, no
+    ashes of a fire, nothing at all to suggest you arrived here by any of the
+    ordinary means by which a person arrives somewhere.
+
+    The woman in forest-green does not come closer and does not move away. She has
+    put herself between you and the gap in the trees, and she has done it without
+    seeming to, and you understand without being told that this is something she has
+    practised.
+  npc:
+    name: Lyra
+    dialogue: "Shrine of First Light. I'm Lyra — I range this stretch of wood, which mostly means I walk it and nobody thanks me for it. You woke here at dawn, and before you ask: no, you're not the first, and no, I don't know how you got here either."
+    action: "keeps her weight on her back foot, one hand loose and open near her belt knife, not on it"
+  minutes: 3
+  updates:
+    - {key: npc_psychology, target: Lyra, changes: {trust: 2}}
+    - {key: event_log_entry, target: "Woke at the Shrine of First Light with no memory. Met Lyra, a forest ranger."}
+    - {key: quest_update, target: "Who Am I?", change: active, description: "Discover your identity and why you woke at the Shrine of First Light."}
+  world_patch: {}
+
+- n: 2
+  player: "I look at myself. What am I wearing, what do I have?"
+  dm: >
+    Travelling clothes, and better ones than you would expect on someone lying in
+    the dirt. Good wool, dyed a brown gone uneven at the shoulders from sun. Worn
+    through at both knees but not patched, which is its own small piece of
+    information — either you had not got round to it or you had never needed to. No
+    purse. No pack. No ring, no cord at the throat, nothing sewn into a hem that your
+    fingers can find, and your fingers go looking without being asked to, which is
+    another piece of information you do not know what to do with.
+
+    Your boots have been resoled at least twice, and by someone who knew the work;
+    the stitching is close and even, and the second sole was cut from better leather
+    than the first. Somebody spent money keeping these boots on your feet.
+
+    And your right hand is still closed around the grip of a sword. Not resting on
+    it — closed, the knuckles pale, the tendons standing, the way a hand holds
+    something it was holding before it stopped being able to decide. You have to open
+    the fingers deliberately, one at a time. The blade is plain and older than the
+    clothes, with a nick out of it a thumb's width from the point, and there is
+    nothing remarkable about it whatsoever except that it is here, and so are you,
+    and neither of you seems to know why.
+  minutes: 2
+  updates: []
+  world_patch: {}
+
+- n: 3
+  player: "I kneel down and look closely at the carvings on the platform."
+  dm: >
+    Up close the spiral is not a spiral. Followed patiently with a fingertip — and it
+    takes patience, because the moss has taken the outer turns and comes away only in
+    damp green flakes — it resolves into a line of characters wound in on itself, cut
+    deep and then softened by two or three centuries of rain. The strokes are angular
+    where they start and taper where they end, as though whoever cut them worked fast
+    and knew exactly where each one was going.
+
+    You can feel where every character begins and where it stops. You can feel the
+    rhythm of it, the way you can feel the metre of a song in a language you do not
+    speak. Something in your hands wants very badly to read it. Your hands do not
+    read it.
+
+    The frustration that comes up is immediate and completely out of scale with a
+    man who cannot remember his own name, and you sit back on your heels breathing
+    harder than the work justified. The stone under your knees has not warmed at all
+    where you were kneeling on it. Behind you, Lyra has stopped pretending to watch
+    the tree line.
+  minutes: 12
+  updates:
+    - {key: event_log_entry, target: "Examined the shrine platform: the carving is written language, not decoration."}
+  world_patch: {}
+
+- n: 4
+  player: "Lyra, you said I'm not the first. How many others?"
+  dm: >
+    A wood pigeon breaks cover somewhere behind the pillars and the clatter of it
+    carries much further than it has any business carrying, out and out through the
+    trees until it thins into nothing. Neither of you says anything until it has
+    finished. That, you think, is also practised.
+
+    She answers with her eyes on the tree line rather than on you, and counts them
+    off flat, without emphasis, the way a person recites something they have gone
+    over privately more times than they would admit to.
+  npc:
+    name: Lyra
+    dialogue: "Four that I know of. Two walked down to Thornhaven, and one of those is still there keeping bees, and she'll not talk to you about it. One walked north up the mine road and I never heard of him again, and I did look. The fourth I don't talk about, and asking twice won't change that."
+    action: "does not look at you once while she counts, and does not stumble on the number"
+  minutes: 4
+  updates:
+    - {key: npc_psychology, target: Lyra, changes: {trust: 3, respect: 2}}
+    - {key: event_log_entry, target: "Lyra says four others have woken at the shrine. One went north and vanished. She refuses to discuss the fourth."}
+  world_patch: {}
+
+- n: 5
+  player: "Fine. I won't push. Which way is the village?"
+  dm: >
+    Something goes out of her shoulders. Not trust — trust would show somewhere else
+    — but the readiness to be asked again, the particular tension of someone braced
+    for a second attempt they have already decided how to refuse. It leaves her, and
+    she notices it leaving, and she is briefly annoyed about that.
+
+    She tips her chin at a gap between two oaks where the ferns have been trodden
+    down into a thin brown line, the kind of path that exists because one person
+    walks it and nobody else does. Beyond the gap the ground falls away and the light
+    down there is greener and much less reliable.
+  npc:
+    name: Lyra
+    dialogue: "South and downhill, an hour on foot if you don't stop to look at things, which you will. I'll walk it with you. Not out of kindness — I want to see which of you this one turns out to be, and I'd rather see it on the road than hear about it after."
+    action: "shoulders her bow and starts walking without waiting to learn whether you are following"
+  minutes: 3
+  updates:
+    - {key: npc_psychology, target: Lyra, changes: {trust: 6, respect: 4}}
+  world_patch: {}
+
+- n: 6
+  player: "I follow her onto the path."
+  dm: >
+    The clearing closes behind you in a dozen steps and then is simply gone, with no
+    sense that it was ever there, which bothers you more than it should. The oaks
+    give out within a few hundred paces and the wood becomes a mixed stand of beech
+    and holly, close-grown, so the light comes down green and shifting and you keep
+    mistaking movement for movement.
+
+    Lyra sets a pace that is not quite comfortable. She does not look back to see
+    whether you are keeping it — she listens instead, you realise, adjusting a
+    half-step whenever your boots come down wrong, and you find yourself trying to
+    put your feet where she has put hers just to stop giving her the information.
+
+    Off to the left and below, water goes over stone with the flat continuous sound
+    of a shallow river running fast. Twice the path crosses a rut that is not a rut
+    but a drag mark, something heavy pulled across the trail and away into the
+    undergrowth, and both times she steps over it without comment and without
+    slowing down.
+  minutes: 20
+  updates:
+    - {key: event_log_entry, target: "Left the shrine with Lyra, heading south toward Thornhaven."}
+  # In transit along the forest-path EDGE: position stays at the origin node until
+  # arrival (ADR 0008 — player_position is a node, travel is pending_travel).
+  world_patch: {}
+
+- n: 7
+  player: "Anything living out here I should worry about?"
+  dm: >
+    She slows enough that you can draw level with her, which you suspect is most of
+    the answer before she gives you any of it. The trail here runs along a shoulder
+    of ground with the land dropping away steeply on the left into hazel scrub, and
+    the leaf litter across the whole width of the path has been turned over in a
+    broad band — recently, in the last day or two, by something that was not being
+    remotely careful about it.
+
+    She stops at the edge of the disturbed ground and looks at it for rather longer
+    than a boar would warrant.
+  npc:
+    name: Lyra
+    dialogue: "Boar mostly, and they'll leave you if you leave them. Wolves in a hard winter, but it hasn't been a hard winter. Lately there's something coming down off the mine road at night and going back up before light, and I don't like the stride of it — too long between prints and too even. Whatever it is, it isn't hurrying and it doesn't get tired."
+    action: "toes the turned leaf litter flat without crouching to it, and keeps her eyes on the upslope while she does"
+  minutes: 15
+  updates:
+    - {key: npc_psychology, target: Lyra, changes: {trust: 3}}
+    - {key: event_log_entry, target: "Something with an unfamiliar, unusually even stride comes down from the mine road at night and returns before light."}
+  world_patch: {}
+
+- n: 8
+  player: "I pick up the lantern lying in the ferns."
+  dm: >
+    It is a shuttered tin lantern of the sort carried on a belt hook, and the hook is
+    still fixed to it by a finger's length of leather strap gone hard and black and
+    curled at the broken end. The glass is intact on all four faces, which after a
+    winter in the ferns is close to remarkable. The shutter still runs in its groove,
+    stiffly, with a small metallic complaint.
+
+    The oil reservoir is bone dry and smells of nothing at all — not of oil, not of
+    burning, not of the sourness old lamp oil leaves behind when it turns. Somebody
+    drained it, or it burned itself out and then sat here long enough for even that
+    to leave, and you have no idea how long that takes.
+
+    The ferns have grown up through the handle. Not around it — through, three fronds
+    threaded between the wire and the body of the lamp, which means it has been lying
+    here since at least last spring. Whoever set it down did not come back for it,
+    and has not come back for it since.
+  minutes: 5
+  updates:
+    - {key: inventory_change, target: "Shuttered lantern", change: add, description: "Found in the ferns beside the forest path. Dry, glass intact, strap rotted, ferns grown through the handle."}
+    - {key: event_log_entry, target: "Found an abandoned lantern on the forest path, left there since at least the previous spring."}
+  world_patch: {}
+
+- n: 9
+  player: "Does the mine road cross this path?"
+  dm: >
+    Where the beeches thin out, the deer-track you have been walking runs into
+    something wider — a proper road, or what passes for one out here, rutted deep by
+    cartwheels through a wet season and then dried hard into ridges that will turn an
+    ankle if you are careless. It runs north and south. To the south it drops away
+    between banks, and you can smell woodsmoke coming up from that direction, faint
+    and domestic and unmistakable.
+
+    Lyra stops at the junction. She looks north, uphill, where the road goes into the
+    trees and the trees close over it, and she looks for long enough that you start
+    looking too.
+
+    The southbound ruts are old and weathered and full of last year's leaves. The
+    northbound ruts have been broken through — a fresh track cut clean across the
+    dried ridges by something narrower than a cart, and a great deal more recent than
+    the mud that set around them.
+  npc:
+    name: Lyra
+    dialogue: "That's it. North takes you to the mines in half a day, and it's uphill the whole way so call it two-thirds. South takes you to a hot meal and people who'll lie to you politely. Pick one."
+    action: "watches the northern road a moment longer than the sentence needs, then deliberately turns her back on it"
+  minutes: 10
+  updates:
+    - {key: event_log_entry, target: "The forest path meets the north road. North: Old Mines, half a day uphill. South: Thornhaven. The northbound ruts have a fresh, narrow track broken through them."}
+  world_patch: {}
+
+- n: 10
+  player: "South. I want the meal and the answers."
+  dm: >
+    Thornhaven announces itself in stages, the way villages do. Woodsmoke first,
+    hanging in the trees a quarter of an hour before you see anything at all. Then
+    the ring of a hammer on iron, unhurried — four strokes and a pause, four strokes
+    and a pause. Then a break in the trees and the roofs below you, timber and stone,
+    low and set close together the way buildings sit when the people who raised them
+    wanted to be able to shout to one another.
+
+    The road becomes a street without ever quite deciding to. There is a market
+    square you could cross in twenty paces, a well with a slate roof over it, and a
+    smithy standing open-fronted with its fire banked.
+
+    Two women loading a handcart stop loading the handcart. They do not look away and
+    they do not look at each other, which somehow makes it worse. Further along, a
+    boy of about nine is sent off at a run by a woman who does not take her eyes off
+    you while she sends him, and he goes between two houses and is gone.
+
+    Nobody says anything at all. The hammer has stopped.
+  minutes: 45
+  updates:
+    - {key: event_log_entry, target: "Arrived at Thornhaven in the late morning. The villagers stopped work, said nothing, and sent a boy running."}
+  world_patch:
+    player_position: thornhaven
+    npc_location: {Lyra: thornhaven}
