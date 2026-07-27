@@ -1,129 +1,60 @@
 name: Bug report
 description: Something in SAGA is broken or behaves wrongly
-title: "fix(scope): "
 labels: ["type: bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting. Please keep the title in the project's commit style —
-        `fix(scope): short imperative subject` (scopes: `dm`, `ai`, `world`, `combat`,
-        `memory`, `frontend`, `api`, `auth`, `config`, `installer`, `infra`).
+        Before opening a new issue, please search the existing ones. If your problem is
+        already reported, add a 👍 reaction to it — no need to comment, and no need for a
+        duplicate.
 
-        Priority (`prio:`) and area (`area:`) labels are assigned during triage —
-        no need to set them.
+        If you are not reporting a bug — a question, an idea, or something that just reads
+        oddly in play — post in [Discussions](../../discussions) instead.
+
+        **Redact your API keys, tokens and passwords** from anything you paste.
 
   - type: input
     id: version
     attributes:
-      label: SAGA version
-      description: The release tag you are running, or the commit SHA if you build from source.
+      label: Which version of SAGA are you running?
+      description: The release tag, or the commit you built from.
       placeholder: v0.2.0-beta.1
     validations:
       required: true
 
-  - type: dropdown
-    id: install
-    attributes:
-      label: How did you install it?
-      options:
-        - Native installer (Windows)
-        - Native installer (Linux)
-        - Native installer (macOS)
-        - Docker Compose
-        - From source (uv + npm run dev)
-    validations:
-      required: true
-
-  - type: dropdown
-    id: area
-    attributes:
-      label: Area
-      description: Best guess is fine.
-      options:
-        - dm (DM loop, prompts, tools, NPC director)
-        - ai (providers, router, embeddings)
-        - world (places, travel, world editor)
-        - combat (combat and dice resolution)
-        - memory (recall, world state)
-        - frontend (UI, i18n)
-        - api (REST endpoints)
-        - auth (login, sessions)
-        - config (saga.config.yaml, env)
-        - installer
-        - infra (Docker, CI, database)
-        - not sure
-    validations:
-      required: true
-
-  - type: dropdown
-    id: provider
-    attributes:
-      label: AI provider
-      description: Leave as "not applicable" if the bug does not involve a model call.
-      options:
-        - Anthropic
-        - OpenAI
-        - Google Gemini
-        - OpenRouter
-        - Other / self-hosted
-        - Not applicable
-    validations:
-      required: true
-
   - type: input
-    id: model
+    id: setup
     attributes:
-      label: Model(s)
-      description: Which model was routed for the failing turn, if known.
-      placeholder: gemini-3.5-flash
-
-  - type: input
-    id: world
-    attributes:
-      label: World
-      description: The world the campaign was created from.
-      placeholder: the-awakening
-
-  - type: textarea
-    id: what-happened
-    attributes:
-      label: What happened
+      label: How did you install it, and which AI provider are you using?
+      description: Rough is fine — it usually narrows the bug down more than anything else.
+      placeholder: Docker Compose — OpenRouter, a :free model
     validations:
       required: true
 
   - type: textarea
-    id: what-expected
+    id: actual
     attributes:
-      label: What you expected instead
+      label: What issue are you seeing?
+      description: Include the full error message if there is one. Text rather than a screenshot, if you can.
     validations:
       required: true
 
   - type: textarea
-    id: repro
+    id: steps
     attributes:
-      label: Steps to reproduce
-      description: Number the steps. Include the exact player action or DM turn if the bug is in play.
-      value: |
-        1.
-        2.
-        3.
+      label: What steps can reproduce it?
+      description: If it happened during play, the action you typed and the DM's reply are usually enough.
     validations:
       required: true
 
   - type: textarea
-    id: logs
+    id: expected
     attributes:
-      label: Logs / errors
-      description: Backend output, browser console, or installer output. Redact API keys.
-      render: shell
+      label: What did you expect instead?
 
-  - type: checkboxes
-    id: checks
+  - type: textarea
+    id: notes
     attributes:
-      label: Before submitting
-      options:
-        - label: I searched the existing issues and this is not a duplicate.
-          required: true
-        - label: I redacted any API key, token, or password from the pasted output.
-          required: true
+      label: Additional information
+      description: Backend or installer output, the world you were playing, anything else you think matters.
