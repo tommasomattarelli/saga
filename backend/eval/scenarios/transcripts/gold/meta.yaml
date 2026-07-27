@@ -1,0 +1,70 @@
+# Gold transcript — 25 coherent turns. The baseline every variant overlays.
+#
+# Authored in English on purpose: the world content is English, so an Italian
+# transcript would produce a codeswitched context and confound the measurement.
+# English also measures the ceiling — a model that disobeys here has a prompt
+# problem, not a language problem. See ../../README.md.
+
+name: gold
+description: >
+  Twenty-five turns from waking at the Shrine of First Light to standing at the
+  broken boards of the Old Mines. Social and exploratory, no combat (ADR 0003
+  rewrites combat; turns authored against it would rot). Coherent by design —
+  entropy belongs in the variants, one variable each.
+
+world: {slug: the-awakening, version: "1.0.0"}
+language: en
+turns: 25
+
+# Where the campaign starts, before turn 1 replays.
+start:
+  location: shrine-of-first-light
+  time_of_day: morning
+  weather: clear
+
+character:
+  name: "Kael"
+  hp: 14
+  max_hp: 14
+  level: 1
+  abilities: {strength: 12, dexterity: 14, constitution: 13, intelligence: 11, wisdom: 12, charisma: 13}
+  inventory:
+    - {name: "Weathered sword", quantity: 1, description: "Gripped on waking. Nobody knows whose it was."}
+
+# Facts a probe can interrogate. The builder plants these in the fact corpus so
+# the memory-canary probe can check the model uses recall instead of inventing.
+# Each must be underivable from the scene block alone.
+canaries:
+  aldric_son_name: "Aldric's son is named Corwin and went into the mines two winters ago"
+  marta_coin: "Marta refused to name the smith who made the strange coin"
+  lyra_own_waking: "Lyra admitted she woke at the shrine herself, three years ago"
+
+# The turn each probe submits, written in this scene's terms. The probe owns the
+# check; the scenario owns the stimulus — you cannot ask a model to pick up a
+# knife at the foot of a menhir in a scene that has no menhir. All of these must
+# make sense from where turn 25 leaves the player: at the mine mouth, Lyra present
+# but holding at the bend, the drawn nails stacked on the lowest board, light going.
+probes:
+  npc_speaks:
+    player: "Lyra — you said the birds don't start again on the way back down. What did you see up here?"
+  npc_followup:
+    player: "Lyra — you said the birds don't start again on the way back down. What did you see up here?"
+    npc_name: Lyra
+    npc_dialogue: "I saw nothing, and that's the whole of my point. I came up this far once, two summers back, and there was nothing to see and nothing to hear and I have not been able to make myself come further since."
+    npc_action: "does not raise her voice to cover the distance, so you have to strain for it"
+    npc_context: "the player asks what she saw past the second bend"
+  item_pickup:
+    player: "I take one of the drawn nails off the stack and put it in my pocket."
+  passive_turn:
+    player: "I wait."
+  # Indirect on purpose: item_pickup already covers the explicit "I take X". Here
+  # the state change is a consequence of what the player is doing, not the thing
+  # he announces, which is where the tool call gets forgotten.
+  narration_without_tool:
+    player: "I pour the whole flask of oil into the lantern and drop the empty flask on the spoil."
+
+# Arcs the transcript actually opens, for the record.
+threads:
+  - "Who Am I? — active throughout, never resolved"
+  - "The Lost Son — opens at turn 17 when Aldric names Corwin"
+  - "Marta's coin — raised at turn 14, deflected, left dangling on purpose"
