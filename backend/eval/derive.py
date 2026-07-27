@@ -43,11 +43,16 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 from scenario_build import BUILT, load_transcript  # noqa: E402
 
 from app.ai.context import GameContext  # noqa: E402
-from app.ai.router import AICallType, get_gameplay_config, route_ai_call  # noqa: E402
+from app.ai.router import (  # noqa: E402
+    AICallType,
+    get_gameplay_config,
+    get_summarization_config,
+    route_ai_call,
+)
 
 # Private helpers on purpose: the point of this pass is to drive the production
 # summariser, not a second implementation that can drift from it.
-from app.memory.compressor import _batch_prefix, compress_turns_batch_llm  # noqa: E402
+from app.memory.compressor import _batch_prefix, compress_turns_batch_with_retry  # noqa: E402
 from app.memory.fact_extractor import extract_facts  # noqa: E402
 from app.memory.global_summary import (  # noqa: E402
     INITIAL_PROMPT,
@@ -104,7 +109,9 @@ async def derive_batch_summaries(
         key = f"{batch[0]['n']}-{batch[-1]['n']}"
 
         if key not in state["batches"]:
-            summary = await compress_turns_batch_llm(as_turns(batch))
+            # The retry wrapper, because that is what ensure_compression calls —
+            # and a free tier hands out transient 502s that a bare call dies on.
+            summary = await compress_turns_batch_with_retry(as_turns(batch))
             if not summary:
                 raise SystemExit(f"compression returned nothing for turns {key} — rerun to resume")
             state["batches"][key] = summary
@@ -169,6 +176,28 @@ async def derive_global_summary(name: str, turns: list[dict], state: dict) -> st
     return existing
 
 
+async def _extract_with_retry(turn: dict, dialogues: list[str] | None) -> list[dict]:
+    """Production does not retry fact extraction — losing one turn out of thousands
+    is noise there. A fixture built once cannot afford the hole, so a transient
+    provider failure is retried on the same backoff the compressor uses, and a
+    permanent one stops the pass instead of writing a turn with no facts."""
+    cfg = get_summarization_config()
+    delays = cfg.retry_delays_seconds or [1, 5, 30]
+    last = ""
+
+    for attempt in range(max(1, cfg.max_retries)):
+        try:
+            return await extract_facts(turn["player"], turn["dm"], dialogues)
+        except Exception as exc:  # noqa: BLE001 — the reason is reported, not swallowed
+            last = str(exc)[:200]
+            if attempt < max(1, cfg.max_retries) - 1:
+                delay = delays[min(attempt, len(delays) - 1)]
+                print(f"  turn {turn['n']} failed ({last}) — retrying in {delay}s")
+                await asyncio.sleep(delay)
+
+    raise SystemExit(f"fact extraction failed for turn {turn['n']}: {last} — rerun to resume")
+
+
 async def derive_fact_corpus(
     name: str, turns: list[dict], canaries: dict[str, str], state: dict
 ) -> list[dict]:
@@ -181,7 +210,7 @@ async def derive_fact_corpus(
             dialogues = None
             if npc := turn.get("npc"):
                 dialogues = [f"{npc['name']}: {npc['dialogue']}"]
-            state["facts"][key] = await extract_facts(turn["player"], turn["dm"], dialogues)
+            state["facts"][key] = await _extract_with_retry(turn, dialogues)
             save_state(name, state)
             print(f"  facts from turn {turn['n']}: {len(state['facts'][key])}")
 
