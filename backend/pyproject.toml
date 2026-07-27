@@ -65,9 +65,9 @@ omit = ["app/core/agent.py", "app/core/streaming.py"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-# scripts/ holds operator tools, never collected as tests (they cost real API
+# eval/ holds operator tools, never collected as tests (they cost real API
 # calls); this only lets their pure logic be imported by a unit test.
-pythonpath = ["scripts"]
+pythonpath = ["eval"]
 filterwarnings = [
     "ignore::DeprecationWarning:google.genai.*"
 ]

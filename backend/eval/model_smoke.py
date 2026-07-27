@@ -15,7 +15,7 @@ the production one as it evolves.
 
 Usage:
   cd backend
-  uv run python scripts/model_smoke.py --provider openrouter \
+  uv run python eval/model_smoke.py --provider openrouter \
       --model deepseek/deepseek-chat --model qwen/qwen-2.5-72b-instruct
 """
 
