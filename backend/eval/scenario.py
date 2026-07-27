@@ -130,6 +130,9 @@ _EMPTY_STIMULI = {
     ),
     "item_pickup": Stimulus(player="raccolgo il coltello arrugginito ai piedi del menhir"),
     "passive_turn": Stimulus(player="aspetto"),
+    "narration_without_tool": Stimulus(
+        player="do la mia coperta a Lyra e le dico di tenersela, a me non serve piu'"
+    ),
 }
 
 

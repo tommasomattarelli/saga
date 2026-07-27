@@ -55,6 +55,25 @@ def test_expected_language_comes_from_the_scenario() -> None:
     ]
 
 
+def test_silent_desync_is_labelled_apart_from_a_plain_miss() -> None:
+    """Declining the action is unhelpful. Narrating a whole turn as though it
+    happened and recording nothing leaves the world disagreeing with what the
+    player read, and nothing downstream can see it — the two must not share a label."""
+    probe = PROBES_BY_NAME["narration_without_tool"]
+    deflected = "Lyra non prende la coperta."
+    committed = (
+        "Lyra prende la coperta senza dire niente e se la mette sulle spalle, e per un "
+        "momento la guarda come se pesasse piu' di quanto pesa. Poi torna a fissare il "
+        "sentiero, e la nebbia si chiude sul fondo della valle mentre la luce cala."
+    )
+
+    assert grade(probe, deflected, set(), expect_language="it") == ["missing:remove_item"]
+    assert grade(probe, committed, set(), expect_language="it") == [
+        "narrated-not-called:remove_item"
+    ]
+    assert grade(probe, committed, {"remove_item"}, expect_language="it") == []
+
+
 def test_language_detection() -> None:
     assert language(_IT) == "it"
     assert language(_EN) == "en"
