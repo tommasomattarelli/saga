@@ -38,6 +38,15 @@ Rules:
 - If nothing notable happened, return {{"facts": []}}"""
 
 
+def _is_storable(fact: object) -> bool:
+    """Model output is untrusted — a fact without a name or a body cannot be stored."""
+    if not isinstance(fact, dict):
+        return False
+    return bool(str(fact.get("entity_name") or "").strip()) and bool(
+        str(fact.get("content") or "").strip()
+    )
+
+
 async def extract_facts(
     player_action: str,
     narration: str,
@@ -102,7 +111,8 @@ async def extract_facts(
         logger.warning("fact_extraction_anomalous_output", raw_preview=cleaned[:200])
         return []
 
-    return [f for f in facts[:5] if isinstance(f, dict)]  # cap at 5
+    # Filter before capping: a malformed entry must not consume one of the five slots.
+    return [f for f in facts if _is_storable(f)][:5]
 
 
 async def extract_and_store_facts(
@@ -130,12 +140,9 @@ async def extract_and_store_facts(
 
         async with async_session() as db:
             for fact_data in facts:
-                entity_name = fact_data.get("entity_name", "").strip()
-                entity_type = fact_data.get("entity_type", "event").strip()
-                content = fact_data.get("content", "").strip()
-
-                if not entity_name or not content:
-                    continue
+                entity_name = str(fact_data.get("entity_name")).strip()
+                entity_type = str(fact_data.get("entity_type") or "event").strip()
+                content = str(fact_data.get("content")).strip()
 
                 embedding = await generate_embedding(content)
 
