@@ -1,0 +1,42 @@
+# bloat — isolates CONTEXT LENGTH.
+#
+# Hypothesis under test: compliance degrades because the obligations sit at the
+# top of a prompt that has grown large, and compete with everything below them.
+#
+# This variant changes NO turns. Same 25 events, same prose, same world state —
+# only how much of it reaches the prompt. That is deliberate: an overlay that
+# rewrote the turns verbosely would change content and length together, and a
+# result could not be attributed to either.
+#
+# What it does NOT isolate, stated plainly: raising the active window also
+# shifts the compression ratio (more raw turns, fewer summarised ones), so this
+# measures "more tokens of the same story" rather than pure token count. A truly
+# pure length knob would need semantically inert padding, which does not occur in
+# production and would measure a condition that never happens.
+
+name: bloat
+base: gold
+kind: build-override
+
+description: >
+  The gold transcript rendered into a much larger prompt: a wider active window,
+  a longer global summary, less aggressive compression of older turns, and the
+  full recall set retained instead of the top few.
+
+build:
+  # Raw turns kept in the message history instead of the production window.
+  active_window_turns: 20
+
+  # Recalled memories injected. Production caps this hard (ADR 0002 moves the
+  # hardcoded limit=3 into config); here we keep everything the corpus offers.
+  recall_limit: 12
+
+  # Target length for the rolling global summary, in words. The production
+  # summariser is asked for something far terser.
+  global_summary_target_words: 600
+
+  # Batch size the older-turn summariser compresses over. Smaller batches mean
+  # more summaries, each less compressed, so more total text survives.
+  summary_batch_size: 2
+
+replace: []
