@@ -53,6 +53,21 @@ class TestExtractFacts:
         assert facts == [{"entity_name": "N", "content": "c"}]
 
     @pytest.mark.asyncio
+    async def test_unusable_entries_do_not_consume_a_slot(self):
+        entries = ", ".join(f'{{"entity_name": "N{i}", "content": "c"}}' for i in range(6))
+        facts = await self._extract(f'{{"facts": ["junk", {entries}]}}')
+        assert len(facts) == 5
+
+    @pytest.mark.asyncio
+    async def test_drops_entries_without_a_name_or_a_body(self):
+        facts = await self._extract(
+            '{"facts": [{"entity_name": "", "content": "c"},'
+            ' {"entity_name": "N", "content": "   "},'
+            ' {"entity_name": 7, "content": "c"}]}'
+        )
+        assert facts == [{"entity_name": 7, "content": "c"}]
+
+    @pytest.mark.asyncio
     async def test_returns_empty_on_unparseable_output(self):
         assert await self._extract("not json at all {{{") == []
 
