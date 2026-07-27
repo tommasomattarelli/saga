@@ -10,6 +10,7 @@ import structlog
 
 from app.ai.exceptions import ContentPolicyError
 from app.ai.providers.base import AIProvider
+from app.ai.providers.openai_compat import first_choice, stream_choice
 from app.ai.providers.schemas import AgentResponse, ToolCall
 
 logger = structlog.get_logger()
@@ -45,7 +46,7 @@ class LocalProvider(AIProvider):
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
         response = await self.client.chat.completions.create(**kwargs)
-        choice = response.choices[0]
+        choice = first_choice(response, "local")
         if choice.finish_reason == "content_filter":
             raise ContentPolicyError("local", "Response blocked by content filter")
         return choice.message.content or ""
@@ -67,7 +68,10 @@ class LocalProvider(AIProvider):
             stream=True,
         )
         async for chunk in stream:
-            delta = chunk.choices[0].delta.content
+            choice = stream_choice(chunk, "local")
+            if choice is None:
+                continue
+            delta = choice.delta.content
             if delta:
                 yield delta
 
@@ -89,7 +93,7 @@ class LocalProvider(AIProvider):
             temperature=temperature,
             max_tokens=max_tokens,
         )
-        msg = response.choices[0].message
+        msg = first_choice(response, "local").message
         tool_calls = []
         if msg.tool_calls:
             for tc in msg.tool_calls:

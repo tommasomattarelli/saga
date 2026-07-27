@@ -10,6 +10,7 @@ import structlog
 
 from app.ai.exceptions import ContentPolicyError
 from app.ai.providers.base import AIProvider
+from app.ai.providers.openai_compat import first_choice, stream_choice
 from app.ai.providers.schemas import AgentResponse, ToolCall
 from app.config import settings
 
@@ -44,7 +45,7 @@ class OpenAIProvider(AIProvider):
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
         response = await self.client.chat.completions.create(**kwargs)
-        choice = response.choices[0]
+        choice = first_choice(response, "openai")
         if choice.finish_reason == "content_filter":
             raise ContentPolicyError("openai", "Response blocked by content filter")
         return choice.message.content or ""
@@ -66,7 +67,9 @@ class OpenAIProvider(AIProvider):
             stream=True,
         )
         async for chunk in stream:
-            choice = chunk.choices[0]
+            choice = stream_choice(chunk, "openai")
+            if choice is None:
+                continue
             if choice.finish_reason == "content_filter":
                 raise ContentPolicyError("openai", "Stream blocked by content filter")
             delta = choice.delta.content
@@ -91,7 +94,7 @@ class OpenAIProvider(AIProvider):
             temperature=temperature,
             max_tokens=max_tokens,
         )
-        choice = response.choices[0]
+        choice = first_choice(response, "openai")
         if choice.finish_reason == "content_filter":
             raise ContentPolicyError("openai", "Response blocked by content filter")
 

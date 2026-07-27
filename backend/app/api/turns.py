@@ -15,6 +15,7 @@ from app.api.rate_limit import limiter, turns_limit
 from app.core.dm.dm_graph import dm_graph
 from app.core.dm.game_state import GameState
 from app.dependencies import get_db_context
+from app.exceptions import AIProviderError
 from app.memory.compressor import compress_turn_to_summary, ensure_compression
 from app.memory.fact_extractor import extract_and_store_facts
 from app.memory.global_summary import update_global_summary
@@ -103,6 +104,13 @@ async def submit_action(
             initial_state,
             config={"recursion_limit": _MAX_RECURSION},
         )
+    except AIProviderError as exc:
+        # Not our failure: the player can act on "rate limited", not on "DM processing failed".
+        logger.warning("dm_provider_error", campaign_id=str(campaign_id), error=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=exc.message,
+        ) from exc
     except Exception as exc:
         logger.exception("dm_graph_error", campaign_id=str(campaign_id), error=str(exc))
         # The claimed turn_number is simply skipped — a gap is harmless.

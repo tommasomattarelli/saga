@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import func, select
 
 from app.api.turns import _background_compression, _background_global_summary
+from app.exceptions import AIProviderError
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.turn import Turn
 
@@ -73,6 +74,32 @@ async def test_dm_graph_failure_returns_500_without_persisting_turn(auth_client,
         select(Campaign.turn_number).where(Campaign.id == uuid.UUID(campaign_id))
     )
     assert claimed == 1
+
+
+@pytest.mark.asyncio
+async def test_provider_failure_returns_502_with_the_upstream_reason(auth_client, db_session):
+    """An upstream failure is not our bug: it gets a 502 carrying the real reason,
+    not the generic 500 that hid it (#50)."""
+    campaign_id = await _create_campaign(auth_client)
+
+    with patch(
+        "app.api.turns.dm_graph.ainvoke",
+        new=AsyncMock(
+            side_effect=AIProviderError("local", "Rate limit exceeded: free-models-per-day")
+        ),
+    ):
+        resp = await auth_client.post(
+            f"/api/campaigns/{campaign_id}/action",
+            json={"action": "do something"},
+        )
+
+    assert resp.status_code == 502
+    assert "free-models-per-day" in resp.json()["detail"]
+
+    turn_count = await db_session.scalar(
+        select(func.count()).select_from(Turn).where(Turn.campaign_id == campaign_id)
+    )
+    assert turn_count == 0
 
 
 @pytest.mark.asyncio
