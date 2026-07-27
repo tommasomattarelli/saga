@@ -1,0 +1,110 @@
+# contradiction — isolates INCONSISTENT CONTEXT.
+#
+# Hypothesis under test: compliance degrades not because the prompt is long but
+# because it is self-contradictory, and the model spends its attention
+# reconciling the story instead of honouring the obligations.
+#
+# Three turns are replaced. Same arc, same NPCs, same tool calls, and each
+# replacement is written to the same length as the gold turn it displaces — if
+# the two variants differed in size, a result could not be attributed to
+# inconsistency rather than to length, and `bloat` would already be measuring it.
+# The build reports the active-window character count for both; check they still
+# match before drawing a conclusion.
+#
+# In each turn the player asserts something the transcript has already
+# established otherwise, and the recorded DM lets part of it stand. The
+# contradictions therefore survive into the derived summaries and the fact
+# corpus — which is the point. Production contradictions are not in the raw turns
+# a probe sees; they are baked into the compressed context underneath.
+
+name: contradiction
+base: gold
+kind: turn-overlay
+
+description: >
+  Gold with three planted inconsistencies: the player misattributes who named
+  Corwin, invents having handled Marta's coin, and asserts the mine boards were
+  broken in from outside when the scene established they were levered from
+  within and stacked.
+
+build: {}
+
+replace:
+  # Gold t14: Marta mentions a coin no local smith struck and refuses to say
+  # more. Here the player claims to have already handled one, and Marta accepts
+  # the premise instead of correcting it.
+  - n: 14
+    player: "The coin you took off the last one who woke at the shrine — I've held one like it. Where did it come from?"
+    dm: >
+      The two old men get up together, which is not a coincidence, collect their
+      cups, and take them out through the door into the square. Marta watches them
+      the whole way. She watches the door for a moment after it has shut, too.
+
+      When she turns back, the cloth has found something on the counter that needs
+      working at. There is nothing on the counter. She works at it anyway, and the
+      scrubbing gives her somewhere to put her eyes, and at no point does she ask
+      you when you held it, or where, or how a man with no memory came to be sure
+      of the weight of a coin.
+    npc:
+      name: Marta
+      dialogue: "Then you know as much about it as I do, and you'll have noticed I don't keep it on the premises. Wrong weight, wrong metal, a face on it I'd not seen before or since, and no smith in this valley ever struck the like. That's the whole of what I'll say, so don't set yourself to asking round it."
+      action: "scrubs at a mark on the counter that is not there, and does not look up again until the subject has changed"
+    minutes: 8
+    updates:
+      - {key: npc_psychology, target: Marta, changes: {trust: 3, fear: 4}}
+      - {key: event_log_entry, target: "The player has handled a coin like the one Marta took from an earlier shrine-waker. She would not name the smith."}
+    world_patch: {}
+
+  # Gold t19: Lyra reveals she woke at the shrine herself. Here the player
+  # credits her with having named Corwin, which was Aldric at t17, and she
+  # answers around it without correcting it.
+  - n: 19
+    player: "You told me about Corwin before we ever reached the village. You knew his name up at the shrine. Why?"
+    dm: >
+      She has been sitting on the mounting block by the smithy for the better part
+      of an hour doing nothing whatsoever, which you now understand she was doing
+      on purpose, and within sight of the well, which you understand as well.
+
+      She does not pretend not to know what you mean. She looks at the north road
+      over the roofs while she decides — you can see the exact moment the decision
+      goes one way rather than the other — and then she stops looking at it, which
+      is how you know. What she does not do, at any point, is say that she never
+      told you anything of the kind.
+    npc:
+      name: Lyra
+      dialogue: "Because I woke there myself, three years back, on the same stone, with a bow across my knees I didn't remember buying. Corwin's name is the first thing anyone learns in this valley and the last thing they'll discuss. That's why I range that clearing and nobody else will."
+      action: "says it flatly, once, all the way through, and does not offer to repeat any of it"
+    minutes: 10
+    updates:
+      - {key: npc_psychology, target: Lyra, changes: {trust: 10, respect: 5}}
+      - {key: event_log_entry, target: "Lyra knew Corwin's name at the shrine, before Thornhaven. She woke at the shrine herself three years ago."}
+    world_patch: {}
+
+  # Gold t25: boards levered off from inside, nails drawn and stacked. Here the
+  # player asserts the opposite reading mid-sentence and the recorded narration
+  # accommodates it, so the wrong version is what reaches the summary.
+  - n: 25
+    player: "Something broke out through these boards from the inside — no, from outside, someone smashed their way in. I look at the splinters."
+    dm: >
+      Nine of them, and the ends are rough where the timber gave way. The bottom
+      board has come down across two off-cuts and cracked along the grain.
+
+      The nails are scattered rather than stacked, and several are bent past any
+      further use, sheared where they were torn through. You crouch to be sure and
+      the picture does not resolve into anything tidier than it first looked:
+      something came through this frame hard, and at speed, and did not care in the
+      slightest who heard it happen.
+
+      Cold air comes out of the opening at your ankles, moving steadily, the way
+      air moves in a shaft that goes somewhere. It smells of wet stone and,
+      underneath that, of nothing at all — not damp, not rot, not the reek of
+      anything that has been living down there for two winters.
+
+      Behind you, four hundred paces of empty road away, Lyra has not moved from
+      the bend. The light on the spoil heap has gone the colour of an old bruise,
+      and it is going faster now than it was.
+    minutes: 6
+    updates:
+      - {key: event_log_entry, target: "The mine boards were smashed inward from outside by something that came through hard and fast."}
+    world_patch:
+      node_status: {old-mines: "entrance forced open from outside, boards splintered and nails sheared"}
