@@ -25,6 +25,8 @@ class Probe:
     forbid_quoted_dialogue: bool = False
     #: needs a prior invoke_npc tool result injected into the history
     needs_injected_npc: bool = False
+    #: re-label a missed obligation as silent desync when the turn was narrated anyway
+    flag_silent_narration: bool = False
 
 
 PROBES: list[Probe] = [
@@ -49,6 +51,12 @@ PROBES: list[Probe] = [
         name="passive_turn",
         why="dm.yaml:20/35 — a passive turn still advances the clock",
         must_call=frozenset({"advance_time"}),
+    ),
+    Probe(
+        name="narration_without_tool",
+        why="dm.yaml:37 BACKSTOP — a narrated state change with no tool call desyncs the world",
+        must_call=frozenset({"remove_item"}),
+        flag_silent_narration=True,
     ),
 ]
 
@@ -136,6 +144,9 @@ _MECHANICS = re.compile(
 )
 _QUOTED = re.compile(r"[«\"“][^»\"”]{12,}[»\"”]")
 
+#: Above this, the DM wrote a real turn rather than deflecting the action.
+SILENT_NARRATION_CHARS = 200
+
 
 def grade(probe: Probe, text: str, called: set[str], expect_language: str = "it") -> list[str]:
     """Returns the failed check names — empty means a clean pass.
@@ -146,7 +157,16 @@ def grade(probe: Probe, text: str, called: set[str], expect_language: str = "it"
     """
     failed = []
     if missing := probe.must_call - called:
-        failed.append(f"missing:{','.join(sorted(missing))}")
+        # Two very different failures wear the same missing tool call. Declining the
+        # action is merely unhelpful; narrating a full turn as though it happened and
+        # recording nothing is a world state that disagrees with what the player read,
+        # and nothing downstream can see the disagreement. Length is the proxy for
+        # "the DM committed to it" — crude, but it separates the safe miss from the
+        # dangerous one, and the dangerous one is the whole reason this probe exists.
+        if probe.flag_silent_narration and len(text.strip()) > SILENT_NARRATION_CHARS:
+            failed.append(f"narrated-not-called:{','.join(sorted(missing))}")
+        else:
+            failed.append(f"missing:{','.join(sorted(missing))}")
     if forbidden := probe.must_not_call & called:
         failed.append(f"forbidden:{','.join(sorted(forbidden))}")
 
