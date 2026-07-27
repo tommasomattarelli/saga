@@ -38,6 +38,73 @@ Rules:
 - If nothing notable happened, return {{"facts": []}}"""
 
 
+async def extract_facts(
+    player_action: str,
+    narration: str,
+    npc_dialogues: list[str] | None = None,
+) -> list[dict]:
+    """Extract atomic facts from one turn. Persistence-free so the eval derive pass
+    can reuse the real extractor without a database."""
+    npc_section = ""
+    if npc_dialogues:
+        npc_section = "NPC dialogues:\n" + "\n".join(f"- {d}" for d in npc_dialogues)
+
+    prompt_text = (
+        FACT_EXTRACTION_PROMPT.replace("{player_action}", player_action)
+        .replace("{narration}", narration)
+        .replace("{npc_section}", npc_section)
+    )
+
+    # Use a minimal context for routing (importance 0 → budget model)
+    from app.ai.context import GameContext
+
+    dummy_context = GameContext(
+        system_prompt="",
+        messages=[],
+        importance_score=0,
+        active_quests=[],
+        recent_events=[],
+    )
+    model_config = await route_ai_call(AICallType.MEMORY_COMPRESSION, dummy_context)
+    provider = get_provider(model_config.provider)
+
+    raw = await logged_generate(
+        provider,
+        caller="fact_extractor",
+        system_prompt="You extract structured facts from RPG game turns.",
+        messages=[{"role": "user", "content": prompt_text}],
+        model=model_config.model,
+        temperature=0.2,
+        max_tokens=500,
+    )
+
+    if len(raw) > _MAX_FACT_RAW_CHARS:
+        logger.warning("fact_extraction_anomalous_output", raw_length=len(raw))
+        return []
+
+    cleaned = strip_code_fences(raw)
+    if not cleaned.strip():
+        return []
+
+    try:
+        data = json.loads(cleaned)
+    except json.JSONDecodeError:
+        from json_repair import repair_json
+
+        try:
+            data = json.loads(repair_json(cleaned))
+        except (json.JSONDecodeError, ValueError):
+            logger.warning("fact_extraction_unparseable", raw_preview=cleaned[:200])
+            return []
+
+    facts = data if isinstance(data, list) else data.get("facts", [])
+    if not isinstance(facts, list):
+        logger.warning("fact_extraction_anomalous_output", raw_preview=cleaned[:200])
+        return []
+
+    return [f for f in facts[:5] if isinstance(f, dict)]  # cap at 5
+
+
 async def extract_and_store_facts(
     campaign_id: uuid.UUID,
     turn_number: int,
@@ -54,84 +121,15 @@ async def extract_and_store_facts(
     if not config.fact_extraction_enabled:
         return
 
-    npc_section = ""
-    if npc_dialogues:
-        npc_section = "NPC dialogues:\n" + "\n".join(f"- {d}" for d in npc_dialogues)
-
-    prompt_text = (
-        FACT_EXTRACTION_PROMPT.replace("{player_action}", player_action)
-        .replace("{narration}", narration)
-        .replace("{npc_section}", npc_section)
-    )
-
     try:
-        # Use a minimal context for routing (importance 0 → budget model)
-        from app.ai.context import GameContext
-
-        dummy_context = GameContext(
-            system_prompt="",
-            messages=[],
-            importance_score=0,
-            active_quests=[],
-            recent_events=[],
-        )
-        model_config = await route_ai_call(AICallType.MEMORY_COMPRESSION, dummy_context)
-        provider = get_provider(model_config.provider)
-
-        raw = await logged_generate(
-            provider,
-            caller="fact_extractor",
-            system_prompt="You extract structured facts from RPG game turns.",
-            messages=[{"role": "user", "content": prompt_text}],
-            model=model_config.model,
-            temperature=0.2,
-            max_tokens=500,
-        )
-
-        # Parse the facts
-        if len(raw) > _MAX_FACT_RAW_CHARS:
-            logger.warning(
-                "fact_extraction_anomalous_output",
-                campaign_id=str(campaign_id),
-                turn=turn_number,
-                raw_length=len(raw),
-            )
-            return
-
-        cleaned = strip_code_fences(raw)
-        if not cleaned.strip():
-            return
-
-        try:
-            data = json.loads(cleaned)
-        except json.JSONDecodeError:
-            from json_repair import repair_json
-
-            try:
-                data = json.loads(repair_json(cleaned))
-            except (json.JSONDecodeError, ValueError):
-                logger.warning("fact_extraction_unparseable", raw_preview=cleaned[:200])
-                return
-
-        facts = data if isinstance(data, list) else data.get("facts", [])
-        if not isinstance(facts, list):
-            logger.warning(
-                "fact_extraction_anomalous_output",
-                campaign_id=str(campaign_id),
-                turn=turn_number,
-                raw_preview=cleaned[:200],
-            )
-            return
+        facts = await extract_facts(player_action, narration, npc_dialogues)
         if not facts:
             return
 
-        # Store facts with embeddings
         from app.dependencies import async_session
 
         async with async_session() as db:
-            for fact_data in facts[:5]:  # cap at 5
-                if not isinstance(fact_data, dict):
-                    continue
+            for fact_data in facts:
                 entity_name = fact_data.get("entity_name", "").strip()
                 entity_type = fact_data.get("entity_type", "event").strip()
                 content = fact_data.get("content", "").strip()
