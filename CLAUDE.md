@@ -89,16 +89,18 @@ Every working session follows the same ritual so state is never lost between the
 
 ## Issue Convention
 
-Issues use the **same title grammar as commits**, so issue → branch → commit → PR reads as one line.
+Issues carry the **same title grammar as commits**, so issue → branch → commit → PR reads as one line. That grammar is a **triage output, not a reporter input**: the forms ask for plain prose, and the title is rewritten on triage.
 
-- **Title**: `type(scope): subject` — e.g. `fix(dm): npc resolver loops on a near-miss name`. Same types and scopes as commits.
+- **When something earns an issue**: a defect someone can hit, or a user-visible ask. Not every thought. Design directions, refactors and "we should look at this someday" stay in `TODO.md` — an issue you would open and close yourself in the same session was never an issue.
+- **Title**: `type(scope): subject` — e.g. `fix(dm): npc resolver loops on a near-miss name`. Same types and scopes as commits. **Rewrite it at triage** — asking a player to know Conventional Commits costs them minutes and saves you seconds.
 - **Labels — three orthogonal axes**, one value each from the first two:
   - `type:` — `bug` · `feature` · `enhancement` · `docs` · `refactor` · `question`
   - `prio:` — `P0-critical` (blocks play, corrupts data, leaks secrets) · `P1-high` (major feature broken, no workaround) · `P2-medium` (wrong but has a workaround) · `P3-low` (cosmetic/polish)
   - `area:` — mirrors the commit scopes (`dm`, `ai`, `world`, `combat`, `memory`, `frontend`, `api`, `auth`, `config`, `installer`, `infra`); more than one is fine.
   - Status labels are additive: `needs-repro`, `blocked`, `good first issue`, `help wanted`.
-- **`prio:` is set at triage, never by the reporter** — the templates deliberately don't ask for it.
-- **Templates**: YAML forms in `.github/ISSUE_TEMPLATE/` (blank issues disabled). The bug form requires version + install method + provider + repro; keep those fields current when the install paths change.
+- **Title, `prio:` and `area:` are set at triage, never by the reporter** — the forms deliberately don't ask for any of them.
+- **Templates**: YAML forms in `.github/ISSUE_TEMPLATE/` (blank issues disabled). Kept deliberately loose — free prose, only the fields that decide whether a report is actionable at all are required (version, install + provider, what happened, repro). Every added required field is a report that doesn't get filed; don't grow them back.
+- **Branches are not per-issue**: a branch is one *reviewable unit of work*. Several issues that are logically the same change (same module, same fix) belong on one branch and close together — the PR body carries a `Closes #NN` per issue. Splitting related work to keep a 1:1 issue↔branch map buys nothing and costs a review round each.
 - **Closing the loop**: the fix commit names the issue — `fix(dm): … (#NN)` — and the PR body says `Closes #NN`. `release.sh` then tags the release note `(#NN)`.
 - **Issue vs `TODO.md`**: a defect or a user-visible ask → issue. Forward design work, refactors, and directions stay in `TODO.md` (see Documentation).
 
@@ -108,7 +110,7 @@ Issues use the **same title grammar as commits**, so issue → branch → commit
 
 - **Tags**: `v`-prefixed, on `main` only — `v0.2.5`, pre-releases `v0.2.5-beta.1` / `-rc.1` (mark them "pre-release" on GitHub).
 - **0.x bumps**: features *and* breaking changes → **minor** (`0.2`→`0.3`); bug fixes → **patch** (`0.2.5`→`0.2.6`).
-- **Branching**: GitHub Flow — short-lived `feat/*`/`fix/*` off `main`, squash-merge via PR. No long-lived `develop`/release branches; a release is a **tag on `main` after merge**, not a branch.
+- **Branching**: GitHub Flow — short-lived `feat/*`/`fix/*` off `main`, **merge commit** via PR (never squash: the commit series is the point — see Commit Convention "Granularity" — and squashing collapses it). No long-lived `develop`/release branches; a release is a **tag on `main` after merge**, not a branch. A `release/0.x` branch is created on demand only to patch an already-tagged release.
 - **Release notes**: `release.sh` regroups `[Unreleased]`'s `### Highlights` **by area** — each bullet's `[Area]` tag becomes its `### <Area>` header (areas: Gameplay · World & DM · UI · Installer · Memory & AI · Infra). Append `(@handle)` for outside contributors and `(#NN)` when the release closes an issue; `### Internal` is not published.
 - **Release flow**: `scripts/release.sh <version> [--dry-run]` does it end-to-end — writes the grouped notes to `docs/changelog/CHANGELOG-vX.Y.Z.md`, resets root `[Unreleased]`, bumps the installer `REF`, then commits, tags `main`, and publishes the GitHub Release (pre-release for beta/rc). Run `--dry-run` first; manifest versions are deliberately not bumped (pre-release PEP440/npm divergence).
 
