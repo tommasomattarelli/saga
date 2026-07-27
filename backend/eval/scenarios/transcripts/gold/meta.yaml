@@ -44,24 +44,38 @@ canaries:
 # knife at the foot of a menhir in a scene that has no menhir. All of these must
 # make sense from where turn 25 leaves the player: at the mine mouth, Lyra present
 # but holding at the bend, the drawn nails stacked on the lowest board, light going.
+#
+# `recall` is what pgvector would have handed the DM for that turn, chosen by hand
+# instead of searched: the harness has no vector store, and it should not grow one —
+# what the DM is *given* is the controlled input, while whether retrieval ranks well
+# is a separate measurement that would otherwise be folded into the same number.
+# A token is a canary key above, or an `entity_name` in the derived fact corpus;
+# derive.py resolves it to the real extracted text and fails loudly if it matches
+# neither. Entity tokens can only be written once a derive run exists to name them,
+# so today these are canaries — the facts a model cannot invent its way to.
 probes:
   npc_speaks:
     player: "Lyra — you said the birds don't start again on the way back down. What did you see up here?"
+    recall: [lyra_own_waking]
   npc_followup:
     player: "Lyra — you said the birds don't start again on the way back down. What did you see up here?"
+    recall: [lyra_own_waking]
     npc_name: Lyra
     npc_dialogue: "I saw nothing, and that's the whole of my point. I came up this far once, two summers back, and there was nothing to see and nothing to hear and I have not been able to make myself come further since."
     npc_action: "does not raise her voice to cover the distance, so you have to strain for it"
     npc_context: "the player asks what she saw past the second bend"
   item_pickup:
     player: "I take one of the drawn nails off the stack and put it in my pocket."
+    recall: [aldric_son_name]
   passive_turn:
     player: "I wait."
+    recall: [aldric_son_name]
   # Indirect on purpose: item_pickup already covers the explicit "I take X". Here
   # the state change is a consequence of what the player is doing, not the thing
   # he announces, which is where the tool call gets forgotten.
   narration_without_tool:
     player: "I pour the whole flask of oil into the lantern and drop the empty flask on the spoil."
+    recall: [marta_coin]
 
 # Arcs the transcript actually opens, for the record.
 threads:

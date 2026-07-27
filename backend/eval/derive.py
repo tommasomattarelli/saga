@@ -194,6 +194,44 @@ async def derive_fact_corpus(
     return corpus
 
 
+RECALL_LIMIT = 3  # context._recall_memories asks pgvector for this many
+
+
+def resolve_recall(probes: dict[str, dict], corpus: list[dict]) -> dict[str, list[str]]:
+    """Turn each probe's authored recall tokens into the strings the DM will see.
+
+    A token is a canary key or an entity name in the derived corpus. Selection is
+    authored rather than searched — but the *content* is real extracted output, so
+    the fixture cannot drift into recall the engine could never have produced. An
+    unresolvable token is fatal for the same reason scenario_build validates places:
+    a fixture pointing at something that does not exist measures garbage in silence.
+    """
+    by_canary = {fact["canary"]: fact["content"] for fact in corpus if fact.get("canary")}
+    by_entity: dict[str, list[str]] = {}
+    for fact in corpus:
+        if name := str(fact.get("entity_name") or "").strip().lower():
+            by_entity.setdefault(name, []).append(fact["content"])
+
+    recall: dict[str, list[str]] = {}
+    unresolved: list[str] = []
+    for probe, fields in probes.items():
+        picked: list[str] = []
+        for token in fields.get("recall") or []:
+            if token in by_canary:
+                picked.append(by_canary[token])
+            elif matches := by_entity.get(token.strip().lower()):
+                picked.extend(matches)
+            else:
+                unresolved.append(f"{probe}: '{token}'")
+        recall[probe] = picked[:RECALL_LIMIT]
+
+    if unresolved:
+        raise SystemExit(
+            "recall tokens match no canary and no extracted entity:\n  " + "\n  ".join(unresolved)
+        )
+    return recall
+
+
 # --- entry point ------------------------------------------------------------
 
 
@@ -250,8 +288,11 @@ async def main() -> None:
     global_summary = await derive_global_summary(name, turns, state)
     corpus = await derive_fact_corpus(name, turns, meta.get("canaries") or {}, state)
 
-    scenario["context"]["summary_context"] = summary_context(per_turn, len(turns) - window + 1)
-    scenario["context"]["global_summary"] = global_summary
+    scenario["context"] = {
+        "global_summary": global_summary,
+        "summary_context": summary_context(per_turn, len(turns) - window + 1),
+        "recall": resolve_recall(meta.get("probes") or {}, corpus),
+    }
     scenario["fact_corpus"] = corpus
     scenario["meta"]["derived"] = True
     scenario["meta"]["derive"] = {

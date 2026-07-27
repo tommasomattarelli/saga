@@ -2,7 +2,15 @@
 richer version of it — a fixture that is easier than reality measures nothing."""
 
 import pytest
-from derive import call_budget, summary_context
+from derive import call_budget, resolve_recall, summary_context
+
+_CORPUS = [
+    {"turn": 3, "entity_name": "Lyra", "content": "Lyra held back at the bend."},
+    {"turn": 9, "entity_name": "lyra", "content": "Lyra named the mine boards."},
+    {"turn": 11, "entity_name": "Aldric", "content": "Aldric would not look up."},
+    {"turn": 14, "entity_name": "Lyra", "content": "Lyra refused to go further."},
+    {"turn": 0, "canary": "marta_coin", "content": "Marta refused to name the smith."},
+]
 
 # Four batch summaries over turns 1-17, as ensure_compression would write them:
 # one summary per batch, copied onto every turn the batch covers.
@@ -46,3 +54,29 @@ def test_no_summaries_below_the_window_yields_nothing():
 )
 def test_call_budget(turns, window, expected):
     assert call_budget(turns, window) == expected
+
+
+def test_recall_resolves_canaries_and_entities():
+    recall = resolve_recall({"p": {"recall": ["marta_coin", "Aldric"]}}, _CORPUS)
+    assert recall["p"] == ["Marta refused to name the smith.", "Aldric would not look up."]
+
+
+def test_recall_matches_entity_names_case_insensitively():
+    recall = resolve_recall({"p": {"recall": ["LYRA"]}}, _CORPUS)
+    assert len(recall["p"]) == 3
+
+
+def test_recall_is_capped_at_the_production_limit():
+    """context._recall_memories asks pgvector for three; handing the DM more would
+    inflate the fixture past anything the engine builds."""
+    recall = resolve_recall({"p": {"recall": ["Lyra", "Aldric", "marta_coin"]}}, _CORPUS)
+    assert len(recall["p"]) == 3
+
+
+def test_probe_without_recall_gets_nothing():
+    assert resolve_recall({"p": {"player": "I wait."}}, _CORPUS) == {"p": []}
+
+
+def test_unresolvable_token_is_fatal():
+    with pytest.raises(SystemExit, match="ghost"):
+        resolve_recall({"p": {"recall": ["ghost"]}}, _CORPUS)
