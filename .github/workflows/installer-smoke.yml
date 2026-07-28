@@ -21,7 +21,7 @@ jobs:
     name: Windows installer smoke
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Download bundle (gh — works on private repo)
         shell: pwsh
         env:
@@ -67,7 +67,7 @@ jobs:
     name: Linux installer smoke
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # No manual PGDG setup: install_saga.sh now adds the PGDG repo itself, so
       # this job exercises that logic end-to-end.
       - name: Provision (install, no launch)
@@ -97,7 +97,7 @@ jobs:
     name: macOS installer smoke
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Homebrew is preinstalled on macOS runners; install_saga.sh uses the brew
       # path (postgresql@16 + pgvector) — no PGDG/bundle needed here.
       - name: Provision (install, no launch)
