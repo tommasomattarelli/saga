@@ -263,7 +263,8 @@ SAGA routes each call to a tier by importance, so you are not paying premium rat
 background world simulation — see [`docs/CONFIG.md`](docs/CONFIG.md). What matters in
 practice:
 
-- **Best experience**: a frontier model on the narration tier (Claude Opus 5, GPT-5-5/6...) with a cheap model on the background tiers.
+- **Best experience**: a frontier model on the narration tier (Gemini 3.1 Pro, Claude Opus 5,
+  GPT-5.5) with a cheap model on the background tiers. That is what the shipped defaults do.
 - **Free tiers**: usable to try it out, but they saturate fast and the weakest models skip
   tool calls or drift out of English — a measured, known limitation, not a mystery.
 

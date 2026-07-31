@@ -13,7 +13,7 @@ bug reports from real sessions are worth more than patches right now.
 - **Security issues** → do not open a public issue. Use GitHub's private vulnerability
   reporting (**Security** tab → *Report a vulnerability*).
 
-Design directions and refactors live in [`TODO.md`](TODO.md), not in the issue tracker —
+Design directions and refactors live in [`TODO.md`](TODO.md) for now, not in the issue tracker —
 check there before proposing one, it may already be planned.
 
 ## Setting up
