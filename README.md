@@ -28,38 +28,60 @@ happened three hundred turns ago. Self-hosted, your own API keys, no cloud accou
 
 ## Install
 
-Three ways in, easiest first. All of them need an API key from at least one AI provider —
-OpenAI, Anthropic, Google, OpenRouter, or a local OpenAI-compatible server. The key goes
-in a `.env` file; each route below says which one.
+| Route | Pick it if | Needs |
+|---|---|---|
+| [**Windows — one click**](#windows--one-click) | You just want to play | Windows 10/11 |
+| [**Linux / macOS — one script**](#linux--macos--one-script) | You just want to play | Homebrew or apt |
+| [**Docker**](#docker) | Anything else, or you already run containers | Docker Compose |
+| [**From source**](#from-source) | You want to change the code | uv · Node 20 · Postgres 16 |
 
-### Windows — one click, no Docker
+Every route needs **one AI provider key** — OpenAI, Anthropic, Google, OpenRouter, or a
+local OpenAI-compatible server. Nothing else is a service you sign up for: the database,
+the game and your campaigns all live on your machine.
 
-1. Download **[`install/windows/install_saga.bat`](install/windows/install_saga.bat)** and double-click it.
-2. It installs Git if missing, clones SAGA into `%LOCALAPPDATA%\SAGA\app`, provisions uv,
-   Node and a portable PostgreSQL 16 + pgvector, builds the app, and creates a **SAGA**
-   desktop shortcut.
-3. Put your provider key in `%LOCALAPPDATA%\SAGA\app\backend\.env` (the installer creates
-   it with the secrets already generated), then double-click **SAGA**. Closing the window
-   stops everything — Postgres starts and stops with the app.
+The key goes in a `.env` file. The two installers create that file for you with the other
+secrets already generated, so the only line you add is your key.
 
-Opens at <http://localhost:8000>. Windows 10/11, no admin rights, ~3–4 GB free, internet
-on first run. To remove it all: `windows\uninstall_saga.ps1`.
+### Windows — one click
 
-### Linux / macOS — one script, no Docker
+```text
+download install/windows/install_saga.bat  →  double-click  →  desktop shortcut "SAGA"
+```
+
+The bootstrapper installs Git if it is missing, clones SAGA into `%LOCALAPPDATA%\SAGA\app`,
+provisions uv, Node and a **portable PostgreSQL 16 + pgvector** (no system install, no
+admin rights), builds the app and drops a desktop shortcut.
+
+Then, once:
+
+```powershell
+notepad %LOCALAPPDATA%\SAGA\app\backend\.env    # add OPENAI_API_KEY=... (or another provider)
+```
+
+Double-click **SAGA** to play — it opens at <http://localhost:8000>. Closing the window
+stops everything; Postgres starts and stops with the app.
+
+> **Needs** Windows 10/11 · ~3–4 GB free · internet on first run.
+> **Removes cleanly** with `windows\uninstall_saga.ps1`.
+
+### Linux / macOS — one script
 
 ```bash
 git clone https://github.com/tommasomattarelli/saga.git
 cd saga
-bash install/linux-macos/install_saga.sh
+bash install/linux-macos/install_saga.sh          # do not run as root
+
+$EDITOR ~/.local/share/saga/app/backend/.env      # add your provider key
+bash install/linux-macos/start_saga.sh            # every launch after that
 ```
 
-Provisions uv + Node and installs PostgreSQL 16 + pgvector through your package manager —
-**Homebrew on macOS, apt on Debian/Ubuntu**. Other package managers are not supported yet
-([#58](https://github.com/tommasomattarelli/saga/issues/58)); on those, use Docker below.
-Do not run it as root. The app listens on `8000`, its private Postgres on `54320`.
+Provisions uv + Node and installs PostgreSQL 16 + pgvector through your package manager.
+Opens at <http://localhost:8000>; its private Postgres listens on `54320`, out of the way
+of any Postgres you already run.
 
-Put your provider key in `~/.local/share/saga/app/backend/.env` (created by the installer,
-secrets already generated), then launch with `bash install/linux-macos/start_saga.sh`.
+> **Needs** Homebrew (macOS) or apt (Debian/Ubuntu). Other package managers are not
+> supported yet ([#58](https://github.com/tommasomattarelli/saga/issues/58)) — use Docker
+> instead.
 
 Full installer reference, including the maintainer bundle: [`install/README.md`](install/README.md).
 
@@ -68,17 +90,20 @@ Full installer reference, including the maintainer bundle: [`install/README.md`]
 ```bash
 git clone https://github.com/tommasomattarelli/saga.git
 cd saga
-cp .env.example .env          # add your provider key, generate the two secrets
+cp .env.example .env          # add your provider key + run openssl rand -hex 32 twice
 docker compose up --build
 ```
 
-- App: <http://localhost:3000>
-- API: <http://localhost:8000> · docs: <http://localhost:8000/docs>
+| | |
+|---|---|
+| App | <http://localhost:3000> |
+| API | <http://localhost:8000> |
+| API docs | <http://localhost:8000/docs> |
 
-The shipped Compose stack is a **development** setup (bind mounts, hot reload, Vite dev
-server). Production images are not published yet.
+> The shipped Compose stack is a **development** setup — bind mounts, hot reload, Vite dev
+> server. Production images are not published yet.
 
-### From source (development)
+### From source
 
 ```bash
 # backend — needs PostgreSQL 16 + pgvector reachable at DATABASE_URL
@@ -94,10 +119,132 @@ npm install
 npm run dev
 ```
 
-Two things to fix in that `.env`: `DATABASE_URL` points at the Docker host (`db:5432`) —
-change it to `localhost:5432` — and the two `change-me` secrets are rejected at startup on
-purpose. Under Compose the root `.env` is used instead; outside it, the backend loads
-`.env` relative to its working directory.
+> Two edits in that `.env`: point `DATABASE_URL` at `localhost:5432` (the shipped value is
+> the Docker hostname `db`), and replace both `change-me` secrets with
+> `openssl rand -hex 32` — startup rejects the defaults on purpose.
+>
+> Under Compose the **root** `.env` is used; outside it, the backend loads `.env` relative
+> to its own working directory.
+
+---
+
+## What SAGA is
+
+A tabletop campaign is not a chat. It has to hold continuity for hundreds of turns, keep a
+world consistent while the player is looking somewhere else, and stay honest about what
+actually happened. A language model on its own does none of that — it improvises, and
+improvisation has no memory and no arithmetic. SAGA is the machinery around the model that
+makes the difference.
+
+**The DM is an agent, not a prompt.**
+Each turn runs as a stateful graph: assemble context → call the DM model → execute the tools
+it asked for → hand the results back → repeat, hard-capped at five steps. The DM does not
+*describe* changes to the world, it *calls* them. Picking up a sword, moving to another
+place, shifting how an NPC feels about you, advancing the clock — each is a typed tool call
+against persisted state. Narration is what the player reads; the tool calls are what
+happened. When the two disagree, that is a defect the engine can detect, not a story the
+model got away with.
+
+**The engine owns the numbers; the model owns the fiction.**
+Everything a language model is unreliable at is taken away from it. Dice are rolled
+server-side on a six-level outcome ladder — a natural 1 and a near-miss are different
+events, and the model learns the result rather than choosing it. Damage, prices, loot and
+progression are computed by the engine from world data. A model that picks the damage number
+can be talked into picking zero; "sell it to me for one coin" stops being an attack surface
+when the model never touches the price. What is left for the model is what it is genuinely
+good at: voice, pacing, consequence, and making a failed roll interesting.
+
+**The world runs whether or not you are in it.**
+A world is authored data, not prompt text: a tree of YAML — regions, settlements, rooms,
+roads, factions, NPCs, encounters — instantiated into per-campaign state that is persisted
+every turn and versioned in git. Factions hold agendas, NPCs hold psychology on
+world-defined axes, places hold status. The DM reads a scene out of that state; it does not
+invent one and hope the next turn agrees.
+
+**Memory is a pipeline, not a context window.**
+Three tiers work together: the last eight turns verbatim, rolling summaries of everything
+older, and pgvector semantic recall that pulls the handful of past facts relevant to *this*
+action back into context. Above them sits a rolling ~200-word summary of the whole campaign
+arc, rewritten every few turns. The DM can call back to something from turn 12 on turn 300
+without it ever having been in the window.
+
+**Models are measured, not chosen by reputation.**
+`backend/eval/` drives the production prompts and tool schemas through probes taken from
+real playtest failures: a present NPC has to answer through the NPC call, a turn that changes
+the inventory has to record it, a passive turn still has to advance the clock. Tool
+compliance is stochastic, so every probe runs repeatedly against both an empty context and a
+saturated one, and the report prints the gap between them. That gap — how much worse a model
+behaves once the context is full, which is where real play lives — is the number that decides
+whether a cheap model is good enough.
+
+<details>
+<summary>More: the engine in detail</summary>
+
+- **LangGraph agent loop**: the DM is a stateful graph (context → DM → tools → DM → …)
+  capped at 5 steps, with meaningful-tool detection and a consecutive-empty-step guard so
+  it cannot spin silently.
+- **Dynamic tool loading**: 5 tool groups (core / combat entry / combat / social /
+  inventory) activated by world state — the DM never sees more than ~12 tools at once.
+- **6-level dice outcomes**: natural 1 → hard failure → soft failure → partial success →
+  full success → natural 20. Rolled server-side, click-to-reveal in the UI.
+- **NPCs answer for themselves**: personality, motivation, a secret, a fear and a
+  disposition on a ±100 scale, with a dedicated NPC model called for their lines — shifts
+  persist across turns.
+- **Model routing by importance**: budget models for compression and background simulation,
+  premium models for narrative peaks, every tier configurable in `saga.config.yaml`.
+- **Three death modes**: Ironman (permadeath), Destino (death at an escalating narrative
+  cost), Cronista (story mode, no death).
+- **Scene moods**: 11 states (`calm_exploration`, `tense_anticipation`, `combat_fury`,
+  `dread_horror`, …) driving CSS custom properties for gradual UI shifts.
+- **Persona presets**: each world ships a DM voice (grimdark / heroic / dark_fantasy /
+  horror) injected as a `<persona>` block ahead of the rules, overridable per campaign.
+- **JSON-enforced output**: NPC, companion and world-sim calls use provider JSON mode, so
+  a malformed reply fails loudly instead of silently degrading.
+- **Provider-failure honesty**: an upstream error surfaces as a `502` you can retry, and
+  the turn is not persisted — the game never invents narration to paper over a failed call.
+
+</details>
+
+## Where it's going
+
+The shipped alpha is the reactive half: a player acts, the DM adjudicates, the world records
+it. The work in progress is the half that runs on its own. Each direction below is already a
+written design decision — scope, open questions, and the alternatives that were rejected and
+why.
+
+- **A director behind the curtain.** A background agent above the DM that owns everything
+  off-screen: absent NPCs go about their business, factions pursue agendas, distant places
+  change hands, foreshadowing is planted and later paid off, events are scheduled ahead of
+  time. The player meets it as rumors and consequences. The DM stays the only authority on
+  the scene in front of you.
+- **NPCs with lives, not moods.** Stable identity across a campaign, lifecycle and
+  condition (wounded, missing, dead, gone somewhere), world-defined traits — and
+  *promotion*: any NPC can be recruited, and a companion and a boss are the same object with
+  opposite sign, a character that earns a real sheet and its own acting brain.
+- **A relationship graph beside semantic recall.** Search answers "what past event fits this
+  moment". A graph answers "who hates whom, who owes whom, and who told them" — with
+  recency and salience so a campaign's pillar facts stay reachable and stale ones sink.
+- **Combat that resolves instead of negotiating.** One unified check for everything, in and
+  out of combat, on real statblocks, with damage and initiative owned by the engine.
+- **Characters that grow.** A typed character sheet, skills and proficiencies, items as
+  records rather than flavor text, equipment, and progression the model cannot inflate.
+- **Special moves and structured input.** Active abilities with costs and cooldowns, on a
+  rail where the engine resolves the effect and the model narrates it — free text stays the
+  main channel, not the only one.
+- **An economy.** Prices computed by the engine from world data, shops, services, and
+  haggling that runs through an NPC's psychology and a real check instead of a menu.
+- **Routing that reads the moment.** Importance scoring that works in any language, reusing
+  the embedding each turn already computes, so the expensive model is spent on the turns
+  that deserve it.
+- **Deeper worlds.** More authored content, and the harder part: letting the DM draw on a
+  large world without drowning its context in it.
+
+Where this ends up: a single player can inhabit one world for hundreds of turns, and it
+keeps its own continuity — the model narrates, the engine remembers and adjudicates, and
+neither is asked to do the other's job.
+
+Every decision above is recorded in [`docs/adr/`](docs/adr/), rejected alternatives
+included.
 
 ---
 
@@ -116,53 +263,11 @@ SAGA routes each call to a tier by importance, so you are not paying premium rat
 background world simulation — see [`docs/CONFIG.md`](docs/CONFIG.md). What matters in
 practice:
 
-- **Best experience**: a frontier model on the narration tier (Claude Opus, GPT-5,
-  Gemini 2.5 Pro) with a cheap model on the background tiers.
-- **Cheapest usable**: Gemini Flash across the board.
+- **Best experience**: a frontier model on the narration tier (Claude Opus 5, GPT-5-5/6...) with a cheap model on the background tiers.
 - **Free tiers**: usable to try it out, but they saturate fast and the weakest models skip
   tool calls or drift out of English — a measured, known limitation, not a mystery.
 
 ---
-
-## What makes it different
-
-- **Three-tier memory that actually recalls.** An 8-turn verbatim window, rolling batch
-  summaries, and pgvector semantic recall that injects the three most relevant facts for
-  *this* action. On top of it a ~200-word global story summary, rewritten every 5 turns, so
-  the campaign arc is always in context — no amnesia after turn 8.
-- **NPCs that are not the DM in a hat.** Every NPC carries personality, motivation, a
-  secret, a fear and a disposition on a ±100 scale. The DM hands the scene to a dedicated
-  NPC model, which answers in character; disposition shifts persist across turns.
-- **A world that moves without you.** Factions, weather, NPC schedules and the game clock
-  advance on their own. Full world state is persisted per turn.
-- **Model routing by importance.** Budget models for compression and background sim,
-  premium models for narrative peaks — every tier configurable in `saga.config.yaml`.
-- **Worlds are data, not code.** A world is a tree of YAML — nodes, edges, factions, NPCs,
-  encounters — versioned with git and editable in-app. Export and import as JSON.
-- **Yours.** AGPL, self-hosted, your keys, your database, your campaigns.
-
-<details>
-<summary>More: the engine in detail</summary>
-
-- **LangGraph agent loop**: the DM is a stateful graph (context → DM → tools → DM → …)
-  capped at 5 steps, with meaningful-tool detection and a consecutive-empty-step guard so
-  it cannot spin silently.
-- **Dynamic tool loading**: 5 tool groups (core / combat entry / combat / social /
-  inventory) activated by world state — the DM never sees more than ~12 tools at once.
-- **6-level dice outcomes**: natural 1 → hard failure → soft failure → partial success →
-  full success → natural 20. Rolled server-side, click-to-reveal in the UI.
-- **Three death modes**: Ironman (permadeath), Destino (death at an escalating narrative
-  cost), Cronista (story mode, no death).
-- **Scene moods**: 11 states (`calm_exploration`, `tense_anticipation`, `combat_fury`,
-  `dread_horror`, …) driving CSS custom properties for gradual UI shifts.
-- **Persona presets**: each world ships a DM voice (grimdark / heroic / dark_fantasy /
-  horror) injected as a `<persona>` block ahead of the rules, overridable per campaign.
-- **JSON-enforced output**: NPC, companion and world-sim calls use provider JSON mode, so
-  a malformed reply fails loudly instead of silently degrading.
-- **Provider-failure honesty**: an upstream error surfaces as a `502` you can retry, and
-  the turn is not persisted — the game never invents narration to paper over a failed call.
-
-</details>
 
 ## Tech stack
 
@@ -275,7 +380,14 @@ ideas belong in [Discussions](https://github.com/tommasomattarelli/saga/discussi
 
 ## License
 
-Copyright © 2026 SAGA contributors.
+Copyright © 2026 SAGA contributors. Licensed under the [GNU AGPL-3.0](LICENSE).
 
-Licensed under the [GNU AGPL-3.0](LICENSE) — free to use, modify and self-host. If you run
-a modified version as a network service, you must publish your source.
+- **Playing, self-hosting, modifying, forking** — all fine, no permission needed.
+- **Redistributing it**, modified or not, means shipping the complete source under the
+  same licence.
+- **Running a modified version as a network service** means the same: your users must be
+  able to get your source. This is the clause plain GPL lacks, and the reason it is the
+  licence here — hosting SAGA as a closed product is not a way around sharing the changes.
+
+The name **SAGA** and the project's branding are not covered by the licence: fork the code
+freely, don't ship it as if it were this project.
