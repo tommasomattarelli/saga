@@ -18,17 +18,17 @@ Three tiers selected by scene importance score (0-10, computed from player actio
 dm_narration:
   low:      # importance 0-3: routine exploration, simple responses
     provider: google
-    model: gemini-2.5-pro
+    model: gemini-3.5-flash
     temperature: 0.8
     max_tokens: 2000
   medium:   # importance 4-6: normal gameplay
     provider: google
-    model: gemini-2.5-pro
+    model: gemini-3.5-flash
     temperature: 0.8
     max_tokens: 3000
   high:     # importance 7-10: boss fights, dramatic reveals, story peaks
     provider: google
-    model: gemini-2.5-pro
+    model: gemini-3.1-pro
     temperature: 0.9
     max_tokens: 4000
 ```
@@ -36,11 +36,11 @@ dm_narration:
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
 | `provider` | string | `google` | `google` \| `openai` \| `anthropic` \| `local` |
-| `model` | string | `gemini-2.5-pro` | Any model supported by the provider |
-| `temperature` | float | `0.8`–`0.9` | Higher = more creative, lower = more predictable |
-| `max_tokens` | int | `2000`–`4000` | Output token limit. Increase for longer narrations. |
+| `model` | string | `gemini-3.5-flash` | Any model supported by the provider |
+| `temperature` | float | `0.8`–`0.9` | Higher = more creative, lower = more predictable (if supported by the provider)|
+| `max_tokens` | int | `20000`–`40000` | Output token limit. Increase for longer narrations. |
 
-**When to change**: Switch `high.model` to a premium model (e.g. `claude-opus-4-7`) for better narrative quality at dramatic peaks. Keep `low.model` cheap for routine turns.
+**When to change**: Switch `high.model` to a premium model (e.g. `gemini-3.1-pro`, or `claude-opus-5` on `provider: anthropic`) for better narrative quality at dramatic peaks. Keep `low.model` cheap for routine turns.
 
 ---
 
@@ -50,9 +50,9 @@ dm_narration:
 companion_dialogue:
   default:
     provider: google
-    model: gemini-2.5-flash
+    model: gemini-3.5-flash
     temperature: 0.7
-    max_tokens: 1500
+    max_tokens: 15000
 ```
 
 **When to change**: Increase `max_tokens` if companions are cutting off mid-sentence. Switch to a better model for richer companion personalities.
@@ -65,9 +65,9 @@ companion_dialogue:
 npc_behavior:
   default:
     provider: google
-    model: gemini-2.5-flash
+    model: gemini-3.5-flash
     temperature: 0.7
-    max_tokens: 1000
+    max_tokens: 10000
 ```
 
 NPC calls are high-volume (one per `invoke_npc` per turn). Keep this on a fast, cheap model. JSON mode is always enabled; output is `{dialogue, action, disposition_change, reveals_secret}`.
@@ -82,7 +82,7 @@ NPC calls are high-volume (one per `invoke_npc` per turn). Keep this on a fast, 
 world_sim:
   default:
     provider: google
-    model: gemini-2.5-flash
+    model: gemini-3.5-flash
     temperature: 0.5
     max_tokens: 1500
 ```
@@ -97,7 +97,7 @@ Currently unused (world simulation is a v2 feature). Lower temperature for deter
 memory_compression:
   default:
     provider: google
-    model: gemini-2.5-flash
+    model: gemini-3.5-flash
     temperature: 0.3
     max_tokens: 500
 ```
@@ -127,7 +127,7 @@ Used by `fact_extractor` for MemoryFact embeddings and `search_similar_facts` fo
 ```yaml
 gameplay:
   context_window_turns: 8
-  context_token_cap: 12000
+  context_token_cap: 60000
   npc_verbosity: "medium"
   compression_enabled: true
   fact_extraction_enabled: true
@@ -261,8 +261,8 @@ You can override all model sections at once using global provider settings. Thes
 
 ```
 SAGA_GLOBAL_PROVIDER=openai
-SAGA_GLOBAL_MODEL_HIGH=gpt-4o
-SAGA_GLOBAL_MODEL_LOW=gpt-4o-mini
+SAGA_GLOBAL_MODEL_HIGH=gpt-5.5
+SAGA_GLOBAL_MODEL_LOW=gpt-5.4-mini
 ```
 
 Individual section overrides take precedence over global settings.
@@ -275,14 +275,14 @@ Individual section overrides take precedence over global settings.
 ```yaml
 dm_narration:
   low:
-    model: gemini-2.5-flash
+    model: gemini-3.5-flash
   medium:
-    model: gemini-2.5-flash
+    model: gemini-3.5-flash
   high:
-    model: gemini-2.5-pro  # keep quality only for peaks
+    model: gemini-3.1-pro  # keep quality only for peaks
 gameplay:
   context_window_turns: 6   # fewer verbatim turns = fewer tokens
-  context_token_cap: 8000
+  context_token_cap: 15000
 features:
   global_summary:
     mode: rule_based         # no extra LLM call for summaries
@@ -293,10 +293,10 @@ features:
 dm_narration:
   high:
     provider: anthropic
-    model: claude-opus-4-7   # best narrative quality for dramatic moments
+    model: claude-opus-5   # best narrative quality for dramatic moments
 gameplay:
   context_window_turns: 12  # more verbatim context
-  context_token_cap: 20000
+  context_token_cap: 60000
   npc_auto_create_detail: rich
 features:
   global_summary:
