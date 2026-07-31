@@ -1,6 +1,6 @@
 # Agentic DM Architecture
 
-This document describes the current production architecture of the SAGA AI engine — the LangGraph-based DM agent loop, memory pipeline, NPC system, prompt structure, and provider layer. Sections marked **[Future]** describe planned work not yet implemented.
+This document describes the **current production architecture** of the SAGA AI engine — the LangGraph-based DM agent loop, memory pipeline, NPC system, prompt structure, and provider layer. It documents what runs today; planned work lives in the ADRs, summarised at the end.
 
 ---
 
@@ -86,8 +86,8 @@ The system prompt is assembled by `build_dm_system_prompt()` in `app/ai/prompts/
 ```
 [optional] <persona>
   Narrative tone block — sets voice/style without overriding rules.
-  Source: template.persona_preset (grimdark|heroic|dark_fantasy|horror)
-  or template.persona_xml (custom override, takes precedence).
+  Source: campaign.persona_preset (grimdark|heroic|dark_fantasy|horror)
+  or campaign.persona_xml (custom override, takes precedence).
   Always injected BEFORE <instructions>.
 </persona>
 
@@ -106,7 +106,10 @@ The system prompt is assembled by `build_dm_system_prompt()` in `app/ai/prompts/
 </instructions>
 
 <character name="Eron" hp="12/20" location="Thornhaven">
-  <abilities>STR 16, DEX 12, CON 14, INT 10, WIS 13, CHA 8</abilities>
+  [optional] <abilities>STR 16, DEX 12, CON 14, INT 10, WIS 13, CHA 8</abilities>
+  <!-- Reads flat char_data["str"|"dex"|...]. The frontend writes the full
+       lowercase names, so in practice this block does NOT render today —
+       a known key-convention drift owed to ADR 0010-F1. -->
   <inventory>Sword, Health Potion x2</inventory>
 </character>
 
@@ -117,9 +120,13 @@ The system prompt is assembled by `build_dm_system_prompt()` in `app/ai/prompts/
   </location>
 
   [optional] <npcs_present>
-    <npc name="Marta" disposition="neutral" role="Tavern keeper"/>
-    <npc name="Guard" disposition="unfriendly" role="Watch"/>
-    <!-- Only NPCs whose world_state location matches current_location -->
+    <npc name="Marta" role="Tavern keeper"/>
+    <npc name="Aldric" role="Watch" condition="wounded" trust="wary"/>
+    <!-- Only NPCs whose world_state location matches current_location.
+         Attributes: the world's scene-visible trait fields, an optional
+         condition, and ONLY the psychology axes currently outside their
+         default band (ADR 0005 A5) — an NPC who feels nothing unusual
+         carries no axis attributes at all. -->
   </npcs_present>
 
   [optional] <time>Day 4, evening, autumn</time>
@@ -156,15 +163,14 @@ The system prompt is assembled by `build_dm_system_prompt()` in `app/ai/prompts/
 </quests>
 ```
 
-### Disposition labels (±100 scale)
+### Psychology axes, not a disposition scalar
 
-| Range | Label |
-|-------|-------|
-| > 30 | loyal |
-| > 10 | friendly |
-| ≥ -10 | neutral |
-| ≥ -30 | unfriendly |
-| < -30 | hostile |
+There is no fixed ±100 "disposition" any more. Each world declares its own axes in
+`taxonomy.yaml` — name, range, default, and the bands that name each stretch of the range
+— and the prompt renders the **band label**, never the number: the DM reads `trust="wary"`,
+not `trust=-24`. An axis is only shown when it is salient, i.e. sitting in a band other
+than its default, so a scene block stays short and what appears in it is what changed.
+See ADR [`0005`](adr/0005-npc-multi-axis-psychology.md).
 
 ### Message History (conversation turns)
 
@@ -272,7 +278,7 @@ Persona blocks set the DM's narrative tone without overriding tool rules or game
 
 ```mermaid
 flowchart LR
-    T["template.yaml\npersona_preset: grimdark"] -->|copied at\ncampaign creation| C["Campaign\npersona_preset: grimdark\npersona_xml: null"]
+    T["worlds/&lt;slug&gt;/scenario.yaml\ndm_persona"] -->|copied at\ncampaign creation| C["Campaign\npersona_preset\npersona_xml"]
     C --> BUILD["build_dm_system_prompt()"]
     BUILD -->|persona_xml set?| XML["Use persona_xml\n(custom override)"]
     BUILD -->|preset only| PRESET["PERSONA_PRESETS[preset]\n→ <persona>...</persona>"]
@@ -289,7 +295,7 @@ flowchart LR
 | `dark_fantasy` | Decaying grandeur, moral ambiguity, corrupted magic |
 | `horror` | Restraint + sensory details, slow dread, visceral when it hits |
 
-Custom `persona_xml` on the template overrides the preset. If neither is set, no `<persona>` block appears.
+A world's `scenario.dm_persona` lands on the campaign as `persona_xml` and overrides the preset. If neither is set, no `<persona>` block appears.
 
 ---
 
@@ -299,12 +305,15 @@ Custom `persona_xml` on the template overrides the preset. If neither is set, no
 
 Tools are loaded per-turn based on world state. The DM never sees more than ~12 tools simultaneously.
 
+Groups and their activation predicates are declared in `saga.config.yaml`; the predicates
+themselves are typed Python functions in `tools/tool_groups.py` (no `eval`).
+
 | Group | Activation | Tools |
 |-------|-----------|-------|
-| `core` | Always | `move_to`, `advance_time`, `set_scene_mood`, `log_event`, `update_quest` |
+| `core` | Always | `move_to`, `advance_time`, `set_scene_mood`, `log_event`, `update_quest`, `update_npc` |
 | `combat_entry` | Always | `start_combat` |
 | `combat` | `combat_state.active` | `request_dice`, `apply_damage`, `end_combat`, `update_hp` |
-| `social` | NPCs present at location | `invoke_npc`, `change_npc_disposition` |
+| `social` | `npcs` non-empty | `invoke_npc`, `change_npc_psychology`, `kill_npc`, `remove_npc`, `restore_npc` |
 | `inventory` | Always | `add_item`, `remove_item` |
 
 ### Tool call ordering (`tools_node`)
@@ -353,9 +362,11 @@ step 2: DM calls [log_event] — no narration text
 
 | Tool | Args | Effect |
 |------|------|--------|
-| `move_to` | location | Updates `world_state.meta.current_location` |
+| `move_to` | location | Resolves the destination against the spatial graph, then writes `world_state.player_position` (and mirrors it into `meta.current_location`) |
 | `update_quest` | name, status, description | Quest lifecycle (active/completed/failed/abandoned) |
-| `change_npc_disposition` | npc, delta, reason | NPC disposition ±100 |
+| `change_npc_psychology` | npc, axis deltas, reason | Moves the NPC's world-defined psychology axes (ADR 0005) |
+| `update_npc` | npc, fields | Creates or updates NPC identity/trait fields (ADR 0009) |
+| `kill_npc` / `remove_npc` / `restore_npc` | npc, reason | NPC lifecycle and condition transitions (ADR 0009) |
 | `log_event` | description | Append to `world_state.narrative.event_log` |
 | `set_scene_mood` | mood | CSS mood transition on frontend |
 | `advance_time` | minutes | Game clock forward (affects day/season display) |
@@ -366,7 +377,7 @@ step 2: DM calls [log_event] — no narration text
 
 | Provider | Tool Calling | JSON Mode | Notes |
 |----------|-------------|-----------|-------|
-| Google Gemini | Native | `response_mime_type: application/json` | gemini-2.5-pro for DM, gemini-2.5-flash for NPC/compression |
+| Google Gemini | Native | `response_mime_type: application/json` | Shipped default — a pro tier for the DM's narrative peaks, flash for everything else |
 | OpenAI | Native | `response_format: {type: json_object}` | Most reliable tool calling |
 | Anthropic | Native | Prompt-based (no API param) | Best narrative quality |
 | Local/OpenRouter | Via OpenAI SDK | `response_format: {type: json_object}` | Depends on model |
@@ -375,63 +386,87 @@ All NPC, companion, and world simulation calls use `json_mode=True`. DM narratio
 
 ---
 
-## Data Flow: Template → World State → Context
+## Data Flow: World → World State → Context
+
+A world is authored as a tree of YAML under `worlds/<slug>/` — `world.yaml` and
+`scenario.yaml` at the root, then `nodes/` (nested by containment), `edges/`, `factions/`,
+`npcs/` and `encounters/`. Creating a campaign **instantiates** it into two JSONB columns
+that play different roles for the whole campaign:
+
+- **`world_baseline`** — the authored content frozen at creation: the spatial graph, node
+  descriptions, faction definitions, encounter tables. Read-only during play, so a world
+  edited afterwards never mutates a campaign already in progress.
+- **`world_state`** — the mutable overlay: where the player is, who is where, what changed.
+  This is what tools write and what `build_context()` reads.
 
 ```mermaid
 flowchart TD
-    TY["template.yaml\n(YAML authored content)"] -->|seed_templates| TDB["templates table\ncontent: JSONB\npersona_preset, persona_xml"]
-    TDB -->|create_campaign| CDB["campaigns table\nworld_state: JSONB (seeded)\ncharacter_data: JSONB\nglobal_summary: Text\npersona_preset, persona_xml"]
+    WY["worlds/&lt;slug&gt;/*.yaml\n(authored content)"] -->|load_world| WA["WorldAsset\n(validated Pydantic tree)"]
+    WA -->|instantiate_world at\ncampaign creation| CDB["campaigns table\nworld_baseline: JSONB (frozen)\nworld_state: JSONB (overlay)\ncharacter_data · quests\nglobal_summary · persona"]
 
     subgraph "Each Turn — Tool Mutations"
-        TN2["tools_node"] -->|"move_to → meta.current_location\nchange_npc_disposition → npcs[X].disposition\nstart_combat → combat_state\nadvance_time → clock.total_minutes\nlog_event → narrative.event_log"| WS["world_state (in GameState)"]
+        TN2["tools_node"] -->|"move_to → player_position\nchange_npc_psychology → npcs[uuid].psychology\nstart_combat → combat_state\nadvance_time → clock.total_minutes\nlog_event → narrative.event_log"| WS["world_state (in GameState)"]
     end
 
     WS -->|post_process_node| CDB
     CDB -->|context_node each turn| BC["build_context()\n→ system_prompt XML"]
 ```
 
+Node ids are UUIDs minted at instantiation; the authored slugs survive as resolution
+aliases, so a tool call naming a place by its human name still resolves. The world model
+itself — layering, containment, the spatial graph — is ADR
+[`0008`](adr/0008-world-model-multilayer-yaml.md).
+
 ### `world_state` schema
+
+`meta.schema_version` is bumped whenever the overlay shape changes.
 
 ```json
 {
   "meta": {
-    "setting": "dark medieval fantasy",
-    "current_location": "Thornhaven",
-    "current_season": "autumn"
+    "schema_version": 7,
+    "world_name": "The Awakening",
+    "setting": "A verdant forest surrounds the ancient Shrine of First Light...",
+    "current_location": "<node-uuid>",
+    "current_season": "spring",
+    "opening_narration": "Your eyes open to a canopy of ancient oaks..."
   },
-  "clock": {
-    "total_minutes": 5220
-  },
-  "time_of_day": "evening",
-  "weather": "light rain",
-  "locations": {
-    "Thornhaven": {
-      "description": "A small village...",
-      "connections": ["Shrine of First Light", "Forest Path"]
-    }
-  },
+  "player_position": "<node-uuid>",
+  "clock": { "total_minutes": 480 },
+  "time_of_day": "morning",
+  "weather": "clear",
   "npcs": {
-    "Marta": {
-      "role": "Tavern keeper",
-      "location": "Thornhaven",
-      "disposition": 15,
-      "last_interactions": ["Turn 3: Player asked about the mine"],
-      "personality": "cautious but kind",
-      "motivation": "protect her family"
+    "<npc-uuid>": {
+      "slug": "lyra",
+      "name": "Lyra",
+      "location": "<node-uuid>",
+      "faction": "thornhaven-council",
+      "psychology": { "trust": -20, "fear": 0, "respect": 0 },
+      "traits": { "role": "Ranger", "motivation": "protect her family" },
+      "met_player": false
     }
   },
   "companions": {},
-  "factions": {},
+  "factions": { "The Hollow": { "description": "...", "disposition": 0 } },
   "combat_state": {
     "active": false,
     "round": 0,
-    "initiative_order": []
+    "initiative_order": [],
+    "current_turn_index": 0
   },
-  "narrative": {
-    "event_log": []
-  }
+  "narrative": { "event_log": [] },
+  "node_status": {},
+  "edge_overrides": [],
+  "consumed_encounters": {},
+  "destino_lives": 3
 }
 ```
+
+Two things worth reading off that shape. NPCs are keyed by **UUID**, not by display name —
+renaming an NPC mid-campaign no longer orphans its record (ADR
+[`0009`](adr/0009-npc-enrichment.md)). And affect is not one scalar: `psychology` holds the
+axes the *world* defines, so a horror world and a political one can disagree about what an
+NPC even feels (ADR [`0005`](adr/0005-npc-multi-axis-psychology.md)).
 
 ---
 
@@ -452,6 +487,14 @@ Active combat: +2
 
 Configured in `saga.config.yaml` under `dm_narration.low|medium|high`.
 
+> **Known limitation.** The routing machinery is real; the score feeding it is not yet.
+> The keyword lists are English-only, so a campaign played in any other language never
+> matches one and the score stays at its base of 5 — always the medium tier. The combat
+> bump reads `world_state["in_combat"]`, a key with no writer anywhere (the live flag is
+> `combat_state.active`), so it never fires either. Replacing this is ADR
+> [`0016`](adr/0016-importance-scoring.md), which reuses the embedding each turn already
+> computes rather than paying for a classifier call.
+
 ---
 
 ## Security
@@ -467,14 +510,13 @@ Configured in `saga.config.yaml` under `dm_narration.low|medium|high`.
 
 **Status**: Disabled (`gameplay.semantic_resolver_enabled: false`). Code preserved.
 
-**What it could become in v1.5:**
-
-| Use | How | Cost |
-|-----|-----|------|
-| NPC context filter | Location filter + name matching → only relevant NPCs in `<npcs_present>` | Zero — pure string logic |
-| Intent classification | Classify action → `social/combat/exploration/stealth/travel` → correct tool_groups | +1 flash call |
-| Importance scoring | Better than keyword heuristics → better model selection | Reuse intent call |
-| Quest thread detection | Which active quest is relevant → pass only that quest to prompt | Reuse intent call |
+It was meant to sit in front of the DM call and decide what the turn is *about* — filtering
+NPCs, classifying intent to pick tool groups, scoring importance, selecting the relevant
+quest thread. It is off because each of those jobs is now owned by a decision that does it
+better or cheaper: importance scoring by ADR
+[`0016`](adr/0016-importance-scoring.md) (reusing the turn's existing embedding instead of
+adding a call), and recall/NPC relevance by ADR
+[`0002`](adr/0002-relationship-graph-recall.md). The code stays until those land.
 
 ---
 
@@ -506,7 +548,7 @@ Configured in `saga.config.yaml` under `dm_narration.low|medium|high`.
 - Single LLM doing both narration AND world simulation
 - Mutating world_state without event log (loses debuggability)
 - Hardcoding feature toggles in code (breaks BYOAK promise)
-- Stuffing entire template content into system prompt (token waste)
+- Stuffing the whole authored world into the system prompt (token waste)
 - Exposing Python stack traces in tool error messages (confuses LLM)
 - Reflection / agent loops without a hard `max_iterations` termination guard
 - Holding a DB session open across an LLM call (blocks connection pool for seconds to minutes)
@@ -568,99 +610,22 @@ The confirmed vulnerabilities from the 2026-04-22 audit have been addressed:
 
 ---
 
-## Ideas & Future Directions
+## Where the architecture goes next
 
-### Living World — Background Simulation
+This document describes what runs. Where the architecture is *going* is not decided here —
+each direction is an ADR, with its open forks and the alternatives that were rejected. The
+ones that change the shape of the turn loop above:
 
-```
-Player ends turn N
-    |
-    v
-Post-turn background jobs (fire-and-forget):
-    |
-    +-> fact_extraction (already running)
-    +-> compression (already running)
-    +-> global_summary update (already running, every 5 turns)
-    +-> NEW: world_tick()
-            |
-            +-> For each active faction: evaluate agenda progress
-            +-> For each NPC with active motivation: advance goal
-            +-> Random events table: check if something triggers
-            +-> Weather/season progression
-            +-> Store changes in world_state + narrative.event_log
-```
+| ADR | What it changes about this document |
+|---|---|
+| [`0006`](adr/0006-ai-director-layer.md) — AI Director layer | Adds a proactive layer **above** the DM: a background agent that moves absent NPCs, advances faction agendas, plants and pays off foreshadowing, and schedules future events. Today the world only moves as a side-effect of the DM's tool calls during a player turn. |
+| [`0017`](adr/0017-npc-dialogue-turn-architecture.md) — NPC dialogue turn architecture | Questions the mid-turn `invoke_npc` call itself. It serialises the DM and NPC models (a three-beat scene costs ~7 sequential round-trips) and the tool boundary breaks the rhythm of a scene; the alternative is a parallel pre-pass. **WIP, nothing decided.** |
+| [`0002`](adr/0002-relationship-graph-recall.md) — Relationship graph | Adds a second recall layer beside pgvector, plus recency weighting and location/participant awareness in the query. Today `search_similar_facts` is pure top-K cosine against the naked player action. |
+| [`0016`](adr/0016-importance-scoring.md) — Importance scoring | Replaces the English-keyword scorer that makes routing a no-op in any other language, reusing the embedding each turn already computes. |
+| [`0003`](adr/0003-deterministic-combat-resolution.md) — Deterministic resolution | Moves damage, statblocks and initiative fully engine-side, and unifies checks in and out of combat. Removes `start_combat` from the tool surface. |
+| [`0009`](adr/0009-npc-enrichment.md) · [`0014`](adr/0014-npc-promotion.md) — NPC identity, lifecycle, promotion | Already partly landed (UUID keys, `update_npc`, lifecycle tools). 0014 adds promotion: any NPC can gain a sheet and a dedicated acting brain — companions and elites are the same object with opposite sign. |
+| [`0010`](adr/0010-player-character-customization.md) · [`0012`](adr/0012-active-abilities.md) · [`0015`](adr/0015-commerce.md) — Sheet, abilities, commerce | Add typed character data, a structured input rail beside free text, and engine-computed prices. All three follow 0003's posture: the model never picks a number. |
+| [`0004`](adr/0004-dm-core-game-system-separation.md) — DM core vs game system | Splits `dm.yaml` (one blob of universal GM craft plus hand-written tool obligations) into a stable core and per-world content rules. |
 
-### Memory Architecture — Three-Tier Recall (current + future)
-
-```
-Tier 1: ACTIVE WINDOW (8 turns verbatim)                   ← ACTIVE
-Tier 2: ROLLING SUMMARY (batch summaries + global arc)      ← ACTIVE
-Tier 3: SEMANTIC SEARCH (pgvector on MemoryFact corpus)     ← ACTIVE (search_similar_facts wired)
-Tier 4: recall_memory tool (DM-invoked on demand)           ← FUTURE (v2)
-```
-
-**Planned evolution — Dual-Memory Architecture (v1.5)**
-
-Research on agentic narrative systems shows that combining a compact rolling summary with episodic vector RAG increases long-term recall accuracy from ~41% to ~87% on topic-specific queries. The planned upgrade separates the two concerns explicitly:
-
-| Component | Mechanism | Update frequency |
-|-----------|-----------|-----------------|
-| **Compact rolling summary** | Single ≈200-word paragraph, iteratively extended via anchored LLM summarization | Every 5 turns (already active as `global_summary`) |
-| **Episodic pgvector RAG** | Atomic `MemoryFact` rows, 384-dim embeddings, cosine similarity retrieval | Post-turn async (already active) |
-
-Additional planned improvement: migrate from basic `vector` (float32) to `halfvec` (float16) with BM25 hybrid search for keyword anchoring. Keyword anchoring is critical for proper nouns (NPC names, location names, item names) that pure cosine similarity misses. Controlled by `gameplay.pgvector_hybrid` flag.
-
-### Companion System [Future]
-
-Each companion becomes a lightweight agent with loyalty, trust, mood, and their own opinions. Companions can refuse actions, leave the party, or act independently.
-
-### Possible New Tools
-
-| Tool | Category | Description |
-|------|----------|-------------|
-| `recall_memory` | Memory | DM-invoked semantic search in memory_facts |
-| `suggest_actions` | UX | Suggest 2-4 player options as clickable buttons |
-| `update_npc` | World Mutation | Create or update NPC fields (personality, secret, status) |
-| `companion_dialogue` | Companion | Make a companion speak in character |
-| `companion_command` | Companion | Tell a companion to do something |
-| `trigger_event` | World Sim | Fire a world event from the event table |
-| `check_faction_status` | World Query | Faction agenda progress, disposition, recent actions |
-| `journal_entry` | UX | Styled entry to the player's journal (player-facing) |
-| `flashback` | Narrative | Narrate a memory/vision from early turns via pgvector |
-
----
-
-## Roadmap
-
-### v1 — Solid Single Player Foundation ✅ (current)
-- LangGraph agent loop with 5-step max
-- XML system prompt with selective context
-- Three-tier memory (active window + summaries + pgvector)
-- Global rolling story summary
-- NPC pre-hook with auto-create
-- JSON-enforced output for all NPC/world calls
-- Dynamic tool loading by world state
-- Persona preset system
-- Consecutive empty steps guard
-- Disposition ±100 scale
-
-### v1.5 — Companion + Tension + Smarter Context
-- Semantic Resolver Phase 1+2 (NPC filter + intent classification)
-- Companion system (loyalty, trust, moods, refusal)
-- NPC memory / BDI lite (beliefs, last interactions, current intention)
-- Narrative tension score (rule-based, world_state.meta.tension_score)
-- Player journal (auto-generated, player-facing)
-
-### v2 — Living World + Multiplayer
-- World Sim Agent (separate LLM, autonomous faction/NPC progression)
-- Procedural quest generation (rule-based combinatorial)
-- Full event sourcing (world_state derivable from event log)
-- Multiplayer infrastructure (per-player character_data, shared world_state)
-- `recall_memory` tool (DM-invoked pgvector query)
-- Campaign export/import (with full event log)
-
-### v3 — Multi-Agent Hierarchy
-- Director Agent (high-level coordinator, pacing decisions)
-- Per-NPC Agents (major NPCs with dedicated agent threads)
-- Companion Agents (independent party members with own goals)
-- Visual generation hooks (Stable Diffusion for location art, NPC portraits)
+The full set, including the accepted ones this document already reflects, is in
+[`adr/`](adr/).
