@@ -16,8 +16,9 @@ recipe (`build_bundle.ps1`) stays at the `install/` root.
 3. From then on: double-click **SAGA** to play. Closing the window (or Ctrl+C)
    stops everything — Postgres starts and stops together with the app.
 
-The app opens at `http://localhost:8000`. Add your AI provider key later from the
-in-app settings (the installer never asks for it).
+The app opens at `http://localhost:8000`. The installer never asks for an AI provider key:
+add it yourself to `%LOCALAPPDATA%\SAGA\app\backend\.env` (created with the other secrets
+already generated) and restart.
 
 Requirements: Windows 10/11, an internet connection on first run, ~3–4 GB free.
 No admin rights needed. To remove everything, run `windows\uninstall_saga.ps1`.
@@ -26,7 +27,8 @@ No admin rights needed. To remove everything, run `windows\uninstall_saga.ps1`.
 
 Run `linux-macos/install_saga.sh`. It provisions uv + Node and installs
 Postgres 16 + pgvector via the OS package manager (brew on macOS, apt on Debian/
-Ubuntu), then builds and launches via `linux-macos/start_saga.sh`.
+Ubuntu), then builds and launches via `linux-macos/start_saga.sh`. The provider key
+goes in `~/.local/share/saga/app/backend/.env`, same as on Windows.
 
 ## Files
 
