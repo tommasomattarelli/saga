@@ -60,8 +60,9 @@ secrets already generated, so the only line you add is your key.
 
 ### Windows — one click
 
-**Download [`install_saga.bat`](https://github.com/tommasomattarelli/saga/releases/latest/download/install_saga.bat)
-and double-click it.** That is the whole installation.
+**Download [`install_saga.bat`](https://raw.githubusercontent.com/tommasomattarelli/saga/main/install/windows/install_saga.bat)
+and double-click it.** That is the whole installation — the script pins itself to the
+latest release, so it is always current.
 
 The bootstrapper installs Git if it is missing, clones SAGA into `%LOCALAPPDATA%\SAGA\app`,
 provisions uv, Node and a **portable PostgreSQL 16 + pgvector** (no system install, no
