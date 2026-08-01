@@ -1,16 +1,23 @@
 # Two channels:
-#  - Version updates (below): routine bumps, one grouped PR per ecosystem,
-#    weekly — low noise.
-#  - Security updates: enabled at the repo level (Dependabot alerts +
-#    security updates). They open as soon as a CVE affects a dependency and
-#    arrive INDIVIDUALLY (not grouped), so a critical fix is never blocked by
-#    a bundled breaking change.
+#  - Version updates (below): routine bumps, one grouped PR per ecosystem.
+#    PAUSED via `open-pull-requests-limit: 0` — the documented way to stop
+#    version-update PRs without deleting the config. The open PRs had grown
+#    past the point of being triaged one at a time, so they were closed; these
+#    come back as a single dedicated dependency pass, not a background trickle.
+#    Restore by removing the limit and putting `interval` back to "weekly".
+#    NB: the React 19 / i18next and google-genai majors are migrations, not
+#    bumps (see TODO.md "dependency updates") — they need their own branch.
+#  - Security updates: enabled at the repo level (Dependabot alerts + security
+#    updates), unaffected by the limit below. They open as soon as a CVE
+#    affects a dependency and arrive INDIVIDUALLY (not grouped), so a critical
+#    fix is never blocked by a bundled breaking change.
 version: 2
 updates:
   - package-ecosystem: "uv"
     directory: "/backend"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 0
     groups:
       all:
         applies-to: version-updates
@@ -20,7 +27,8 @@ updates:
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 0
     groups:
       all:
         applies-to: version-updates
@@ -30,7 +38,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 0
     groups:
       all:
         applies-to: version-updates
