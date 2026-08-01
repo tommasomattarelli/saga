@@ -18,11 +18,27 @@ happened three hundred turns ago. Self-hosted, your own API keys, no cloud accou
 > - **The schema and the API change without a migration path.** A pre-1.0 upgrade may
 >   require wiping the database; campaigns are not guaranteed to survive a version bump
 >   (export them — see [Data portability](#data-portability)).
-> - **The UI is functional, not finished.** A visual pass is in progress.
+> - **The UI still has a visual pass coming.** No logo, no landing page, rough edges.
 > - **Output quality depends on the model you point it at.** Cheap free-tier models drift
 >   out of language and skip tool calls; see [Choosing a model](#choosing-a-model).
 > - Expect bugs. [Open an issue](https://github.com/tommasomattarelli/saga/issues/new/choose) —
 >   that is what the alpha is for.
+
+---
+
+![A turn in SAGA — the player writes one line, the DM narrates the scene](docs/assets/turn-opening.png)
+
+<details>
+<summary>Another turn — Lyra answering for herself</summary>
+
+<br>
+
+![Two turns later — the player questions Lyra, who replies in her own voice, then says nothing at all](docs/assets/npc-dialogue.png)
+
+The DM does not speak for NPCs. It hands the scene to a dedicated NPC model, which answers
+in character — including by refusing to answer. Turn numbers mark each exchange.
+
+</details>
 
 ---
 
