@@ -11,7 +11,7 @@ plain language; the DM adjudicates them with dice and narrative logic. NPCs carr
 own psychology, the world keeps moving while you are elsewhere, and the DM remembers what
 happened three hundred turns ago. Self-hosted, your own API keys, no cloud account.
 
-> ### ⚠️ Alpha — `v0.2.0-beta.1`
+> ### ⚠️ Alpha — [![latest release](https://img.shields.io/github/v/release/tommasomattarelli/saga?include_prereleases&sort=semver&label=latest)](https://github.com/tommasomattarelli/saga/releases/latest)
 >
 > SAGA is playable end to end but pre-1.0 and under active development. Concretely:
 >
@@ -60,9 +60,8 @@ secrets already generated, so the only line you add is your key.
 
 ### Windows — one click
 
-```text
-download install/windows/install_saga.bat  →  double-click  →  desktop shortcut "SAGA"
-```
+**Download [`install_saga.bat`](https://github.com/tommasomattarelli/saga/releases/latest/download/install_saga.bat)
+and double-click it.** That is the whole installation.
 
 The bootstrapper installs Git if it is missing, clones SAGA into `%LOCALAPPDATA%\SAGA\app`,
 provisions uv, Node and a **portable PostgreSQL 16 + pgvector** (no system install, no
