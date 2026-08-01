@@ -11,7 +11,7 @@
 # suffix diverges between PEP440 (0.1.0b2) and npm (0.1.0-beta.2). Revisit if a
 # final (non pre-release) version ever needs the manifests in sync.
 #
-# Usage: scripts/release.sh <version> [--dry-run]   e.g. 0.2.0 | 0.1.0-beta.2
+# Usage: scripts/release.sh <version> [--dry-run]   e.g. 0.2.0 | 0.2.1-alpha.1
 set -euo pipefail
 
 # --- args -------------------------------------------------------------------
@@ -24,13 +24,13 @@ for arg in "$@"; do
     *) [ -z "$VERSION" ] || { echo "ERROR: unexpected argument '$arg'" >&2; exit 1; }; VERSION="$arg" ;;
   esac
 done
-[ -n "$VERSION" ] || { echo "Usage: scripts/release.sh <version> [--dry-run]   e.g. 0.2.0 | 0.1.0-beta.2" >&2; exit 1; }
+[ -n "$VERSION" ] || { echo "Usage: scripts/release.sh <version> [--dry-run]   e.g. 0.2.0 | 0.2.1-alpha.1" >&2; exit 1; }
 
 cd "$(git rev-parse --show-toplevel)"
 
 # --- guards -----------------------------------------------------------------
-if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(beta|rc)\.[0-9]+)?$ ]]; then
-  echo "ERROR: invalid version '$VERSION'. Expected X.Y.Z, optionally -beta.N or -rc.N." >&2
+if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)?$ ]]; then
+  echo "ERROR: invalid version '$VERSION'. Expected X.Y.Z, optionally -alpha.N, -beta.N or -rc.N." >&2
   exit 1
 fi
 TAG="v$VERSION"
