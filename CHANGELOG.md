@@ -12,3 +12,6 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 `[Unreleased]` is reset; this root file keeps only `[Unreleased]`.
 
 ## [Unreleased]
+
+### Internal
+- `docs/adr/README.md` — tabular index of the 18 decision records: status, last movement, title, one-line direction. A `README` so GitHub renders it on opening `docs/adr/`; `/adr` updates the row at close-out.

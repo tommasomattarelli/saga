@@ -72,6 +72,7 @@ Match the existing ADRs. **Always**: `# ADR NNNN — <title>`, a header (**Statu
 
 ## 4. Close out
 
+- **Update the index — `docs/adr/README.md`.** A new ADR gets a row; an evolved one gets its **Status**, **Last movement** (today) and **In brief** brought back in line with what the ADR now says. The index is hand-maintained: skip this and it starts lying within two ADRs. Status uses the ADR's own word (`Accepted` / `Proposed` / `WIP`); "In brief" is 1-2 sentences on the direction, not a summary of the decisions.
 - Cross-link `TODO.md` **only for near-term, actionable** follow-ups, and move/tick any existing TODO items the ADR closes. A **far-future** ADR — one gated behind a dependency (e.g. 0009 sits behind 0005) — keeps its implementation TODOs in **its own Decided-vs-Open index**, NOT in `## NOW`: don't pollute the active list with work that can't start yet. State explicitly that you left them in the ADR.
 - Docs-as-code: propose a commit `docs(adr): add NNNN-<slug>` (or `docs(adr): expand NNNN …`); leave the commit to the user / `/wrap-up`.
 - Never edit an Accepted ADR; WIP/Proposed stay open until the owner declares them Accepted.
