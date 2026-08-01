@@ -96,7 +96,7 @@ awk '
     items[area]=items[area] "- " text "\n"
   }
   END {
-    nc=split("Gameplay|World & DM|UI|Installer|Memory & AI|Infra", canon, "|")
+    nc=split("Gameplay|World & DM|UI|Installer|Memory & AI|Infra|Docs", canon, "|")
     for (i=1;i<=nc;i++){ c=canon[i]; if (c in seen){ printf "### %s\n\n%s\n", c, items[c]; done[c]=1 } }
     for (i=1;i<=n;i++){ a=order[i]; if (!(a in done)){ printf "### %s\n\n%s\n", a, items[a]; print "WARNING: unknown area \x27" a "\x27 (appended; not in the canonical list)" > "/dev/stderr" } }
   }
