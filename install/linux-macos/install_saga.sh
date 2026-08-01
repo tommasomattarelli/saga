@@ -19,7 +19,7 @@ PGVECTOR_VERSION="${SAGA_PGVECTOR_VERSION:-0.8.4}"
 NO_LAUNCH="${SAGA_NO_LAUNCH:-0}"
 REPO="https://github.com/tommasomattarelli/saga.git"
 # Release the installer checks out. Bumped per release. Override with SAGA_REF.
-REF="${SAGA_REF:-v0.2.0-beta.1}"
+REF="${SAGA_REF:-v0.2.1-alpha.1}"
 
 step() { printf '\n==> %s\n' "$1"; }
 ok()   { printf '[OK] %s\n' "$1"; }
