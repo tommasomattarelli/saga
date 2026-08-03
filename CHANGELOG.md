@@ -14,6 +14,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ## [Unreleased]
 
 ### Highlights
+- [Memory & AI] Model reasoning is no longer saved as a campaign summary: the summarisers require a JSON object and `<think>` blocks are stripped, so deliberation fails to parse instead of being stored (#78).
 - [Memory & AI] Truncated model answers are no longer stored as complete, and every call uses the `max_tokens` the router resolves instead of a hardcoded one (#77).
 
 ### Internal

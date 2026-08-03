@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.router import AICallType, get_gameplay_config, route_ai_call
+from app.memory.compressor import summary_from
 from app.models.campaign import Campaign
 from app.models.turn import Turn
 
@@ -25,7 +26,8 @@ Write in flowing prose, 4-6 sentences. No meta-commentary, no lists.
 Recent turns:
 {turns_text}
 
-Summary:"""
+Output ONLY valid JSON:
+{{"summary": "the summary prose"}}"""
 
 UPDATE_PROMPT = """You maintain a rolling summary of an RPG campaign. Extend the existing summary with the new turns below.
 Keep the total length under 10 sentences — drop stale details to make room for new beats.
@@ -38,7 +40,8 @@ Existing summary:
 New turns:
 {turns_text}
 
-Updated summary:"""
+Output ONLY valid JSON:
+{{"summary": "the updated summary prose"}}"""
 
 
 def _format_turns(turns: list[Turn]) -> str:
@@ -71,8 +74,9 @@ async def _generate_summary(prompt: str) -> str | None:
             model=model_config.model,
             temperature=0.3,
             max_tokens=model_config.max_tokens,
+            json_mode=True,
         )
-        return raw.strip()
+        return summary_from(raw)
     except Exception:
         logger.exception("global_summary_generation_failed")
         return None
