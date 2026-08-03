@@ -3,6 +3,8 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 
+from app.config_loader import load_saga_config
+
 
 class DiceOutcome(StrEnum):
     CRITICAL_FAILURE = "critical_failure"
@@ -11,6 +13,22 @@ class DiceOutcome(StrEnum):
     PARTIAL_SUCCESS = "partial_success"
     FULL_SUCCESS = "full_success"
     CRITICAL_SUCCESS = "critical_success"
+
+
+class DifficultyLevel(StrEnum):
+    """What the LLM classifies a task into. It never emits a number (ADR 0003 A2)."""
+
+    TRIVIAL = "trivial"
+    EASY = "easy"
+    NORMAL = "normal"
+    HARD = "hard"
+    VERY_HARD = "very_hard"
+    NEAR_IMPOSSIBLE = "near_impossible"
+
+
+SUCCESS_OUTCOMES = frozenset(
+    {DiceOutcome.PARTIAL_SUCCESS, DiceOutcome.FULL_SUCCESS, DiceOutcome.CRITICAL_SUCCESS}
+)
 
 
 @dataclass
@@ -23,6 +41,27 @@ class DiceResult:
     total: int
     natural_20: bool = False
     natural_1: bool = False
+
+
+@dataclass
+class CheckResolution:
+    """A resolved d20 check — every number in it computed server-side."""
+
+    roll: DiceResult
+    difficulty: DifficultyLevel
+    difficulty_draw: int
+    modifier: int
+    total: int
+    outcome: DiceOutcome
+    is_critical: bool
+
+    @property
+    def success(self) -> bool:
+        return self.outcome in SUCCESS_OUTCOMES
+
+
+def _resolution_config() -> dict:
+    return load_saga_config()["resolution"]
 
 
 def roll_dice(expression: str) -> DiceResult:
@@ -80,42 +119,62 @@ def roll_with_disadvantage(sides: int = 20, modifier: int = 0) -> DiceResult:
     )
 
 
-def _determine_outcome(result: DiceResult, dc: int) -> tuple[DiceOutcome, bool]:
-    """Determine 6-level outcome and criticality from a d20 check."""
+def draw_difficulty_modifier(level: DifficultyLevel) -> int:
+    """Convert a classified level into a roll modifier by drawing from its range (A2)."""
+    best, worst = _resolution_config()["difficulty_levels"][level.value]
+    return random.randint(min(best, worst), max(best, worst))
+
+
+def clamp_character_modifier(modifier: int) -> int:
+    """Keep the sheet-produced modifier inside the envelope the bands are tuned for (A6)."""
+    low, high = _resolution_config()["char_mod_clamp"]
+    return max(low, min(high, modifier))
+
+
+def _determine_outcome(result: DiceResult) -> tuple[DiceOutcome, bool]:
+    """Read a total against the absolute bands. Naturals always win (A3/A4)."""
     if result.natural_1:
         return DiceOutcome.CRITICAL_FAILURE, True
     if result.natural_20:
         return DiceOutcome.CRITICAL_SUCCESS, True
 
-    diff = result.total - dc
-    if diff <= -5:
+    hard_max, partial_floor, full_floor = _resolution_config()["outcome_bands"]
+    if result.total <= hard_max:
         return DiceOutcome.HARD_FAILURE, False
-    if diff < 0:
+    if result.total < partial_floor:
         return DiceOutcome.SOFT_FAILURE, False
-    if diff < 4:
+    if result.total < full_floor:
         return DiceOutcome.PARTIAL_SUCCESS, False
     return DiceOutcome.FULL_SUCCESS, False
 
 
-def ability_check(
-    modifier: int, dc: int, advantage: bool = False, disadvantage: bool = False
-) -> dict:
-    """Perform a d20 ability check against a DC with 6-level outcome."""
+def resolve_check(
+    modifier: int,
+    difficulty: DifficultyLevel,
+    advantage: bool = False,
+    disadvantage: bool = False,
+) -> CheckResolution:
+    """Resolve any d20 check: total = d20 + clamped modifier + difficulty draw (A1)."""
+    char_modifier = clamp_character_modifier(modifier)
+    draw = draw_difficulty_modifier(difficulty)
+    total_modifier = char_modifier + draw
+
     if advantage and not disadvantage:
-        result = roll_with_advantage(modifier=modifier)
+        roll = roll_with_advantage(modifier=total_modifier)
     elif disadvantage and not advantage:
-        result = roll_with_disadvantage(modifier=modifier)
+        roll = roll_with_disadvantage(modifier=total_modifier)
     else:
-        result = roll_dice(f"1d20+{modifier}" if modifier >= 0 else f"1d20{modifier}")
+        expression = f"1d20+{total_modifier}" if total_modifier >= 0 else f"1d20{total_modifier}"
+        roll = roll_dice(expression)
 
-    outcome, is_critical = _determine_outcome(result, dc)
+    outcome, is_critical = _determine_outcome(roll)
 
-    return {
-        "roll": result,
-        "dc": dc,
-        "success": result.total >= dc,
-        "critical_success": result.natural_20,
-        "critical_failure": result.natural_1,
-        "outcome": outcome.value,
-        "is_critical": is_critical,
-    }
+    return CheckResolution(
+        roll=roll,
+        difficulty=difficulty,
+        difficulty_draw=draw,
+        modifier=char_modifier,
+        total=roll.total,
+        outcome=outcome,
+        is_critical=is_critical,
+    )
