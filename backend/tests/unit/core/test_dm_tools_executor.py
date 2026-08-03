@@ -5,174 +5,165 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 
+def _fixed_roll(die: int, draw: int):
+    """Drive the real resolver instead of mocking its result (std 5)."""
+    return (
+        patch("app.core.dice.random.randint", return_value=die),
+        patch("app.core.dice.draw_difficulty_modifier", return_value=draw),
+    )
+
+
 class TestHandleDice:
-    def test_returns_result_str_and_roll_data(self):
+    def test_reports_the_level_and_the_draw_never_a_dc(self):
         from app.core.dm.dm_tools_executor import _handle_dice
 
-        mock_roll = MagicMock()
-        mock_roll.expression = "1d20+2"
-        mock_roll.rolls = [15]
-        mock_roll.modifier = 2
-        mock_roll.total = 17
-
-        mock_dice_result = {
-            "roll": mock_roll,
-            "success": True,
-            "outcome": "success",
-            "is_critical": False,
-        }
-
-        with patch("app.core.dm.dm_tools_executor.ability_check", return_value=mock_dice_result):
-            args = {
-                "dc": 15,
-                "stat": "STR",
-                "check": "strength_check",
-                "reason": "lifting boulder",
-            }
-            char_data = {"abilities": {"STR": 14}}
-            segments: list[dict] = []
-
-            result_str, roll_data = _handle_dice(
-                args, char_data, step=0, narration_segments=segments
+        die, draw = _fixed_roll(15, -3)
+        with die, draw:
+            result_str, roll_data, _ = _handle_dice(
+                {"stat": "STR", "check": "strength_check", "difficulty": "hard"},
+                {"abilities": {"STR": 14}},
+                step=0,
+                narration_segments=[],
             )
 
-        assert "DC 15" in result_str
-        assert "success" in result_str
-        assert "Strength Check" in roll_data
-        assert roll_data["Strength Check"]["dc"] == 15
-        assert roll_data["Strength Check"]["success"] is True
+        assert "DC" not in result_str
+        assert "hard" in result_str
+        entry = roll_data["Strength Check"]
+        assert "dc" not in entry
+        assert entry["difficulty"] == "hard"
+        assert entry["difficulty_draw"] == -3
+        assert entry["total"] == 15 + 2 - 3  # die + STR modifier + draw
+        assert entry["outcome"] == "partial_success"
+
+    def test_an_absent_difficulty_falls_back_to_normal(self):
+        from app.core.dm.dm_tools_executor import _handle_dice
+
+        die, draw = _fixed_roll(10, 0)
+        with die, draw:
+            _, roll_data, _ = _handle_dice(
+                {"stat": "INT", "check": "lore"}, {}, step=0, narration_segments=[]
+            )
+        assert roll_data["Lore"]["difficulty"] == "normal"
 
     def test_context_appended_when_reason_provided(self):
         from app.core.dm.dm_tools_executor import _handle_dice
 
-        mock_roll = MagicMock()
-        mock_roll.expression = "1d20"
-        mock_roll.rolls = [10]
-        mock_roll.modifier = 0
-        mock_roll.total = 10
-
-        mock_dice_result = {
-            "roll": mock_roll,
-            "success": False,
-            "outcome": "failure",
-            "is_critical": False,
-        }
-
-        with patch("app.core.dm.dm_tools_executor.ability_check", return_value=mock_dice_result):
-            args = {"dc": 12, "stat": "DEX", "reason": "dodge arrow"}
-            char_data = {"abilities": {}}
-            result_str, _ = _handle_dice(args, char_data, step=0, narration_segments=[])
-
+        die, draw = _fixed_roll(10, 0)
+        with die, draw:
+            result_str, _, _ = _handle_dice(
+                {"stat": "DEX", "difficulty": "normal", "reason": "dodge arrow"},
+                {"abilities": {}},
+                step=0,
+                narration_segments=[],
+            )
         assert "dodge arrow" in result_str
 
     def test_no_context_when_no_reason(self):
         from app.core.dm.dm_tools_executor import _handle_dice
 
-        mock_roll = MagicMock()
-        mock_roll.expression = "1d20"
-        mock_roll.rolls = [8]
-        mock_roll.modifier = 0
-        mock_roll.total = 8
-
-        mock_dice_result = {
-            "roll": mock_roll,
-            "success": False,
-            "outcome": "failure",
-            "is_critical": False,
-        }
-
-        with patch("app.core.dm.dm_tools_executor.ability_check", return_value=mock_dice_result):
-            args = {"dc": 10, "stat": "INT"}
-            char_data = {}
-            result_str, _ = _handle_dice(args, char_data, step=0, narration_segments=[])
-
+        die, draw = _fixed_roll(8, 0)
+        with die, draw:
+            result_str, _, _ = _handle_dice(
+                {"stat": "INT", "difficulty": "easy"}, {}, step=0, narration_segments=[]
+            )
         assert "Context:" not in result_str
 
     def test_uses_stat_score_from_char_data(self):
         from app.core.dm.dm_tools_executor import _handle_dice
 
-        mock_roll = MagicMock()
-        mock_roll.expression = "1d20+3"
-        mock_roll.rolls = [10]
-        mock_roll.modifier = 3
-        mock_roll.total = 13
-
-        mock_dice_result = {
-            "roll": mock_roll,
-            "success": True,
-            "outcome": "success",
-            "is_critical": False,
-        }
-
-        captured_modifier = {}
-
-        def mock_ability_check(modifier, dc):
-            captured_modifier["value"] = modifier
-            return mock_dice_result
-
-        with patch("app.core.dm.dm_tools_executor.ability_check", side_effect=mock_ability_check):
-            # WIS 16 → modifier = (16-10)//2 = 3
-            args = {"dc": 10, "stat": "WIS"}
-            char_data = {"abilities": {"WIS": 16}}
-            _handle_dice(args, char_data, step=0, narration_segments=[])
-
-        assert captured_modifier["value"] == 3
+        die, draw = _fixed_roll(10, 0)
+        with die, draw:  # WIS 16 → modifier = (16-10)//2 = 3
+            _, roll_data, _ = _handle_dice(
+                {"stat": "WIS", "check": "insight", "difficulty": "normal"},
+                {"abilities": {"WIS": 16}},
+                step=0,
+                narration_segments=[],
+            )
+        assert roll_data["Insight"]["modifier"] == 3
 
     def test_full_name_ability_key_from_frontend(self):
         # The frontend persists abilities under full lowercase names ("dexterity"),
         # while request_dice passes the abbreviation ("DEX"): the reader must bridge.
         from app.core.dm.dm_tools_executor import _handle_dice
 
-        mock_roll = MagicMock()
-        mock_roll.expression = "1d20+3"
-        mock_roll.rolls = [10]
-        mock_roll.modifier = 3
-        mock_roll.total = 13
-
-        mock_dice_result = {
-            "roll": mock_roll,
-            "success": True,
-            "outcome": "success",
-            "is_critical": False,
-        }
-
-        captured_modifier = {}
-
-        def mock_ability_check(modifier, dc):
-            captured_modifier["value"] = modifier
-            return mock_dice_result
-
-        with patch("app.core.dm.dm_tools_executor.ability_check", side_effect=mock_ability_check):
-            # dexterity 16 → modifier = (16-10)//2 = 3
-            args = {"dc": 10, "stat": "DEX"}
-            char_data = {"abilities": {"dexterity": 16}}
-            _handle_dice(args, char_data, step=0, narration_segments=[])
-
-        assert captured_modifier["value"] == 3
+        die, draw = _fixed_roll(10, 0)
+        with die, draw:
+            _, roll_data, _ = _handle_dice(
+                {"stat": "DEX", "check": "sleight", "difficulty": "normal"},
+                {"abilities": {"dexterity": 16}},
+                step=0,
+                narration_segments=[],
+            )
+        assert roll_data["Sleight"]["modifier"] == 3
 
     def test_segment_dice_is_populated(self):
         from app.core.dm.dm_tools_executor import _handle_dice
 
-        mock_roll = MagicMock()
-        mock_roll.expression = "1d20"
-        mock_roll.rolls = [15]
-        mock_roll.modifier = 0
-        mock_roll.total = 15
-
-        mock_dice_result = {
-            "roll": mock_roll,
-            "success": True,
-            "outcome": "success",
-            "is_critical": False,
-        }
-
-        with patch("app.core.dm.dm_tools_executor.ability_check", return_value=mock_dice_result):
-            segments: list[dict] = []
-            args = {"dc": 10, "stat": "CON", "check": "con_check"}
-            _handle_dice(args, {}, step=2, narration_segments=segments)
+        segments: list[dict] = []
+        die, draw = _fixed_roll(15, 0)
+        with die, draw:
+            _handle_dice(
+                {"stat": "CON", "check": "con_check", "difficulty": "normal"},
+                {},
+                step=2,
+                narration_segments=segments,
+            )
 
         assert segments[0]["step"] == 2
         assert segments[0]["dice"] is not None
+
+
+class TestHandleDiceHazard:
+    """A hazard is an enemy without legs: the tier doses the damage (ADR 0003 B7)."""
+
+    def test_a_failed_reaction_roll_takes_the_full_draw(self):
+        from app.core.dm.dm_tools_executor import _handle_dice
+
+        char_data = {"hp": {"current": 100, "max": 100}}
+        die, draw = _fixed_roll(2, 0)  # total 2 → hard_failure
+        with die, draw, patch("app.core.health.random.uniform", return_value=0.50):
+            result_str, roll_data, char_data = _handle_dice(
+                {"stat": "DEX", "check": "dodge", "difficulty": "hard", "hazard_class": "deadly"},
+                char_data,
+                step=0,
+                narration_segments=[],
+            )
+
+        assert roll_data["Dodge"]["hazard_damage"] == 50
+        assert char_data["hp"]["current"] == 50
+        assert "50 damage" in result_str
+
+    def test_a_full_success_dodges_it_outright(self):
+        from app.core.dm.dm_tools_executor import _handle_dice
+
+        char_data = {"hp": {"current": 100, "max": 100}}
+        die, draw = _fixed_roll(18, 0)  # total 18 → full_success
+        with die, draw:
+            _, roll_data, char_data = _handle_dice(
+                {"stat": "DEX", "check": "dodge", "difficulty": "hard", "hazard_class": "deadly"},
+                char_data,
+                step=0,
+                narration_segments=[],
+            )
+
+        assert roll_data["Dodge"]["hazard_damage"] == 0
+        assert char_data["hp"]["current"] == 100
+
+    def test_a_plain_check_never_touches_hp(self):
+        from app.core.dm.dm_tools_executor import _handle_dice
+
+        char_data = {"hp": {"current": 30, "max": 100}}
+        die, draw = _fixed_roll(1, 0)  # natural 1, the worst possible outcome
+        with die, draw:
+            _, roll_data, char_data = _handle_dice(
+                {"stat": "CHA", "check": "persuasion", "difficulty": "very_hard"},
+                char_data,
+                step=0,
+                narration_segments=[],
+            )
+
+        assert "hazard_damage" not in roll_data["Persuasion"]
+        assert char_data["hp"]["current"] == 30
 
 
 class TestHandleNpcResults:

@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.core.dice import ability_check, roll_dice, roll_with_advantage, roll_with_disadvantage
+from app.core.dice import roll_dice, roll_with_advantage, roll_with_disadvantage
 
 
 class TestRollDice:
@@ -59,17 +59,3 @@ class TestAdvantage:
     def test_disadvantage_rolls_two_dice(self):
         result = roll_with_disadvantage()
         assert len(result.rolls) == 2
-
-
-class TestAbilityCheck:
-    """Test ability checks."""
-
-    def test_basic_check(self):
-        result = ability_check(modifier=5, dc=15)
-        assert "success" in result
-        assert "dc" in result
-        assert result["dc"] == 15
-
-    def test_check_with_advantage(self):
-        result = ability_check(modifier=0, dc=10, advantage=True)
-        assert len(result["roll"].rolls) == 2

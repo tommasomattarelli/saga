@@ -101,6 +101,60 @@ gameplay:
   consecutive_empty_steps_max: 2  # max tool-only steps with no narration before forcing loop exit
 
 # ---------------------------------------------------------------------------
+# Resolution — one d20 frame for every check in the game (ADR 0003 A1-A6)
+#
+# The LLM classifies difficulty into a level and never emits a number; the engine
+# draws the modifier from that level's range. total = d20 + character modifier + draw,
+# read against the absolute bands below. Ranges are [best, worst]; the ladder is solved
+# backwards from the spreads ADR 0003 A3 declares verified, so full-success odds at
+# level 1 (+2) run 60/50/40/25/10/nat-20-only.
+# ---------------------------------------------------------------------------
+resolution:
+  outcome_bands: [5, 10, 15]   # <=5 hard_failure | 6-9 soft | 10-14 partial | >=15 full
+  char_mod_clamp: [-5, 11]     # total sheet-produced modifier entering the resolver (A6)
+  difficulty_levels:
+    trivial:         [6, 2]
+    easy:            [4, 0]
+    normal:          [2, -2]
+    hard:            [-1, -5]
+    very_hard:       [-4, -8]
+    near_impossible: [-9, -13]
+
+# ---------------------------------------------------------------------------
+# Hazards — traps, falls, poison bursts (ADR 0003 B7)
+#
+# A hazard is an enemy without legs: the DM asks for a reaction roll and the tier
+# doses the damage. Classes are percentage ranges of the target's max HP, not dice,
+# so a trap stays relevant at every level.
+# ---------------------------------------------------------------------------
+hazards:
+  classes:
+    minor:   [0.05, 0.15]
+    serious: [0.20, 0.35]
+    deadly:  [0.45, 0.70]
+  tier_scale:                  # fraction of the drawn damage each outcome takes
+    critical_success: 0.0
+    full_success:     0.0      # dodged outright
+    partial_success:  0.5
+    soft_failure:     1.0
+    hard_failure:     1.0
+    critical_failure: 1.5
+
+# ---------------------------------------------------------------------------
+# Healing — percentage of max HP, same asymmetry as hazards (ADR 0003 B7/B7b)
+#
+# There is no resource economy until ADR 0010/0012, so DM-initiated heals are bounded
+# mechanically: the healer must be present in the scene, and dm_heal_cap limits how
+# many can land per game day.
+# ---------------------------------------------------------------------------
+healing:
+  classes:
+    minor:  [0.10, 0.20]
+    strong: [0.30, 0.50]
+    full:   [1.00, 1.00]
+  dm_heal_cap: 3               # DM-initiated heals per game day
+
+# ---------------------------------------------------------------------------
 # World model (ADR 0008)
 # ---------------------------------------------------------------------------
 world:
@@ -158,6 +212,8 @@ tool_groups:
       - log_event
       - update_quest
       - update_npc
+      - request_dice     # every d20 check in the game, in or out of combat (ADR 0003 A1)
+      - heal             # ADR 0003 B7 — replaces the free-number update_hp
   combat_entry:
     always: true
     tools:
@@ -165,10 +221,8 @@ tool_groups:
   combat:
     when: combat_active
     tools:
-      - request_dice
       - apply_damage
       - end_combat
-      - update_hp
   social:
     when: npcs_present
     tools:

@@ -11,7 +11,6 @@ from app.ai.tools.dm_tools import (
     RemoveItem,
     SetSceneMood,
     StartCombat,
-    UpdateHp,
     UpdateQuest,
     execute_tool,
     get_tool_schemas,
@@ -82,27 +81,6 @@ def test_apply_damage_reduces_hp():
     order = result.world_state["combat_state"]["initiative_order"]
     goblin = next(c for c in order if c["name"] == "Goblin")
     assert goblin["hp"] == 7
-
-
-# ── HP tool ───────────────────────────────────────────────────────────────────
-
-
-def test_update_hp_heals_player():
-    cd = {"hp": {"current": 5, "max": 20}}
-    result = UpdateHp(change=8, reason="potion").execute({}, cd)
-    assert result.char_data["hp"]["current"] == 13
-
-
-def test_update_hp_clamps_to_max():
-    cd = {"hp": {"current": 18, "max": 20}}
-    result = UpdateHp(change=10, reason="overheal").execute({}, cd)
-    assert result.char_data["hp"]["current"] == 20
-
-
-def test_update_hp_clamps_to_zero():
-    cd = {"hp": {"current": 3, "max": 20}}
-    result = UpdateHp(change=-10, reason="trap").execute({}, cd)
-    assert result.char_data["hp"]["current"] == 0
 
 
 # ── Inventory tools ───────────────────────────────────────────────────────────
@@ -246,6 +224,6 @@ def test_execute_tool_unknown_returns_gracefully():
 
 
 def test_execute_tool_invalid_args_returns_gracefully():
-    # start_combat requires enemies list — passing wrong type should not crash
-    result = execute_tool("update_hp", {"change": "not_an_int"}, {}, {})
+    # advance_time requires an int — passing wrong type should not crash
+    result = execute_tool("advance_time", {"minutes": "not_an_int"}, {}, {})
     assert "failed" in result.description.lower()

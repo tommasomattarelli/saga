@@ -9,15 +9,26 @@ const DiceOutcomeSchema = z.enum([
   "critical_success",
 ]);
 
+const DifficultyLevelSchema = z.enum([
+  "trivial",
+  "easy",
+  "normal",
+  "hard",
+  "very_hard",
+  "near_impossible",
+]);
+
 const DiceRollResultSchema = z.object({
   expression: z.string(),
   rolls: z.array(z.number()),
   modifier: z.number(),
   total: z.number(),
-  dc: z.number(),
+  difficulty: DifficultyLevelSchema,
+  difficulty_draw: z.number(),
   success: z.boolean(),
   outcome: DiceOutcomeSchema,
   is_critical: z.boolean(),
+  hazard_damage: z.number().optional(),
 });
 
 const NPCDialogueSchema = z.object({
