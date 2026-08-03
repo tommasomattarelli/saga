@@ -16,3 +16,5 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ### Internal
 - `npm ci` resolves without `--legacy-peer-deps`: `@eslint/js` was declared at v10 while `eslint` stayed at v9.
 - ADR index gained `Blocked by` / `Gates` columns, copied from each ADR's implementation plan and relationship section.
+- ADR 0003 S0 pass: config defaults fixed from the verified spreads, exchange convention left prompt-only, S2 split into two branches.
+- The importance-scoring combat bonus reads a key nothing writes and has never fired; ADR 0016 redirected from fixing the score to retiring it.
