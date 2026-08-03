@@ -5,7 +5,7 @@ meta:
   base: gold
   variant: null
   origin: synthetic
-  derived: true
+  derived: false
   derived_at_turn: 25
   elapsed_minutes: 383
   active_window_turns: 8
