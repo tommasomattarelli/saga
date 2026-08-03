@@ -14,6 +14,7 @@ from app.ai.router import (
     get_summarization_config,
     route_ai_call,
 )
+from app.ai.sanitizer import parse_json_payload
 from app.models.turn import Turn
 
 logger = structlog.get_logger()
@@ -26,7 +27,8 @@ Do NOT include verbatim NPC dialogue or quoted speech — paraphrase what was sa
 Turns:
 {turns_text}
 
-Summary:"""
+Output ONLY valid JSON:
+{{"summary": "the summary prose"}}"""
 
 
 def _first_sentence(text: str) -> str:
@@ -56,6 +58,17 @@ async def compress_turn_to_summary(narration: str, player_action: str) -> str:
     if scene:
         return f"The player {verb}. {scene}"
     return f"The player {verb}."
+
+
+def summary_from(raw: str) -> str | None:
+    """A summariser has no shape to fail, so reasoning prose would be stored as the
+    answer. Requiring a JSON object gives it one (#78)."""
+    data = parse_json_payload(raw)
+    summary = data.get("summary") if isinstance(data, dict) else None
+    if isinstance(summary, str) and summary.strip():
+        return summary.strip()
+    logger.warning("summary_unreadable", raw_preview=raw[:200])
+    return None
 
 
 async def compress_turns_batch_llm(turns: list[Turn]) -> str | None:
@@ -89,8 +102,9 @@ async def compress_turns_batch_llm(turns: list[Turn]) -> str | None:
             model=model_config.model,
             temperature=0.3,
             max_tokens=model_config.max_tokens,
+            json_mode=True,
         )
-        return raw.strip()
+        return summary_from(raw)
     except Exception:
         logger.exception("llm_compression_failed")
         return None

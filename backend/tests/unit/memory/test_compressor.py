@@ -189,7 +189,7 @@ class TestEnsureCompression:
 
 class TestCompressTurnsBatchLlm:
     @pytest.mark.asyncio
-    async def test_returns_stripped_text_on_success(self):
+    async def test_returns_the_summary_field_on_success(self):
         from app.memory.compressor import compress_turns_batch_llm
 
         mock_turn = MagicMock()
@@ -207,7 +207,7 @@ class TestCompressTurnsBatchLlm:
             patch("app.ai.providers.base.logged_generate", new_callable=AsyncMock) as mock_gen,
         ):
             mock_route.return_value = mock_model_cfg
-            mock_gen.return_value = "  Summary text.  "
+            mock_gen.return_value = '{"summary": "  Summary text.  "}'
             result = await compress_turns_batch_llm([mock_turn])
 
         assert result == "Summary text."
