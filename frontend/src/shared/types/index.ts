@@ -126,15 +126,25 @@ export type DiceOutcome =
   | "full_success"
   | "critical_success";
 
+export type DifficultyLevel =
+  | "trivial"
+  | "easy"
+  | "normal"
+  | "hard"
+  | "very_hard"
+  | "near_impossible";
+
 export interface DiceRollResult {
   expression: string;
   rolls: number[];
   modifier: number;
   total: number;
-  dc: number;
+  difficulty: DifficultyLevel;
+  difficulty_draw: number;
   success: boolean;
   outcome: DiceOutcome;
   is_critical: boolean;
+  hazard_damage?: number;
 }
 
 export interface NPCDialogue {
