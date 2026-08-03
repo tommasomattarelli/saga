@@ -16,9 +16,10 @@ from app.ai.tools.tools_base import (
     get_tool_schemas,
     visible_tool_names,
 )
-from app.ai.tools.tools_combat import ApplyDamage, EndCombat, StartCombat, UpdateHp
+from app.ai.tools.tools_combat import ApplyDamage, EndCombat, StartCombat
 from app.ai.tools.tools_inventory import AddItem, RemoveItem
 from app.ai.tools.tools_npc import KillNpc, RemoveNpc, RestoreNpc, UpdateNpc
+from app.ai.tools.tools_resolution import Heal
 from app.ai.tools.tools_special import InvokeNpc, RequestDice
 from app.ai.tools.tools_world import (
     AdvanceTime,
@@ -43,6 +44,7 @@ __all__ = [
     "ChangeNpcPsychology",
     "DmTool",
     "EndCombat",
+    "Heal",
     "InvokeNpc",
     "KillNpc",
     "LogEvent",
@@ -56,7 +58,6 @@ __all__ = [
     "SetSceneMood",
     "StartCombat",
     "ToolResult",
-    "UpdateHp",
     "UpdateNpc",
     "UpdateQuest",
     "VISIBLE_TOOLS",

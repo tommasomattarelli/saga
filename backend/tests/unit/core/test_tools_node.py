@@ -102,28 +102,13 @@ class TestToolsNodeRequestDice:
         tc = {
             "id": "tc1",
             "name": "request_dice",
-            "args": {"dc": 12, "stat": "STR"},
+            "args": {"difficulty": "hard", "stat": "STR"},
             "type": "tool_call",
         }
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
-        mock_roll = MagicMock()
-        mock_roll.expression = "1d20"
-        mock_roll.rolls = [10]
-        mock_roll.modifier = 0
-        mock_roll.total = 10
-
-        mock_dice_result = {
-            "roll": mock_roll,
-            "success": False,
-            "outcome": "failure",
-            "is_critical": False,
-        }
-
         state = _make_state(messages=[ai_msg], char_data={"abilities": {"STR": 10}})
-
-        with patch("app.core.dm.dm_tools_executor.ability_check", return_value=mock_dice_result):
-            result = await tools_node(state)
+        result = await tools_node(state)
 
         assert len(result["dice_results"]) == 1
         assert result["dice_results"][0]["step"] == 0  # step_count - 1

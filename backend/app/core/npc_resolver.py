@@ -42,3 +42,14 @@ def resolve_npc(name: str, world_state: dict, *, include_gone: bool = False) -> 
     if gone:
         return NpcResolution(error=f"{name} is {gone[0][1]} and cannot act.")
     return NpcResolution(error=f"{name} is not a known NPC.")
+
+
+def npcs_at_current_location(world_state: dict) -> dict[str, dict]:
+    """Living NPCs at the current location, keyed by uuid (ADR 0009 F1/A5)."""
+    current_location = world_state.get("meta", {}).get("current_location", "")
+    return {
+        npc_id: data
+        for npc_id, data in world_state.get("npcs", {}).items()
+        if data.get("lifecycle", "alive") == "alive"
+        and (not current_location or data.get("location") == current_location)
+    }

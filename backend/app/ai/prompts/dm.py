@@ -7,6 +7,7 @@ import yaml
 from app.ai.prompts.presets import PERSONA_PRESETS
 from app.ai.prompts.scene import render_location_block
 from app.core.npc_fields import resolve_npc_fields
+from app.core.npc_resolver import npcs_at_current_location
 from app.core.psychology import band_label, is_salient, resolve_psychology
 from app.core.world_access import WorldView
 from app.models.campaign import Campaign
@@ -16,18 +17,6 @@ _PROMPTS = yaml.safe_load((Path(__file__).parent / "dm.yaml").read_text(encoding
 
 BASE_DM_PROMPT: str = _PROMPTS["base_dm_prompt"]
 DEATH_MODE_PROMPTS: dict[str, str] = _PROMPTS["death_mode_prompts"]
-
-
-def _npcs_at_current_location(world_state: dict) -> dict[str, dict]:
-    """Living NPCs at the current location, keyed by uuid (ADR 0009 F1/A5)."""
-    npcs = world_state.get("npcs", {})
-    current_location = world_state.get("meta", {}).get("current_location", "")
-    return {
-        npc_id: data
-        for npc_id, data in npcs.items()
-        if data.get("lifecycle", "alive") == "alive"
-        and (not current_location or data.get("location") == current_location)
-    }
 
 
 def _salient_axis_attrs(npc: dict, psychology: PsychologyDef) -> str:
@@ -93,7 +82,7 @@ def build_dm_system_prompt(
     loc_connections = loc_data.get("connections", [])
 
     # NPCs present at current location
-    npcs_present = _npcs_at_current_location(world_state)
+    npcs_present = npcs_at_current_location(world_state)
 
     # Combat state
     combat_state = world_state.get("combat_state", {})
