@@ -71,7 +71,7 @@ Every working session follows the same ritual so state is never lost between the
 
 - **Start** (`/catchup`): reconstruct state — skim `CHANGELOG.md` `[Unreleased]` and the `## NOW` items in `TODO.md`. Load the latest ADRs or `docs/AGENTIC_ARCHITECTURE.md` on demand (`/catchup deep`). Confirm the tree is green before changing anything.
 - **During**: work on a **feature branch, never commit directly to `main`** — branch at the first commit of the session (`/catchup` already surfaces the current branch at Start; if it's `main`, branch before changing anything). Land work via PR, as the git history does. Then: one commit per logical change (standard 10); add a `CHANGELOG.md` `[Unreleased]` entry in the same commit; any architectural decision → a new ADR in `docs/adr/` in that same commit (docs-as-code).
-- **End** (`/wrap-up`): ensure `[Unreleased]` reflects what shipped, move/tick the corresponding `TODO.md` items, and leave the suite green. Run unit + integration/playtest before declaring the session done.
+- **End** (`/wrap-up`): ensure `[Unreleased]` reflects what shipped, **delete** the `TODO.md` items it covers, and leave the suite green. Run unit + integration/playtest before declaring the session done.
 
 ## Commit Convention
 
@@ -85,7 +85,8 @@ Every working session follows the same ritual so state is never lost between the
 - **Body**: only when the *why* isn't obvious from the subject — 1–3 short lines. Substantial rationale goes in an ADR, not the commit body.
 - **Never** add co-author trailers (`Co-Authored-By`, tool attribution, etc.). Plain messages only.
 - One logical change per commit (standard 10).
-- **Granularity**: sprint/feature work lands as a *series* of small commits — one per logical unit (a module + its tests, world content, docs). Never a single sprint-wide mega-commit: the sub-branch exists precisely to hold the series.
+- **Granularity**: a commit is one *logical* unit (a module + its tests, world content, docs) — not one *small* unit. Never a sprint-wide mega-commit, and never a commit for two lines either: a branch should land in **six or seven commits at most**. If it wants more, the branch is doing more than one reviewable thing and should be split.
+- **Amend, don't stack**: a fix to work already committed on the branch — a forgotten file, a typo, a lint fix — is an `--amend` to the commit that owns it, not a new one. Follow-up commits are for genuinely new logical units. (Amending is safe here: branches are pushed by one person and reviewed as a whole.)
 
 ## Issue Convention
 
@@ -117,10 +118,13 @@ Issues carry the **same title grammar as commits**, so issue → branch → comm
 ## Documentation
 
 - **Where things go**: see [`docs/README.md`](docs/README.md) for the full map. Active docs use `UPPER_SNAKE_CASE.md`; ADRs use `NNNN-kebab-title.md`.
-- **Issues vs `TODO.md`**: bugs and user reports → GitHub issues (a closing release tags them `(#NN)` in the notes); `TODO.md` stays the curated forward backlog — features, refactors, design directions.
+- **Issues vs `TODO.md`**: bugs and user reports → GitHub issues (a closing release tags them `(#NN)` in the notes); `TODO.md` stays the curated forward backlog — features, refactors, design directions. **It is pruned, never ticked**: a finished item is *deleted*, not marked `[x]`, because the CHANGELOG, the ADRs, the git log and the issues already hold it. Only what would otherwise be lost stays.
 - **CHANGELOG.md**: hand-curated ([Keep a Changelog](https://keepachangelog.com/) + SemVer), not a `git log` dump. Entries accrue under `[Unreleased]`, split into **`### Highlights`** (user-facing: UI/UX, gameplay, fixes — regrouped into the release notes at release, see Versioning & Releases) and **`### Internal`** (ADRs, CI, refactors). Highlights bullets are written `- [Area] text` (areas above) so `release.sh` can group them; `### Internal` takes free-form bullets (optionally `#### Added`/`Removed`/… subsections). The root file keeps only `[Unreleased]`; each released version moves to `docs/changelog/CHANGELOG-vX.Y.Z.md`.
-  - **Length**: a bullet is **1–4 sentences**. State what changed, and the *why* only when it isn't obvious — the failure it fixes, or the constraint that forced the shape. Cut the narration of how it was found, the alternatives not taken, and any restatement of the diff. If a rationale needs more than four sentences it is an ADR, not a changelog entry. Sub-bullets only when one change has genuinely separable parts.
+  - **Length — one sentence, ~30 words, hard cap.** A bullet says *what changed* and stops. **No sub-bullets, no code blocks, no quoted model output, no second sentence.** The reproduction, the rationale, the alternatives and the evidence belong to the issue or the ADR the bullet points at — that is what `(#NN)` is for, and since the tracker is public the reader can follow it. If one sentence can't carry the change, it needs an issue or an ADR, not a longer bullet.
+  - **Internal bullets**: same cap, usually shorter.
+  - The cap is tightest in `[Unreleased]`, where entries accrue fastest and get re-read every session. A bullet that has grown past one line is a bullet nobody reads.
 - **ADRs are append-only**: never edit an accepted decision — write a new one that supersedes it.
+- **ADR index**: [`docs/adr/README.md`](docs/adr/README.md) tabulates every ADR (status, last movement, one-line direction) — read it before opening an ADR or writing a new one. Hand-maintained: writing or evolving an ADR updates its row in the same commit.
 - **Archive, don't delete**: superseded docs move to `docs/archive/`, keeping naming and history.
 - Folder **scratch/** is for file that do not have to be committed, it is a standalone repo-submodule.
 

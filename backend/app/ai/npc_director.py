@@ -76,7 +76,7 @@ async def invoke_single_npc(
             messages=[{"role": "user", "content": prompt}],
             model=model_config.model,
             temperature=model_config.temperature,
-            max_tokens=300,
+            max_tokens=model_config.max_tokens,
             json_mode=True,
         )
 
