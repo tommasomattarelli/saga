@@ -304,10 +304,18 @@ request_dice(check, stat,           # stat: 3-letter enum until 0010-E2 swaps in
              hazard_class?,         # physical-risk checks: failure tiers apply % damage (B7)
              reason)
 
-heal(target, heal_class, reason)    # % draw of target max HP, same single apply function;
-                                    # healer must be present in scene, capped by
-                                    # healing.dm_heal_cap (B7b)
+heal(healer, target, heal_class, reason)   # % draw of target max HP, same single apply
+                                           # function; healer must be present in scene,
+                                           # capped by healing.dm_heal_cap (B7b)
 ```
+
+**S1 note (2026-08-04, implementation).** `heal` gained a `healer` argument this section did not
+list. B7b requires an engine guard that "the healer is present in the scene", which the
+three-argument form cannot express — the tool had no way to say who is acting. The added
+parameter also makes `heal` the mirror of B4's `attack(attacker, target)`, which is what the
+symmetric frame implies. Second deviation, same pass: **`update_hp` is removed in S1** rather
+than S2b, since B7 replaces it with `heal` in one logical swap and keeping both alive across
+two sprints would leave a free HP writer in place (§7).
 
 Removed: `start_combat`, `end_combat`, `apply_damage`, `update_hp`. Unchanged: `kill_npc` /
 `remove_npc` / `restore_npc` (0009 narrative lifecycle — `attack` is for contested violence,
