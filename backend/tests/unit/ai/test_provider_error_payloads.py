@@ -60,6 +60,33 @@ async def test_empty_choices_without_error_payload_still_raises(cls):
 
 @pytest.mark.parametrize("cls", PROVIDERS)
 @pytest.mark.asyncio
+async def test_generate_rejects_a_truncated_response(cls):
+    """A cut-off answer must not be stored as a result: on a reasoning model what
+    survives the budget is deliberation, and the summarisers validate nothing (#77)."""
+    cut = SimpleNamespace(
+        finish_reason="length",
+        message=SimpleNamespace(content="Let me analyse the turns. Turn 16: Tavern"),
+    )
+    provider = _make(cls, SimpleNamespace(choices=[cut]))
+
+    with pytest.raises(AIProviderError, match="truncated"):
+        await provider.generate("sys", MESSAGES)
+
+
+@pytest.mark.parametrize("cls", PROVIDERS)
+@pytest.mark.asyncio
+async def test_generate_with_tools_rejects_a_truncated_response(cls):
+    cut = SimpleNamespace(
+        finish_reason="length", message=SimpleNamespace(content="", tool_calls=[])
+    )
+    provider = _make(cls, SimpleNamespace(choices=[cut]))
+
+    with pytest.raises(AIProviderError, match="truncated"):
+        await provider.generate_with_tools("sys", MESSAGES, tools=[])
+
+
+@pytest.mark.parametrize("cls", PROVIDERS)
+@pytest.mark.asyncio
 async def test_stream_surfaces_upstream_error(cls):
     provider = _make(cls, _chunks(SimpleNamespace(choices=[], error=UPSTREAM_ERROR)))
 

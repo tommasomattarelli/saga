@@ -70,7 +70,7 @@ async def _generate_summary(prompt: str) -> str | None:
             messages=[{"role": "user", "content": prompt}],
             model=model_config.model,
             temperature=0.3,
-            max_tokens=600,
+            max_tokens=model_config.max_tokens,
         )
         return raw.strip()
     except Exception:
