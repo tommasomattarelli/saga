@@ -84,7 +84,7 @@ async def extract_facts(
         messages=[{"role": "user", "content": prompt_text}],
         model=model_config.model,
         temperature=0.2,
-        max_tokens=500,
+        max_tokens=model_config.max_tokens,
     )
 
     if len(raw) > _MAX_FACT_RAW_CHARS:

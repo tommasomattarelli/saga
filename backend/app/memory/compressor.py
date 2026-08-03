@@ -88,7 +88,7 @@ async def compress_turns_batch_llm(turns: list[Turn]) -> str | None:
             ],
             model=model_config.model,
             temperature=0.3,
-            max_tokens=300,
+            max_tokens=model_config.max_tokens,
         )
         return raw.strip()
     except Exception:

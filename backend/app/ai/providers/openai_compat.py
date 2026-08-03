@@ -29,9 +29,16 @@ def _upstream_reason(response: Any) -> str | None:
 
 def first_choice(response: Any, provider: str) -> Any:
     choices = getattr(response, "choices", None)
-    if choices:
-        return choices[0]
-    raise AIProviderError(provider, _upstream_reason(response) or "no choices in response")
+    if not choices:
+        raise AIProviderError(provider, _upstream_reason(response) or "no choices in response")
+
+    choice = choices[0]
+    # A cut-off answer is a failure, not a result: on a reasoning model the thinking
+    # tokens eat the budget and what survives is deliberation, which callers with no
+    # shape to validate against (the summarisers) would happily store (#77).
+    if getattr(choice, "finish_reason", None) == "length":
+        raise AIProviderError(provider, "response truncated by max_tokens before it finished")
+    return choice
 
 
 def stream_choice(chunk: Any, provider: str) -> Any | None:
