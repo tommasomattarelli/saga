@@ -29,10 +29,17 @@ class Scenario:
     campaign: SimpleNamespace
     global_summary: str = ""
     summary_context: str = ""
-    recalled_memories: list[str] = field(default_factory=list)
+    recall: dict[str, list[str]] = field(default_factory=dict)
     history: list[dict] = field(default_factory=list)
     stimuli: dict[str, Stimulus] = field(default_factory=dict)
     derived: bool = True
+
+    def recalled_memories(self, probe_name: str) -> list[str]:
+        """Recall is authored per probe, not searched. The harness has no vector
+        store, and it should not have one: what the DM is *given* is the controlled
+        input — whether retrieval ranks well is a different measurement, and mixing
+        the two would put both into one number."""
+        return self.recall.get(probe_name, [])
 
     def messages(self, probe_name: str) -> list[dict]:
         """Scenario history, then this probe's turn — with the injected NPC result
@@ -185,7 +192,7 @@ def load(name: str) -> Scenario:
         ),
         global_summary=context.get("global_summary") or "",
         summary_context=context.get("summary_context") or "",
-        recalled_memories=context.get("recalled_memories") or [],
+        recall=context.get("recall") or {},
         history=data.get("history") or [],
         stimuli=stimuli,
         derived=bool(data["meta"].get("derived")),

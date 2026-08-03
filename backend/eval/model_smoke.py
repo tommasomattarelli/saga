@@ -56,7 +56,7 @@ async def _run_once(provider: str, model: str, sc: scenarios.Scenario, probe_nam
         sc.campaign,  # type: ignore[arg-type]
         summary_context=sc.summary_context,
         global_summary=sc.global_summary,
-        recalled_memories=sc.recalled_memories,
+        recalled_memories=sc.recalled_memories(probe_name),
     )
     tools = get_tool_schemas(allowed=resolve_active_tools_from_state(sc.campaign.world_state))
 
@@ -170,16 +170,17 @@ async def main() -> None:
 
     if args.dry_run:
         for sc in loaded:
-            system_prompt = build_dm_system_prompt(
-                sc.campaign,  # type: ignore[arg-type]
-                summary_context=sc.summary_context,
-                global_summary=sc.global_summary,
-                recalled_memories=sc.recalled_memories,
-            )
             tools = get_tool_schemas(
                 allowed=resolve_active_tools_from_state(sc.campaign.world_state)
             )
             for probe in PROBES:
+                # Recall is per-probe, so the system prompt is too.
+                system_prompt = build_dm_system_prompt(
+                    sc.campaign,  # type: ignore[arg-type]
+                    summary_context=sc.summary_context,
+                    global_summary=sc.global_summary,
+                    recalled_memories=sc.recalled_memories(probe.name),
+                )
                 history = sum(len(str(m.get("content") or "")) for m in sc.messages(probe.name))
                 print(
                     f"{sc.name:<14} {probe.name:<16} system {len(system_prompt):>6} "

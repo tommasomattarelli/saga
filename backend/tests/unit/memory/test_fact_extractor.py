@@ -8,6 +8,74 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 
+def _patched_extractor(raw: str):
+    """Patch the provider round-trip so only the parsing half is exercised."""
+    return (
+        patch("app.memory.fact_extractor.route_ai_call", new_callable=AsyncMock),
+        patch("app.memory.fact_extractor.get_provider", return_value=MagicMock()),
+        patch(
+            "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock, return_value=raw
+        ),
+    )
+
+
+class TestExtractFacts:
+    """The derive pass reuses this without a database, so it must return facts, not store them."""
+
+    async def _extract(self, raw: str) -> list[dict]:
+        from app.memory.fact_extractor import extract_facts
+
+        route, provider, generate = _patched_extractor(raw)
+        with route as mock_route, provider, generate:
+            mock_route.return_value = MagicMock(provider="openai", model="gpt-4o-mini")
+            return await extract_facts("look around", "The hall is empty.")
+
+    @pytest.mark.asyncio
+    async def test_returns_parsed_facts(self):
+        facts = await self._extract(
+            '{"facts": [{"entity_name": "Lyra", "entity_type": "npc", "content": "Lyra is wary."}]}'
+        )
+        assert facts == [{"entity_name": "Lyra", "entity_type": "npc", "content": "Lyra is wary."}]
+
+    @pytest.mark.asyncio
+    async def test_accepts_a_bare_list(self):
+        facts = await self._extract('[{"entity_name": "Hall", "content": "The hall is empty."}]')
+        assert len(facts) == 1
+
+    @pytest.mark.asyncio
+    async def test_caps_at_five(self):
+        entries = ", ".join(f'{{"entity_name": "N{i}", "content": "c"}}' for i in range(8))
+        assert len(await self._extract(f'{{"facts": [{entries}]}}')) == 5
+
+    @pytest.mark.asyncio
+    async def test_drops_non_objects(self):
+        facts = await self._extract('{"facts": ["junk", {"entity_name": "N", "content": "c"}]}')
+        assert facts == [{"entity_name": "N", "content": "c"}]
+
+    @pytest.mark.asyncio
+    async def test_unusable_entries_do_not_consume_a_slot(self):
+        entries = ", ".join(f'{{"entity_name": "N{i}", "content": "c"}}' for i in range(6))
+        facts = await self._extract(f'{{"facts": ["junk", {entries}]}}')
+        assert len(facts) == 5
+
+    @pytest.mark.asyncio
+    async def test_drops_entries_without_a_name_or_a_body(self):
+        facts = await self._extract(
+            '{"facts": [{"entity_name": "", "content": "c"},'
+            ' {"entity_name": "N", "content": "   "},'
+            ' {"entity_name": 7, "content": "c"}]}'
+        )
+        assert facts == [{"entity_name": 7, "content": "c"}]
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_on_unparseable_output(self):
+        assert await self._extract("not json at all {{{") == []
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_on_oversized_output(self):
+        assert await self._extract("x" * 5000) == []
+
+
 class TestExtractAndStoreFacts:
     @pytest.mark.asyncio
     async def test_early_return_when_disabled(self):
