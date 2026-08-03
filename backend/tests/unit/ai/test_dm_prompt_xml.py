@@ -2,7 +2,8 @@
 
 from unittest.mock import MagicMock
 
-from app.ai.prompts.dm import _npcs_at_current_location, build_dm_system_prompt
+from app.ai.prompts.dm import build_dm_system_prompt
+from app.core.npc_resolver import npcs_at_current_location
 from app.models.campaign import DeathMode
 
 
@@ -212,14 +213,14 @@ def test_no_combat_block_when_inactive():
 
 
 def test_npcs_at_current_location_helper():
-    result = _npcs_at_current_location(_WORLD_STATE)
+    result = npcs_at_current_location(_WORLD_STATE)
     names = {n["name"] for n in result.values()}
     assert names == {"Marta", "Guard"}  # Aldric is elsewhere
 
 
 def test_npcs_at_current_location_empty_location_returns_all():
     ws = {**_WORLD_STATE, "meta": {}}
-    result = _npcs_at_current_location(ws)
+    result = npcs_at_current_location(ws)
     assert len(result) == 3  # fallback: all NPCs
 
 

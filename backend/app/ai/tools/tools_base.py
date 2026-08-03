@@ -70,12 +70,24 @@ class DmTool(BaseModel):
         """Return the OpenAI function-calling schema for this tool."""
         raw = cls.model_json_schema()
         props_raw = raw.get("properties", {})
+        defs = raw.get("$defs", {})
         # Keep only type + description + enum + items per property (strip Pydantic noise)
         _allowed = {"type", "description", "enum", "items"}
         _items_allowed = {"type", "description", "enum"}
 
+        def _inline_enum(v: dict) -> dict:
+            """Pydantic hoists enums into $defs; the LLM needs them spelled out inline."""
+            ref = v.get("$ref") or next(
+                (m["$ref"] for m in v.get("anyOf", []) if "$ref" in m), None
+            )
+            if not ref:
+                return v
+            target = defs.get(ref.rsplit("/", 1)[-1], {})
+            return {**target, **{k: val for k, val in v.items() if k not in ("$ref", "anyOf")}}
+
         def _clean_prop(v: dict) -> dict:
-            cleaned = {kk: vv for kk, vv in v.items() if kk in _allowed}
+            resolved = _inline_enum(v)
+            cleaned = {kk: vv for kk, vv in resolved.items() if kk in _allowed}
             if "items" in cleaned and isinstance(cleaned["items"], dict):
                 cleaned["items"] = {
                     kk: vv for kk, vv in cleaned["items"].items() if kk in _items_allowed
