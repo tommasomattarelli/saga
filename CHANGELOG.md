@@ -13,6 +13,11 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ## [Unreleased]
 
+### Highlights
+- [Gameplay] Dice rolls now work outside combat too — lockpicking, sneaking, persuading, climbing all resolve on the same d20 frame.
+- [Gameplay] The DM classifies how hard a task is instead of picking a target number, so the same obstacle stays as hard the second time you try it.
+- [Gameplay] Traps, falls and healing are computed by the engine as a share of your health, and no tool can invent an HP number any more.
+
 ### Internal
 - `npm ci` resolves without `--legacy-peer-deps`: `@eslint/js` was declared at v10 while `eslint` stayed at v9.
 - ADR index gained `Blocked by` / `Gates` columns, copied from each ADR's implementation plan and relationship section.
