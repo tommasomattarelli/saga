@@ -26,4 +26,5 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - ADR 0003 S0 pass: config defaults fixed from the verified spreads, exchange convention left prompt-only, S2 split into two branches.
 - ADR 0003 S1: `request_dice` moved to the always-on `core` group, `update_hp` deleted, and tool schemas now inline enums Pydantic hoists into `$defs`.
 - ADR 0003 S2: world-state rung v7→v8 backfills a statblock on every NPC record and drops `combat_state`; `combat_graph`, both initiative paths and the `score_importance` combat bonus are gone.
+- New `/adr-implement` skill captures the sprint half of the ADR workflow — S0 pass, branch topology, and the assumption reconciliation that keeps a gating ADR honest.
 - The importance-scoring combat bonus reads a key nothing writes and has never fired; ADR 0016 redirected from fixing the score to retiring it.

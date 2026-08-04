@@ -71,6 +71,7 @@ Every working session follows the same ritual so state is never lost between the
 
 - **Start** (`/catchup`): reconstruct state — skim `CHANGELOG.md` `[Unreleased]` and the `## NOW` items in `TODO.md`. Load the latest ADRs or `docs/AGENTIC_ARCHITECTURE.md` on demand (`/catchup deep`). Confirm the tree is green before changing anything.
 - **During**: work on a **feature branch, never commit directly to `main`** — branch at the first commit of the session (`/catchup` already surfaces the current branch at Start; if it's `main`, branch before changing anything). Land work via PR, as the git history does. Then: one commit per logical change (standard 10); add a `CHANGELOG.md` `[Unreleased]` entry in the same commit; any architectural decision → a new ADR in `docs/adr/` in that same commit (docs-as-code).
+- **Implementing an ADR** (`/adr-implement`): a multi-sprint ADR gets a long-lived **integration branch `adr/NNNN-slug`** off `main`, one **sub-branch per sprint** merged into it with a local `--no-ff` `merge: sprint-N <title> (ADR NNNN)`, and **one PR at the end** — not a PR per sprint. Sprint commits carry `(ADR NNNN Sn)`. This is what 0005, 0008 and 0009 did; the skill has the full loop.
 - **End** (`/wrap-up`): ensure `[Unreleased]` reflects what shipped, **delete** the `TODO.md` items it covers, and leave the suite green. Run unit + integration/playtest before declaring the session done.
 
 ## Commit Convention
@@ -124,6 +125,7 @@ Issues carry the **same title grammar as commits**, so issue → branch → comm
   - **Internal bullets**: same cap, usually shorter.
   - The cap is tightest in `[Unreleased]`, where entries accrue fastest and get re-read every session. A bullet that has grown past one line is a bullet nobody reads.
 - **ADRs are append-only**: never edit an accepted decision — write a new one that supersedes it.
+- **An ADR's claims about existing code are predictions until implemented.** It is written before the code exists, so "the engine already does X" is a guess that only the sprint can test. When implementation contradicts a `Proposed` ADR, it takes a **dated implementation note** next to the decision it corrects (`**Sn note (YYYY-MM-DD, implementation).** …`) saying what the code forced and why — never a silent edit, and never a new decision (that is a `/adr` question). ADRs that gate others are the ones that matter here: their contracts get read as fact.
 - **ADR index**: [`docs/adr/README.md`](docs/adr/README.md) tabulates every ADR (status, last movement, one-line direction) — read it before opening an ADR or writing a new one. Hand-maintained: writing or evolving an ADR updates its row in the same commit.
 - **Archive, don't delete**: superseded docs move to `docs/archive/`, keeping naming and history.
 - Folder **scratch/** is for file that do not have to be committed, it is a standalone repo-submodule.
