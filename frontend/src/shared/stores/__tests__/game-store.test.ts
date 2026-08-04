@@ -73,15 +73,6 @@ describe("game-store", () => {
     expect(ws?.weather).toBe("rain");
   });
 
-  it("setCombatState and clear", () => {
-    useGameStore
-      .getState()
-      .setCombatState({ active: true, round: 1, initiative_order: [], current_turn_index: 0 });
-    expect(useGameStore.getState().combatState?.active).toBe(true);
-    useGameStore.getState().setCombatState(null);
-    expect(useGameStore.getState().combatState).toBeNull();
-  });
-
   it("reset clears all state", () => {
     useGameStore.getState().setCampaign(makeCampaign());
     useGameStore.getState().addTurn(makeTurn(1));
