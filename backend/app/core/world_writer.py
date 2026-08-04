@@ -52,7 +52,8 @@ def to_editable(asset: WorldAsset) -> dict:
                 "items": [i.model_dump(exclude_none=True) for i in root.items],
             }
         ),
-        "taxonomy": asset.taxonomy.model_dump(),
+        # mode="json" unwraps StrEnum members (npc_class fields): SafeDumper refuses them.
+        "taxonomy": asset.taxonomy.model_dump(mode="json"),
         "scenario": asset.scenario.model_dump(exclude_none=True) if asset.scenario else None,
         "nodes": nodes,
         "edges": collection(asset.edges, by_alias=True),
