@@ -16,6 +16,7 @@ SAGA is an AI-driven tabletop RPG engine designed to replicate the infinite poss
 - **Test (unit, no infra)**: `cd backend && uv run python -m pytest tests/unit --noconftest -q`
 - **Test (all)**: `cd backend && uv run python -m pytest tests/unit tests/integration tests/playtest`
 - **Lint/Format**: `cd backend && uv run ruff check . && uv run ruff format .`
+- **Full check (what CI runs)**: `cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run python -m pytest tests/unit` — **`mypy` is a CI gate**: ruff alone passing is not "green".
 - **Migrations**: `cd backend && alembic upgrade head`
 
 ### Frontend (npm based)
@@ -23,6 +24,7 @@ SAGA is an AI-driven tabletop RPG engine designed to replicate the infinite poss
 - **Run**: `cd frontend && npm run dev`
 - **Test**: `cd frontend && npm run test`
 - **Lint/Format**: `cd frontend && npm run lint && npm run format`
+- **Full check (what CI runs)**: `cd frontend && npm run lint && npx tsc --noEmit && npm run knip && npx vitest run` — **`knip` is a CI gate**: an export nothing imports fails the build.
 
 ### Infrastructure (Docker)
 - **Up**: `make test-infra-up` (Test DB) | `docker-compose up -d` (Prod-like)
@@ -72,7 +74,7 @@ Every working session follows the same ritual so state is never lost between the
 - **Start** (`/catchup`): reconstruct state — skim `CHANGELOG.md` `[Unreleased]` and the `## NOW` items in `TODO.md`. Load the latest ADRs or `docs/AGENTIC_ARCHITECTURE.md` on demand (`/catchup deep`). Confirm the tree is green before changing anything.
 - **During**: work on a **feature branch, never commit directly to `main`** — branch at the first commit of the session (`/catchup` already surfaces the current branch at Start; if it's `main`, branch before changing anything). Land work via PR, as the git history does. Then: one commit per logical change (standard 10); add a `CHANGELOG.md` `[Unreleased]` entry in the same commit; any architectural decision → a new ADR in `docs/adr/` in that same commit (docs-as-code).
 - **Implementing an ADR** (`/adr-implement`): a multi-sprint ADR gets a long-lived **integration branch `adr/NNNN-slug`** off `main`, one **sub-branch per sprint** merged into it with a local `--no-ff` `merge: sprint-N <title> (ADR NNNN)`, and **one PR at the end** — not a PR per sprint. Sprint commits carry `(ADR NNNN Sn)`. This is what 0005, 0008 and 0009 did; the skill has the full loop.
-- **End** (`/wrap-up`): ensure `[Unreleased]` reflects what shipped, **delete** the `TODO.md` items it covers, and leave the suite green. Run unit + integration/playtest before declaring the session done.
+- **End** (`/wrap-up`): ensure `[Unreleased]` reflects what shipped, **delete** the `TODO.md` items it covers, and leave the suite green. Run the **full check** of both stacks (Essential Commands) before declaring the session done — tests passing while `mypy` or `knip` fails is a red CI, not a green session.
 
 ## Commit Convention
 

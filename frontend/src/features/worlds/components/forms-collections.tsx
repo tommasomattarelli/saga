@@ -7,7 +7,7 @@ import { DEFAULT_PSYCHOLOGY } from "./forms-psychology";
 
 /* Mirrors of the engine's bundled defaults (backend `core/npc_classes.py`,
    `core/dice.py`) — the pickers must offer what the validator accepts. */
-export const DEFAULT_NPC_CLASSES = [
+const DEFAULT_NPC_CLASSES = [
   { name: "commoner" },
   { name: "royale" },
   { name: "beast" },

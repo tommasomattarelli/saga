@@ -72,6 +72,7 @@ async def submit_action(
         prior_world_state = migrate_world_state(campaign.world_state or {})
         prior_char_data = campaign.character_data or {}
         world_baseline = campaign.world_baseline or {}
+        difficulty = str(campaign.difficulty)
         await db.commit()
 
     # Build initial GameState (no session held).
@@ -82,6 +83,7 @@ async def submit_action(
         "world_state": prior_world_state,
         "char_data": prior_char_data,
         "world_baseline": world_baseline,
+        "difficulty": difficulty,
         "narration": "",
         "narration_segments": [],
         "scene_mood": "neutral",
