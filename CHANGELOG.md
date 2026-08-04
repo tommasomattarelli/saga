@@ -24,6 +24,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [UI] Everyone standing in the scene now shows a life bar, in a fight or not, replacing the combat-only tracker.
 - [UI] A dice reveal shows the difficulty draw alongside the roll, so every result can be checked rather than trusted.
 - [World & DM] The world editor can give an NPC a class and a statblock; leave a field blank and the engine draws it from the class.
+- [World & DM] The DM is told how hurt you are as a state — unharmed through near death — instead of a malformed number it was never meant to do arithmetic on.
 
 ### Internal
 - ADR 0003 is Accepted: implemented over S1–S4, with dated implementation notes recording where the code contradicted the design.
@@ -37,3 +38,5 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - New `/adr-implement` skill captures the sprint half of the ADR workflow — S0 pass, branch topology, and the assumption reconciliation that keeps a gating ADR honest.
 - The importance-scoring combat bonus reads a key nothing writes and has never fired; ADR 0016 redirected from fixing the score to retiring it.
 - `/dead-code` gained a key mode: static tools cannot see inside a JSONB payload, so dead dict keys need a reader/writer trace instead.
+- A reader/writer audit of `world_state` and `character_data` found the DM prompt was shipping a Python dict repr as the player's HP on every turn.
+- Dropped what the audit found unread: the flat-location prompt branch, `global_flags`, two `GameContext` fields, and the frontend's stale copy of the world-state allowlist.
