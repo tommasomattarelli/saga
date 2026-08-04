@@ -42,7 +42,7 @@ Never open an editor first. S0 is one commit and it pays for itself every time.
 
 ## 2. Branch topology
 
-The convention used by 0005, 0008 and 0009 — one long-lived integration branch, one sub-branch
+The convention, one long-lived integration branch, one sub-branch
 per sprint, **one PR at the end**:
 
 ```
@@ -73,6 +73,12 @@ flows (std 5/11). Then, before merging the sprint:
   flakes. 0003's exchange test failed ~1 run in 5 because a drawn-HP mook sometimes died to the
   opening blow and so could not strike back — correct engine behaviour, wrong assumption in the
   test.
+- **Run the full check, not the tests.** `mypy` and `knip` are CI gates that a passing suite
+  says nothing about. The commands are in CLAUDE.md's Essential Commands; use them before every push.
+- **A migration is only verified against real data.** Test fixtures build the schema with
+  `create_all`, so no migration in this repo is exercised by the suite. A hand-built fixture reproduces your
+  assumption, not the database. Run it against a real dev database, and make the migration
+  fail loudly on anything it cannot map.
 - **Don't force a cleanup commit.** If the sprint's own removals *are* the dead code, deleting
   them separately would leave the tree half-broken. Run the tools (`vulture`, `knip`), report
   honestly when they find nothing, and say where the real dead code went.

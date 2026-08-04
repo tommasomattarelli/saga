@@ -26,6 +26,9 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [World & DM] The world editor can give an NPC a class and a statblock; leave a field blank and the engine draws it from the class.
 
 ### Internal
+- ADR 0003 is Accepted: implemented over S1–S4, with dated implementation notes recording where the code contradicted the design.
+- Alembic `005` renames `death_mode` to `difficulty` and the world-state fate counter; existing campaigns are converted, and unmappable values now abort the migration instead of nulling the column.
+- CLAUDE.md spells out the full check each stack's CI runs — `mypy` and `knip` are gates that a passing test suite says nothing about.
 - `npm ci` resolves without `--legacy-peer-deps`: `@eslint/js` was declared at v10 while `eslint` stayed at v9.
 - ADR index gained `Blocked by` / `Gates` columns, copied from each ADR's implementation plan and relationship section.
 - ADR 0003 S0 pass: config defaults fixed from the verified spreads, exchange convention left prompt-only, S2 split into two branches.
