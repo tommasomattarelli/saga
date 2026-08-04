@@ -38,7 +38,8 @@
     "empty_title": "The story hasn't started yet",
     "empty_hint": "Write your first action below.",
     "history_error": "Couldn't load the story so far. Refresh the page to try again.",
-    "map": "Map"
+    "map": "Map",
+    "in_scene": "In the scene"
   },
   "campaign": {
     "your_campaigns": "Your campaigns, {{name}}",
