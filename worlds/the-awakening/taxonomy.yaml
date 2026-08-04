@@ -97,3 +97,16 @@ npc_fields:
   - {name: mannerisms}
   - {name: secret}
   - {name: dreads}
+
+# NPC classes (ADR 0003) — coarse archetypes carrying the MECHANICS. The `role` trait
+# above stays descriptive ("panettiere", "imperatore"); the class decides how tough
+# someone is, so a butcher can never hold a general's numbers. `defense` reuses the six
+# difficulty levels; hp is drawn from the hp_class range in saga.config.yaml.
+# Yours to change: rename them, add your own (cultist, construct, dragon, ...).
+npc_classes:
+  - {name: commoner,  hp_class: weak,     defense: easy,   damage_class: unarmed}
+  - {name: royale,    hp_class: weak,     defense: easy,   damage_class: light}
+  - {name: beast,     hp_class: standard, defense: normal, damage_class: medium, attack_mod: 2}
+  - {name: guard,     hp_class: standard, defense: normal, damage_class: medium, attack_mod: 2}
+  - {name: soldier,   hp_class: standard, defense: hard,   damage_class: medium, attack_mod: 3}
+  - {name: commander, hp_class: tough,    defense: hard,   damage_class: heavy,  attack_mod: 5}

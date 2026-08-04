@@ -8,7 +8,15 @@ _SAMPLE_CONFIG = {
     "tool_groups": {
         "core": {
             "always": True,
-            "tools": ["move_to", "advance_time", "set_scene_mood", "log_event", "update_quest"],
+            "tools": [
+                "move_to",
+                "advance_time",
+                "set_scene_mood",
+                "log_event",
+                "update_quest",
+                "request_dice",
+                "heal",
+            ],
         },
         "combat_entry": {
             "always": True,
@@ -16,7 +24,7 @@ _SAMPLE_CONFIG = {
         },
         "combat": {
             "when": "combat_active",
-            "tools": ["request_dice", "apply_damage", "end_combat", "update_hp"],
+            "tools": ["apply_damage", "end_combat"],
         },
         "social": {
             "when": "npcs_present",
@@ -45,6 +53,9 @@ def test_resolve_from_state_always_tools():
     assert "move_to" in tools
     assert "add_item" in tools
     assert "start_combat" in tools
+    # ADR 0003 A1 — every d20 check is available with no fight in sight.
+    assert "request_dice" in tools
+    assert "heal" in tools
 
 
 def test_resolve_from_state_combat_active():
@@ -55,7 +66,6 @@ def test_resolve_from_state_combat_active():
     )
     assert "apply_damage" in tools
     assert "end_combat" in tools
-    assert "request_dice" in tools
 
 
 def test_resolve_from_state_npcs_present():

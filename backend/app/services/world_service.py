@@ -123,7 +123,7 @@ def create_world(meta: dict) -> dict:
     # The wizard starts from the bundled default taxonomy (I7).
     example = load_world(worlds_dir() / "the-awakening") if world_path("the-awakening") else None
     taxonomy = (
-        example.taxonomy.model_dump()
+        example.taxonomy.model_dump(mode="json")
         if example
         else {"kinds": [{"name": "place", "scale": "outdoor"}]}
     )
