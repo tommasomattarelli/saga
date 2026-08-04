@@ -119,22 +119,50 @@ async def test_an_authored_npc_can_be_struck_and_dies_on_its_record(auth_client,
 
 @pytest.mark.asyncio
 async def test_an_npc_strikes_back_at_the_player_in_the_same_step(auth_client, db_session):
-    """The exchange convention (C1c) — two calls, one turn, no rounds."""
+    """The exchange convention (C1c) — two calls, one turn, no rounds.
+
+    Aldric is given enough HP to survive the opening blow: a mook that dies to it
+    cannot swing back, which is the engine behaving correctly, not the case under test.
+    """
     campaign = await _load(db_session, await _create_campaign(auth_client))
+    aldric_id = next(k for k, v in campaign.world_state["npcs"].items() if v["name"] == "Aldric")
+    campaign.world_state["npcs"][aldric_id].update({"hp": 60, "max_hp": 60})
 
     with _hit():
         result = await tools_node(
             _state(
                 campaign,
-                _call("attack", "tc1", attacker="Eron", target="Bandit", weapon_class="medium"),
-                _call("attack", "tc2", attacker="Bandit", target="Eron"),
+                _call("attack", "tc1", attacker="Eron", target="Aldric", weapon_class="medium"),
+                _call("attack", "tc2", attacker="Aldric", target="Eron"),
             )
         )
 
-    bandit = next(n for n in result["world_state"]["npcs"].values() if n["name"] == "Bandit")
-    assert bandit["hp"] < bandit["max_hp"]
+    aldric = result["world_state"]["npcs"][aldric_id]
+    assert 0 < aldric["hp"] < 60
+    assert aldric["lifecycle"] == "alive"
     assert result["char_data"]["hp"]["current"] < 40
     assert len(result["tool_events"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_felled_enemy_cannot_swing_back(auth_client, db_session):
+    """The other half of the same coin — found by a flake in the test above."""
+    campaign = await _load(db_session, await _create_campaign(auth_client))
+    aldric_id = next(k for k, v in campaign.world_state["npcs"].items() if v["name"] == "Aldric")
+    campaign.world_state["npcs"][aldric_id].update({"hp": 1, "max_hp": 60})
+
+    with _hit():
+        result = await tools_node(
+            _state(
+                campaign,
+                _call("attack", "tc1", attacker="Eron", target="Aldric", weapon_class="medium"),
+                _call("attack", "tc2", attacker="Aldric", target="Eron"),
+            )
+        )
+
+    assert result["world_state"]["npcs"][aldric_id]["lifecycle"] == "dead"
+    assert result["char_data"]["hp"]["current"] == 40
+    assert "dead" in result["messages"][1].content.lower()
 
 
 @pytest.mark.asyncio
