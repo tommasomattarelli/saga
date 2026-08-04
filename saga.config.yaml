@@ -197,6 +197,24 @@ healing:
   dm_heal_cap: 3               # DM-initiated heals per game day
 
 # ---------------------------------------------------------------------------
+# Campaign difficulty (ADR 0003 B8)
+#
+# Difficulty governs the DEATH POLICY only — rolls and damage are identical at every
+# setting, so the bands stay calibrated once and hardness comes from the fiction.
+# The multipliers are reserved neutral: a future proposal may scale enemy damage
+# (facile 0.75 / difficile 1.25), to re-evaluate after playtest.
+# ---------------------------------------------------------------------------
+campaign_difficulty:
+  # easy   — never dies; consequences are narrated instead
+  # medium — a few fate interventions at rising cost, then death is final
+  # hard   — permadeath from the first fall
+  fate_interventions: 3       # medium only: how many times fate steps in
+  multipliers:
+    easy:    1.0
+    medium:  1.0
+    hard:    1.0
+
+# ---------------------------------------------------------------------------
 # World model (ADR 0008)
 # ---------------------------------------------------------------------------
 world:

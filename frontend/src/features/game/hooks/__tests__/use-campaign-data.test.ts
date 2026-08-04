@@ -18,7 +18,7 @@ const mockCampaign = {
   name: "The Lost Realm",
   world_slug: "w1",
   status: "active",
-  death_mode: "cronista",
+  difficulty: "easy",
   turn_number: 3,
   character_data: {
     name: "Tomma",

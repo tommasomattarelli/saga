@@ -12,7 +12,7 @@ describe("CompanionBar Component", () => {
     name: "Test",
     world_slug: "w1",
     status: "active",
-    death_mode: "destino",
+    difficulty: "medium",
     turn_number: 1,
     character_data: {} as CharacterData,
     world_state: worldState,

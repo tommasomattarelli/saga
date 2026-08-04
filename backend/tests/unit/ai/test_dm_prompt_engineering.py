@@ -10,7 +10,7 @@ def _make_campaign(**overrides) -> MagicMock:
     campaign.world_state = {}
     campaign.character_data = {}
     campaign.quests = {}
-    campaign.death_mode = None
+    campaign.difficulty = None
     campaign.persona_preset = None
     campaign.persona_xml = None
     campaign.global_summary = None

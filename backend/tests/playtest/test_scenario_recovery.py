@@ -20,7 +20,7 @@ async def test_scenario_save_load_recovery(auth_client: AsyncClient, db_session)
         json={
             "name": "Recovery Run",
             "world_id": "the-awakening",
-            "death_mode": "destino",
+            "difficulty": "medium",
             "character_data": {"name": "Aldric", "hp": 30, "max_hp": 30, "level": 5},
         },
     )
@@ -63,7 +63,7 @@ async def test_scenario_multiple_save_slots(auth_client: AsyncClient, db_session
         json={
             "name": "MultiSave Camp",
             "world_id": "the-awakening",
-            "death_mode": "destino",
+            "difficulty": "medium",
             "character_data": {"hp": 20},
         },
     )

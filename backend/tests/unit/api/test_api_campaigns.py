@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from app.api.auth import get_current_user
 from app.dependencies import get_db
 from app.main import app
-from app.models.campaign import Campaign, CampaignStatus, DeathMode
+from app.models.campaign import Campaign, CampaignStatus, Difficulty
 
 client = TestClient(app)
 
@@ -41,7 +41,7 @@ def test_list_campaigns(mocker, mock_user_dependency):
                             user_id=mock_user_dependency.id,
                             world_slug="fantasy",
                             status=CampaignStatus.ACTIVE,
-                            death_mode=DeathMode.IRONMAN,
+                            difficulty=Difficulty.HARD,
                             turn_number=1,
                             character_data={},
                             world_state={},
@@ -96,7 +96,7 @@ def test_create_campaign(mocker, mock_user_dependency, tmp_path, monkeypatch):
     create_data = {
         "name": "My New Game",
         "world_id": "the-awakening",
-        "death_mode": "ironman",
+        "difficulty": "hard",
         "character_data": {"name": "Hero"},
     }
     response = client.post("/api/campaigns", json=create_data)
@@ -120,7 +120,7 @@ def test_get_campaign(mocker, mock_user_dependency):
         user_id=mock_user_dependency.id,
         world_slug="fantasy",
         status=CampaignStatus.ACTIVE,
-        death_mode=DeathMode.IRONMAN,
+        difficulty=Difficulty.HARD,
         turn_number=1,
         character_data={},
         world_state={},
@@ -158,7 +158,7 @@ def test_update_status(mocker, mock_user_dependency):
         name="Test Campaign",
         world_slug="fantasy",
         status=CampaignStatus.ACTIVE,
-        death_mode=DeathMode.IRONMAN,
+        difficulty=Difficulty.HARD,
         turn_number=1,
         character_data={},
         world_state={},
@@ -201,7 +201,7 @@ def test_post_action(mocker, mock_user_dependency):
         name="Test Campaign",
         world_slug="fantasy",
         status=CampaignStatus.ACTIVE,
-        death_mode=DeathMode.IRONMAN,
+        difficulty=Difficulty.HARD,
         turn_number=1,
         character_data={"name": "Hero", "hp": {"current": 10, "max": 10}},
         world_state={},
