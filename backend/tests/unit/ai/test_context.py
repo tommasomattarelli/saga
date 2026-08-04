@@ -3,7 +3,7 @@ import uuid
 import pytest
 
 from app.ai.context import _enforce_token_budget, build_context, score_importance
-from app.models.campaign import Campaign, DeathMode
+from app.models.campaign import Campaign, Difficulty
 
 
 def test_score_importance_default():
@@ -89,7 +89,7 @@ async def test_build_context(mocker):
     campaign = Campaign(
         id=uuid.uuid4(),
         world_state={"time": {"time_of_day": "morning"}},
-        death_mode=DeathMode.IRONMAN,
+        difficulty=Difficulty.HARD,
         quests={"active": [{"title": "Quest"}]},
         character_data={"hp": 10},
     )
@@ -97,7 +97,8 @@ async def test_build_context(mocker):
     ctx = await build_context(campaign, "I look around.", mock_db)
 
     assert ctx.importance_score == 3
-    assert "IRONMAN" in ctx.system_prompt
+    # ADR 0003 B8 — death instructions no longer ride every prompt.
+    assert "IRONMAN" not in ctx.system_prompt.upper()
     assert len(ctx.active_quests) == 1
     assert ctx.messages[-1]["role"] == "user"
     assert ctx.messages[-1]["content"] == "I look around."
@@ -130,7 +131,7 @@ async def test_build_context_injects_recalled_memories(mocker):
     campaign = Campaign(
         id=uuid.uuid4(),
         world_state={},
-        death_mode=DeathMode.CRONISTA,
+        difficulty=Difficulty.EASY,
         quests={},
         character_data={"name": "Hero", "hp": 10, "max_hp": 10},
     )
@@ -162,7 +163,7 @@ async def test_build_context_includes_global_summary(mocker):
     campaign = Campaign(
         id=uuid.uuid4(),
         world_state={},
-        death_mode=DeathMode.CRONISTA,
+        difficulty=Difficulty.EASY,
         quests={},
         character_data={"name": "Hero", "hp": 10, "max_hp": 10},
         global_summary="The hero crossed the mountains and bargained with the witch.",
@@ -216,7 +217,7 @@ async def test_build_context_token_cap_drops_oldest(mocker):
     campaign = Campaign(
         id=uuid.uuid4(),
         world_state={},
-        death_mode=DeathMode.CRONISTA,
+        difficulty=Difficulty.EASY,
         quests={},
         character_data={"name": "Hero", "hp": 10, "max_hp": 10},
     )

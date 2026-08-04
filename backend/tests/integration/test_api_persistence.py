@@ -12,7 +12,7 @@ async def test_create_and_get_campaign_persistence(auth_client: AsyncClient, db_
     create_data = {
         "name": "Integration Test Story",
         "world_id": "the-awakening",
-        "death_mode": "destino",
+        "difficulty": "medium",
         "character_data": {"name": "Valerius", "class": "Paladin"},
     }
     response = await auth_client.post("/api/campaigns", json=create_data)
@@ -40,7 +40,7 @@ async def test_campaign_status_update_persistence(auth_client: AsyncClient, db_s
     create_data = {
         "name": "Status Test",
         "world_id": "the-awakening",
-        "death_mode": "ironman",
+        "difficulty": "hard",
         "character_data": {"name": "Test"},
     }
     response = await auth_client.post("/api/campaigns", json=create_data)

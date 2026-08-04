@@ -67,7 +67,7 @@ ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
         "global_flags",
         "clock",
         "narrative",
-        "destino_lives",
+        "fate_interventions_left",
         "player_position",
         "node_status",
         "edge_overrides",
@@ -196,6 +196,8 @@ def _migrate_v7_to_v8(state: dict) -> dict:
         npc.setdefault("auto_created", False)
         if npc.get("max_hp") is None:
             npc.update(draw_statblock(npc.get("npc_class") or "", DEFAULT_NPC_CLASSES))
+    # B8 renames the death modes away, and the counter with them.
+    state["fate_interventions_left"] = state.pop("destino_lives", 3)
     state["meta"]["schema_version"] = 8
     return state
 

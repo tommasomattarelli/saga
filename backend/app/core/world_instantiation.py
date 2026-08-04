@@ -126,7 +126,7 @@ def _build_world_state(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
             for f in asset.factions.values()
         },
         "narrative": {"event_log": []},
-        "destino_lives": 3,
+        "fate_interventions_left": 3,
         "time_of_day": (opening.time_of_day if opening else "") or "morning",
         "weather": (opening.weather if opening else "") or "clear",
         "node_status": {},

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 from app.ai.prompts.dm import build_dm_system_prompt
 from app.core.npc_resolver import npcs_at_current_location
-from app.models.campaign import DeathMode
+from app.models.campaign import Difficulty
 
 
 def _make_campaign(
@@ -14,7 +14,7 @@ def _make_campaign(
     c.world_state = world_state
     c.character_data = character_data
     c.quests = quests or {}
-    c.death_mode = DeathMode.DESTINO
+    c.difficulty = Difficulty.MEDIUM
     c.world_baseline = None
     return c
 
@@ -213,8 +213,6 @@ def test_npcs_at_current_location_empty_location_returns_all():
 
 def test_prompts_loaded_from_yaml():
     # B-M6: prompt content is externalized to dm.yaml and loaded at import.
-    from app.ai.prompts.dm import BASE_DM_PROMPT, DEATH_MODE_PROMPTS
+    from app.ai.prompts.dm import BASE_DM_PROMPT
 
     assert BASE_DM_PROMPT.startswith("You are an expert Dungeon Master")
-    assert set(DEATH_MODE_PROMPTS) == {"ironman", "destino", "cronista"}
-    assert all(v.strip() for v in DEATH_MODE_PROMPTS.values())

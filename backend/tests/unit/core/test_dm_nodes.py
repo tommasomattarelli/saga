@@ -15,6 +15,7 @@ def _make_state(**overrides) -> dict:
         "world_state": {},
         "char_data": {},
         "player_action": "look",
+        "difficulty": "medium",
         "campaign_id": "test-id",
         "narration": "",
         "step_count": 1,

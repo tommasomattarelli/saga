@@ -16,7 +16,6 @@ from app.models.psychology import PsychologyDef
 _PROMPTS = yaml.safe_load((Path(__file__).parent / "dm.yaml").read_text(encoding="utf-8"))
 
 BASE_DM_PROMPT: str = _PROMPTS["base_dm_prompt"]
-DEATH_MODE_PROMPTS: dict[str, str] = _PROMPTS["death_mode_prompts"]
 
 
 def _salient_axis_attrs(npc: dict, psychology: PsychologyDef) -> str:
@@ -84,9 +83,6 @@ def build_dm_system_prompt(
     # NPCs present at current location
     npcs_present = npcs_at_current_location(world_state)
 
-    # Death mode
-    death_prompt = DEATH_MODE_PROMPTS.get(campaign.death_mode, "")
-
     lines: list[str] = []
 
     # <persona> — optional DM tone block, injected before <instructions>
@@ -99,10 +95,9 @@ def build_dm_system_prompt(
     if persona_xml:
         lines.append(persona_xml.strip())
 
-    # <instructions> — leading newline keeps the blank line before the death block
+    # ADR 0003 B8 — no static death block: those instructions reach the DM only when
+    # the player actually hits 0, as the per-turn check's narrative_instruction.
     lines.append(f"<instructions>\n{BASE_DM_PROMPT}")
-    if death_prompt:
-        lines.append(f"\n{death_prompt}")
     lines.append("</instructions>")
 
     # <character>
