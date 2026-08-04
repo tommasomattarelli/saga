@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { DiceRollResult, DiceOutcome } from "../../../shared/types";
+import type { DiceRollResult, DiceOutcome, DifficultyLevel } from "../../../shared/types";
 import { useUIStore } from "../../../shared/stores/ui-store";
 
 interface DiceRollerProps {
@@ -28,8 +28,21 @@ const OUTCOME_LABELS: Record<DiceOutcome, string> = {
   critical_success: "Critical success",
 };
 
+const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
+  trivial: "Trivial",
+  easy: "Easy",
+  normal: "Normal",
+  hard: "Hard",
+  very_hard: "Very hard",
+  near_impossible: "Near impossible",
+};
+
 const SWEEP_DURATION_MS = 1100;
 const SWEEP_INTERVAL_MS = 90;
+
+function difficultyOf(result: DiceRollResult): string {
+  return DIFFICULTY_LABELS[result.difficulty] ?? "";
+}
 
 function outcomeOf(result: DiceRollResult): DiceOutcome {
   return result.outcome ?? (result.success ? "full_success" : "hard_failure");
@@ -107,7 +120,7 @@ function TierArc({
           className="font-display text-[11px] uppercase"
           style={{ color: "var(--ink-faded)", letterSpacing: "0.12em" }}
         >
-          {name} · DC {result.dc}
+          {name} · {difficultyOf(result)}
         </span>
         <span className="font-display text-[13px] font-semibold" style={{ color: "var(--accent)" }}>
           Roll
@@ -118,6 +131,12 @@ function TierArc({
 
   const modifier =
     result.modifier !== 0 ? ` ${result.modifier > 0 ? "+" : "−"} ${Math.abs(result.modifier)}` : "";
+  /* ADR 0003 A2 — the difficulty draw is shown, not hidden: every roll must be
+     auditable (level + draw + bands), which is the whole point of dropping the DC. */
+  const draw =
+    result.difficulty_draw !== 0
+      ? ` ${result.difficulty_draw > 0 ? "+" : "−"} ${Math.abs(result.difficulty_draw)}`
+      : "";
 
   return (
     <div
@@ -129,7 +148,7 @@ function TierArc({
         style={{ color: "var(--ink-faded)", letterSpacing: "0.12em" }}
       >
         <span>{name}</span>
-        <span>DC {result.dc}</span>
+        <span>{difficultyOf(result)}</span>
       </div>
 
       {/* The six tiers; the landed one rises in the outcome color */}
@@ -154,7 +173,8 @@ function TierArc({
         <p className="mt-2.5 font-display text-[13px]" style={{ color: "var(--ink-secondary)" }}>
           <span style={{ color: "var(--ink-faded)" }}>
             {result.rolls.join(" + ")}
-            {modifier} ={" "}
+            {modifier}
+            {draw} ={" "}
           </span>
           <span style={{ color: "var(--ink-primary)" }}>{result.total}</span>
           <span style={{ color: "var(--ink-faded)" }}> — </span>

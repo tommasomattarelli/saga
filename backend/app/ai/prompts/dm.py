@@ -7,6 +7,7 @@ import yaml
 from app.ai.prompts.presets import PERSONA_PRESETS
 from app.ai.prompts.scene import render_location_block
 from app.core.npc_fields import resolve_npc_fields
+from app.core.npc_resolver import npcs_at_current_location
 from app.core.psychology import band_label, is_salient, resolve_psychology
 from app.core.world_access import WorldView
 from app.models.campaign import Campaign
@@ -15,19 +16,6 @@ from app.models.psychology import PsychologyDef
 _PROMPTS = yaml.safe_load((Path(__file__).parent / "dm.yaml").read_text(encoding="utf-8"))
 
 BASE_DM_PROMPT: str = _PROMPTS["base_dm_prompt"]
-DEATH_MODE_PROMPTS: dict[str, str] = _PROMPTS["death_mode_prompts"]
-
-
-def _npcs_at_current_location(world_state: dict) -> dict[str, dict]:
-    """Living NPCs at the current location, keyed by uuid (ADR 0009 F1/A5)."""
-    npcs = world_state.get("npcs", {})
-    current_location = world_state.get("meta", {}).get("current_location", "")
-    return {
-        npc_id: data
-        for npc_id, data in npcs.items()
-        if data.get("lifecycle", "alive") == "alive"
-        and (not current_location or data.get("location") == current_location)
-    }
 
 
 def _salient_axis_attrs(npc: dict, psychology: PsychologyDef) -> str:
@@ -93,13 +81,7 @@ def build_dm_system_prompt(
     loc_connections = loc_data.get("connections", [])
 
     # NPCs present at current location
-    npcs_present = _npcs_at_current_location(world_state)
-
-    # Combat state
-    combat_state = world_state.get("combat_state", {})
-
-    # Death mode
-    death_prompt = DEATH_MODE_PROMPTS.get(campaign.death_mode, "")
+    npcs_present = npcs_at_current_location(world_state)
 
     lines: list[str] = []
 
@@ -113,10 +95,9 @@ def build_dm_system_prompt(
     if persona_xml:
         lines.append(persona_xml.strip())
 
-    # <instructions> — leading newline keeps the blank line before the death block
+    # ADR 0003 B8 — no static death block: those instructions reach the DM only when
+    # the player actually hits 0, as the per-turn check's narrative_instruction.
     lines.append(f"<instructions>\n{BASE_DM_PROMPT}")
-    if death_prompt:
-        lines.append(f"\n{death_prompt}")
     lines.append("</instructions>")
 
     # <character>
@@ -161,14 +142,6 @@ def build_dm_system_prompt(
         lines.append(f"  <time>{time_str}</time>")
     if weather:
         lines.append(f"  <weather>{weather}</weather>")
-
-    if combat_state.get("active"):
-        initiative = combat_state.get("initiative_order", [])
-        round_num = combat_state.get("round", 0)
-        lines.append(f'  <combat active="true" round="{round_num}">')
-        if initiative:
-            lines.append(f"    <combatants>{', '.join(str(c) for c in initiative)}</combatants>")
-        lines.append("  </combat>")
 
     lines.append("</scene>")
 

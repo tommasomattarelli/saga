@@ -9,7 +9,8 @@ const makeRoll = (overrides: Partial<DiceRollResult> = {}): DiceRollResult => ({
   rolls: [15],
   modifier: 2,
   total: 17,
-  dc: 12,
+  difficulty: "normal",
+  difficulty_draw: 0,
   success: true,
   outcome: "full_success",
   is_critical: false,
@@ -32,9 +33,23 @@ describe("DiceRoller — alwaysRevealed=true (historical turns)", () => {
     expect(screen.getByText("Success")).toBeInTheDocument();
   });
 
-  it("shows the DC value", () => {
-    render(<DiceRoller rolls={{ "STR save": makeRoll({ dc: 15 }) }} alwaysRevealed />);
-    expect(screen.getByText(/DC 15/)).toBeInTheDocument();
+  it("shows the difficulty level instead of a target number", () => {
+    render(
+      <DiceRoller rolls={{ "STR save": makeRoll({ difficulty: "very_hard" }) }} alwaysRevealed />,
+    );
+    expect(screen.getByText("Very hard")).toBeInTheDocument();
+  });
+
+  it("shows the difficulty draw so the roll stays auditable", () => {
+    render(
+      <DiceRoller
+        rolls={{
+          "STR save": makeRoll({ rolls: [11], modifier: 3, difficulty_draw: -5, total: 9 }),
+        }}
+        alwaysRevealed
+      />,
+    );
+    expect(screen.getByText(/11 \+ 3 − 5 =/)).toBeInTheDocument();
   });
 
   it("shows Failure label on failed roll", () => {
@@ -96,9 +111,9 @@ describe("DiceRoller — interactive (live turn)", () => {
     expect(screen.getByText("Roll")).toBeInTheDocument();
   });
 
-  it("shows DC on the Roll button", () => {
-    render(<DiceRoller rolls={{ "STR save": makeRoll({ dc: 14 }) }} />);
-    expect(screen.getByText(/DC 14/)).toBeInTheDocument();
+  it("shows the difficulty level on the Roll button", () => {
+    render(<DiceRoller rolls={{ "STR save": makeRoll({ difficulty: "hard" }) }} />);
+    expect(screen.getByText(/Hard/)).toBeInTheDocument();
   });
 
   it("reveals result after animation completes", async () => {

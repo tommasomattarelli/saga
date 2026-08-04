@@ -24,10 +24,12 @@ class CampaignStatus(StrEnum):
     ABANDONED = "abandoned"
 
 
-class DeathMode(StrEnum):
-    IRONMAN = "ironman"
-    DESTINO = "destino"
-    CRONISTA = "cronista"
+class Difficulty(StrEnum):
+    """ADR 0003 B8 — governs the death policy only; the math is identical throughout."""
+
+    EASY = "easy"
+    MEDIUM = "medium"
+    HARD = "hard"
 
 
 class Campaign(Base, UUIDMixin, TimestampMixin):
@@ -43,7 +45,7 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
     status: Mapped[CampaignStatus] = mapped_column(
         SAEnum(CampaignStatus), default=CampaignStatus.ACTIVE
     )
-    death_mode: Mapped[DeathMode] = mapped_column(SAEnum(DeathMode))
+    difficulty: Mapped[Difficulty] = mapped_column(SAEnum(Difficulty))
     turn_number: Mapped[int] = mapped_column(Integer, default=0)
 
     # Character data (denormalized for fast access)

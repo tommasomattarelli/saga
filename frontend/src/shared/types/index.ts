@@ -10,7 +10,7 @@ export interface Campaign {
   name: string;
   world_slug: string;
   status: CampaignStatus;
-  death_mode: DeathMode;
+  difficulty: Difficulty;
   turn_number: number;
   character_data: CharacterData;
   world_state: WorldState;
@@ -20,7 +20,7 @@ export interface Campaign {
 }
 
 export type CampaignStatus = "active" | "paused" | "completed" | "abandoned";
-export type DeathMode = "ironman" | "destino" | "cronista";
+export type Difficulty = "easy" | "medium" | "hard";
 
 export interface CharacterData {
   name: string;
@@ -68,23 +68,24 @@ export interface Quest {
   objectives: string[];
 }
 
-export interface CombatState {
-  active: boolean;
-  round: number;
-  initiative_order: CombatantInfo[];
-  current_turn_index: number;
-}
-
-export interface CombatantInfo {
+/* ADR 0003 B2/B3 — every hittable character is one of these. */
+export interface NpcRecord {
   name: string;
-  initiative: number;
-  hp: number;
-  max_hp: number;
-  type: "player" | "enemy";
+  lifecycle: "alive" | "dead" | "removed";
+  location?: string | null;
+  hp?: number | null;
+  max_hp?: number | null;
+  npc_class?: string | null;
+  condition?: string | null;
 }
 
 export interface WorldState {
-  meta?: { schema_version: number; world_name: string; current_season: string };
+  meta?: {
+    schema_version: number;
+    world_name: string;
+    current_season: string;
+    current_location?: string;
+  };
   clock?: {
     total_minutes: number;
     current_hour: number;
@@ -92,8 +93,8 @@ export interface WorldState {
     current_season: string;
     time_of_day: string;
   };
-  combat_state?: CombatState;
-  destino_lives?: number;
+  npcs?: Record<string, NpcRecord>;
+  fate_interventions_left?: number;
   time_of_day?: string;
   weather?: string;
   location?: string;
@@ -126,15 +127,25 @@ export type DiceOutcome =
   | "full_success"
   | "critical_success";
 
+export type DifficultyLevel =
+  | "trivial"
+  | "easy"
+  | "normal"
+  | "hard"
+  | "very_hard"
+  | "near_impossible";
+
 export interface DiceRollResult {
   expression: string;
   rolls: number[];
   modifier: number;
   total: number;
-  dc: number;
+  difficulty: DifficultyLevel;
+  difficulty_draw: number;
   success: boolean;
   outcome: DiceOutcome;
   is_critical: boolean;
+  hazard_damage?: number;
 }
 
 export interface NPCDialogue {
@@ -167,14 +178,13 @@ export interface TurnResponse {
   world_state?: Record<string, unknown>;
   character_data?: Record<string, unknown>;
   scene_mood: string | null;
-  combat_state?: CombatState | null;
   tool_events?: Record<string, unknown>[];
   death_event?: {
     is_dead: boolean;
     action: string;
-    death_mode: string;
+    difficulty: string;
     narrative_instruction: string;
-    destino_lives_remaining: number | null;
+    fate_interventions_remaining: number | null;
   } | null;
   model_used?: string;
   importance_score?: number;

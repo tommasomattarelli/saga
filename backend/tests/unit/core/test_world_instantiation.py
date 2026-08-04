@@ -5,6 +5,7 @@ from pathlib import Path
 
 from app.core.world_instantiation import instantiate_world
 from app.core.world_loader import load_world
+from app.memory.world_state import CURRENT_SCHEMA_VERSION
 
 EXAMPLE_WORLD = Path(__file__).parents[4] / "worlds" / "the-awakening"
 
@@ -86,7 +87,7 @@ class TestOverlay:
     def test_schema_v7_and_start_position(self):
         baseline, state, _ = instantiated()
         start_id = baseline["slug_map"]["shrine-of-first-light"]
-        assert state["meta"]["schema_version"] == 7
+        assert state["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION
         assert state["player_position"] == start_id
         assert state["meta"]["current_location"] == start_id
 
@@ -133,7 +134,7 @@ class TestOverlay:
         assert state["node_status"] == {}
         assert state["edge_overrides"] == []
         assert state["consumed_encounters"] == {}
-        assert state["combat_state"]["active"] is False
+        assert "combat_state" not in state  # combat is not a mode (ADR 0003 B1)
         assert state["clock"]["total_minutes"] == 480
 
     def test_opening_seeds_time_weather_and_narration(self):

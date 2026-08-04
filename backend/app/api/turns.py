@@ -72,6 +72,7 @@ async def submit_action(
         prior_world_state = migrate_world_state(campaign.world_state or {})
         prior_char_data = campaign.character_data or {}
         world_baseline = campaign.world_baseline or {}
+        difficulty = str(campaign.difficulty)
         await db.commit()
 
     # Build initial GameState (no session held).
@@ -82,6 +83,7 @@ async def submit_action(
         "world_state": prior_world_state,
         "char_data": prior_char_data,
         "world_baseline": world_baseline,
+        "difficulty": difficulty,
         "narration": "",
         "narration_segments": [],
         "scene_mood": "neutral",
@@ -210,8 +212,6 @@ async def submit_action(
     ):
         asyncio.create_task(_background_global_summary(campaign_id, turn_number))
 
-    combat_state = new_world_state.get("combat_state") if new_world_state else None
-
     return TurnResponse(
         turn_number=turn_number,
         player_action=body.action,
@@ -223,7 +223,6 @@ async def submit_action(
         world_state=new_world_state or {},
         character_data=new_char_data or {},
         scene_mood=scene_mood,
-        combat_state=combat_state if (combat_state and combat_state.get("active")) else None,
         tool_events=tool_events,
         death_event=final_state.get("death_event"),
         model_used=final_state.get("model_used", ""),

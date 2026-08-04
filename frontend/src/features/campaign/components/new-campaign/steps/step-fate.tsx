@@ -1,12 +1,12 @@
 import { motion } from "framer-motion";
 import * as RadioGroup from "@radix-ui/react-radio-group";
 import { useTranslation } from "react-i18next";
-import { DEATH_MODES } from "../../../data/class-presets";
+import { DIFFICULTIES } from "../../../data/class-presets";
 
 interface FateForm {
   heroName: string;
   campaignName: string;
-  deathMode: string;
+  difficulty: string;
   background: string;
 }
 
@@ -91,12 +91,12 @@ export default function StepFate({ form, onChange, onBack, onSubmit, isPending, 
             {t("wizard.death_label")}
           </label>
           <RadioGroup.Root
-            value={form.deathMode}
-            onValueChange={(v) => onChange({ deathMode: v })}
+            value={form.difficulty}
+            onValueChange={(v) => onChange({ difficulty: v })}
             className="grid grid-cols-1 gap-3 sm:grid-cols-3"
           >
-            {DEATH_MODES.map((m) => {
-              const selected = form.deathMode === m.value;
+            {DIFFICULTIES.map((m) => {
+              const selected = form.difficulty === m.value;
               return (
                 <RadioGroup.Item key={m.value} value={m.value} asChild>
                   <motion.button

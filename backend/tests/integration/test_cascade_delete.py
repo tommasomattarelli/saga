@@ -31,7 +31,7 @@ def _make_campaign(user_id: uuid.UUID, name: str) -> Campaign:
         user_id=user_id,
         world_slug="the-awakening",
         name=name,
-        death_mode="destino",
+        difficulty="medium",
         character_data={},
         world_state={},
         quests={},

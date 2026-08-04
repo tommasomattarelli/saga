@@ -1,4 +1,5 @@
 from app.memory.world_state import (
+    CURRENT_SCHEMA_VERSION,
     merge_world_state,
     migrate_world_state,
     validate_world_state,
@@ -10,14 +11,14 @@ def test_migrate_v0_to_latest():
     migrated = migrate_world_state(v0_state)
 
     assert "meta" in migrated
-    assert migrated["meta"]["schema_version"] == 7
+    assert migrated["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION
     assert migrated["meta"]["world_name"] == "Unknown Land"
     assert migrated["meta"]["current_season"] == "spring"
     assert migrated["locations"]["town"] == "visited"
     assert "clock" in migrated
-    assert "combat_state" in migrated
-    assert migrated["combat_state"]["active"] is False
-    assert "destino_lives" in migrated
+    assert "fate_interventions_left" in migrated
+    # v4 adds combat_state, v8 takes it back out: combat is not a mode (ADR 0003 B1).
+    assert "combat_state" not in migrated
 
 
 def test_migrate_v3_to_v4():
@@ -30,10 +31,10 @@ def test_migrate_v3_to_v4():
         "narrative": {"event_log": []},
     }
     migrated = migrate_world_state(v3_state)
-    assert migrated["meta"]["schema_version"] == 7
+    assert migrated["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION
     assert migrated["locations"]["town"] == "visited"
-    assert migrated["combat_state"]["active"] is False
-    assert migrated["destino_lives"] == 3
+    assert "combat_state" not in migrated
+    assert migrated["fate_interventions_left"] == 3
     assert migrated is not v3_state
 
 
@@ -45,7 +46,7 @@ def test_migrate_v5_to_v6_seeds_psychology():
     }
     migrated = migrate_world_state(v5_state)
     bran = next(n for n in migrated["npcs"].values() if n["name"] == "Bran")
-    assert migrated["meta"]["schema_version"] == 7
+    assert migrated["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION
     assert bran["psychology"] == {"trust": 0, "respect": 0, "affection": 0, "fear": 0}
     assert bran["met_player"] is True
     assert "disposition_toward_player" not in bran
@@ -69,7 +70,7 @@ def test_migrate_v6_to_v7_rekeys_and_splits_traits():
         },
     }
     migrated = migrate_world_state(v6_state)
-    assert migrated["meta"]["schema_version"] == 7
+    assert migrated["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION
     by_name = {n["name"]: (key, n) for key, n in migrated["npcs"].items()}
 
     key, marta = by_name["Marta"]  # name backfilled from the old dict key
@@ -104,7 +105,7 @@ def test_migrate_up_to_date():
         "destino_lives": 3,
     }
     migrated = migrate_world_state(v4_state)
-    assert migrated["meta"]["schema_version"] == 7
+    assert migrated["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION
     assert migrated["locations"]["town"] == "visited"
     assert migrated is not v4_state
 

@@ -50,14 +50,6 @@ async def create_save(
     if not campaign:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
 
-    # Block save during combat
-    combat_active = (campaign.world_state or {}).get("combat_state", {}).get("active", False)
-    if combat_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot save during combat",
-        )
-
     save = Save(
         campaign_id=campaign.id,
         name=body.name,

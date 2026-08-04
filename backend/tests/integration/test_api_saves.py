@@ -15,7 +15,7 @@ async def test_manual_save_lifecycle(auth_client: AsyncClient, db_session):
         json={
             "name": "Save Test",
             "world_id": "the-awakening",
-            "death_mode": "destino",
+            "difficulty": "medium",
             "character_data": {"name": "Hero", "hp": 20},
         },
     )
@@ -63,7 +63,7 @@ async def test_load_save_restoration(auth_client: AsyncClient, db_session):
         json={
             "name": "Restore Test",
             "world_id": "the-awakening",
-            "death_mode": "ironman",
+            "difficulty": "hard",
             "character_data": {"hp": 20, "name": "Fighter"},
         },
     )

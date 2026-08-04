@@ -38,7 +38,8 @@
     "empty_title": "La storia non è ancora iniziata",
     "empty_hint": "Scrivi la tua prima azione qui sotto.",
     "history_error": "Impossibile caricare la storia. Ricarica la pagina per riprovare.",
-    "map": "Mappa"
+    "map": "Mappa",
+    "in_scene": "Nella scena"
   },
   "campaign": {
     "your_campaigns": "Le tue campagne, {{name}}",
@@ -49,13 +50,13 @@
     "delete_title": "Eliminare questa campagna?",
     "delete_body": "\"{{name}}\" verrà eliminata per sempre. Non si può annullare.",
     "new": "Inizia una Nuova Saga",
-    "select_death_mode": "Scegli il Tuo Destino",
-    "ironman": "Ironman",
-    "ironman_desc": "Una vita. Una possibilità. Morte permanente.",
-    "destino": "Destino",
-    "destino_desc": "La morte ha un prezzo. 2-3 possibilità.",
-    "cronista": "Cronista",
-    "cronista_desc": "Modalità storia. Il racconto deve continuare."
+    "select_difficulty": "Scegli il Tuo Destino",
+    "easy": "Facile",
+    "easy_desc": "Modalita' racconto. La storia continua sempre.",
+    "medium": "Medio",
+    "medium_desc": "La morte ha un prezzo. Qualche seconda occasione.",
+    "hard": "Difficile",
+    "hard_desc": "Una vita sola. Nessuna seconda occasione."
   },
   "wizard": {
     "title": "Nuova campagna",
@@ -245,6 +246,11 @@
     "roll_max": "A",
     "entry_type": "Tipo",
     "type_event": "evento",
-    "type_combat": "combattimento"
+    "type_combat": "combattimento",
+    "npc_statblock": "Statistiche",
+    "npc_class": "Classe",
+    "npc_hp_class": "Robustezza",
+    "npc_defense": "Difficolta' da colpire",
+    "npc_damage_class": "Peso dell'arma"
   }
 }
