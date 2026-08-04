@@ -84,9 +84,6 @@ def build_dm_system_prompt(
     # NPCs present at current location
     npcs_present = npcs_at_current_location(world_state)
 
-    # Combat state
-    combat_state = world_state.get("combat_state", {})
-
     # Death mode
     death_prompt = DEATH_MODE_PROMPTS.get(campaign.death_mode, "")
 
@@ -150,14 +147,6 @@ def build_dm_system_prompt(
         lines.append(f"  <time>{time_str}</time>")
     if weather:
         lines.append(f"  <weather>{weather}</weather>")
-
-    if combat_state.get("active"):
-        initiative = combat_state.get("initiative_order", [])
-        round_num = combat_state.get("round", 0)
-        lines.append(f'  <combat active="true" round="{round_num}">')
-        if initiative:
-            lines.append(f"    <combatants>{', '.join(str(c) for c in initiative)}</combatants>")
-        lines.append("  </combat>")
 
     lines.append("</scene>")
 

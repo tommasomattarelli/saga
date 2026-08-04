@@ -67,3 +67,48 @@ def consume_dm_heal(world_state: dict) -> dict:
     log = world_state.get("dm_heals", {})
     used = int(log.get("used", 0)) if log.get("day") == day else 0
     return {**world_state, "dm_heals": {"day": day, "used": used + 1}}
+
+
+PLAYER_TARGET = "player"
+
+
+def reduce_damage(amount: int, target: dict | None) -> int:
+    """The B6 reducer slot. ADR 0010 armor plugs in here; today nothing soaks."""
+    return amount
+
+
+def apply_hp_delta(
+    world_state: dict,
+    char_data: dict,
+    target: str,
+    delta: int,
+) -> tuple[dict, dict, int, int]:
+    """The single HP write path — player and NPC records alike (ADR 0003 B6).
+
+    `target` is either PLAYER_TARGET or an NPC uuid. Damage passes the reducer slot;
+    healing does not. An NPC reaching 0 is written dead here, so the 0009 writer works
+    off the record rather than off an initiative list that no longer exists.
+    """
+    is_player = target == PLAYER_TARGET
+    record = None if is_player else world_state.get("npcs", {}).get(target)
+    if not is_player and record is None:
+        return world_state, char_data, 0, 0
+
+    if delta < 0:
+        delta = -reduce_damage(-delta, record)
+
+    if is_player:
+        hp = dict(char_data.get("hp", {}))
+        max_hp = int(hp.get("max", 10))
+        current = int(hp.get("current", max_hp))
+        new_hp = max(0, min(max_hp, current + delta))
+        hp["current"] = new_hp
+        char_data = {**char_data, "hp": hp}
+    else:
+        max_hp = int(record.get("max_hp") or 10)
+        new_hp = max(0, min(max_hp, int(record.get("hp") or max_hp) + delta))
+        record["hp"] = new_hp
+        if new_hp == 0:
+            record["lifecycle"] = "dead"
+
+    return world_state, char_data, new_hp, max_hp

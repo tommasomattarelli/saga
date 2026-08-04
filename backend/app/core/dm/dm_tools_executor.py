@@ -11,7 +11,6 @@ from langchain_core.messages import ToolMessage
 from app.ai.npc_director import invoke_npcs_parallel
 from app.ai.router import get_gameplay_config
 from app.ai.tools.dm_tools import execute_tool, get_tool
-from app.core.combat.combat_graph import combat_graph
 from app.core.dice import DifficultyLevel, resolve_check
 from app.core.dm.dm_helpers import get_or_create_segment, sync_narration_to_segment
 from app.core.dm.game_state import GameState
@@ -77,40 +76,6 @@ async def tools_node(state: GameState) -> dict[str, Any]:
         name = tc["name"]
         args = tc.get("args", {})
         tc_id = tc.get("id", name)
-
-        if name == "start_combat":
-            world_state["_pending_combat_enemies"] = args.get("enemies", [])
-            combat_result = await combat_graph.ainvoke(
-                {**state, "world_state": world_state, "char_data": char_data}
-            )
-            world_state = combat_result["world_state"]
-            result_str = "Combat initialised. Initiative rolled."
-            tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
-            tool_cls = get_tool(name)
-            if tool_cls and tool_cls.visible():
-                tool_events.append(
-                    {
-                        "tool": name,
-                        "args": args,
-                        "result": result_str,
-                        "extra": {"combat_state": world_state.get("combat_state", {})},
-                    }
-                )
-            continue
-
-        if name == "end_combat":
-            world_state["combat_state"] = {
-                "active": False,
-                "round": 0,
-                "initiative_order": [],
-                "current_turn_index": 0,
-            }
-            result_str = "Combat ended."
-            tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
-            tool_cls = get_tool(name)
-            if tool_cls and tool_cls.visible():
-                tool_events.append({"tool": name, "args": args, "result": result_str, "extra": {}})
-            continue
 
         if name == "request_dice":
             result_str, roll_data, char_data = _handle_dice(

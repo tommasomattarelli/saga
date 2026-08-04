@@ -44,6 +44,13 @@ def resolve_npc(name: str, world_state: dict, *, include_gone: bool = False) -> 
     return NpcResolution(error=f"{name} is not a known NPC.")
 
 
+def npc_aliases(world_state: dict) -> list[str]:
+    aliases: list[str] = []
+    for npc in world_state.get("npcs", {}).values():
+        aliases.extend(a for a in (npc.get("name"), npc.get("slug")) if a)
+    return aliases
+
+
 def npcs_at_current_location(world_state: dict) -> dict[str, dict]:
     """Living NPCs at the current location, keyed by uuid (ADR 0009 F1/A5)."""
     current_location = world_state.get("meta", {}).get("current_location", "")

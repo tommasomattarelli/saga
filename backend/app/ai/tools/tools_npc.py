@@ -15,19 +15,12 @@ from pydantic import Field
 from app.ai.router import get_gameplay_config
 from app.ai.tools.tools_base import DmTool, ToolResult, register
 from app.core.npc_fields import resolve_npc_fields
-from app.core.npc_resolver import resolve_npc
+from app.core.npc_resolver import npc_aliases, resolve_npc
 from app.core.npc_scaffold import create_npc_record
 from app.core.psychology import resolve_psychology
 from app.core.world_access import WorldView
 
 _ENGINE_WRITABLE = ("name", "condition", "location", "faction")
-
-
-def _npc_aliases(world_state: dict) -> list[str]:
-    aliases: list[str] = []
-    for npc in world_state.get("npcs", {}).values():
-        aliases.extend(a for a in (npc.get("name"), npc.get("slug")) if a)
-    return aliases
 
 
 @register
@@ -100,7 +93,7 @@ class UpdateNpc(DmTool):
         else:
             near = difflib.get_close_matches(
                 self.name,
-                _npc_aliases(world_state),
+                npc_aliases(world_state),
                 n=3,
                 cutoff=gameplay.npc_name_match_threshold,
             )

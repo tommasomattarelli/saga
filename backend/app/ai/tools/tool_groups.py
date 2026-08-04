@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 
 # Predicates operating on the raw world_state dict (used in LangGraph nodes)
 _STATE_PREDICATES: dict[str, Callable[[dict], bool]] = {
-    "combat_active": lambda ws: bool(ws.get("combat_state", {}).get("active")),
     "npcs_present": lambda ws: bool(ws.get("npcs")),
     "companion_active": lambda ws: bool(ws.get("companions")),
 }

@@ -9,8 +9,95 @@ from __future__ import annotations
 from pydantic import Field
 
 from app.ai.tools.tools_base import DmTool, ToolResult, apply, register
+from app.core.attack import resolve_attack
 from app.core.health import HealClass, consume_dm_heal, dm_heal_budget_left, draw_heal_amount
 from app.core.npc_resolver import npcs_at_current_location
+from app.models.npc_class import DamageClass
+
+
+@register
+class Attack(DmTool):
+    attacker: str = Field(description="Who strikes — the player, or any NPC in the scene")
+    target: str = Field(description="Who is struck — the player, or any NPC in the scene")
+    weapon_class: DamageClass | None = Field(
+        default=None,
+        description=(
+            "Only when the PLAYER attacks: how heavy the weapon they described is. "
+            "unarmed (fists), light (dagger, bow), medium (sword, axe), heavy (greatsword, "
+            "maul). NPCs carry their own — leave this out for them."
+        ),
+    )
+    advantage: bool = Field(
+        default=False,
+        description="The situation favours the attacker (flanked, asleep, cornered).",
+    )
+    disadvantage: bool = Field(
+        default=False, description="The situation hinders the attacker (blind, prone, restrained)."
+    )
+    reason: str = Field(default="", description="Brief reason (e.g. 'lunges with the boar spear')")
+
+    @classmethod
+    def tool_name(cls) -> str:
+        return "attack"
+
+    @classmethod
+    def tool_description(cls) -> str:
+        return (
+            "Resolve one act of contested violence between any two combatants — player to NPC, "
+            "NPC to player, or NPC to NPC. The engine rolls, decides whether it lands, and "
+            "computes the damage. Never state a number yourself. For an uncontested on-screen "
+            "death (an execution, a poisoning) use kill_npc instead."
+        )
+
+    @classmethod
+    def visible(cls) -> bool:
+        return True
+
+    def execute(self, world_state: dict, char_data: dict) -> ToolResult:
+        return self.execute_with_baseline(world_state, char_data, None)
+
+    def execute_with_baseline(
+        self, world_state: dict, char_data: dict, baseline: dict | None
+    ) -> ToolResult:
+        result = resolve_attack(
+            world_state,
+            char_data,
+            attacker=self.attacker,
+            target=self.target,
+            weapon_class=self.weapon_class.value if self.weapon_class else None,
+            advantage=self.advantage,
+            disadvantage=self.disadvantage,
+            taxonomy=(baseline or {}).get("taxonomy"),
+        )
+        if result.error:
+            return ToolResult(
+                description=result.error, world_state=world_state, char_data=char_data
+            )
+
+        if result.damage:
+            summary = (
+                f"{result.attacker} hits {result.target} ({result.outcome.value}): "
+                f"{result.damage} damage — {result.target_hp}/{result.target_max_hp} HP left."
+            )
+        else:
+            summary = f"{result.attacker} misses {result.target} ({result.outcome.value})."
+        if result.target_died:
+            summary += f" {result.target} falls."
+
+        return ToolResult(
+            description=summary,
+            world_state=result.world_state,
+            char_data=result.char_data,
+            extra={
+                "attacker": result.attacker,
+                "target": result.target,
+                "outcome": result.outcome.value,
+                "damage": result.damage,
+                "hp": result.target_hp,
+                "max_hp": result.target_max_hp,
+                "died": result.target_died,
+            },
+        )
 
 
 @register

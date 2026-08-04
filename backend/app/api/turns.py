@@ -210,8 +210,6 @@ async def submit_action(
     ):
         asyncio.create_task(_background_global_summary(campaign_id, turn_number))
 
-    combat_state = new_world_state.get("combat_state") if new_world_state else None
-
     return TurnResponse(
         turn_number=turn_number,
         player_action=body.action,
@@ -223,7 +221,6 @@ async def submit_action(
         world_state=new_world_state or {},
         character_data=new_char_data or {},
         scene_mood=scene_mood,
-        combat_state=combat_state if (combat_state and combat_state.get("active")) else None,
         tool_events=tool_events,
         death_event=final_state.get("death_event"),
         model_used=final_state.get("model_used", ""),
