@@ -246,6 +246,18 @@ unbounded numbers).
   difficile ×1.25 on enemy damage), config keys reserved neutral, to re-evaluate after
   playtest.
 
+**S2 note (2026-08-04, implementation).** Three readings the sprints had to fix.
+(a) **The statblock is `IMMUTABLE` in the B2 partition**, which B3 called "engine-owned/
+mutable". That partition's only meaning in the code is *what `update_npc` may write*, and
+`update_npc` is the LLM's tool — naming `hp` there would hand back the integer this whole ADR
+removes. The engine mutates HP constantly through its own path, which never consults the
+partition. (b) **The typo guard needed the fuzzy step, not just the resolver.** The 0009 F2
+resolver reports "not a known NPC" for a misspelling exactly as it does for a genuinely new
+name, so `attack` reuses `update_npc`'s `npc_name_match_threshold` before auto-creating —
+one knob, not two, or every slip spawns a phantom enemy beside the real one. (c) **The prune
+flag is stamped at creation, not inferred**: `auto_created` is the only thing distinguishing a
+mook from an authored NPC once both are records.
+
 ### C. Flow consequences & scope cuts
 
 - **C1 — Removals and rewires (Decided, consequences of A/B).** Deleted: `combat_state`
