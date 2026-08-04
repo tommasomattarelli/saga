@@ -1,12 +1,13 @@
 # ADR 0003 — Deterministic resolution: unified d20 checks + server-side damage
 
-- **Status**: Proposed (direction + all structural decisions fixed via the 2026-07-12 design
-  interview — every fork closed by the project owner; **config default values fixed in the
-  2026-08-04 S0 pass; the 0010/0012 integration points remain explicit TODOs**). The 2026-07-12
-  pass supersedes the combat-only 2026-06-09 draft of this same ADR *in place* (same number,
-  retitled): the resolution frame is now **one system for every d20 check in the game**, of
-  which combat is the main consumer.
-- **Date**: 2026-06-09; design pass 2026-07-12; S0 implementation pass 2026-08-04.
+- **Status**: **Accepted** — implemented over S1–S4 (2026-08-04) and merged to `main`. The dated
+  implementation notes below record where the code contradicted the design; they are part of the
+  record, not corrections to it. The 0010/0012 integration points remain open **by construction**
+  (this ADR ships their hooks, they ship the plugs). The 2026-07-12 design pass supersedes the
+  combat-only 2026-06-09 draft of this same ADR *in place* (same number, retitled): the
+  resolution frame is **one system for every d20 check in the game**, of which combat is the
+  main consumer.
+- **Date**: 2026-06-09; design pass 2026-07-12; implemented 2026-08-04 (S0–S4).
 - **Context items**: Research session 2026-06-09 (NEQ + 6 OS repos) — Fork B, item #7; design
   interview 2026-07-12 (all calls by the project owner), grounded live in `core/dice.py`,
   `core/dm/dm_tools_executor.py`, `core/combat/combat_graph.py`, `ai/tools/tools_combat.py`,
@@ -258,6 +259,23 @@ one knob, not two, or every slip spawns a phantom enemy beside the real one. (c)
 flag is stamped at creation, not inferred**: `auto_created` is the only thing distinguishing a
 mook from an authored NPC once both are records.
 
+**S3 note (2026-08-04, implementation).** B8 says the three behaviours "survive, **renamed**",
+and the sprint took that literally: `cronista`/`destino`/`ironman` are gone from the code, not
+hidden behind a difficulty→policy mapping. An implementation pass first added that mapping as a
+config table; the owner rejected it as unrequested configurability (principle 2) — it only ever
+bought "add a name reusing an existing behaviour", while a genuinely new policy needs code
+either way. The public names are English (`easy`/`medium`/`hard`), and `destino_lives` became
+`fate_interventions_left` in the same rung. **Bug found by the rename**: `check_player_death`
+was called with `char_data["death_mode"]`, a key nothing has ever written — so every campaign
+silently resolved as "never dies", Hard included. The difficulty now rides the graph state from
+the campaign row. Same shape as the dead importance key (C1b): a reader with no writer.
+
+**S4 note (2026-08-04, implementation).** The alembic chain is **not runnable from base** —
+`001` assumes the tables already exist from `create_all`, which is also how the test fixtures
+build the schema, so **no migration in this repo is exercised by the suite**. `005` was
+verified by hand against a scratch database (upgrade and downgrade, including a row with a
+NULL `world_state`). Pre-existing condition, recorded in `TODO.md`, not introduced here.
+
 ### C. Flow consequences & scope cuts
 
 - **C1 — Removals and rewires (Decided, consequences of A/B).** Deleted: `combat_state`
@@ -290,6 +308,20 @@ mook from an authored NPC once both are records.
   prompt-tuning pass, run against the harness once the tool surface stops moving.
   NPC-of-rank agency (a companion or boss taking a player-like turn) is **0014's**, which this
   ADR gates; B4's symmetric `attack(npc, npc)` is the rail it will use.
+
+  **Re-opened and re-closed (2026-08-04, post-S4).** S2b changed the material facts: `attack`
+  calls are now recorded engine events, so "a fight is happening" became derivable with no
+  notion of hostility at all — `alive AND in scene AND involved in an attack within the last N
+  turns`, which never touches 0005's axes. A deterministic post-turn hook was therefore possible
+  (the engine resolving the missing blows itself, no LLM in the loop). **The owner declined
+  again**, on cost rather than on the earlier argument: the disengagement rule underneath it —
+  what stops the goblin chasing a fleeing player — has no defensible answer without playtest
+  data, and every candidate is a guess. Prompt-only stands; the exchange rule lives in `dm.yaml`
+  and is a prompt-tuning target once the eval harness restarts. Recorded so the next reader
+  knows determinism here was **available and refused**, not unreachable. Direction noted for the
+  tuning pass: surface recent engine events to the DM (`GameContext.recent_events` is already
+  computed and never rendered) so forgetting the exchange is less likely — that lowers the odds,
+  it does not close the hole.
 - **C2 — Persistent timed effects: out of scope → 0012 (Decided).** 0003 ships instantaneous
   damage/heal only. Lingering poison/bleed/buffs need a duration system, and 0012 must invent
   one anyway (cooldowns measured in actions): **one future duration system, not two**.
