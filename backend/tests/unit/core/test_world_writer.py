@@ -85,3 +85,56 @@ def test_write_world_edit_then_reload(tmp_path):
     write_world(payload, target)
     reloaded = load_world(target)
     assert reloaded.nodes["thornhaven"].params["population"] == 999
+
+
+def test_round_trip_with_authored_statblocks(tmp_path):
+    # ADR 0003 B3/F: an authored statblock and a world-defined npc_class survive
+    # the write → load → validate cycle, and stay out of the descriptive traits.
+    from app.core.world_validator import validate_world
+
+    payload = to_editable(load_world(EXAMPLE_WORLD))
+    payload["taxonomy"]["npc_classes"] = [
+        {
+            "name": "commoner",
+            "hp_class": "weak",
+            "defense": "easy",
+            "damage_class": "unarmed",
+            "attack_mod": 0,
+        },
+        {
+            "name": "warlord",
+            "hp_class": "boss",
+            "defense": "very_hard",
+            "damage_class": "heavy",
+            "attack_mod": 7,
+        },
+    ]
+    lyra = next(n for n in payload["npcs"] if n["slug"] == "lyra")
+    lyra.update({"npc_class": "warlord", "max_hp": 120, "damage_class": "heavy"})
+    aldric = next(n for n in payload["npcs"] if n["slug"] == "aldric")
+    aldric["npc_class"] = "commoner"  # the example authors "royale", now undeclared
+
+    target = tmp_path / "the-awakening"
+    write_world(payload, target)
+    reloaded = load_world(target)
+
+    assert validate_world(reloaded, max_depth=8) == []
+    assert {c.name for c in reloaded.taxonomy.npc_classes} == {"commoner", "warlord"}
+    assert reloaded.npcs["lyra"].npc_class == "warlord"
+    assert reloaded.npcs["lyra"].statblock() == {"max_hp": 120, "damage_class": "heavy"}
+    assert "npc_class" not in reloaded.npcs["lyra"].descriptives()
+    assert to_editable(reloaded) == payload
+
+
+def test_an_undeclared_class_is_caught_on_reload(tmp_path):
+    from app.core.world_validator import validate_world
+
+    payload = to_editable(load_world(EXAMPLE_WORLD))
+    payload["taxonomy"]["npc_classes"] = [{"name": "commoner"}]
+    next(n for n in payload["npcs"] if n["slug"] == "aldric")["npc_class"] = "lich-emperor"
+
+    target = tmp_path / "the-awakening"
+    write_world(payload, target)
+    errors = validate_world(load_world(target), max_depth=8)
+
+    assert any("unknown npc class 'lich-emperor'" in e for e in errors)

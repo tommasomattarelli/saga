@@ -21,6 +21,9 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [Gameplay] Everyone who can be hit is a real character with HP and a statblock drawn from their class, so a butcher can never fight like a general.
 - [Gameplay] Campaign creation now offers Easy / Medium / Hard instead of the old death modes; the dice are the same at every setting, only death is.
 - [Gameplay] Fixed: the campaign's death setting was never read, so every campaign silently ran as "the player cannot die" — Hard included.
+- [UI] Everyone standing in the scene now shows a life bar, in a fight or not, replacing the combat-only tracker.
+- [UI] A dice reveal shows the difficulty draw alongside the roll, so every result can be checked rather than trusted.
+- [World & DM] The world editor can give an NPC a class and a statblock; leave a field blank and the engine draws it from the class.
 
 ### Internal
 - `npm ci` resolves without `--legacy-peer-deps`: `@eslint/js` was declared at v10 while `eslint` stayed at v9.

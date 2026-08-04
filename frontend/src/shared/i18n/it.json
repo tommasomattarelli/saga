@@ -38,7 +38,8 @@
     "empty_title": "La storia non è ancora iniziata",
     "empty_hint": "Scrivi la tua prima azione qui sotto.",
     "history_error": "Impossibile caricare la storia. Ricarica la pagina per riprovare.",
-    "map": "Mappa"
+    "map": "Mappa",
+    "in_scene": "Nella scena"
   },
   "campaign": {
     "your_campaigns": "Le tue campagne, {{name}}",
@@ -245,6 +246,11 @@
     "roll_max": "A",
     "entry_type": "Tipo",
     "type_event": "evento",
-    "type_combat": "combattimento"
+    "type_combat": "combattimento",
+    "npc_statblock": "Statistiche",
+    "npc_class": "Classe",
+    "npc_hp_class": "Robustezza",
+    "npc_defense": "Difficolta' da colpire",
+    "npc_damage_class": "Peso dell'arma"
   }
 }

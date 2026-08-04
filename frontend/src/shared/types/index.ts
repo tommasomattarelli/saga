@@ -68,23 +68,24 @@ export interface Quest {
   objectives: string[];
 }
 
-export interface CombatState {
-  active: boolean;
-  round: number;
-  initiative_order: CombatantInfo[];
-  current_turn_index: number;
-}
-
-export interface CombatantInfo {
+/* ADR 0003 B2/B3 — every hittable character is one of these. */
+export interface NpcRecord {
   name: string;
-  initiative: number;
-  hp: number;
-  max_hp: number;
-  type: "player" | "enemy";
+  lifecycle: "alive" | "dead" | "removed";
+  location?: string | null;
+  hp?: number | null;
+  max_hp?: number | null;
+  npc_class?: string | null;
+  condition?: string | null;
 }
 
 export interface WorldState {
-  meta?: { schema_version: number; world_name: string; current_season: string };
+  meta?: {
+    schema_version: number;
+    world_name: string;
+    current_season: string;
+    current_location?: string;
+  };
   clock?: {
     total_minutes: number;
     current_hour: number;
@@ -92,7 +93,7 @@ export interface WorldState {
     current_season: string;
     time_of_day: string;
   };
-  combat_state?: CombatState;
+  npcs?: Record<string, NpcRecord>;
   fate_interventions_left?: number;
   time_of_day?: string;
   weather?: string;
@@ -177,7 +178,6 @@ export interface TurnResponse {
   world_state?: Record<string, unknown>;
   character_data?: Record<string, unknown>;
   scene_mood: string | null;
-  combat_state?: CombatState | null;
   tool_events?: Record<string, unknown>[];
   death_event?: {
     is_dead: boolean;

@@ -3,7 +3,7 @@ import type { RefObject } from "react";
 import { submitAction } from "../../../shared/api/client";
 import { useGameStore } from "../../../shared/stores/game-store";
 import { TurnResponseSchema } from "../../../shared/schemas/turn";
-import type { CombatState, TurnResponse, WorldState, CharacterData } from "../../../shared/types";
+import type { TurnResponse, WorldState, CharacterData } from "../../../shared/types";
 
 export function useSubmitAction(campaignId: string, scrollRef: RefObject<HTMLDivElement | null>) {
   const mutation = useMutation({
@@ -25,19 +25,13 @@ export function useSubmitAction(campaignId: string, scrollRef: RefObject<HTMLDiv
         if (!check.success) console.warn("[useSubmitAction] schema mismatch", check.error.issues);
       }
 
-      const { addTurn, updateWorldState, updateCharacter, updateTurnNumber, setCombatState } =
+      const { addTurn, updateWorldState, updateCharacter, updateTurnNumber } =
         useGameStore.getState();
 
       addTurn(turn);
       if (turn.world_state) updateWorldState(turn.world_state as Partial<WorldState>);
       if (turn.character_data) updateCharacter(turn.character_data as Partial<CharacterData>);
       if (turn.turn_number) updateTurnNumber(turn.turn_number);
-
-      if (turn.combat_state?.active) {
-        setCombatState(turn.combat_state as CombatState);
-      } else if (turn.combat_state && !turn.combat_state.active) {
-        setCombatState(null);
-      }
     },
 
     onSettled: () => {

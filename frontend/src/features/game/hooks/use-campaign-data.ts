@@ -2,12 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { getCampaign, getTurns } from "../../../shared/api/client";
 import { useGameStore } from "../../../shared/stores/game-store";
-import type { CombatState, TurnResponse } from "../../../shared/types";
+import type { TurnResponse } from "../../../shared/types";
 
 export function useCampaignData(campaignId: string | undefined) {
   const setCampaign = useGameStore((s) => s.setCampaign);
   const setTurnHistory = useGameStore((s) => s.setTurnHistory);
-  const setCombatState = useGameStore((s) => s.setCombatState);
 
   const campaignQuery = useQuery({
     queryKey: ["campaign", campaignId],
@@ -24,9 +23,7 @@ export function useCampaignData(campaignId: string | undefined) {
   useEffect(() => {
     if (!campaignQuery.data) return;
     setCampaign(campaignQuery.data);
-    const cs = campaignQuery.data.world_state?.combat_state as CombatState | undefined;
-    if (cs?.active) setCombatState(cs);
-  }, [campaignQuery.data, setCampaign, setCombatState]);
+  }, [campaignQuery.data, setCampaign]);
 
   useEffect(() => {
     if (!turnsQuery.data?.length) return;
