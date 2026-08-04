@@ -131,6 +131,12 @@ function TierArc({
 
   const modifier =
     result.modifier !== 0 ? ` ${result.modifier > 0 ? "+" : "−"} ${Math.abs(result.modifier)}` : "";
+  /* ADR 0003 A2 — the difficulty draw is shown, not hidden: every roll must be
+     auditable (level + draw + bands), which is the whole point of dropping the DC. */
+  const draw =
+    result.difficulty_draw !== 0
+      ? ` ${result.difficulty_draw > 0 ? "+" : "−"} ${Math.abs(result.difficulty_draw)}`
+      : "";
 
   return (
     <div
@@ -167,7 +173,8 @@ function TierArc({
         <p className="mt-2.5 font-display text-[13px]" style={{ color: "var(--ink-secondary)" }}>
           <span style={{ color: "var(--ink-faded)" }}>
             {result.rolls.join(" + ")}
-            {modifier} ={" "}
+            {modifier}
+            {draw} ={" "}
           </span>
           <span style={{ color: "var(--ink-primary)" }}>{result.total}</span>
           <span style={{ color: "var(--ink-faded)" }}> — </span>

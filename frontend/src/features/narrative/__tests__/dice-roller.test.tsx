@@ -40,6 +40,18 @@ describe("DiceRoller — alwaysRevealed=true (historical turns)", () => {
     expect(screen.getByText("Very hard")).toBeInTheDocument();
   });
 
+  it("shows the difficulty draw so the roll stays auditable", () => {
+    render(
+      <DiceRoller
+        rolls={{
+          "STR save": makeRoll({ rolls: [11], modifier: 3, difficulty_draw: -5, total: 9 }),
+        }}
+        alwaysRevealed
+      />,
+    );
+    expect(screen.getByText(/11 \+ 3 − 5 =/)).toBeInTheDocument();
+  });
+
   it("shows Failure label on failed roll", () => {
     render(
       <DiceRoller
