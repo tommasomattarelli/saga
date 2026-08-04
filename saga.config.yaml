@@ -121,6 +121,48 @@ resolution:
     near_impossible: [-9, -13]
 
 # ---------------------------------------------------------------------------
+# Combat — statblocks and damage (ADR 0003 B3/B3b/B5/B6)
+#
+# Everyone hittable is an NPC record with a statblock, the player included. The LLM
+# names classes; the engine draws every number. `defense` reuses the six difficulty
+# levels above rather than inventing a second scale.
+#
+# Pacing is calibrated on the level-1 creation presets (~20 HP, best modifier +3):
+# three `weak` mooks fall in two solid hits each and take the player down over
+# roughly five exchanges.
+# ---------------------------------------------------------------------------
+combat:
+  damage_classes:       {unarmed: 1d2, light: 1d4, medium: 1d8, heavy: 1d12}
+  weapon_class_to_stat: {unarmed: STR, light: DEX, medium: STR, heavy: STR}
+  tier_damage_scale:                       # multiplier on the class die, by outcome
+    critical_success: 2.0
+    full_success:     1.0
+    partial_success:  0.5                  # never below 1 point
+    soft_failure:     0.0
+    hard_failure:     0.0
+    critical_failure: 0.0
+  hp_classes:                              # hp is drawn from the class range
+    weak:     [5, 10]
+    standard: [14, 22]                     # the player sits here at level 1
+    tough:    [35, 55]
+    boss:     [80, 140]
+  attack_mod_clamp: [-2, 10]
+  player_defense_default: normal
+  defense_dex_shift:                       # inert until ADR 0010 progression exists
+    harder_at: 4                           # DEX mod >= 4 → one level harder to hit
+    easier_at: -2                          # DEX mod <= -2 → one level easier
+  damage_reduction_cap: 0.75               # ceiling on stacked armor DR (ADR 0010 items)
+  statblock_defaults:                      # last resort when class and author say nothing
+    npc_class:    commoner
+    hp_class:     standard
+    defense:      normal
+    damage_class: light
+    attack_mod:   0
+  dead_unnamed_prune:
+    after_game_days: 14
+    require_empty_inventory: true          # a corpse still holding loot is never pruned
+
+# ---------------------------------------------------------------------------
 # Hazards — traps, falls, poison bursts (ADR 0003 B7)
 #
 # A hazard is an enemy without legs: the DM asks for a reaction roll and the tier
