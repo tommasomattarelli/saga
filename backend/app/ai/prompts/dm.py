@@ -6,6 +6,7 @@ import yaml
 
 from app.ai.prompts.presets import PERSONA_PRESETS
 from app.ai.prompts.scene import render_location_block
+from app.core.health import hp_band
 from app.core.npc_fields import resolve_npc_fields
 from app.core.npc_resolver import npcs_at_current_location
 from app.core.psychology import band_label, is_salient, resolve_psychology
@@ -51,8 +52,7 @@ def build_dm_system_prompt(
 
     # Character vitals
     char_name = char_data.get("name", "Hero")
-    hp = char_data.get("hp", "?")
-    max_hp = char_data.get("max_hp", "?")
+    hp = hp_band(char_data.get("hp") or {})
 
     ability_keys = [
         ("STR", "str"),
@@ -69,16 +69,12 @@ def build_dm_system_prompt(
     inventory = char_data.get("inventory", [])
     inventory_str = ", ".join(str(i) for i in inventory) if inventory else "nothing notable"
 
-    # Hierarchical world view (ADR 0008); legacy flat locations as fallback
+    # Hierarchical world view (ADR 0008); campaigns without a world asset fall back to the name
     view = WorldView(getattr(campaign, "world_baseline", None) or {}, world_state)
     position = view.player_position() if view.has_world else None
     location_display = current_location
     if position and view.node(position):
         location_display = view.require(position)["name"]
-
-    loc_data = world_state.get("locations", {}).get(current_location, {})
-    loc_desc = loc_data.get("description", "")
-    loc_connections = loc_data.get("connections", [])
 
     # NPCs present at current location
     npcs_present = npcs_at_current_location(world_state)
@@ -102,7 +98,8 @@ def build_dm_system_prompt(
 
     # <character>
     loc_attr = f' location="{location_display}"' if location_display else ""
-    lines.append(f'\n<character name="{char_name}" hp="{hp}/{max_hp}"{loc_attr}>')
+    hp_attr = f' hp="{hp}"' if hp else ""
+    lines.append(f'\n<character name="{char_name}"{hp_attr}{loc_attr}>')
     if ability_parts:
         lines.append(f"  <abilities>{', '.join(ability_parts)}</abilities>")
     lines.append(f"  <inventory>{inventory_str}</inventory>")
@@ -114,10 +111,6 @@ def build_dm_system_prompt(
         lines.extend(render_location_block(view, position))
     else:
         lines.append(f'  <location name="{current_location}">')
-        if loc_desc:
-            lines.append(f"    {loc_desc}")
-        if loc_connections:
-            lines.append(f"    Connected to: {', '.join(loc_connections)}.")
         lines.append("  </location>")
 
     if npcs_present:
