@@ -20,9 +20,12 @@ export function npcsInScene(worldState: WorldState | undefined): NpcRecord[] {
 }
 
 function LifeBar({ npc }: { npc: NpcRecord }) {
+  /* A record with no statblock predates ADR 0003's v8 rung. Show the name and stop —
+     rendering 0/0 makes a healthy person look dead. */
   const max = npc.max_hp ?? 0;
   const current = npc.hp ?? max;
-  const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 100;
+  const hasVitals = max > 0;
+  const pct = hasVitals ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
   const wounded = pct <= 33;
 
   return (
@@ -36,21 +39,25 @@ function LifeBar({ npc }: { npc: NpcRecord }) {
       >
         {npc.name}
       </span>
-      <div
-        className="relative mt-1.5 overflow-hidden rounded-full"
-        style={{ width: 64, height: 4, background: "var(--line)" }}
-      >
-        <motion.div
-          className="absolute left-0 top-0 h-full rounded-full"
-          style={{ background: wounded ? "var(--blood)" : "var(--ink-faded)" }}
-          initial={false}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.5 }}
-        />
-      </div>
-      <span className="mt-0.5 font-display text-[11px]" style={{ color: "var(--ink-faded)" }}>
-        {current}/{max}
-      </span>
+      {hasVitals && (
+        <>
+          <div
+            className="relative mt-1.5 overflow-hidden rounded-full"
+            style={{ width: 64, height: 4, background: "var(--line)" }}
+          >
+            <motion.div
+              className="absolute left-0 top-0 h-full rounded-full"
+              style={{ background: wounded ? "var(--blood)" : "var(--ink-faded)" }}
+              initial={false}
+              animate={{ width: `${pct}%` }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
+          <span className="mt-0.5 font-display text-[11px]" style={{ color: "var(--ink-faded)" }}>
+            {current}/{max}
+          </span>
+        </>
+      )}
     </div>
   );
 }

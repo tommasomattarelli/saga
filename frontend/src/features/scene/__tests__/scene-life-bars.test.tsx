@@ -45,4 +45,16 @@ describe("SceneLifeBars", () => {
     const { container } = render(<SceneLifeBars worldState={world({ npcs: {} })} />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("shows the name without a bar when the record predates the statblock rung", () => {
+    render(
+      <SceneLifeBars
+        worldState={world({
+          npcs: { "1": { name: "Marta", lifecycle: "alive", location: "tavern" } },
+        })}
+      />,
+    );
+    expect(screen.getByText("Marta")).toBeInTheDocument();
+    expect(screen.queryByText("0/0")).not.toBeInTheDocument();
+  });
 });
