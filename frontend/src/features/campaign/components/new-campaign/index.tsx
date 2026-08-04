@@ -15,7 +15,7 @@ import StepFate from "./steps/step-fate";
 interface WizardForm {
   campaignName: string;
   heroName: string;
-  deathMode: string;
+  difficulty: string;
   archetype: string;
   background: string;
 }
@@ -31,7 +31,7 @@ export default function NewCampaign() {
   const [form, setForm] = useState<WizardForm>({
     campaignName: "",
     heroName: "",
-    deathMode: "cronista",
+    difficulty: "easy",
     archetype: "warrior",
     background: "",
   });
@@ -66,7 +66,7 @@ export default function NewCampaign() {
       createCampaign({
         world_id: selectedWorld!.slug,
         name: form.campaignName || `${form.heroName || "The Stranger"}'s Adventure`,
-        death_mode: form.deathMode,
+        difficulty: form.difficulty,
         character_data: buildCharacterData(),
       }).then((r) => r.data),
     onSuccess: (campaign) => {

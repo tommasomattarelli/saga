@@ -81,9 +81,9 @@ export const TurnResponseSchema = z.object({
     .object({
       is_dead: z.boolean(),
       action: z.string(),
-      death_mode: z.string(),
+      difficulty: z.string(),
       narrative_instruction: z.string(),
-      destino_lives_remaining: z.number().nullable(),
+      fate_interventions_remaining: z.number().nullable(),
     })
     .nullable()
     .optional(),

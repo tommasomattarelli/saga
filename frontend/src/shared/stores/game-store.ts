@@ -13,7 +13,7 @@ const ALLOWED_WORLD_STATE_KEYS = new Set([
   "global_flags",
   "clock",
   "combat_state",
-  "destino_lives",
+  "fate_interventions_left",
 ]);
 
 const __DEV__ =

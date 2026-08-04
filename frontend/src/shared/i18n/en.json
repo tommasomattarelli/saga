@@ -49,13 +49,13 @@
     "delete_title": "Delete this campaign?",
     "delete_body": "\"{{name}}\" will be permanently deleted. This cannot be undone.",
     "new": "Begin a New Saga",
-    "select_death_mode": "Choose Your Fate",
-    "ironman": "Ironman",
-    "ironman_desc": "One life. One chance. Permanent death.",
-    "destino": "Destino",
-    "destino_desc": "Death carries a heavy price. 2-3 chances.",
-    "cronista": "Cronista",
-    "cronista_desc": "Story mode. The tale must go on."
+    "select_difficulty": "Choose Your Fate",
+    "easy": "Easy",
+    "easy_desc": "Story mode. The tale must go on.",
+    "medium": "Medium",
+    "medium_desc": "Death carries a heavy price. A few chances.",
+    "hard": "Hard",
+    "hard_desc": "One life. One chance. Permanent death."
   },
   "wizard": {
     "title": "New campaign",

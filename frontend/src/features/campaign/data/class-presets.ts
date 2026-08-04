@@ -86,8 +86,10 @@ export const CLASS_PRESETS: Record<string, ClassPreset> = {
   },
 };
 
-export const DEATH_MODES = [
-  { value: "cronista", label: "Cronista", desc: "No permadeath. The story always continues." },
-  { value: "destino", label: "Destino", desc: "Death matters. Revive once per campaign." },
-  { value: "ironman", label: "Ironman", desc: "Permadeath. One life, one story." },
+/* ADR 0003 B8 — difficulty governs the death policy only; rolls and damage are
+   identical at every setting, so hardness comes from the fiction. */
+export const DIFFICULTIES = [
+  { value: "easy", label: "Easy", desc: "No permadeath. The story always continues." },
+  { value: "medium", label: "Medium", desc: "Death carries a price. Fate steps in a few times." },
+  { value: "hard", label: "Hard", desc: "Permadeath. One life, one story." },
 ] as const;

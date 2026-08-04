@@ -56,7 +56,7 @@ function CampaignCard({
         {campaign.name}
       </div>
       <div className="mt-0.5 mb-4 font-display text-xs" style={{ color: "var(--ink-faded)" }}>
-        {heroName} · {archetype} · {campaign.death_mode}
+        {heroName} · {archetype} · {campaign.difficulty}
       </div>
 
       <div
