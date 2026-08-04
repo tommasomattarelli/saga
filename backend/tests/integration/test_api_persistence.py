@@ -57,3 +57,40 @@ async def test_campaign_status_update_persistence(auth_client: AsyncClient, db_s
     result = await db_session.execute(select(Campaign).where(Campaign.id == campaign_id))
     db_campaign = result.scalar_one_or_none()
     assert db_campaign.status.value == "abandoned"
+
+
+@pytest.mark.asyncio
+async def test_reading_a_campaign_migrates_the_world_state(auth_client, db_session):
+    """A save that has not taken a turn since an upgrade must not reach the UI on the
+    old shape — ADR 0003's v8 statblocks rendered as 0/0 life bars (2026-08-04)."""
+    from sqlalchemy import select
+
+    from app.models.campaign import Campaign
+
+    resp = await auth_client.post(
+        "/api/campaigns",
+        json={
+            "world_id": "the-awakening",
+            "name": "Stale Save",
+            "difficulty": "medium",
+            "character_data": {"name": "Eron", "hp": {"current": 10, "max": 10}},
+        },
+    )
+    campaign_id = resp.json()["id"]
+
+    # Rewind the stored overlay to the pre-statblock shape a real old save has.
+    result = await db_session.execute(select(Campaign).where(Campaign.id == campaign_id))
+    campaign = result.scalar_one()
+    stale = dict(campaign.world_state)
+    stale["meta"] = {**stale["meta"], "schema_version": 7}
+    stale["npcs"] = {
+        npc_id: {k: v for k, v in npc.items() if k not in {"hp", "max_hp", "defense"}}
+        for npc_id, npc in stale["npcs"].items()
+    }
+    campaign.world_state = stale
+    await db_session.commit()
+
+    served = (await auth_client.get(f"/api/campaigns/{campaign_id}")).json()["world_state"]
+
+    assert served["meta"]["schema_version"] == 8
+    assert all(npc["max_hp"] > 0 for npc in served["npcs"].values())

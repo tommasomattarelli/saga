@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
+from app.memory.world_state import migrate_world_state
 from app.models.campaign import CampaignStatus, Difficulty
 
 
@@ -27,6 +28,15 @@ class CampaignResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_validator("world_state")
+    @classmethod
+    def _migrate(cls, state: dict) -> dict:
+        """Rungs run lazily on the write path, so a save that has not taken a turn since
+        an upgrade is still on the old shape. Reads normalize it too, or the UI renders
+        pre-rung data — ADR 0003's v8 statblocks showed as 0/0 life bars. Read-only: the
+        stored state is rewritten by the next turn, not here."""
+        return migrate_world_state(state)
 
 
 class TurnSubmit(BaseModel):
