@@ -5,6 +5,20 @@ import { Area, Field, GhostButton, Picker } from "./editor-inputs";
 import { DEFAULT_NPC_FIELDS } from "./forms-npc-fields";
 import { DEFAULT_PSYCHOLOGY } from "./forms-psychology";
 
+/* Mirrors of the engine's bundled defaults (backend `core/npc_classes.py`,
+   `core/dice.py`) — the pickers must offer what the validator accepts. */
+export const DEFAULT_NPC_CLASSES = [
+  { name: "commoner" },
+  { name: "royale" },
+  { name: "beast" },
+  { name: "guard" },
+  { name: "soldier" },
+  { name: "commander" },
+];
+const HP_CLASSES = ["weak", "standard", "tough", "boss"];
+const DAMAGE_CLASSES = ["unarmed", "light", "medium", "heavy"];
+const DIFFICULTY_LEVELS = ["trivial", "easy", "normal", "hard", "very_hard", "near_impossible"];
+
 interface Props {
   payload: EditableWorld;
   kind: "edge" | "faction" | "npc" | "encounter";
@@ -195,6 +209,50 @@ export function CollectionForm({ payload, kind, slug, onChange, onSelect }: Prop
               onChange={(e) => patch({ [field.name]: e.target.value || undefined })}
             />
           ))}
+          {/* ADR 0003 B3 — an optional authored statblock. The class supplies the
+              template; anything left blank is drawn from it at instantiation. */}
+          <div className="space-y-1">
+            <span className="text-xs" style={{ color: "var(--ink-secondary)" }}>
+              {t("worlds.npc_statblock")}
+            </span>
+            <div className="grid grid-cols-2 gap-3">
+              <Picker
+                id="npc-class"
+                label={t("worlds.npc_class")}
+                value={value("npc_class")}
+                options={(payload.taxonomy.npc_classes ?? DEFAULT_NPC_CLASSES).map((c) => ({
+                  value: c.name,
+                  label: c.name,
+                }))}
+                allowEmpty
+                onChange={(e) => patch({ npc_class: e.target.value || undefined })}
+              />
+              <Picker
+                id="npc-hp-class"
+                label={t("worlds.npc_hp_class")}
+                value={value("hp_class")}
+                options={HP_CLASSES.map((h) => ({ value: h, label: h }))}
+                allowEmpty
+                onChange={(e) => patch({ hp_class: e.target.value || undefined })}
+              />
+              <Picker
+                id="npc-defense"
+                label={t("worlds.npc_defense")}
+                value={value("defense")}
+                options={DIFFICULTY_LEVELS.map((d) => ({ value: d, label: d }))}
+                allowEmpty
+                onChange={(e) => patch({ defense: e.target.value || undefined })}
+              />
+              <Picker
+                id="npc-damage-class"
+                label={t("worlds.npc_damage_class")}
+                value={value("damage_class")}
+                options={DAMAGE_CLASSES.map((d) => ({ value: d, label: d }))}
+                allowEmpty
+                onChange={(e) => patch({ damage_class: e.target.value || undefined })}
+              />
+            </div>
+          </div>
           <div className="space-y-1">
             <span className="text-xs" style={{ color: "var(--ink-secondary)" }}>
               {t("worlds.npc_psychology")}

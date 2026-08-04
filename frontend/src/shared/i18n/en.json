@@ -246,6 +246,11 @@
     "roll_max": "To",
     "entry_type": "Type",
     "type_event": "event",
-    "type_combat": "combat"
+    "type_combat": "combat",
+    "npc_statblock": "Statblock",
+    "npc_class": "Class",
+    "npc_hp_class": "Toughness",
+    "npc_defense": "Hard to hit",
+    "npc_damage_class": "Weapon weight"
   }
 }
