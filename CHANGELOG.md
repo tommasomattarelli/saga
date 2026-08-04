@@ -17,6 +17,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [Gameplay] Dice rolls now work outside combat too — lockpicking, sneaking, persuading, climbing all resolve on the same d20 frame.
 - [Gameplay] The DM classifies how hard a task is instead of picking a target number, so the same obstacle stays as hard the second time you try it.
 - [Gameplay] Traps, falls and healing are computed by the engine as a share of your health, and no tool can invent an HP number any more.
+- [Gameplay] Combat is no longer a mode you enter and leave: an attack is just an action, available any time, and the engine computes every hit and every wound.
+- [Gameplay] Everyone who can be hit is a real character with HP and a statblock drawn from their class, so a butcher can never fight like a general.
 
 ### Internal
 - `npm ci` resolves without `--legacy-peer-deps`: `@eslint/js` was declared at v10 while `eslint` stayed at v9.
