@@ -5,3 +5,6 @@ personality: "Stern, weary, fair. Carries old grief."
 motivation: "Find his son, who went to the mines and never returned."
 secret: "He forbade the search party that might have saved his son."
 faction: thornhaven-council
+# An elder is frail in a fight but carries authority — the class sets the numbers,
+# and anything you leave out is drawn from its template (ADR 0003).
+npc_class: royale
