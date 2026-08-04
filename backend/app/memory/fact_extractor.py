@@ -71,8 +71,6 @@ async def extract_facts(
         system_prompt="",
         messages=[],
         importance_score=0,
-        active_quests=[],
-        recent_events=[],
     )
     model_config = await route_ai_call(AICallType.MEMORY_COMPRESSION, dummy_context)
     provider = get_provider(model_config.provider)
