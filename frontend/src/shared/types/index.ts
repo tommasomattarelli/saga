@@ -88,10 +88,11 @@ export interface WorldState {
   };
   clock?: {
     total_minutes: number;
-    current_hour: number;
-    current_day: number;
-    current_season: string;
-    time_of_day: string;
+    // Derived server-side: absent on a campaign seeded before the clock was dumped whole.
+    current_hour?: number;
+    current_day?: number;
+    current_season?: string;
+    time_of_day?: string;
   };
   npcs?: Record<string, NpcRecord>;
   fate_interventions_left?: number;
