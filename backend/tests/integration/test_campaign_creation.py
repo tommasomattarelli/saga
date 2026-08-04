@@ -2,6 +2,8 @@
 
 import pytest
 
+from app.memory.world_state import CURRENT_SCHEMA_VERSION
+
 
 @pytest.mark.asyncio
 async def test_create_campaign_instantiates_world(auth_client, test_user):
@@ -46,9 +48,9 @@ async def test_create_campaign_instantiates_world(auth_client, test_user):
     assert "canopy of ancient oaks" in world_state["meta"]["opening_narration"]
 
     # Schema v5 overlay containers
-    assert world_state["meta"]["schema_version"] == 7
+    assert world_state["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION
     assert world_state["clock"]["total_minutes"] == 480
-    assert world_state["combat_state"]["active"] is False
+    assert "combat_state" not in world_state  # combat is not a mode (ADR 0003 B1)
     assert world_state["node_status"] == {}
     assert world_state["edge_overrides"] == []
 

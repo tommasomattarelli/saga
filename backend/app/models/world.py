@@ -11,7 +11,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.models.npc_class import NpcClassDef
+from app.core.dice import DifficultyLevel
+from app.models.npc_class import DamageClass, HpClass, NpcClassDef
 from app.models.npc_fields import NpcFieldDef
 from app.models.psychology import PsychologyDef
 
@@ -245,8 +246,27 @@ class NpcRecord(BaseModel):
     psychology: dict[str, int] = {}
     faction: str | None = None
 
+    # ADR 0003 B3 — optional authored statblock. `npc_class` supplies the template;
+    # the rest override it where the world says so. Absent → drawn from the class.
+    npc_class: str | None = None
+    hp_class: HpClass | None = None
+    defense: DifficultyLevel | None = None
+    damage_class: DamageClass | None = None
+    attack_mod: int | None = None
+    max_hp: int | None = None
+
+    _STATBLOCK_KEYS = ("hp_class", "defense", "damage_class", "attack_mod", "max_hp")
+
     def descriptives(self) -> dict[str, str]:
         return dict(self.model_extra or {})
+
+    def statblock(self) -> dict:
+        """Authored overrides only — absent keys fall to the class template."""
+        return {
+            key: getattr(self, key)
+            for key in self._STATBLOCK_KEYS
+            if getattr(self, key) is not None
+        }
 
 
 class InitialQuest(BaseModel):
