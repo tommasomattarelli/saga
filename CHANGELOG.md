@@ -36,3 +36,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - ADR 0003 S2: world-state rung v7→v8 backfills a statblock on every NPC record and drops `combat_state`; `combat_graph`, both initiative paths and the `score_importance` combat bonus are gone.
 - New `/adr-implement` skill captures the sprint half of the ADR workflow — S0 pass, branch topology, and the assumption reconciliation that keeps a gating ADR honest.
 - The importance-scoring combat bonus reads a key nothing writes and has never fired; ADR 0016 redirected from fixing the score to retiring it.
+- `/dead-code` gained a key mode: static tools cannot see inside a JSONB payload, so dead dict keys need a reader/writer trace instead.
