@@ -97,7 +97,6 @@ export interface WorldState {
   fate_interventions_left?: number;
   time_of_day?: string;
   weather?: string;
-  location?: string;
   companions?: Record<string, CompanionData>;
   factions?: Record<string, FactionData>;
   [key: string]: unknown;
