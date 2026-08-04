@@ -67,7 +67,6 @@ ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
         "global_flags",
         "clock",
         "narrative",
-        "combat_state",
         "destino_lives",
         "player_position",
         "node_status",
