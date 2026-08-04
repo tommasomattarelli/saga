@@ -24,12 +24,6 @@ def test_score_importance_low_action():
     assert score == 3
 
 
-def test_score_importance_in_combat():
-    campaign = Campaign(world_state={"in_combat": True})
-    score = score_importance("I attack the guard!", campaign)
-    assert score == 9
-
-
 def test_score_importance_bounds():
     campaign = Campaign(world_state={"in_combat": True})
     assert score_importance("I attack and fight and betray!", campaign) <= 10

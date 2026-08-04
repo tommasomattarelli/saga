@@ -46,7 +46,6 @@ class TurnResponse(BaseModel):
     world_state: dict = {}
     character_data: dict = {}
     scene_mood: str | None = None
-    combat_state: dict | None = None
     tool_events: list[dict] = []
     death_event: dict | None = None
     model_used: str

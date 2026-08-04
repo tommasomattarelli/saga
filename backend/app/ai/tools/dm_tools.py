@@ -16,10 +16,9 @@ from app.ai.tools.tools_base import (
     get_tool_schemas,
     visible_tool_names,
 )
-from app.ai.tools.tools_combat import ApplyDamage, EndCombat, StartCombat
 from app.ai.tools.tools_inventory import AddItem, RemoveItem
 from app.ai.tools.tools_npc import KillNpc, RemoveNpc, RestoreNpc, UpdateNpc
-from app.ai.tools.tools_resolution import Heal
+from app.ai.tools.tools_resolution import Attack, Heal
 from app.ai.tools.tools_special import InvokeNpc, RequestDice
 from app.ai.tools.tools_world import (
     AdvanceTime,
@@ -33,17 +32,14 @@ from app.ai.tools.tools_world import (
 # Computed after all tool modules above have registered themselves.
 VISIBLE_TOOLS: frozenset[str] = visible_tool_names()
 
-MEANINGFUL_TOOLS: frozenset[str] = frozenset(
-    {"invoke_npc", "request_dice", "start_combat", "end_combat"}
-)
+MEANINGFUL_TOOLS: frozenset[str] = frozenset({"invoke_npc", "request_dice", "attack"})
 
 __all__ = [
     "AddItem",
     "AdvanceTime",
-    "ApplyDamage",
+    "Attack",
     "ChangeNpcPsychology",
     "DmTool",
-    "EndCombat",
     "Heal",
     "InvokeNpc",
     "KillNpc",
@@ -56,7 +52,6 @@ __all__ = [
     "RequestDice",
     "SceneMood",
     "SetSceneMood",
-    "StartCombat",
     "ToolResult",
     "UpdateNpc",
     "UpdateQuest",

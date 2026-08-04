@@ -53,47 +53,6 @@ class TestToolsNodeNoMessages:
         assert result == {}
 
 
-class TestToolsNodeEndCombat:
-    @pytest.mark.asyncio
-    async def test_end_combat_resets_combat_state(self):
-        from app.core.dm.dm_tools_executor import tools_node
-
-        tc = {"id": "tc1", "name": "end_combat", "args": {}, "type": "tool_call"}
-        ai_msg = AIMessage(content="", tool_calls=[tc])
-
-        mock_tool_cls = MagicMock()
-        mock_tool_cls.visible.return_value = True
-
-        state = _make_state(
-            messages=[ai_msg],
-            world_state={"combat_state": {"active": True}},
-        )
-
-        with patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls):
-            result = await tools_node(state)
-
-        assert result["world_state"]["combat_state"]["active"] is False
-        assert result["world_state"]["combat_state"]["round"] == 0
-
-    @pytest.mark.asyncio
-    async def test_end_combat_adds_to_tool_events_when_visible(self):
-        from app.core.dm.dm_tools_executor import tools_node
-
-        tc = {"id": "tc1", "name": "end_combat", "args": {}, "type": "tool_call"}
-        ai_msg = AIMessage(content="", tool_calls=[tc])
-
-        mock_tool_cls = MagicMock()
-        mock_tool_cls.visible.return_value = True
-
-        state = _make_state(messages=[ai_msg])
-
-        with patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls):
-            result = await tools_node(state)
-
-        assert len(result["tool_events"]) == 1
-        assert result["tool_events"][0]["tool"] == "end_combat"
-
-
 class TestToolsNodeRequestDice:
     @pytest.mark.asyncio
     async def test_request_dice_adds_to_dice_results(self):
@@ -231,67 +190,6 @@ class TestToolsNodeRegularTool:
 
         assert len(result["tool_events"]) == 1
         assert result["tool_events"][0]["tool"] == "give_item"
-
-
-class TestToolsNodeStartCombat:
-    @pytest.mark.asyncio
-    async def test_start_combat_invokes_combat_graph(self):
-        from app.core.dm.dm_tools_executor import tools_node
-
-        tc = {
-            "id": "tc1",
-            "name": "start_combat",
-            "args": {"enemies": [{"name": "Goblin", "hp": 8}]},
-            "type": "tool_call",
-        }
-        ai_msg = AIMessage(content="", tool_calls=[tc])
-
-        mock_combat_result = {
-            "world_state": {
-                "combat_state": {
-                    "active": True,
-                    "round": 1,
-                    "initiative_order": [],
-                    "current_turn_index": 0,
-                }
-            }
-        }
-
-        mock_tool_cls = MagicMock()
-        mock_tool_cls.visible.return_value = True
-
-        state = _make_state(messages=[ai_msg])
-
-        with patch("app.core.dm.dm_tools_executor.combat_graph") as mock_combat_graph:
-            mock_combat_graph.ainvoke = AsyncMock(return_value=mock_combat_result)
-            with patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls):
-                result = await tools_node(state)
-
-        assert result["world_state"]["combat_state"]["active"] is True
-        messages = result["messages"]
-        assert any("Combat" in m.content for m in messages)
-
-    @pytest.mark.asyncio
-    async def test_start_combat_tool_event_added_when_visible(self):
-        from app.core.dm.dm_tools_executor import tools_node
-
-        tc = {"id": "tc1", "name": "start_combat", "args": {"enemies": []}, "type": "tool_call"}
-        ai_msg = AIMessage(content="", tool_calls=[tc])
-
-        mock_combat_result = {"world_state": {"combat_state": {"active": True}}}
-
-        mock_tool_cls = MagicMock()
-        mock_tool_cls.visible.return_value = True
-
-        state = _make_state(messages=[ai_msg])
-
-        with patch("app.core.dm.dm_tools_executor.combat_graph") as mock_combat_graph:
-            mock_combat_graph.ainvoke = AsyncMock(return_value=mock_combat_result)
-            with patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls):
-                result = await tools_node(state)
-
-        assert len(result["tool_events"]) == 1
-        assert result["tool_events"][0]["tool"] == "start_combat"
 
 
 class TestToolsNodeInvokeNpc:
