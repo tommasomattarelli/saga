@@ -62,8 +62,6 @@ async def invoke_single_npc(
         system_prompt="",
         messages=[],
         importance_score=0,
-        active_quests=[],
-        recent_events=[],
     )
     model_config = await route_ai_call(AICallType.NPC_BEHAVIOR, dummy_context)
     provider = get_provider(model_config.provider)
