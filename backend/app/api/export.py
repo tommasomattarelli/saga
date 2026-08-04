@@ -47,7 +47,7 @@ async def export_campaign(
             "name": campaign.name,
             "world_slug": campaign.world_slug,
             "world_version": campaign.world_version,
-            "death_mode": campaign.death_mode,
+            "difficulty": campaign.difficulty,
             "character_data": campaign.character_data,
             "world_baseline": campaign.world_baseline,
             "world_state": campaign.world_state,

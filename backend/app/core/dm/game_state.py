@@ -20,6 +20,8 @@ class GameState(TypedDict):
     char_data: dict[str, Any]
     # Frozen authored world tree (ADR 0008 C11) — read-only, never written back
     world_baseline: dict[str, Any]
+    # Campaign difficulty (ADR 0003 B8) — governs the death policy only
+    difficulty: str
 
     # ── Turn output (accumulated across steps) ───────────────────────────────
     narration: str

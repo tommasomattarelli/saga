@@ -13,7 +13,7 @@ async def test_create_campaign_instantiates_world(auth_client, test_user):
         json={
             "world_id": "the-awakening",
             "name": "Test Campaign",
-            "death_mode": "destino",
+            "difficulty": "medium",
             "character_data": {"name": "Eron", "hp": 20, "max_hp": 20},
         },
     )
@@ -63,7 +63,7 @@ async def test_create_campaign_freezes_baseline(auth_client, test_user, db_sessi
         json={
             "world_id": "the-awakening",
             "name": "Baseline Test",
-            "death_mode": "destino",
+            "difficulty": "medium",
             "character_data": {},
         },
     )
@@ -94,7 +94,7 @@ async def test_create_campaign_seeds_initial_quests(auth_client, test_user):
         json={
             "world_id": "the-awakening",
             "name": "Quest Seed Test",
-            "death_mode": "destino",
+            "difficulty": "medium",
             "character_data": {"name": "Eron", "hp": 20, "max_hp": 20},
         },
     )
@@ -111,7 +111,7 @@ async def test_create_campaign_unknown_world_returns_404(auth_client, test_user)
         json={
             "world_id": "nonexistent-world-xyz",
             "name": "Bad World",
-            "death_mode": "destino",
+            "difficulty": "medium",
             "character_data": {},
         },
     )

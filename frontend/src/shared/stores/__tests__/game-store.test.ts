@@ -7,7 +7,7 @@ const makeCampaign = (overrides: Partial<Campaign> = {}): Campaign => ({
   name: "Test Saga",
   world_slug: "w1",
   status: "active",
-  death_mode: "cronista",
+  difficulty: "easy",
   turn_number: 1,
   character_data: {
     name: "Hero",

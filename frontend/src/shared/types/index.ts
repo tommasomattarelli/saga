@@ -10,7 +10,7 @@ export interface Campaign {
   name: string;
   world_slug: string;
   status: CampaignStatus;
-  death_mode: DeathMode;
+  difficulty: Difficulty;
   turn_number: number;
   character_data: CharacterData;
   world_state: WorldState;
@@ -20,7 +20,7 @@ export interface Campaign {
 }
 
 export type CampaignStatus = "active" | "paused" | "completed" | "abandoned";
-export type DeathMode = "ironman" | "destino" | "cronista";
+export type Difficulty = "easy" | "medium" | "hard";
 
 export interface CharacterData {
   name: string;
@@ -93,7 +93,7 @@ export interface WorldState {
     time_of_day: string;
   };
   combat_state?: CombatState;
-  destino_lives?: number;
+  fate_interventions_left?: number;
   time_of_day?: string;
   weather?: string;
   location?: string;
@@ -182,9 +182,9 @@ export interface TurnResponse {
   death_event?: {
     is_dead: boolean;
     action: string;
-    death_mode: string;
+    difficulty: string;
     narrative_instruction: string;
-    destino_lives_remaining: number | null;
+    fate_interventions_remaining: number | null;
   } | null;
   model_used?: string;
   importance_score?: number;

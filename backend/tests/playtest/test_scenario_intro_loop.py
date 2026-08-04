@@ -35,7 +35,7 @@ async def test_register_login_create_campaign(client: AsyncClient, db_session: A
     campaign_payload = {
         "name": "The Awakening Playtest",
         "world_id": "the-awakening",
-        "death_mode": "destino",
+        "difficulty": "medium",
         "character_data": {"name": "Aria", "class": "Ranger"},
     }
     camp_response = await client.post("/api/campaigns", json=campaign_payload)
@@ -103,7 +103,7 @@ async def test_user_isolation(client: AsyncClient, db_session: AsyncSession):
         json={
             "name": "A's Secret Quest",
             "world_id": "the-awakening",
-            "death_mode": "ironman",
+            "difficulty": "hard",
             "character_data": {"name": "Solo"},
         },
     )
