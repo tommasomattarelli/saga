@@ -11,7 +11,7 @@ from app.core.npc_classes import DEFAULT_NPC_CLASSES, draw_statblock, statblock_
 from app.core.npc_fields import DEFAULT_NPC_FIELDS, default_traits
 from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
 from app.core.world_loader import WorldAsset
-from app.memory.world_state import CURRENT_SCHEMA_VERSION
+from app.memory.world_state import CURRENT_SCHEMA_VERSION, GameClock
 from app.models.npc import NpcEngineRecord
 
 
@@ -118,7 +118,9 @@ def _build_world_state(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
             "opening_narration": opening.narration if opening else "",
         },
         "player_position": start_id,
-        "clock": {"total_minutes": 480},
+        # Dumped, not a literal: advance_game_clock writes the computed fields too, and a
+        # campaign that has not moved yet must not read differently from one that has.
+        "clock": GameClock(total_minutes=480).model_dump(),
         "npcs": npcs,
         "companions": {},
         "factions": {

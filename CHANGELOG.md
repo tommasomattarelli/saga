@@ -25,6 +25,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [UI] A dice reveal shows the difficulty draw alongside the roll, so every result can be checked rather than trusted.
 - [World & DM] The world editor can give an NPC a class and a statblock; leave a field blank and the engine draws it from the class.
 - [World & DM] The DM is told how hurt you are as a state — unharmed through near death — instead of a malformed number it was never meant to do arithmetic on.
+- [UI] Fixed: a brand-new campaign showed no day count until enough time had passed, because the seeded clock carried only its raw minutes.
 
 ### Internal
 - ADR 0003 is Accepted: implemented over S1–S4, with dated implementation notes recording where the code contradicted the design.
