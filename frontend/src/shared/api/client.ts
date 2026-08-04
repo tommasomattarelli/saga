@@ -60,7 +60,7 @@ export const deleteCampaign = (id: string) => api.delete(`/campaigns/${id}`);
 export const createCampaign = (data: {
   world_id: string;
   name: string;
-  death_mode: string;
+  difficulty: string;
   character_data?: Record<string, unknown>;
 }) => api.post<Campaign>("/campaigns", data);
 
