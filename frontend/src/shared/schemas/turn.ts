@@ -49,21 +49,6 @@ const DiceResultSchema = z.object({
   rolls: z.record(z.string(), DiceRollResultSchema),
 });
 
-const CombatantInfoSchema = z.object({
-  name: z.string(),
-  initiative: z.number(),
-  hp: z.number(),
-  max_hp: z.number(),
-  type: z.enum(["player", "enemy"]),
-});
-
-const CombatStateSchema = z.object({
-  active: z.boolean(),
-  round: z.number(),
-  initiative_order: z.array(CombatantInfoSchema),
-  current_turn_index: z.number(),
-});
-
 export const TurnResponseSchema = z.object({
   turn_number: z.number(),
   player_action: z.string().optional(),
@@ -75,7 +60,6 @@ export const TurnResponseSchema = z.object({
   world_state: z.record(z.string(), z.unknown()).optional(),
   character_data: z.record(z.string(), z.unknown()).optional(),
   scene_mood: z.string().nullable(),
-  combat_state: CombatStateSchema.nullable().optional(),
   tool_events: z.array(z.record(z.string(), z.unknown())).optional(),
   death_event: z
     .object({

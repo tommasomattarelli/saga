@@ -38,7 +38,8 @@
     "empty_title": "La storia non è ancora iniziata",
     "empty_hint": "Scrivi la tua prima azione qui sotto.",
     "history_error": "Impossibile caricare la storia. Ricarica la pagina per riprovare.",
-    "map": "Mappa"
+    "map": "Mappa",
+    "in_scene": "Nella scena"
   },
   "campaign": {
     "your_campaigns": "Le tue campagne, {{name}}",

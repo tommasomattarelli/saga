@@ -10,7 +10,7 @@ import NarrativeStream from "../../narrative/components/narrative-stream";
 import ActionInput from "./action-input";
 import CharacterSheet from "../../character/components/character-sheet";
 import CompanionBar from "../../character/components/companion-bar";
-import CombatTracker from "../../combat/components/combat-tracker";
+import SceneLifeBars, { npcsInScene } from "../../scene/components/scene-life-bars";
 import JournalDrawer from "./journal-drawer";
 import SettingsDrawer from "./settings-drawer";
 import WorldMap from "../../map/components/world-map";
@@ -76,8 +76,8 @@ export default function GameView() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const campaign = useGameStore((s) => s.campaign);
-  const combatState = useGameStore((s) => s.combatState);
   const hasTurns = useGameStore((s) => s.turnHistory.length > 0);
+  const sceneIsPopulated = npcsInScene(campaign?.world_state).length > 0;
 
   const sidePanel = useUIStore((s) => s.sidePanel);
   const toggleSidePanel = useUIStore((s) => s.toggleSidePanel);
@@ -124,12 +124,12 @@ export default function GameView() {
 
   return (
     <div className="flex h-screen" style={{ background: "var(--parchment-base)" }}>
-      {/* CombatTracker handles its own AnimatePresence — always render when state exists */}
-      {combatState && <CombatTracker combatState={combatState} />}
+      {/* ADR 0003 B2 — the scene always shows who is standing here, fight or none */}
+      <SceneLifeBars worldState={campaign.world_state} />
 
       <div
         className="flex flex-1 flex-col"
-        style={combatState ? { paddingBottom: "150px" } : undefined}
+        style={sceneIsPopulated ? { paddingBottom: "150px" } : undefined}
       >
         <header
           className="px-6 py-3"
