@@ -17,10 +17,13 @@ down_revision = "004_world_model"
 branch_labels = None
 depends_on = None
 
-_DIFFICULTY = sa.Enum("easy", "medium", "hard", name="difficulty")
-_DEATH_MODE = sa.Enum("ironman", "destino", "cronista", name="deathmode")
+# SQLAlchemy's `Enum(SomeStrEnum)` persists the member NAME, not its value, so the
+# Postgres labels are uppercase (`CRONISTA`, not `cronista`). Matching on values here
+# silently produced NULLs for every row.
+_DIFFICULTY = sa.Enum("EASY", "MEDIUM", "HARD", name="difficulty")
+_DEATH_MODE = sa.Enum("IRONMAN", "DESTINO", "CRONISTA", name="deathmode")
 
-_FORWARD = {"cronista": "easy", "destino": "medium", "ironman": "hard"}
+_FORWARD = {"CRONISTA": "EASY", "DESTINO": "MEDIUM", "IRONMAN": "HARD"}
 _BACK = {v: k for k, v in _FORWARD.items()}
 
 
@@ -31,6 +34,14 @@ def _recolumn(mapping: dict[str, str], old: str, new: str, new_type: sa.Enum) ->
     op.execute(
         f"UPDATE campaigns SET {new} = (CASE {old}::text {case} END)::{new_type.name}"  # noqa: S608
     )
+    # A label outside the mapping would land here as NULL and only surface as a
+    # constraint error; fail loudly with the offending value instead.
+    orphans = op.get_bind().execute(
+        sa.text(f"SELECT DISTINCT {old}::text FROM campaigns WHERE {new} IS NULL")  # noqa: S608
+    )
+    unmapped = [row[0] for row in orphans]
+    if unmapped:
+        raise RuntimeError(f"unmapped {old} values, migration would lose them: {unmapped}")
     op.alter_column("campaigns", new, nullable=False)
     op.drop_column("campaigns", old)
 
