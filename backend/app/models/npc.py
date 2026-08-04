@@ -26,10 +26,38 @@ class NpcEngineRecord(BaseModel):
     last_interactions: list[str] = []  # engine-owned dialogue log
     traits: dict[str, str] = {}  # world-defined descriptives
 
+    # ADR 0003 B3 — statblock. None only between construction and the scaffold's
+    # draw; every stored record carries concrete values (test-enforced).
+    hp: int | None = None
+    max_hp: int | None = None
+    defense: str | None = None  # one of the six difficulty levels (A2), no second scale
+    attack_mod: int | None = None
+    damage_class: str | None = None
+    npc_class: str | None = None
+    auto_created: bool = False  # stamped by the mook hook; gates the prune (B2)
+
 
 # B2 — every engine field sits in exactly one set (exhaustiveness enforced by
 # test); `update_npc` writes only MUTABLE_FIELDS, `traits` keys included.
+#
+# The statblock is IMMUTABLE here in the sense this partition actually carries:
+# not writable by `update_npc`, the LLM's tool. The engine mutates hp constantly
+# through its own damage path, which never consults this partition — letting the
+# LLM name a field that takes an integer is exactly the leak ADR 0003 closes.
 MUTABLE_FIELDS: frozenset[str] = frozenset({"name", "condition", "location", "faction", "traits"})
 IMMUTABLE_FIELDS: frozenset[str] = frozenset(
-    {"slug", "lifecycle", "psychology", "met_player", "last_interactions"}
+    {
+        "slug",
+        "lifecycle",
+        "psychology",
+        "met_player",
+        "last_interactions",
+        "hp",
+        "max_hp",
+        "defense",
+        "attack_mod",
+        "damage_class",
+        "npc_class",
+        "auto_created",
+    }
 )

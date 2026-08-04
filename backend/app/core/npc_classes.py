@@ -12,14 +12,18 @@ from app.models.npc_class import NpcClassDef
 DEFAULT_NPC_CLASSES: list[NpcClassDef] = [
     NpcClassDef(name="commoner", hp_class="weak", defense="easy", damage_class="unarmed"),
     NpcClassDef(name="royale", hp_class="weak", defense="easy", damage_class="light"),
-    NpcClassDef(name="beast", hp_class="standard", defense="normal", damage_class="medium",
-                attack_mod=2),
-    NpcClassDef(name="guard", hp_class="standard", defense="normal", damage_class="medium",
-                attack_mod=2),
-    NpcClassDef(name="soldier", hp_class="standard", defense="hard", damage_class="medium",
-                attack_mod=3),
-    NpcClassDef(name="commander", hp_class="tough", defense="hard", damage_class="heavy",
-                attack_mod=5),
+    NpcClassDef(
+        name="beast", hp_class="standard", defense="normal", damage_class="medium", attack_mod=2
+    ),
+    NpcClassDef(
+        name="guard", hp_class="standard", defense="normal", damage_class="medium", attack_mod=2
+    ),
+    NpcClassDef(
+        name="soldier", hp_class="standard", defense="hard", damage_class="medium", attack_mod=3
+    ),
+    NpcClassDef(
+        name="commander", hp_class="tough", defense="hard", damage_class="heavy", attack_mod=5
+    ),
 ]
 
 

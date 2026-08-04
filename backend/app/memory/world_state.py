@@ -9,6 +9,7 @@ from uuid import uuid4
 import structlog
 from pydantic import BaseModel, computed_field
 
+from app.core.npc_classes import DEFAULT_NPC_CLASSES, draw_statblock
 from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
 from app.models.npc import NpcEngineRecord
 
@@ -77,7 +78,7 @@ ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
 )
 
 
-CURRENT_SCHEMA_VERSION: int = 7
+CURRENT_SCHEMA_VERSION: int = 8
 
 _MIGRATIONS: dict[int, Callable[[dict], dict]] = {}
 
@@ -181,6 +182,22 @@ def _migrate_v6_to_v7(state: dict) -> dict:
         rekeyed[str(uuid4())] = npc
     state["npcs"] = rekeyed
     state["meta"]["schema_version"] = 7
+    return state
+
+
+@_register_migration(7)
+def _migrate_v7_to_v8(state: dict) -> dict:
+    # ADR 0003 F: combat stops being a mode, so `combat_state` goes; everyone
+    # hittable is an NPC record, so every record gains a statblock backfilled from
+    # its class template. A save frozen mid-fight loses the in-flight combatants —
+    # accepted pre-1.0 (0008-J2). auto_created stays False: these predate the mook
+    # hook, and only what the engine invented is ever prunable (B2).
+    state.pop("combat_state", None)
+    for npc in state.get("npcs", {}).values():
+        npc.setdefault("auto_created", False)
+        if npc.get("max_hp") is None:
+            npc.update(draw_statblock(npc.get("npc_class") or "", DEFAULT_NPC_CLASSES))
+    state["meta"]["schema_version"] = 8
     return state
 
 

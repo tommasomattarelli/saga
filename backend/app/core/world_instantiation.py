@@ -7,9 +7,11 @@ the initial overlay (`world_state`) + quests from `scenario.yaml`.
 
 from uuid import uuid4
 
+from app.core.npc_classes import DEFAULT_NPC_CLASSES, draw_statblock, statblock_defaults
 from app.core.npc_fields import DEFAULT_NPC_FIELDS, default_traits
 from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
 from app.core.world_loader import WorldAsset
+from app.memory.world_state import CURRENT_SCHEMA_VERSION
 from app.models.npc import NpcEngineRecord
 
 
@@ -87,6 +89,7 @@ def _build_world_state(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
     axis_defaults = default_values(asset.taxonomy.psychology or DEFAULT_PSYCHOLOGY)
     trait_defaults = default_traits(asset.taxonomy.npc_fields or DEFAULT_NPC_FIELDS)
     # ADR 0009 F1: runtime UUID keys — authored slugs become resolution aliases.
+    npc_classes = asset.taxonomy.npc_classes or DEFAULT_NPC_CLASSES
     npcs: dict[str, dict] = {
         str(uuid4()): NpcEngineRecord(
             slug=npc.slug,
@@ -96,12 +99,18 @@ def _build_world_state(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
             # Authored seeds are baseline prejudice — they never flip met_player (B3).
             psychology={**axis_defaults, **npc.psychology},
             traits={**trait_defaults, **npc.descriptives()},
+            # ADR 0003 B3 — authored statblock wins, the class template fills the rest.
+            **draw_statblock(
+                npc.npc_class or statblock_defaults()["npc_class"],
+                npc_classes,
+                authored=npc.statblock(),
+            ),
         ).model_dump()
         for npc in asset.npcs.values()
     }
     return {
         "meta": {
-            "schema_version": 7,
+            "schema_version": CURRENT_SCHEMA_VERSION,
             "world_name": asset.meta.name,
             "setting": asset.nodes[asset.root_slug].description,
             "current_location": start_id,
@@ -117,12 +126,6 @@ def _build_world_state(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
             for f in asset.factions.values()
         },
         "narrative": {"event_log": []},
-        "combat_state": {
-            "active": False,
-            "round": 0,
-            "initiative_order": [],
-            "current_turn_index": 0,
-        },
         "destino_lives": 3,
         "time_of_day": (opening.time_of_day if opening else "") or "morning",
         "weather": (opening.weather if opening else "") or "clear",
