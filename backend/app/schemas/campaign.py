@@ -3,13 +3,13 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from app.models.campaign import CampaignStatus, DeathMode
+from app.models.campaign import CampaignStatus, Difficulty
 
 
 class CampaignCreate(BaseModel):
     world_id: str
     name: str
-    death_mode: DeathMode
+    difficulty: Difficulty
     character_data: dict = {}
 
 
@@ -18,7 +18,7 @@ class CampaignResponse(BaseModel):
     name: str
     world_slug: str
     status: CampaignStatus
-    death_mode: DeathMode
+    difficulty: Difficulty
     turn_number: int
     character_data: dict
     world_state: dict

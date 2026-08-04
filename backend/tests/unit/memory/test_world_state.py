@@ -16,7 +16,7 @@ def test_migrate_v0_to_latest():
     assert migrated["meta"]["current_season"] == "spring"
     assert migrated["locations"]["town"] == "visited"
     assert "clock" in migrated
-    assert "destino_lives" in migrated
+    assert "fate_interventions_left" in migrated
     # v4 adds combat_state, v8 takes it back out: combat is not a mode (ADR 0003 B1).
     assert "combat_state" not in migrated
 
@@ -34,7 +34,7 @@ def test_migrate_v3_to_v4():
     assert migrated["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION
     assert migrated["locations"]["town"] == "visited"
     assert "combat_state" not in migrated
-    assert migrated["destino_lives"] == 3
+    assert migrated["fate_interventions_left"] == 3
     assert migrated is not v3_state
 
 

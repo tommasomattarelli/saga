@@ -51,7 +51,7 @@ async def create_campaign(db: AsyncSession, user: User, body: CampaignCreate) ->
         world_slug=asset.root_slug,
         world_version=asset.meta.version,
         name=body.name,
-        death_mode=body.death_mode,
+        difficulty=body.difficulty,
         character_data=body.character_data,
         world_baseline=baseline,
         world_state=migrate_world_state(world_state),

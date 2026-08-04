@@ -50,7 +50,7 @@ describe("useSubmitAction", () => {
         name: "Test",
         world_slug: "w1",
         status: "active",
-        death_mode: "cronista",
+        difficulty: "easy",
         turn_number: 1,
         character_data: {} as never,
         world_state: {},

@@ -33,7 +33,7 @@ describe("CampaignSelect Component", () => {
       world_slug: "w1",
       name: "The Dragon Raid",
       status: "active",
-      death_mode: "ironman",
+      difficulty: "hard",
       turn_number: 5,
       character_data: {
         name: "Test",

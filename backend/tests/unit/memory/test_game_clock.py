@@ -121,7 +121,7 @@ class TestMigrationV1ToV2:
         assert "npcs" in migrated
         assert "companions" in migrated
         assert "narrative" in migrated
-        assert "destino_lives" in migrated
+        assert "fate_interventions_left" in migrated
         assert "combat_state" not in migrated  # dropped by the v8 rung (ADR 0003 B1)
 
     def test_v3_migrates_to_v4(self):

@@ -10,7 +10,7 @@ export interface Campaign {
   name: string;
   world_slug: string;
   status: CampaignStatus;
-  death_mode: DeathMode;
+  death_mode: Difficulty;
   turn_number: number;
   character_data: CharacterData;
   world_state: WorldState;
@@ -20,7 +20,7 @@ export interface Campaign {
 }
 
 export type CampaignStatus = "active" | "paused" | "completed" | "abandoned";
-export type DeathMode = "ironman" | "destino" | "cronista";
+export type Difficulty = "ironman" | "destino" | "cronista";
 
 export interface CharacterData {
   name: string;

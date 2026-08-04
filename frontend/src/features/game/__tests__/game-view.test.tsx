@@ -31,7 +31,7 @@ describe("GameView Component", () => {
     world_slug: "w1",
     name: "Epic Quest",
     status: "active",
-    death_mode: "destino",
+    difficulty: "medium",
     turn_number: 1,
     character_data: {
       name: "Hero",
