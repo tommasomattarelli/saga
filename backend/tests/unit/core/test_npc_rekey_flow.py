@@ -5,9 +5,9 @@ dialogue turn on a rekeyed save must mint zero new npc keys, and the scene
 must render names, not uuids.
 """
 
-from app.ai.prompts.dm import _npcs_at_current_location
 from app.ai.router import GameplayConfig
 from app.core.dm.npc_prehook import validate_or_create_npc
+from app.core.npc_resolver import npcs_at_current_location
 from app.memory.updater import apply_typed_updates
 
 LYRA_ID = "11111111-1111-1111-1111-111111111111"
@@ -81,11 +81,11 @@ class TestPsychologyUpdateOnRekeyedSave:
 
 class TestSceneOnRekeyedSave:
     def test_scene_lookup_keeps_uuid_keys_and_names(self):
-        present = _npcs_at_current_location(rekeyed_state())
+        present = npcs_at_current_location(rekeyed_state())
         assert set(present) == {LYRA_ID}
         assert present[LYRA_ID]["name"] == "Lyra"
 
     def test_dead_and_removed_filtered_from_scene(self):
         state = rekeyed_state()
         state["npcs"][LYRA_ID]["lifecycle"] = "removed"
-        assert _npcs_at_current_location(state) == {}
+        assert npcs_at_current_location(state) == {}

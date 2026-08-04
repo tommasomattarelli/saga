@@ -82,7 +82,7 @@ class MoveTo(DmTool):
             new_state = advance_game_clock(new_state, elapsed)
             detail = (
                 f"Travel toward {destination_name} INTERRUPTED after {elapsed} minutes: "
-                f"{outcome.encounter['description']} (hostile — consider start_combat). "
+                f"{outcome.encounter['description']} (hostile). "
                 f"Re-call move_to '{destination_name}' after the fight to continue."
             )
         else:

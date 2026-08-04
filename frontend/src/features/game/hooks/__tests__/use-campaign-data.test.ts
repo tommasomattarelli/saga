@@ -18,7 +18,7 @@ const mockCampaign = {
   name: "The Lost Realm",
   world_slug: "w1",
   status: "active",
-  death_mode: "cronista",
+  difficulty: "easy",
   turn_number: 3,
   character_data: {
     name: "Tomma",
@@ -80,24 +80,6 @@ describe("useCampaignData", () => {
 
     expect(mockGetCampaign).not.toHaveBeenCalled();
     expect(mockGetTurns).not.toHaveBeenCalled();
-  });
-
-  it("sets combat state from world_state if active", async () => {
-    const combatState = {
-      active: true,
-      round: 1,
-      initiative_order: [],
-      current_turn_index: 0,
-    };
-    mockGetCampaign.mockResolvedValue({
-      data: { ...mockCampaign, world_state: { combat_state: combatState } },
-    } as never);
-
-    renderHook(() => useCampaignData("c1"), { wrapper: createWrapper() });
-
-    await waitFor(() => {
-      expect(useGameStore.getState().combatState?.active).toBe(true);
-    });
   });
 
   it("returns loading true while fetching", () => {

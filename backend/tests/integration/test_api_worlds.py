@@ -26,7 +26,7 @@ async def test_campaign_map_endpoint(auth_client):
         json={
             "world_id": "the-awakening",
             "name": "Map Test",
-            "death_mode": "destino",
+            "difficulty": "medium",
             "character_data": {},
         },
     )

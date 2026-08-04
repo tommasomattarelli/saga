@@ -11,6 +11,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core.dice import DifficultyLevel
+from app.models.npc_class import DamageClass, HpClass, NpcClassDef
 from app.models.npc_fields import NpcFieldDef
 from app.models.psychology import PsychologyDef
 
@@ -78,6 +80,8 @@ class Taxonomy(BaseModel):
     psychology: PsychologyDef | None = None
     # ADR 0009: optional world-defined NPC descriptive fields; None → bundled default.
     npc_fields: list[NpcFieldDef] | None = None
+    # ADR 0003 B3b: optional world-defined NPC classes; None → bundled default.
+    npc_classes: list[NpcClassDef] | None = None
 
     @model_validator(mode="after")
     def _check_uniqueness_and_defaults(self) -> "Taxonomy":
@@ -86,6 +90,7 @@ class Taxonomy(BaseModel):
             ("terrain", [t.name for t in self.terrains]),
             ("travel_mode", [m.name for m in self.travel_modes]),
             ("npc_field", [f.name for f in self.npc_fields or []]),
+            ("npc_class", [c.name for c in self.npc_classes or []]),
         ]:
             if len(names) != len(set(names)):
                 raise ValueError(f"duplicate {label} names in taxonomy")
@@ -104,6 +109,9 @@ class Taxonomy(BaseModel):
 
     def npc_field(self, name: str) -> NpcFieldDef | None:
         return next((f for f in self.npc_fields or [] if f.name == name), None)
+
+    def npc_class(self, name: str) -> NpcClassDef | None:
+        return next((c for c in self.npc_classes or [] if c.name == name), None)
 
 
 class Position(BaseModel):
@@ -238,8 +246,27 @@ class NpcRecord(BaseModel):
     psychology: dict[str, int] = {}
     faction: str | None = None
 
+    # ADR 0003 B3 — optional authored statblock. `npc_class` supplies the template;
+    # the rest override it where the world says so. Absent → drawn from the class.
+    npc_class: str | None = None
+    hp_class: HpClass | None = None
+    defense: DifficultyLevel | None = None
+    damage_class: DamageClass | None = None
+    attack_mod: int | None = None
+    max_hp: int | None = None
+
+    _STATBLOCK_KEYS = ("hp_class", "defense", "damage_class", "attack_mod", "max_hp")
+
     def descriptives(self) -> dict[str, str]:
         return dict(self.model_extra or {})
+
+    def statblock(self) -> dict:
+        """Authored overrides only — absent keys fall to the class template."""
+        return {
+            key: getattr(self, key)
+            for key in self._STATBLOCK_KEYS
+            if getattr(self, key) is not None
+        }
 
 
 class InitialQuest(BaseModel):

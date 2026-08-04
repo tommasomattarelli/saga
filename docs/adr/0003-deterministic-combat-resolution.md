@@ -1,11 +1,13 @@
 # ADR 0003 — Deterministic resolution: unified d20 checks + server-side damage
 
-- **Status**: Proposed (direction + all structural decisions fixed via the 2026-07-12 design
-  interview — every fork closed by the project owner; **config default values and the 0010/0012
-  integration points remain explicit TODOs**). This design pass supersedes the combat-only
-  2026-06-09 draft of this same ADR *in place* (same number, retitled): the resolution frame is
-  now **one system for every d20 check in the game**, of which combat is the main consumer.
-- **Date**: 2026-06-09; design pass 2026-07-12.
+- **Status**: **Accepted** — implemented over S1–S4 (2026-08-04) and merged to `main`. The dated
+  implementation notes below record where the code contradicted the design; they are part of the
+  record, not corrections to it. The 0010/0012 integration points remain open **by construction**
+  (this ADR ships their hooks, they ship the plugs). The 2026-07-12 design pass supersedes the
+  combat-only 2026-06-09 draft of this same ADR *in place* (same number, retitled): the
+  resolution frame is **one system for every d20 check in the game**, of which combat is the
+  main consumer.
+- **Date**: 2026-06-09; design pass 2026-07-12; implemented 2026-08-04 (S0–S4).
 - **Context items**: Research session 2026-06-09 (NEQ + 6 OS repos) — Fork B, item #7; design
   interview 2026-07-12 (all calls by the project owner), grounded live in `core/dice.py`,
   `core/dm/dm_tools_executor.py`, `core/combat/combat_graph.py`, `ai/tools/tools_combat.py`,
@@ -126,7 +128,12 @@ unbounded numbers).
   ad hoc** through the existing 0009 creation scaffold (the `invoke_npc`/`update_npc` hook
   pattern), minimal level, statblock from config defaults. One store, one damage path, the
   0009 death writer serves everyone; corpses persist in the world (living-world coherence),
-  with a config knob pruning **dead unnamed** records after N game days. Voyage-style: every
+  with a config knob pruning **dead unnamed** records after N game days. "Unnamed" is a flag,
+  not a heuristic on the name (**S0 2026-08-04**): the mook hook stamps `auto_created` at
+  creation, and only `auto_created` records are ever prunable — an NPC from the world YAML or
+  one invoked by name never is. **Corpses only, never items**: a record still holding inventory
+  is not pruned, so the loot a 0010-I8 class pool put on a mook cannot evaporate with the body.
+  Voyage-style: every
   NPC present in the scene shows a **life bar** always — not only "in combat"; scene presence
   already derives from location (0008/0009 scene roster), the player's bar already exists
   (hero badge). Rejected: hybrid record+ephemeral stores (two damage paths — the bug class
@@ -176,7 +183,17 @@ unbounded numbers).
   statblock**; for the player (no items yet) the LLM **classifies the described weapon** into
   a class — bounded, same pattern as A2 — until 0010 items declare their class themselves.
   The rolling attribute (STR melee / DEX ranged …) derives from `weapon_class_to_stat` config
-  mapping, not an LLM choice. Tier scale: `critical ×2 dice · full ×1 · partial ×0.5 (min 1) ·
+  mapping, not an LLM choice. **S0 2026-08-04, two gaps closed**: (a) the attribute mod is
+  **player-only** — NPCs have no attribute scores (`attack_mod` is their whole to-hit), so NPC
+  damage is the class die alone, which keeps NPC math at one number; (b) the damage classes
+  carry no melee/ranged axis, so the mapping is `light → DEX` (finesse, thrown, bow) and
+  everything else STR. Deliberately a *fallback*: per 0010-E5 a weapon item declares a `skill`
+  ref whose parent attribute supplies the stat, after which this mapping serves only unarmed /
+  improvised / skill-less weapons. Rejected: `*_ranged` variants doubling the classes (0010-I8
+  keeps `damage_class` on NPC statblocks permanently — a permanent doubling of the NPC
+  classification surface to fix a player-only, pre-0010 problem); an LLM-declared `stat` on
+  `attack` (a further LLM lever on one roll, and a second source of truth once 0010-E5 lands).
+  Tier scale: `critical ×2 dice · full ×1 · partial ×0.5 (min 1) ·
   failures 0`. At 0 HP: player → death policy (B8); NPC → the 0009 death writer
   (lifecycle=dead), rewired from `initiative_order` matching to the record itself. Rejected:
   flat per-tier damage (weapons indistinguishable); universal single die (dagger = greatsword).
@@ -230,6 +247,35 @@ unbounded numbers).
   difficile ×1.25 on enemy damage), config keys reserved neutral, to re-evaluate after
   playtest.
 
+**S2 note (2026-08-04, implementation).** Three readings the sprints had to fix.
+(a) **The statblock is `IMMUTABLE` in the B2 partition**, which B3 called "engine-owned/
+mutable". That partition's only meaning in the code is *what `update_npc` may write*, and
+`update_npc` is the LLM's tool — naming `hp` there would hand back the integer this whole ADR
+removes. The engine mutates HP constantly through its own path, which never consults the
+partition. (b) **The typo guard needed the fuzzy step, not just the resolver.** The 0009 F2
+resolver reports "not a known NPC" for a misspelling exactly as it does for a genuinely new
+name, so `attack` reuses `update_npc`'s `npc_name_match_threshold` before auto-creating —
+one knob, not two, or every slip spawns a phantom enemy beside the real one. (c) **The prune
+flag is stamped at creation, not inferred**: `auto_created` is the only thing distinguishing a
+mook from an authored NPC once both are records.
+
+**S3 note (2026-08-04, implementation).** B8 says the three behaviours "survive, **renamed**",
+and the sprint took that literally: `cronista`/`destino`/`ironman` are gone from the code, not
+hidden behind a difficulty→policy mapping. An implementation pass first added that mapping as a
+config table; the owner rejected it as unrequested configurability (principle 2) — it only ever
+bought "add a name reusing an existing behaviour", while a genuinely new policy needs code
+either way. The public names are English (`easy`/`medium`/`hard`), and `destino_lives` became
+`fate_interventions_left` in the same rung. **Bug found by the rename**: `check_player_death`
+was called with `char_data["death_mode"]`, a key nothing has ever written — so every campaign
+silently resolved as "never dies", Hard included. The difficulty now rides the graph state from
+the campaign row. Same shape as the dead importance key (C1b): a reader with no writer.
+
+**S4 note (2026-08-04, implementation).** The alembic chain is **not runnable from base** —
+`001` assumes the tables already exist from `create_all`, which is also how the test fixtures
+build the schema, so **no migration in this repo is exercised by the suite**. `005` was
+verified by hand against a scratch database (upgrade and downgrade, including a row with a
+NULL `world_state`). Pre-existing condition, recorded in `TODO.md`, not introduced here.
+
 ### C. Flow consequences & scope cuts
 
 - **C1 — Removals and rewires (Decided, consequences of A/B).** Deleted: `combat_state`
@@ -237,14 +283,45 @@ unbounded numbers).
   `tools_combat.py`'s `start_combat`/`end_combat`/`apply_damage`/`update_hp`, the
   `combat`/`combat_entry` tool groups, the `_pending_combat_enemies` handoff, the shouted
   COMBAT block in `dm.yaml` (rewritten as short rules for `attack`), the `DC guide` prompt
-  line, the static death-mode prompt injection. Rewired: `score_importance`'s
-  `+2 if combat_active` becomes a "hostiles recently engaged" signal (derivation from recent
-  attack events — implementation detail); the FE combat tracker converts into the **scene
-  life bars** (B2); the FE dice payload replaces `dc` with `difficulty level + draw` (tier-arc
-  reveal touch-up). The `dm.yaml` rewrite MUST fix the **exchange convention** explicitly:
-  when hostiles are engaged, they act every turn (the DM calls `attack` for them in the same
-  step) — without rounds this rule is what prevents free-hit combat, so it is a requirement,
-  not prompt flavor.
+  line, the static death-mode prompt injection. Rewired: the FE combat tracker converts into
+  the **scene life bars** (B2); the FE dice payload replaces `dc` with `difficulty level +
+  draw` (tier-arc reveal touch-up).
+- **C1b — `score_importance`: delete the combat bonus, do not replace it (Decided, S0
+  2026-08-04).** This ADR previously called for the `+2 if combat_active` to be rewired into a
+  "hostiles recently engaged" signal. Grounding the pass killed the premise: the line reads
+  `world_state["in_combat"]` (`ai/context.py:196`) while the engine only ever writes
+  `world_state["combat_state"]["active"]` — **nothing writes that key**, and the sole thing
+  that does is the unit test asserting it (`tests/unit/ai/test_context.py:28`). The bonus has
+  never fired in production. There is therefore no behaviour to port: the line is deleted, and
+  whether importance scoring survives at all is **0016's** call (redirected — see `TODO.md`).
+- **C1c — The exchange convention stays prompt-only (Decided, S0 2026-08-04).** Without rounds,
+  nothing mechanically forces an engaged NPC to strike back; the `dm.yaml` rewrite MUST state
+  the rule (when hostiles are engaged they act every turn — the DM calls `attack` for them in
+  the same step), and that rule is the only thing holding it. An engine backstop was designed
+  and **rejected by the owner**: any such hook needs a notion of "hostile", and over 0005 that
+  notion does not exist — an NPC is scared-but-compliant or angry-but-loyal on several axes at
+  once, may be hostile without ever attacking (plotting, scheming, hostile in words), and may
+  fight and then make peace. A boolean `hostile` would resurrect exactly the `disposition`
+  scalar 0005 exists to kill. **Accepted risk, stated**: free-hit combat remains possible, it
+  fails silently and in the player's favour, and no automated check catches it — the eval
+  harness probe that would is itself gated on this ADR. Mitigation is the post-implementation
+  prompt-tuning pass, run against the harness once the tool surface stops moving.
+  NPC-of-rank agency (a companion or boss taking a player-like turn) is **0014's**, which this
+  ADR gates; B4's symmetric `attack(npc, npc)` is the rail it will use.
+
+  **Re-opened and re-closed (2026-08-04, post-S4).** S2b changed the material facts: `attack`
+  calls are now recorded engine events, so "a fight is happening" became derivable with no
+  notion of hostility at all — `alive AND in scene AND involved in an attack within the last N
+  turns`, which never touches 0005's axes. A deterministic post-turn hook was therefore possible
+  (the engine resolving the missing blows itself, no LLM in the loop). **The owner declined
+  again**, on cost rather than on the earlier argument: the disengagement rule underneath it —
+  what stops the goblin chasing a fleeing player — has no defensible answer without playtest
+  data, and every candidate is a guess. Prompt-only stands; the exchange rule lives in `dm.yaml`
+  and is a prompt-tuning target once the eval harness restarts. Recorded so the next reader
+  knows determinism here was **available and refused**, not unreachable. Direction noted for the
+  tuning pass: surface recent engine events to the DM (`GameContext.recent_events` is already
+  computed and never rendered) so forgetting the exchange is less likely — that lowers the odds,
+  it does not close the hole.
 - **C2 — Persistent timed effects: out of scope → 0012 (Decided).** 0003 ships instantaneous
   damage/heal only. Lingering poison/bleed/buffs need a duration system, and 0012 must invent
   one anyway (cooldowns measured in actions): **one future duration system, not two**.
@@ -271,10 +348,18 @@ request_dice(check, stat,           # stat: 3-letter enum until 0010-E2 swaps in
              hazard_class?,         # physical-risk checks: failure tiers apply % damage (B7)
              reason)
 
-heal(target, heal_class, reason)    # % draw of target max HP, same single apply function;
-                                    # healer must be present in scene, capped by
-                                    # healing.dm_heal_cap (B7b)
+heal(healer, target, heal_class, reason)   # % draw of target max HP, same single apply
+                                           # function; healer must be present in scene,
+                                           # capped by healing.dm_heal_cap (B7b)
 ```
+
+**S1 note (2026-08-04, implementation).** `heal` gained a `healer` argument this section did not
+list. B7b requires an engine guard that "the healer is present in the scene", which the
+three-argument form cannot express — the tool had no way to say who is acting. The added
+parameter also makes `heal` the mirror of B4's `attack(attacker, target)`, which is what the
+symmetric frame implies. Second deviation, same pass: **`update_hp` is removed in S1** rather
+than S2b, since B7 replaces it with `heal` in one logical swap and keeping both alive across
+two sprints would leave a free HP writer in place (§7).
 
 Removed: `start_combat`, `end_combat`, `apply_damage`, `update_hp`. Unchanged: `kill_npc` /
 `remove_npc` / `restore_npc` (0009 narrative lifecycle — `attack` is for contested violence,
@@ -296,6 +381,51 @@ tools live in the always-on `core` group.
 `npc_classes` statblock templates are **world taxonomy**, not config (world-defined
 vocabulary, 0008 P0 pattern). Tool groups: `combat`/`combat_entry` removed,
 `attack`/`request_dice`/`heal` join `core`.
+
+**Default values (S0 2026-08-04).** The difficulty ladder is not taste: each level is one
+number (its mean draw), and the three levels A3 declares verified pin it. Solving A3's spreads
+backwards gives `normal → 0`, `very_hard → −6` (the mean of A3's own `[-4,-8]` example) and
+`near_impossible → −11`; the rest interpolate. Ranges are width 4, so adjacent levels overlap
+by a point or two — that blur is the purpose of the draw (A2). Full-success odds at level 1
+(`+2`): 60 / 50 / **40** / 25 / **10** / nat-20-only, the bold ones reproducing A3 exactly.
+Combat pacing is calibrated on the live creation presets (`baseHp 19–22`, best score 16 → `+3`
+— `frontend/src/features/campaign/data/class-presets.ts`), which makes the player a `standard`
+statblock, as B3 requires. Target: three `weak` mooks fall in two solid hits each and take the
+player down over ~5 exchanges.
+
+```yaml
+resolution:
+  outcome_bands: [5, 10, 15]        # A3, fixed
+  char_mod_clamp: [-5, 11]          # A6, fixed
+  difficulty_levels:                # [best, worst] draw
+    trivial:         [ 6,   2]
+    easy:            [ 4,   0]
+    normal:          [ 2,  -2]
+    hard:            [-1,  -5]
+    very_hard:       [-4,  -8]
+    near_impossible: [-9, -13]
+combat:
+  damage_classes:      {unarmed: 1d2, light: 1d4, medium: 1d8, heavy: 1d12}
+  weapon_class_to_stat: {unarmed: STR, light: DEX, medium: STR, heavy: STR}
+  tier_damage_scale:   {critical: 2.0, full: 1.0, partial: 0.5, failure: 0.0}   # B5, fixed
+  hp_classes:          {weak: [5, 10], standard: [14, 22], tough: [35, 55], boss: [80, 140]}
+  attack_mod_clamp:    [-2, 10]
+  player_defense_default: normal
+  defense_dex_shift:   {harder_at: 4, easier_at: -2}    # inert until 0010 progression
+  damage_reduction_cap: 0.75
+  statblock_defaults:  {npc_class: commoner, hp_class: standard, defense: normal,
+                        damage_class: light, attack_mod: 0}
+  dead_unnamed_prune:  {after_game_days: 14, require_empty_inventory: true}     # B2
+hazards:
+  classes:    {minor: [0.05, 0.15], serious: [0.20, 0.35], deadly: [0.45, 0.70]}   # of max HP
+  tier_scale: {full: 0.0, partial: 0.5, failure: 1.0, critical_failure: 1.5}
+healing:
+  classes:    {minor: [0.10, 0.20], strong: [0.30, 0.50], full: [1.00, 1.00]}      # of max HP
+  dm_heal_cap: 3                    # DM-initiated heals per game day (B7b)
+campaign_difficulty:
+  death_policy: {facile: cronista, medio: destino, difficile: ironman}             # B8
+  multipliers:  {facile: 1.0, medio: 1.0, difficile: 1.0}                          # reserved
+```
 
 ### F. Migration / compatibility
 
@@ -325,16 +455,20 @@ free HP number anymore (the removed-tools set stays removed).
 
 ## 3. Decided vs Open — quick index
 
-**Decided**: A1–A6, B1–B8 (incl. B3b npc_class + B7b healing paths), C1–C2, D, E (keys), F, G,
-sprint plan (§7); player DEX defense shift (B3, with 0010-E6); weapon-skill to-hit seam
-(B3/0010-E5).
-**Open (TODO)**: config default *values* (bands 5/10/15 and clamp [−5,+11] fixed; level
-ranges, damage dice, % ranges, caps proposed at S1 and tuned in playtest) · `Power → effect`
-mapping for 0012 abilities (owned here, settled when 0012 lands — 0010-E4c) · 0010
-integrations: `skill|attribute` ids in `request_dice` (0010-E2), armor DR classes + item-declared
-weapon classes (DEX-defense: settled, B3/0010-E6) · prune policy
-details · the "hostiles engaged" importance signal derivation · prompt wording pass (backlog:
-post-implementation tuning session).
+**Decided**: A1–A6, B1–B8 (incl. B3b npc_class + B7b healing paths), C1–C2, D, E (keys **and
+default values**, S0), F, G, sprint plan (§7); player DEX defense shift (B3, with 0010-E6);
+weapon-skill to-hit seam (B3/0010-E5). Closed by the S0 pass: prune bounds (B2 — `auto_created`
+flag, corpses only, never items) · the melee/ranged gap and the player-only attribute mod
+(B5) · the importance signal, deleted not ported (C1b) · the exchange convention, prompt-only
+with the risk stated (C1c) · `update_hp` removal moved into S1 (§7).
+**Open (TODO)**: config values are *proposed defaults, tuned in playtest* — bands 5/10/15 and
+clamp [−5,+11] stay fixed · `Power → effect` mapping for 0012 abilities (owned here, settled
+when 0012 lands — 0010-E4c) · 0010 integrations: `skill|attribute` ids in `request_dice`
+(0010-E2), armor DR classes + item-declared weapon classes (DEX-defense: settled,
+B3/0010-E6) · **a check with no meaningful stat** (pure luck): `request_dice.stat` is a
+required 3-letter enum, so a luck roll has to borrow an attribute — decide at S1 whether a
+`none` member (modifier 0) is worth it or the DM just picks · prompt wording pass (backlog:
+post-implementation tuning session, run against the eval harness).
 
 ## 4. Rejected alternatives (with reasons)
 
@@ -355,6 +489,17 @@ in scope, both variants (subsystem creep; duration system belongs with 0012) ·
 Judge/Narrator split (unchanged from draft: deterministic tiers make a scoring call
 redundant) · llm-rpg `base × LLM-scaling` damage (the tier is the scaling).
 
+Added by the S0 pass (2026-08-04): an **engine backstop for the exchange convention**, in both
+its soft and hard forms — it requires a notion of "hostile" that cannot exist over 0005's
+multi-axis psychology, and a boolean `hostile` field would resurrect the very `disposition`
+scalar 0005 was written to kill (C1c) · **`*_ranged` damage-class variants** (0010-I8 keeps
+`damage_class` on NPC statblocks permanently, so this doubles the NPC classification surface
+forever to fix a player-only, pre-0010 problem) · **an LLM-declared `stat` on `attack`** (a
+further lever on one roll, and a second source of truth once 0010-E5 lands) · **porting the
+`+2 if combat_active` importance bonus** (it reads a key nothing writes — there is no
+behaviour to port; C1b) · **name heuristics for the prune** (a creation-time `auto_created`
+flag is exact where a name test is not; B2).
+
 ## 5. Consequences
 
 - **Positive**: every roll in the game is auditable (level + reason + draw + bands shown);
@@ -373,7 +518,10 @@ redundant) · llm-rpg `base × LLM-scaling` damage (the tier is the scaling).
   removing `update_hp` means *every* HP change must fit attack/hazard/heal semantics — if
   playtest finds a legitimate case that doesn't, extend classes, don't reopen free numbers.
   Healing has no resource economy until 0010/0012 (free DM heals) — bounded meanwhile by the
-  scene-presence guard + `dm_heal_cap` (B7b), retired when the self-heal rail lands.
+  scene-presence guard + `dm_heal_cap` (B7b), retired when the self-heal rail lands. Dropping
+  rounds moves the "enemies act too" guarantee from the engine into the prompt, so a DM that
+  forgets it hands out free hits — silently, and in the player's favour, which is the failure
+  mode nobody reports (C1c, accepted with the backstop rejected).
 
 ## 6. Relationship to other ADRs
 
@@ -398,25 +546,45 @@ redundant) · llm-rpg `base × LLM-scaling` damage (the tier is the scaling).
   validation/editor; the game clock is untouched (C2 rejected clock ticks).
 - **0004 (dm_core/game_system)** — its `game_system` contract note ("dice convention + health
   model" aligned with 0003) now points at this unified frame.
-- **0005 / 0006 / 0013** — untouched (psychology, off-screen world, UI identity); the life
-  bars and dice reveal restyle under 0013's tokens.
+- **0014 (NPC promotion)** — gated on this ADR. NPC-of-rank agency (a companion or boss taking
+  a player-like turn instead of being a target) belongs there; B4's symmetric
+  `attack(npc, npc)` is the rail it will use, and C1c deliberately leaves that space empty.
+- **0016 (importance scoring)** — C1b deletes the combat bonus without replacing it, having
+  found the signal dead. Whether importance scoring survives at all is 0016's, redirected from
+  "fix the score" to "retire it, keep per-call-type routing" (see `TODO.md`).
+- **0005 / 0006 / 0013** — unmodified (psychology, off-screen world, UI identity); the life
+  bars and dice reveal restyle under 0013's tokens. 0005's multi-axis model is nonetheless
+  load-bearing here: it is the reason C1c refuses a `hostile` flag.
 
 ## 7. Implementation plan (fixed, 0009-§10 style)
 
-Four sprints on one `adr/0003-deterministic-resolution` branch, each leaving the suite green
-and the game playable; small commits per logical unit (repo standard).
+Five sub-branches off one `adr/0003-deterministic-resolution` integration branch, merged into
+it with `merge: sprint-N … (ADR 0003)` commits and landed as a single PR (the 0005/0008/0009
+pattern); each leaves the suite green and the game playable; small commits per logical unit
+(repo standard). **S0 2026-08-04**: §7 originally listed four sprints, but S2 as specified is
+roughly twice a reviewable branch (repo standard: six or seven commits at most), so it splits
+into S2a/S2b along the data/behaviour seam. Order is serial — S1 → S2a → S2b → S3 — because
+each touches the record and the damage path the previous one moved; S4 is almost entirely
+`frontend/` and may run alongside S3.
 
 - **S1 — Unified resolver (backend, self-contained, playable alone).** `dice.py` absolute
   bands + level draws + clamp + adv/dis wiring; `request_dice` new contract (drop `dc`, add
   `difficulty`/`advantage`/`disadvantage`/`hazard_class`); tool always-on; `resolution.*` +
-  `hazards.*` + `healing.*` config; `heal` tool; prompt minimal edit (drop DC guide, teach
-  levels); unit + integration for the generic path.
-- **S2 — Combat engine.** Statblock fields on records + rung v7→v8; `npc_classes` taxonomy
-  templates + `hp_class` draws + creation classes (B3b) + the scaffold `location = current
-  node` fix; `attack` tool + damage pipeline + single apply function with reducer slot; mook
-  auto-create hook; death-writer rewire; removal of the 4 tools + `combat_state` + both
-  initiative paths + tool groups; `combat.*` config; `dm.yaml` combat rewrite; importance
-  signal swap; integration suite.
+  `hazards.*` + `healing.*` config; `heal` tool **and the removal of `update_hp`** (S0: they
+  are one logical swap per B7 — splitting them leaves two free HP writers alive for two
+  sprints and defers the "no tool writes a free HP number" regression test); prompt minimal
+  edit (drop DC guide, teach levels); unit + integration for the generic path. Ends with
+  out-of-combat checks — lockpicking, stealth, persuasion — which the game does not have today.
+- **S2a — Statblocks & taxonomy (data layer, no new tool).** Statblock fields on the 0009
+  record + rung v7→v8 backfill; `npc_classes` taxonomy templates + `hp_class` draws + bounded
+  creation classes (B3b); the creation-scaffold `location = current node` fix; `auto_created`
+  flag for the prune (B2); `combat.*` config.
+- **S2b — Attack pipeline & removals.** `attack` tool + damage pipeline + the single apply
+  function with its reducer slot (B6); mook auto-create hook; death-writer rewire off
+  `initiative_order`; removal of the remaining 3 tools + `combat_state` + both initiative
+  paths + the `combat`/`combat_entry` tool groups; `dm.yaml` combat rewrite (minimal — 0004
+  and 0017 both rewrite this file next) incl. the exchange convention (C1c); deletion of the
+  dead importance bonus (C1b); integration suite.
 - **S3 — Campaign difficulty + death.** Alembic `death_mode`→`difficulty` + mapping;
   `check_player_death` reparameterized; static prompt block removed; wizard step + i18n;
   reserved-neutral multiplier keys; tests on the three policies.
@@ -434,3 +602,13 @@ mechanics (PbtA fixed bands, D&D advantage/AC/proficiency envelopes), the live c
 above, and explicit owner taste. Prior draft content is preserved where still true (leak
 analysis, Judge/Narrator rejection) and superseded where the interview overturned it
 (decision 4 symmetric-via-NPC_BEHAVIOR, the ±N circumstance modifier, combat-only title).
+
+S0 implementation pass 2026-08-04 (owner interview before the first line of code). Config
+defaults are not taste: the difficulty ladder is solved backwards from the three spreads A3
+already declares verified, and combat pacing is calibrated on the live creation presets, both
+cited in §E. A third interviewer recommendation was reversed by the owner on merit — the
+engine backstop for the exchange convention, refused because "hostile" cannot be a state over
+0005 (C1c). The pass also grounded three findings against live code: the importance combat
+bonus reads a key nothing writes (C1b), `invoke_npc` advertises actions in its description
+while returning dialogue only (→ 0017), and pruning corpses would evaporate the loot 0010-I8
+puts on them (→ B2). The last two are recorded in `TODO.md`, not owned here.

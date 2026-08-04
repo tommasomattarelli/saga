@@ -1,6 +1,11 @@
 """Tests for GameClock model and world state clock functions."""
 
-from app.memory.world_state import GameClock, advance_game_clock, migrate_world_state
+from app.memory.world_state import (
+    CURRENT_SCHEMA_VERSION,
+    GameClock,
+    advance_game_clock,
+    migrate_world_state,
+)
 
 
 class TestGameClock:
@@ -104,20 +109,20 @@ class TestMigrationV1ToV2:
             "locations": {},
         }
         migrated = migrate_world_state(v1_state)
-        assert migrated["meta"]["schema_version"] == 7
+        assert migrated["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION
         assert "clock" in migrated
         assert migrated["clock"]["total_minutes"] == 480
 
     def test_v0_to_v4_full_migration(self):
         v0_state = {"locations": {"town": "visited"}}
         migrated = migrate_world_state(v0_state)
-        assert migrated["meta"]["schema_version"] == 7
+        assert migrated["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION
         assert "clock" in migrated
         assert "npcs" in migrated
         assert "companions" in migrated
         assert "narrative" in migrated
-        assert "combat_state" in migrated
-        assert "destino_lives" in migrated
+        assert "fate_interventions_left" in migrated
+        assert "combat_state" not in migrated  # dropped by the v8 rung (ADR 0003 B1)
 
     def test_v3_migrates_to_v4(self):
         v3_state = {
@@ -129,4 +134,4 @@ class TestMigrationV1ToV2:
         }
         migrated = migrate_world_state(v3_state)
         assert migrated["clock"]["total_minutes"] == 1000
-        assert migrated["meta"]["schema_version"] == 7
+        assert migrated["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION

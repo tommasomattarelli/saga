@@ -11,11 +11,11 @@ from langchain_core.messages import ToolMessage
 from app.ai.npc_director import invoke_npcs_parallel
 from app.ai.router import get_gameplay_config
 from app.ai.tools.dm_tools import execute_tool, get_tool
-from app.core.combat.combat_graph import combat_graph
-from app.core.dice import ability_check
+from app.core.dice import DifficultyLevel, resolve_check
 from app.core.dm.dm_helpers import get_or_create_segment, sync_narration_to_segment
 from app.core.dm.game_state import GameState
 from app.core.dm.npc_prehook import validate_or_create_npc
+from app.core.health import HazardClass, draw_hazard_damage
 from app.core.npc_fields import resolve_npc_fields
 from app.core.npc_resolver import resolve_npc
 from app.core.psychology import resolve_psychology
@@ -77,42 +77,10 @@ async def tools_node(state: GameState) -> dict[str, Any]:
         args = tc.get("args", {})
         tc_id = tc.get("id", name)
 
-        if name == "start_combat":
-            world_state["_pending_combat_enemies"] = args.get("enemies", [])
-            combat_result = await combat_graph.ainvoke(
-                {**state, "world_state": world_state, "char_data": char_data}
-            )
-            world_state = combat_result["world_state"]
-            result_str = "Combat initialised. Initiative rolled."
-            tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
-            tool_cls = get_tool(name)
-            if tool_cls and tool_cls.visible():
-                tool_events.append(
-                    {
-                        "tool": name,
-                        "args": args,
-                        "result": result_str,
-                        "extra": {"combat_state": world_state.get("combat_state", {})},
-                    }
-                )
-            continue
-
-        if name == "end_combat":
-            world_state["combat_state"] = {
-                "active": False,
-                "round": 0,
-                "initiative_order": [],
-                "current_turn_index": 0,
-            }
-            result_str = "Combat ended."
-            tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
-            tool_cls = get_tool(name)
-            if tool_cls and tool_cls.visible():
-                tool_events.append({"tool": name, "args": args, "result": result_str, "extra": {}})
-            continue
-
         if name == "request_dice":
-            result_str, roll_data = _handle_dice(args, char_data, step, narration_segments)
+            result_str, roll_data, char_data = _handle_dice(
+                args, char_data, step, narration_segments
+            )
             dice_results.append({"step": step, "rolls": roll_data})
             tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
             continue
@@ -228,45 +196,72 @@ _STAT_FULL_NAMES = {
 }
 
 
-def _handle_dice(
-    args: dict, char_data: dict, step: int, narration_segments: list[dict]
-) -> tuple[str, dict]:
-    dc = int(args.get("dc", 10))
-    stat = args.get("stat", "DEX")
-    check = args.get("check") or f"{stat} check"
-    reason = args.get("reason", "")
-
+def _character_modifier(char_data: dict, stat: str) -> int:
+    """Sheet → modifier. ADR 0010-E2/E3 replaces this with world-defined skill ids."""
     abilities = char_data.get("abilities", {})
     full = _STAT_FULL_NAMES.get(stat.upper(), stat.lower())
     stat_score = abilities.get(full, abilities.get(stat, abilities.get(stat.lower(), 10)))
-    modifier = (stat_score - 10) // 2
+    return (stat_score - 10) // 2
 
-    dice_result = ability_check(modifier=modifier, dc=dc)
-    roll_obj = dice_result["roll"]
+
+def _handle_dice(
+    args: dict, char_data: dict, step: int, narration_segments: list[dict]
+) -> tuple[str, dict, dict]:
+    stat = args.get("stat", "DEX")
+    check = args.get("check") or f"{stat} check"
+    reason = args.get("reason", "")
+    difficulty = DifficultyLevel(args.get("difficulty", DifficultyLevel.NORMAL))
+
+    resolution = resolve_check(
+        modifier=_character_modifier(char_data, stat),
+        difficulty=difficulty,
+        advantage=bool(args.get("advantage")),
+        disadvantage=bool(args.get("disadvantage")),
+    )
+    roll_obj = resolution.roll
     check_label = check.replace("_", " ").title()
 
     roll_data = {
         check_label: {
             "expression": roll_obj.expression,
             "rolls": roll_obj.rolls,
-            "modifier": roll_obj.modifier,
-            "total": roll_obj.total,
-            "dc": dc,
-            "success": dice_result["success"],
-            "outcome": dice_result["outcome"],
-            "is_critical": dice_result["is_critical"],
+            "modifier": resolution.modifier,
+            "difficulty": difficulty.value,
+            "difficulty_draw": resolution.difficulty_draw,
+            "total": resolution.total,
+            "success": resolution.success,
+            "outcome": resolution.outcome.value,
+            "is_critical": resolution.is_critical,
         }
     }
+
+    hazard = args.get("hazard_class")
+    damage = 0
+    if hazard:
+        hp = char_data.get("hp", {})
+        damage = draw_hazard_damage(
+            HazardClass(hazard), resolution.outcome, int(hp.get("max", 10))
+        )
+        if damage:
+            _, char_data = apply_typed_updates(
+                {}, char_data, [{"key": "hp_change", "change": -damage}]
+            )
+        roll_data[check_label]["hazard_damage"] = damage
 
     seg = get_or_create_segment(narration_segments, step)
     seg["dice"] = {**(seg.get("dice") or {}), **roll_data}
 
-    outcome = dice_result.get("outcome", "partial_success")
     result_str = (
-        f"{check.title()} check (DC {dc}): rolled {roll_obj.total} "
-        f"({modifier:+d} modifier) → {outcome}." + (f" Context: {reason}" if reason else "")
+        f"{check.title()} check ({difficulty.value}): rolled {resolution.total} "
+        f"({resolution.modifier:+d} modifier, {resolution.difficulty_draw:+d} difficulty) "
+        f"→ {resolution.outcome.value}."
     )
-    return result_str, roll_data
+    if hazard:
+        current = char_data.get("hp", {}).get("current", 0)
+        result_str += f" Hazard deals {damage} damage — HP now {current}."
+    if reason:
+        result_str += f" Context: {reason}"
+    return result_str, roll_data, char_data
 
 
 def _handle_npc_results(

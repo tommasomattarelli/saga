@@ -50,7 +50,7 @@ describe("useSubmitAction", () => {
         name: "Test",
         world_slug: "w1",
         status: "active",
-        death_mode: "cronista",
+        difficulty: "easy",
         turn_number: 1,
         character_data: {} as never,
         world_state: {},
@@ -71,52 +71,6 @@ describe("useSubmitAction", () => {
     });
 
     expect(useGameStore.getState().campaign?.turn_number).toBe(5);
-  });
-
-  it("sets combat state when combat is active", async () => {
-    const combatState = {
-      active: true,
-      round: 1,
-      initiative_order: [],
-      current_turn_index: 0,
-    };
-
-    mockSubmitAction.mockResolvedValue({
-      data: { ...baseTurn, combat_state: combatState },
-    } as never);
-
-    const { result } = renderHook(() => useSubmitAction("campaign-1", nullScrollRef), {
-      wrapper: createWrapper(),
-    });
-
-    await act(async () => {
-      await result.current.mutation.mutateAsync("attack");
-    });
-
-    expect(useGameStore.getState().combatState?.active).toBe(true);
-  });
-
-  it("clears combat state when combat ends", async () => {
-    useGameStore.setState({
-      combatState: { active: true, round: 2, initiative_order: [], current_turn_index: 0 },
-    });
-
-    mockSubmitAction.mockResolvedValue({
-      data: {
-        ...baseTurn,
-        combat_state: { active: false, round: 0, initiative_order: [], current_turn_index: 0 },
-      },
-    } as never);
-
-    const { result } = renderHook(() => useSubmitAction("campaign-1", nullScrollRef), {
-      wrapper: createWrapper(),
-    });
-
-    await act(async () => {
-      await result.current.mutation.mutateAsync("flee");
-    });
-
-    expect(useGameStore.getState().combatState).toBeNull();
   });
 
   it("clears loading state on error", async () => {

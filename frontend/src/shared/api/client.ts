@@ -60,7 +60,7 @@ export const deleteCampaign = (id: string) => api.delete(`/campaigns/${id}`);
 export const createCampaign = (data: {
   world_id: string;
   name: string;
-  death_mode: string;
+  difficulty: string;
   character_data?: Record<string, unknown>;
 }) => api.post<Campaign>("/campaigns", data);
 
@@ -120,6 +120,16 @@ export interface NpcFieldDef {
   scene?: boolean;
 }
 
+/* ADR 0003 B3b — coarse archetypes carrying the statblock template. The `role`
+   trait stays descriptive; the class decides how tough someone is. */
+export interface NpcClassDef {
+  name: string;
+  hp_class?: "weak" | "standard" | "tough" | "boss";
+  defense?: string;
+  damage_class?: "unarmed" | "light" | "medium" | "heavy";
+  attack_mod?: number;
+}
+
 export interface EditableWorld {
   slug: string;
   meta: { name: string; author: string; version: string; description: string; tags: string[] };
@@ -131,6 +141,7 @@ export interface EditableWorld {
     defaults?: { terrain?: string | null; elevation_m?: number };
     psychology?: PsychologyDef | null;
     npc_fields?: NpcFieldDef[] | null;
+    npc_classes?: NpcClassDef[] | null;
   };
   scenario: Record<string, unknown> | null;
   nodes: EditableNode[];

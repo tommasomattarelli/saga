@@ -61,6 +61,7 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
         "world_state": migrate_world_state(campaign.world_state or {}),
         "char_data": campaign.character_data or {},
         "world_baseline": campaign.world_baseline or {},
+        "difficulty": str(campaign.difficulty),
         "model_used": model_cfg.model,
         "importance_score": context.importance_score,
         "system_prompt": context.system_prompt,
@@ -176,17 +177,21 @@ def post_process_node(state: GameState) -> dict[str, Any]:
     if state["time_passed_minutes"] > 0:
         world_state = advance_game_clock(world_state, state["time_passed_minutes"])
 
-    death_mode = char_data.get("death_mode", "cronista")
-    death_result = check_player_death(char_data, death_mode, world_state)
+    # The difficulty rides the state from context_node. It used to be read off
+    # char_data, a key nothing ever wrote, so every campaign silently resolved as
+    # "never dies" — Ironman included (ADR 0003 S3).
+    death_result = check_player_death(char_data, state["difficulty"], world_state)
     death_event: dict | None = None
     if death_result.action != "alive":
         death_event = {
             "is_dead": death_result.is_dead,
             "action": death_result.action,
-            "death_mode": death_result.death_mode,
+            "difficulty": death_result.difficulty,
             "narrative_instruction": death_result.narrative_instruction,
-            "destino_lives_remaining": death_result.destino_lives_remaining,
+            "fate_interventions_remaining": death_result.fate_interventions_remaining,
         }
+        if death_result.fate_interventions_remaining is not None:
+            world_state["fate_interventions_left"] = death_result.fate_interventions_remaining
 
     return {
         "world_state": world_state,

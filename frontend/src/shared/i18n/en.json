@@ -38,7 +38,8 @@
     "empty_title": "The story hasn't started yet",
     "empty_hint": "Write your first action below.",
     "history_error": "Couldn't load the story so far. Refresh the page to try again.",
-    "map": "Map"
+    "map": "Map",
+    "in_scene": "In the scene"
   },
   "campaign": {
     "your_campaigns": "Your campaigns, {{name}}",
@@ -49,13 +50,13 @@
     "delete_title": "Delete this campaign?",
     "delete_body": "\"{{name}}\" will be permanently deleted. This cannot be undone.",
     "new": "Begin a New Saga",
-    "select_death_mode": "Choose Your Fate",
-    "ironman": "Ironman",
-    "ironman_desc": "One life. One chance. Permanent death.",
-    "destino": "Destino",
-    "destino_desc": "Death carries a heavy price. 2-3 chances.",
-    "cronista": "Cronista",
-    "cronista_desc": "Story mode. The tale must go on."
+    "select_difficulty": "Choose Your Fate",
+    "easy": "Easy",
+    "easy_desc": "Story mode. The tale must go on.",
+    "medium": "Medium",
+    "medium_desc": "Death carries a heavy price. A few chances.",
+    "hard": "Hard",
+    "hard_desc": "One life. One chance. Permanent death."
   },
   "wizard": {
     "title": "New campaign",
@@ -245,6 +246,11 @@
     "roll_max": "To",
     "entry_type": "Type",
     "type_event": "event",
-    "type_combat": "combat"
+    "type_combat": "combat",
+    "npc_statblock": "Statblock",
+    "npc_class": "Class",
+    "npc_hp_class": "Toughness",
+    "npc_defense": "Hard to hit",
+    "npc_damage_class": "Weapon weight"
   }
 }

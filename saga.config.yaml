@@ -101,6 +101,120 @@ gameplay:
   consecutive_empty_steps_max: 2  # max tool-only steps with no narration before forcing loop exit
 
 # ---------------------------------------------------------------------------
+# Resolution — one d20 frame for every check in the game (ADR 0003 A1-A6)
+#
+# The LLM classifies difficulty into a level and never emits a number; the engine
+# draws the modifier from that level's range. total = d20 + character modifier + draw,
+# read against the absolute bands below. Ranges are [best, worst]; the ladder is solved
+# backwards from the spreads ADR 0003 A3 declares verified, so full-success odds at
+# level 1 (+2) run 60/50/40/25/10/nat-20-only.
+# ---------------------------------------------------------------------------
+resolution:
+  outcome_bands: [5, 10, 15]   # <=5 hard_failure | 6-9 soft | 10-14 partial | >=15 full
+  char_mod_clamp: [-5, 11]     # total sheet-produced modifier entering the resolver (A6)
+  difficulty_levels:
+    trivial:         [6, 2]
+    easy:            [4, 0]
+    normal:          [2, -2]
+    hard:            [-1, -5]
+    very_hard:       [-4, -8]
+    near_impossible: [-9, -13]
+
+# ---------------------------------------------------------------------------
+# Combat — statblocks and damage (ADR 0003 B3/B3b/B5/B6)
+#
+# Everyone hittable is an NPC record with a statblock, the player included. The LLM
+# names classes; the engine draws every number. `defense` reuses the six difficulty
+# levels above rather than inventing a second scale.
+#
+# Pacing is calibrated on the level-1 creation presets (~20 HP, best modifier +3):
+# three `weak` mooks fall in two solid hits each and take the player down over
+# roughly five exchanges.
+# ---------------------------------------------------------------------------
+combat:
+  damage_classes:       {unarmed: 1d2, light: 1d4, medium: 1d8, heavy: 1d12}
+  weapon_class_to_stat: {unarmed: STR, light: DEX, medium: STR, heavy: STR}
+  tier_damage_scale:                       # multiplier on the class die, by outcome
+    critical_success: 2.0
+    full_success:     1.0
+    partial_success:  0.5                  # never below 1 point
+    soft_failure:     0.0
+    hard_failure:     0.0
+    critical_failure: 0.0
+  hp_classes:                              # hp is drawn from the class range
+    weak:     [5, 10]
+    standard: [14, 22]                     # the player sits here at level 1
+    tough:    [35, 55]
+    boss:     [80, 140]
+  attack_mod_clamp: [-2, 10]
+  player_defense_default: normal
+  defense_dex_shift:                       # inert until ADR 0010 progression exists
+    harder_at: 4                           # DEX mod >= 4 → one level harder to hit
+    easier_at: -2                          # DEX mod <= -2 → one level easier
+  damage_reduction_cap: 0.75               # ceiling on stacked armor DR (ADR 0010 items)
+  statblock_defaults:                      # last resort when class and author say nothing
+    npc_class:    commoner
+    hp_class:     standard
+    defense:      normal
+    damage_class: light
+    attack_mod:   0
+  dead_unnamed_prune:
+    after_game_days: 14
+    require_empty_inventory: true          # a corpse still holding loot is never pruned
+
+# ---------------------------------------------------------------------------
+# Hazards — traps, falls, poison bursts (ADR 0003 B7)
+#
+# A hazard is an enemy without legs: the DM asks for a reaction roll and the tier
+# doses the damage. Classes are percentage ranges of the target's max HP, not dice,
+# so a trap stays relevant at every level.
+# ---------------------------------------------------------------------------
+hazards:
+  classes:
+    minor:   [0.05, 0.15]
+    serious: [0.20, 0.35]
+    deadly:  [0.45, 0.70]
+  tier_scale:                  # fraction of the drawn damage each outcome takes
+    critical_success: 0.0
+    full_success:     0.0      # dodged outright
+    partial_success:  0.5
+    soft_failure:     1.0
+    hard_failure:     1.0
+    critical_failure: 1.5
+
+# ---------------------------------------------------------------------------
+# Healing — percentage of max HP, same asymmetry as hazards (ADR 0003 B7/B7b)
+#
+# There is no resource economy until ADR 0010/0012, so DM-initiated heals are bounded
+# mechanically: the healer must be present in the scene, and dm_heal_cap limits how
+# many can land per game day.
+# ---------------------------------------------------------------------------
+healing:
+  classes:
+    minor:  [0.10, 0.20]
+    strong: [0.30, 0.50]
+    full:   [1.00, 1.00]
+  dm_heal_cap: 3               # DM-initiated heals per game day
+
+# ---------------------------------------------------------------------------
+# Campaign difficulty (ADR 0003 B8)
+#
+# Difficulty governs the DEATH POLICY only — rolls and damage are identical at every
+# setting, so the bands stay calibrated once and hardness comes from the fiction.
+# The multipliers are reserved neutral: a future proposal may scale enemy damage
+# (facile 0.75 / difficile 1.25), to re-evaluate after playtest.
+# ---------------------------------------------------------------------------
+campaign_difficulty:
+  # easy   — never dies; consequences are narrated instead
+  # medium — a few fate interventions at rising cost, then death is final
+  # hard   — permadeath from the first fall
+  fate_interventions: 3       # medium only: how many times fate steps in
+  multipliers:
+    easy:    1.0
+    medium:  1.0
+    hard:    1.0
+
+# ---------------------------------------------------------------------------
 # World model (ADR 0008)
 # ---------------------------------------------------------------------------
 world:
@@ -146,7 +260,7 @@ features:
 
 # ---------------------------------------------------------------------------
 # Tool Groups — dynamic tool loading per world state
-# Conditions: "combat_active" | "npcs_present" | "companion_active"
+# Conditions: "npcs_present" | "companion_active"
 # ---------------------------------------------------------------------------
 tool_groups:
   core:
@@ -158,17 +272,9 @@ tool_groups:
       - log_event
       - update_quest
       - update_npc
-  combat_entry:
-    always: true
-    tools:
-      - start_combat
-  combat:
-    when: combat_active
-    tools:
-      - request_dice
-      - apply_damage
-      - end_combat
-      - update_hp
+      - request_dice     # every d20 check in the game, in or out of combat (ADR 0003 A1)
+      - attack           # ADR 0003 B4 — combat is not a mode, so this is always available
+      - heal             # ADR 0003 B7 — replaces the free-number update_hp
   social:
     when: npcs_present
     tools:

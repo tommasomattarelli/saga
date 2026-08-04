@@ -7,7 +7,7 @@ const makeCampaign = (overrides: Partial<Campaign> = {}): Campaign => ({
   name: "Test Saga",
   world_slug: "w1",
   status: "active",
-  death_mode: "cronista",
+  difficulty: "easy",
   turn_number: 1,
   character_data: {
     name: "Hero",
@@ -71,15 +71,6 @@ describe("game-store", () => {
     const ws = useGameStore.getState().campaign?.world_state;
     expect(ws?.location).toBe("town");
     expect(ws?.weather).toBe("rain");
-  });
-
-  it("setCombatState and clear", () => {
-    useGameStore
-      .getState()
-      .setCombatState({ active: true, round: 1, initiative_order: [], current_turn_index: 0 });
-    expect(useGameStore.getState().combatState?.active).toBe(true);
-    useGameStore.getState().setCombatState(null);
-    expect(useGameStore.getState().combatState).toBeNull();
   });
 
   it("reset clears all state", () => {

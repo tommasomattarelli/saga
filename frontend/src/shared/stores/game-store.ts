@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import type { Campaign, TurnResponse, WorldState, CharacterData, CombatState } from "../types";
+import type { Campaign, TurnResponse, WorldState, CharacterData } from "../types";
 
 const ALLOWED_WORLD_STATE_KEYS = new Set([
   "meta",
@@ -12,8 +12,7 @@ const ALLOWED_WORLD_STATE_KEYS = new Set([
   "weather",
   "global_flags",
   "clock",
-  "combat_state",
-  "destino_lives",
+  "fate_interventions_left",
 ]);
 
 const __DEV__ =
@@ -25,7 +24,6 @@ interface GameState {
   turnHistory: TurnResponse[];
   isLoading: boolean;
   pendingAction: string | null;
-  combatState: CombatState | null;
   freshTurnNumber: number | null; // turn_number of the turn just submitted in this session
   hasPendingDice: boolean; // true when latest turn has unclicked dice
 
@@ -34,7 +32,6 @@ interface GameState {
   addTurn: (turn: TurnResponse) => void;
   setLoading: (loading: boolean) => void;
   setPendingAction: (action: string | null) => void;
-  setCombatState: (state: CombatState | null) => void;
   clearPendingDice: () => void;
   updateWorldState: (updates: Partial<WorldState>) => void;
   updateCharacter: (updates: Partial<CharacterData>) => void;
@@ -49,7 +46,6 @@ export const useGameStore = create<GameState>()(
       turnHistory: [],
       isLoading: false,
       pendingAction: null,
-      combatState: null,
       freshTurnNumber: null,
       hasPendingDice: false,
 
@@ -67,7 +63,6 @@ export const useGameStore = create<GameState>()(
       },
       setLoading: (loading) => set({ isLoading: loading }),
       setPendingAction: (action) => set({ pendingAction: action }),
-      setCombatState: (combatState) => set({ combatState }),
       clearPendingDice: () => set({ hasPendingDice: false }),
 
       updateWorldState: (updates) =>
@@ -110,7 +105,6 @@ export const useGameStore = create<GameState>()(
           turnHistory: [],
           isLoading: false,
           pendingAction: null,
-          combatState: null,
           freshTurnNumber: null,
           hasPendingDice: false,
         }),

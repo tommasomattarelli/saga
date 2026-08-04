@@ -38,7 +38,7 @@ async def _create_campaign(auth_client) -> str:
         json={
             "world_id": "the-awakening",
             "name": "Action Campaign",
-            "death_mode": "destino",
+            "difficulty": "medium",
             "character_data": {"name": "Eron", "hp": 20, "max_hp": 20},
         },
     )

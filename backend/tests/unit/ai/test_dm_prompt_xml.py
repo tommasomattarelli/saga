@@ -2,8 +2,9 @@
 
 from unittest.mock import MagicMock
 
-from app.ai.prompts.dm import _npcs_at_current_location, build_dm_system_prompt
-from app.models.campaign import DeathMode
+from app.ai.prompts.dm import build_dm_system_prompt
+from app.core.npc_resolver import npcs_at_current_location
+from app.models.campaign import Difficulty
 
 
 def _make_campaign(
@@ -13,7 +14,7 @@ def _make_campaign(
     c.world_state = world_state
     c.character_data = character_data
     c.quests = quests or {}
-    c.death_mode = DeathMode.DESTINO
+    c.difficulty = Difficulty.MEDIUM
     c.world_baseline = None
     return c
 
@@ -192,19 +193,6 @@ def test_quests_section():
     assert 'name="Who Am I?"' in prompt
 
 
-def test_combat_block_only_when_active():
-    ws_combat = {
-        **_WORLD_STATE,
-        "combat_state": {"active": True, "round": 2, "initiative_order": ["Eron", "Goblin"]},
-    }
-    campaign = _make_campaign(ws_combat, _CHAR_DATA)
-    prompt = build_dm_system_prompt(campaign)
-
-    assert '<combat active="true"' in prompt
-    assert "Eron" in prompt
-    assert "Goblin" in prompt
-
-
 def test_no_combat_block_when_inactive():
     campaign = _make_campaign(_WORLD_STATE, _CHAR_DATA)
     prompt = build_dm_system_prompt(campaign)
@@ -212,21 +200,19 @@ def test_no_combat_block_when_inactive():
 
 
 def test_npcs_at_current_location_helper():
-    result = _npcs_at_current_location(_WORLD_STATE)
+    result = npcs_at_current_location(_WORLD_STATE)
     names = {n["name"] for n in result.values()}
     assert names == {"Marta", "Guard"}  # Aldric is elsewhere
 
 
 def test_npcs_at_current_location_empty_location_returns_all():
     ws = {**_WORLD_STATE, "meta": {}}
-    result = _npcs_at_current_location(ws)
+    result = npcs_at_current_location(ws)
     assert len(result) == 3  # fallback: all NPCs
 
 
 def test_prompts_loaded_from_yaml():
     # B-M6: prompt content is externalized to dm.yaml and loaded at import.
-    from app.ai.prompts.dm import BASE_DM_PROMPT, DEATH_MODE_PROMPTS
+    from app.ai.prompts.dm import BASE_DM_PROMPT
 
     assert BASE_DM_PROMPT.startswith("You are an expert Dungeon Master")
-    assert set(DEATH_MODE_PROMPTS) == {"ironman", "destino", "cronista"}
-    assert all(v.strip() for v in DEATH_MODE_PROMPTS.values())
