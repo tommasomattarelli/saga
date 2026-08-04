@@ -58,16 +58,6 @@ def test_resolve_from_state_always_tools():
     assert "heal" in tools
 
 
-def test_resolve_from_state_combat_active():
-    from app.ai.tools.tool_groups import resolve_active_tools_from_state
-
-    tools = resolve_active_tools_from_state(
-        {"combat_state": {"active": True}, "npcs": {}, "companions": {}}
-    )
-    assert "apply_damage" in tools
-    assert "end_combat" in tools
-
-
 def test_resolve_from_state_npcs_present():
     from app.ai.tools.tool_groups import resolve_active_tools_from_state
 

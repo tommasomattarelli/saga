@@ -242,7 +242,7 @@ features:
 
 # ---------------------------------------------------------------------------
 # Tool Groups — dynamic tool loading per world state
-# Conditions: "combat_active" | "npcs_present" | "companion_active"
+# Conditions: "npcs_present" | "companion_active"
 # ---------------------------------------------------------------------------
 tool_groups:
   core:
@@ -255,16 +255,8 @@ tool_groups:
       - update_quest
       - update_npc
       - request_dice     # every d20 check in the game, in or out of combat (ADR 0003 A1)
+      - attack           # ADR 0003 B4 — combat is not a mode, so this is always available
       - heal             # ADR 0003 B7 — replaces the free-number update_hp
-  combat_entry:
-    always: true
-    tools:
-      - start_combat
-  combat:
-    when: combat_active
-    tools:
-      - apply_damage
-      - end_combat
   social:
     when: npcs_present
     tools:

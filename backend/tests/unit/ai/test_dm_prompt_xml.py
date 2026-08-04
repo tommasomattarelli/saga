@@ -193,19 +193,6 @@ def test_quests_section():
     assert 'name="Who Am I?"' in prompt
 
 
-def test_combat_block_only_when_active():
-    ws_combat = {
-        **_WORLD_STATE,
-        "combat_state": {"active": True, "round": 2, "initiative_order": ["Eron", "Goblin"]},
-    }
-    campaign = _make_campaign(ws_combat, _CHAR_DATA)
-    prompt = build_dm_system_prompt(campaign)
-
-    assert '<combat active="true"' in prompt
-    assert "Eron" in prompt
-    assert "Goblin" in prompt
-
-
 def test_no_combat_block_when_inactive():
     campaign = _make_campaign(_WORLD_STATE, _CHAR_DATA)
     prompt = build_dm_system_prompt(campaign)

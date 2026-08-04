@@ -3,14 +3,12 @@
 from app.ai.tools.dm_tools import (
     VISIBLE_TOOLS,
     AddItem,
-    ApplyDamage,
+    Attack,
     ChangeNpcPsychology,
-    EndCombat,
     LogEvent,
     MoveTo,
     RemoveItem,
     SetSceneMood,
-    StartCombat,
     UpdateQuest,
     execute_tool,
     get_tool_schemas,
@@ -21,66 +19,28 @@ from app.ai.tools.dm_tools import (
 
 def test_get_tool_schemas_returns_all():
     schemas = get_tool_schemas()
-    assert len(schemas) == 18
     names = {s["function"]["name"] for s in schemas}
-    assert "start_combat" in names
-    assert "request_dice" in names
-    assert "invoke_npc" in names
+    assert len(schemas) == 16
+    assert {"attack", "request_dice", "heal", "invoke_npc"} <= names
+    # ADR 0003 B1/C1 — combat is not a mode, and no tool takes an HP number.
+    assert not names & {"start_combat", "end_combat", "apply_damage", "update_hp"}
 
 
 def test_schema_openai_format():
-    schema = StartCombat.to_openai_schema()
+    schema = Attack.to_openai_schema()
     assert schema["type"] == "function"
-    assert schema["function"]["name"] == "start_combat"
+    assert schema["function"]["name"] == "attack"
     assert "parameters" in schema["function"]
     assert schema["function"]["parameters"]["type"] == "object"
-    assert "enemies" in schema["function"]["parameters"]["properties"]
+    assert "attacker" in schema["function"]["parameters"]["properties"]
 
 
 def test_visible_tools_set():
     assert "request_dice" in VISIBLE_TOOLS
-    assert "apply_damage" in VISIBLE_TOOLS
-    assert "start_combat" in VISIBLE_TOOLS
+    assert "attack" in VISIBLE_TOOLS
+    assert "heal" in VISIBLE_TOOLS
     assert "log_event" not in VISIBLE_TOOLS
     assert "change_npc_psychology" not in VISIBLE_TOOLS
-
-
-# ── Combat tools ──────────────────────────────────────────────────────────────
-
-
-def test_start_combat_initializes_state():
-    enemies = [{"name": "Goblin", "hp": 10, "max_hp": 10}]
-    tool = StartCombat(enemies=enemies)
-    ws = {}
-    cd = {"abilities": {"DEX": 14}, "hp": {"current": 20, "max": 20}, "name": "Hero"}
-    result = tool.execute(ws, cd)
-    assert result.world_state.get("combat_state", {}).get("active") is True
-    order = result.world_state["combat_state"]["initiative_order"]
-    names = [c["name"] for c in order]
-    assert "Goblin" in names
-    assert "Hero" in names
-
-
-def test_end_combat_resets_state():
-    ws = {"combat_state": {"active": True, "round": 3}}
-    result = EndCombat().execute(ws, {})
-    assert result.world_state["combat_state"]["active"] is False
-    assert result.world_state["combat_state"]["round"] == 0
-
-
-def test_apply_damage_reduces_hp():
-    ws = {
-        "combat_state": {
-            "active": True,
-            "initiative_order": [{"name": "Goblin", "hp": 15, "max_hp": 15, "type": "enemy"}],
-            "current_turn_index": 0,
-        }
-    }
-    cd = {}
-    result = ApplyDamage(target="Goblin", amount=8).execute(ws, cd)
-    order = result.world_state["combat_state"]["initiative_order"]
-    goblin = next(c for c in order if c["name"] == "Goblin")
-    assert goblin["hp"] == 7
 
 
 # ── Inventory tools ───────────────────────────────────────────────────────────
