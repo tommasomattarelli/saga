@@ -64,7 +64,6 @@ ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
         "companions",
         "time_of_day",
         "weather",
-        "global_flags",
         "clock",
         "narrative",
         "fate_interventions_left",

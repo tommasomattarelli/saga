@@ -2,23 +2,6 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { Campaign, TurnResponse, WorldState, CharacterData } from "../types";
 
-const ALLOWED_WORLD_STATE_KEYS = new Set([
-  "meta",
-  "locations",
-  "factions",
-  "npcs",
-  "companions",
-  "time_of_day",
-  "weather",
-  "global_flags",
-  "clock",
-  "fate_interventions_left",
-]);
-
-const __DEV__ =
-  typeof window !== "undefined" &&
-  (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-
 interface GameState {
   campaign: Campaign | null;
   turnHistory: TurnResponse[];
@@ -67,12 +50,6 @@ export const useGameStore = create<GameState>()(
 
       updateWorldState: (updates) =>
         set((state) => {
-          if (__DEV__) {
-            const leaked = Object.keys(updates).filter((k) => !ALLOWED_WORLD_STATE_KEYS.has(k));
-            if (leaked.length > 0) {
-              console.warn("[game-store] WorldState leakage:", leaked);
-            }
-          }
           if (!state.campaign) return state;
           return {
             campaign: {

@@ -24,12 +24,6 @@ _WORLD_STATE = {
     "time_of_day": "evening",
     "weather": "light rain",
     "clock": {"total_minutes": 3 * 24 * 60 + 17 * 60},  # day 4, 17:00
-    "locations": {
-        "Thornhaven": {
-            "description": "A small village of timber-and-stone buildings.",
-            "connections": ["Shrine of First Light", "Forest Path", "North Road"],
-        }
-    },
     "npcs": {
         # uuid-keyed engine records (ADR 0009 F1); names live in the record.
         "11111111-0000-0000-0000-000000000001": {
@@ -53,13 +47,12 @@ _WORLD_STATE = {
             "location": "North Road",
         },
     },
-    "combat_state": {"active": False, "round": 0, "initiative_order": []},
 }
 
 _CHAR_DATA = {
     "name": "Eron",
-    "hp": 12,
-    "max_hp": 20,
+    # The production shape: apply_hp_delta writes {current, max}, never a scalar.
+    "hp": {"current": 12, "max": 20},
     "str": 16,
     "dex": 12,
     "con": 14,
@@ -93,17 +86,23 @@ def test_character_section_has_vitals():
     prompt = build_dm_system_prompt(campaign)
 
     assert 'name="Eron"' in prompt
-    assert 'hp="12/20"' in prompt
+    assert 'hp="wounded"' in prompt
     assert 'location="Thornhaven"' in prompt
 
 
-def test_location_section_has_description_and_connections():
-    campaign = _make_campaign(_WORLD_STATE, _CHAR_DATA)
-    prompt = build_dm_system_prompt(campaign)
-
-    assert "timber-and-stone" in prompt
-    assert "Forest Path" in prompt
-    assert "Connected to:" in prompt
+def test_character_hp_is_a_band_never_a_number():
+    """0003 computes every HP number; the DM narrates from a band and never does arithmetic."""
+    for hp, band in (
+        ({"current": 20, "max": 20}, "unharmed"),
+        ({"current": 16, "max": 20}, "grazed"),
+        ({"current": 12, "max": 20}, "wounded"),
+        ({"current": 6, "max": 20}, "bloodied"),
+        ({"current": 1, "max": 20}, "near_death"),
+    ):
+        campaign = _make_campaign(_WORLD_STATE, {**_CHAR_DATA, "hp": hp})
+        prompt = build_dm_system_prompt(campaign)
+        assert f'hp="{band}"' in prompt
+        assert f"{hp['current']}/{hp['max']}" not in prompt
 
 
 def test_npcs_filtered_to_current_location():
