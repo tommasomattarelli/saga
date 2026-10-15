@@ -28,6 +28,35 @@ jobs:
       - run: uv run vulture app --min-confidence 80
       - run: uv run python -m pytest tests/unit --noconftest -q
 
+  world-filesystem:
+    name: World filesystem (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - name: Test world files and path safety
+        run: >-
+          uv run --frozen python -m pytest --noconftest -q
+          tests/unit/core/test_world_path_security.py
+          tests/unit/core/test_world_writer.py
+          tests/unit/core/test_world_loader.py
+          tests/unit/core/test_world_library.py
+          tests/unit/services/test_world_archive_security.py
+          tests/unit/services/test_world_service.py
+
   backend-integration:
     name: Backend integration (pgvector)
     runs-on: ubuntu-latest

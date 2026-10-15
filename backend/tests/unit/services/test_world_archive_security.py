@@ -26,6 +26,8 @@ def archive_with(extra: str, mode: int = 0) -> bytes:
                 name.replace("the-awakening/", "imported-world/", 1), source.read(name)
             )
         entry = zipfile.ZipInfo(extra)
+        # ZipInfo normalizes backslashes on Windows; preserve the hostile name in the zip.
+        entry.filename = extra
         entry.create_system = 3
         entry.external_attr = mode << 16
         target.writestr(entry, b"private content")
@@ -43,6 +45,7 @@ def archive_with(extra: str, mode: int = 0) -> bytes:
         "imported-world/./notes.txt",
         "imported-world//notes.txt",
         "imported-world\\notes.txt",
+        "imported-world/notes\x00.txt",
         "imported-world/notes.txt:stream",
         "imported-world/NUL.txt",
         "imported-world/NUL .txt",

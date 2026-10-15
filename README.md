@@ -392,6 +392,9 @@ cd frontend && npm run test
 obligations under an empty vs. a saturated context — models are chosen on measurements,
 not on reputation.
 
+CI runs world loading, editing, import/export and path-safety tests on Linux, macOS
+and Windows for every pull request, including native junction checks on Windows.
+
 ## Contributing
 
 Issues and pull requests are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for setup,
