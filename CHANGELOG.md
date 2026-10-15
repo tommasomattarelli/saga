@@ -29,6 +29,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [UI] Fixed: a brand-new campaign showed no day count until enough time had passed, because the seeded clock carried only its raw minutes.
 
 ### Internal
+- Recorded the stabilization order: reproducible runtimes, vulnerable dependencies, provider credentials, quest persistence, then guided gameplay debugging.
 - World filesystem tests run on Linux, macOS and Windows for every PR, including native Windows junction checks.
 - Moved repository skills to `.agents/skills/`, fixed frontmatter validation, and aligned invocation, tools, and session checks with Codex and `AGENTS.md`.
 - Renamed the project guide to `AGENTS.md` and updated active documentation references.
