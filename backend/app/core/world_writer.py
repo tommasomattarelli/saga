@@ -9,7 +9,8 @@ from pathlib import Path
 
 import yaml
 
-from app.core.world_loader import WorldAsset
+from app.core.world_loader import WorldAsset, WorldLoadError
+from app.core.world_paths import is_world_slug, validate_world_tree
 
 
 def _clean(data: dict) -> dict:
@@ -68,7 +69,35 @@ def _dump(path: Path, data: dict) -> None:
     path.write_text(yaml.safe_dump(_clean(data), allow_unicode=True, sort_keys=False))
 
 
+def _validate_paths(payload: dict, target: Path) -> None:
+    for name in ("meta", "root", "taxonomy"):
+        if not isinstance(payload.get(name), dict):
+            raise WorldLoadError("World metadata, root and taxonomy must be mappings.")
+    if payload.get("scenario") is not None and not isinstance(payload["scenario"], dict):
+        raise WorldLoadError("World scenario must be a mapping.")
+    if not is_world_slug(target.name):
+        raise WorldLoadError("World directory must have a portable kebab-case name.")
+    for name in ("nodes", "edges", "factions", "npcs", "encounters"):
+        entries = payload.get(name, [])
+        if not isinstance(entries, list):
+            raise WorldLoadError("World collections must be lists of mappings.")
+        for entry in entries:
+            if not isinstance(entry, dict) or not is_world_slug(entry.get("slug")):
+                raise WorldLoadError("World entity slugs must be portable kebab-case names.")
+            if (
+                name == "nodes"
+                and entry.get("parent") is not None
+                and not is_world_slug(entry["parent"])
+            ):
+                raise WorldLoadError("World node parents must be portable kebab-case names.")
+    try:
+        validate_world_tree(target)
+    except ValueError as exc:
+        raise WorldLoadError(str(exc)) from exc
+
+
 def write_world(payload: dict, target: Path) -> None:
+    _validate_paths(payload, target)
     target.mkdir(parents=True, exist_ok=True)
 
     _dump(target / "world.yaml", {"meta": payload["meta"], **payload["root"]})
