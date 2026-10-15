@@ -1,21 +1,22 @@
 ---
 name: adr-implement
-description: Implement an already-designed ADR for SAGA — the half that starts where /adr stops. Runs the S0 pre-code design pass, sets up the sprint branch topology, drives each sprint TDD-first, and reconciles the ADR against what the code actually forced. Use when the owner says "implement ADR 0003", "let's do S2 of 0010", "start the 0012 sprints". NOT for designing: an undecided fork goes back to /adr.
+description: >-
+  Implement an already-designed ADR for SAGA — the half that starts where $adr stops. Runs the S0 pre-code design pass, sets up the sprint branch topology, drives each sprint TDD-first, and reconciles the ADR against what the code actually forced. Use when the owner says "implement ADR 0003", "let's do S2 of 0010", "start the 0012 sprints". NOT for designing: an undecided fork goes back to $adr.
 ---
 
-# /adr-implement — build what an ADR decided
+# $adr-implement — build what an ADR decided
 
-`/adr` ends at "propose a commit `docs(adr): add NNNN`". Everything after that lived only in
+`$adr` ends at "propose a commit `docs(adr): add NNNN`". Everything after that lived only in
 three branches of git history and nowhere in writing. This skill is that half.
 
-The mode is the **opposite** of `/adr`: there the owner decides everything and the skill never
+The mode is the **opposite** of `$adr`: there the owner decides everything and the skill never
 picks; here the skill decides constantly and writes code. The line between them is sharp — **if
-you hit a genuine design fork, stop and hand it back to `/adr`**, don't resolve it in an
+you hit a genuine design fork, stop and hand it back to `$adr`**, don't resolve it in an
 implementation commit.
 
 ## 0. Preconditions
 
-- Status must be **Proposed** (design closed). **WIP** → not implementable, run `/adr` first.
+- Status must be **Proposed** (design closed). **WIP** → not implementable, run `$adr` first.
   **Accepted** → already done; a change needs a superseding ADR.
 - Check the ADR index for `Blocked by`. A gate that isn't met is a stop, not a warning.
 - Read the ADR **in full**, not just its §7 plan — the plan omits constraints stated in the
@@ -31,8 +32,9 @@ Never open an editor first. S0 is one commit and it pays for itself every time.
   writes — there was no behaviour to port, and the sprint shrank to a deletion.
 - **Close the config-value TODOs.** Most Proposed ADRs defer numbers. Derive them where the ADR
   gives you the means (0003's difficulty ladder was solved backwards from three spreads §A3
-  already declared verified), then put them to the owner with **AskUserQuestion** — options with
-  `preview` blocks showing the actual YAML. Never invent a gameplay number silently.
+  already declared verified), then put them to the owner with the **available Codex question
+  tool**, showing the actual YAML and trade-offs. Wait for the answer before proceeding.
+  Never invent a gameplay number silently.
 - **Resize the sprints.** §7 plans are written at design time and routinely undershoot. Measure
   each sprint against the repo rule (a branch lands in six or seven commits at most) and **split
   along a seam**, not by count — 0003's S2 split into S2a (data layer, no new tool) and S2b
@@ -74,7 +76,7 @@ flows (std 5/11). Then, before merging the sprint:
   opening blow and so could not strike back — correct engine behaviour, wrong assumption in the
   test.
 - **Run the full check, not the tests.** `mypy` and `knip` are CI gates that a passing suite
-  says nothing about. The commands are in CLAUDE.md's Essential Commands; use them before every push.
+  says nothing about. The commands are in AGENTS.md's Essential Commands; use them before every push.
 - **A migration is only verified against real data.** Test fixtures build the schema with
   `create_all`, so no migration in this repo is exercised by the suite. A hand-built fixture reproduces your
   assumption, not the database. Run it against a real dev database, and make the migration
@@ -107,7 +109,7 @@ At the end of each sprint, run this checklist. Every one of these caught somethi
 Write the findings as a **dated implementation note** inside the ADR, next to the decision they
 correct: `**Sn note (YYYY-MM-DD, implementation).** …`. State what the code forced and why —
 a note records a constraint discovered, never a new decision. A design change found mid-sprint
-is a `/adr` question, not a note.
+is a `$adr` question, not a note.
 
 Commit separately: `docs(adr): NNNN Sn note — <one line>` (precedent: `0d06660`).
 

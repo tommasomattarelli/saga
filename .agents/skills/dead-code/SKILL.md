@@ -1,21 +1,22 @@
 ---
 name: dead-code
-description: Find and remove dead code in a given scope of SAGA — a whole stack (frontend / backend) or a sub-area (e.g. backend-ai, combat, memory, or a path). Two modes - symbol mode runs static analysis first (knip / vulture / ruff), key mode traces readers and writers of JSONB dict keys that static tools cannot see inside (world_state, character_data). Both context-verify before removal and are gated on a green tree before AND after. Cleanup only — never adds features. Use when the user says "dead-code <scope>", "find unused code in X", "clean up dead code", "dead keys", "who writes this key", "reader-writer audit".
+description: >-
+  Find and remove dead code in a given scope of SAGA — a whole stack (frontend / backend) or a sub-area (e.g. backend-ai, combat, memory, or a path). Two modes - symbol mode runs static analysis first (knip / vulture / ruff), key mode traces readers and writers of JSONB dict keys that static tools cannot see inside (world_state, character_data). Both context-verify before removal and are gated on a green tree before AND after. Cleanup only — never adds features. Use when the user says "dead-code in a scope", "find unused code in X", "clean up dead code", "dead keys", "who writes this key", "reader-writer audit".
 ---
 
-# /dead-code — find and remove dead code (gated)
+# $dead-code — find and remove dead code (gated)
 
 Two modes. Pick by what the deadness lives in:
 
 | Invocation | Mode | Finds |
 |---|---|---|
-| `/dead-code <scope>` | **symbol** | Unreferenced functions, exports, files, imports. Static tools do the first pass. |
-| `/dead-code keys <namespace>` | **key** | Dead *string keys* inside JSONB / dict payloads. Static tools are blind here — `state["foo"]` is a string, not a symbol. |
+| `$dead-code <scope>` | **symbol** | Unreferenced functions, exports, files, imports. Static tools do the first pass. |
+| `$dead-code keys <namespace>` | **key** | Dead *string keys* inside JSONB / dict payloads. Static tools are blind here — `state["foo"]` is a string, not a symbol. |
 
 `scope` = `frontend`, `backend`, or a narrower area / path (e.g. `backend-ai` → `backend/app/ai`, `combat`, `memory`).
 `namespace` = a payload whose shape is untyped and crosses layers — `world_state`, `character_data`, `npc` records, a tool's argument dict.
 
-Cleanup only, both modes: **never add functions or abstractions** (CLAUDE.md principle 2; the user's standing rule "senza aggiungere nuove funzioni").
+Cleanup only, both modes: **never add functions or abstractions** (AGENTS.md principle 2; the user's standing rule "senza aggiungere nuove funzioni").
 
 ## Mode: symbol — steps
 
@@ -29,14 +30,14 @@ Cleanup only, both modes: **never add functions or abstractions** (CLAUDE.md pri
    - backend: `cd backend && uv run vulture app --min-confidence 80` (scope to the sub-path if given, e.g. `app/ai`) + `uv run ruff check` for unused imports (F401).
 
 3. **Verify each candidate — confirm truly dead before removing**. Static tools flag false positives; check for: dynamic refs (`getattr`/`importlib`/registries), entrypoints (FastAPI routes, alembic, CLI, `__all__`), tool registration (`dm_tools`), test-only usage, config/string references, DI wiring.
-   - **Large scope** → fan out a few sonnet subagents (one per module), foreground, full findings reported back. **Small scope** → verify inline. Subagents only if genuinely necessary (the user's standing preference).
+   - Verify inline by default. For a large scope, use subagents only when delegation is authorized and genuinely necessary; follow the current environment's model-selection rules and collect their findings before removing anything.
 
 4. **Remove + re-test (green AFTER)**:
    - Remove only high-confidence, truly-unreferenced code.
    - **Ask the user** before removing low-confidence / ambiguous candidates.
    - Re-run the scope's tests. If anything goes red, revert that removal.
 
-5. **Report** — what was removed, what was left uncertain (and why), and the green→green confirmation. Propose a `refactor(<scope>): remove dead code` commit (one logical change); leave the commit to the user / `/wrap-up`.
+5. **Report** — what was removed, what was left uncertain (and why), and the green→green confirmation. Propose a `refactor(<scope>): remove dead code` commit (one logical change); leave the commit to the user / `$wrap-up`.
 
 ## Mode: key — steps
 
@@ -52,7 +53,7 @@ A key is dead when one side of the reader/writer pair is missing. The failure is
    - backend Python: `state["k"]`, `.get("k")`, `["k"] =`, `.setdefault("k")`, `.update({...})`, `.pop("k")`;
    - **prompts** (`app/ai/prompts/`) — an f-string interpolation is a real read, and the consumer is the LLM;
    - **tool schemas** (`dm_tools.py`) — a key the LLM is told to emit is a write from outside the codebase;
-   - alembic migrations, YAML templates (`templates/`), and the frontend (TS access + POST bodies).
+   - alembic migrations, authored YAML worlds (`worlds/`), `saga.config.yaml`, and the frontend (TS access + POST bodies).
 
 4. **Classify** — one row per key: `key | writers (file:line) | readers (file:line) | verdict`.
    - **orphan read** — read, never written. The bug class. Highest value, cheapest fix.
