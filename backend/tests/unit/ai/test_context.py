@@ -91,7 +91,7 @@ async def test_build_context(mocker):
         world_state={"time": {"time_of_day": "morning"}},
         difficulty=Difficulty.HARD,
         quests={"active": [{"title": "Quest"}]},
-        character_data={"hp": 10},
+        character_data={"hp": {"current": 10, "max": 10}},
     )
 
     ctx = await build_context(campaign, "I look around.", mock_db)
@@ -99,10 +99,8 @@ async def test_build_context(mocker):
     assert ctx.importance_score == 3
     # ADR 0003 B8 — death instructions no longer ride every prompt.
     assert "IRONMAN" not in ctx.system_prompt.upper()
-    assert len(ctx.active_quests) == 1
     assert ctx.messages[-1]["role"] == "user"
     assert ctx.messages[-1]["content"] == "I look around."
-    assert "Walked." in ctx.recent_events[0]
 
 
 @pytest.mark.asyncio
@@ -133,7 +131,7 @@ async def test_build_context_injects_recalled_memories(mocker):
         world_state={},
         difficulty=Difficulty.EASY,
         quests={},
-        character_data={"name": "Hero", "hp": 10, "max_hp": 10},
+        character_data={"name": "Hero", "hp": {"current": 10, "max": 10}},
     )
 
     ctx = await build_context(campaign, "I ask about the dragon", mock_db)
@@ -165,7 +163,7 @@ async def test_build_context_includes_global_summary(mocker):
         world_state={},
         difficulty=Difficulty.EASY,
         quests={},
-        character_data={"name": "Hero", "hp": 10, "max_hp": 10},
+        character_data={"name": "Hero", "hp": {"current": 10, "max": 10}},
         global_summary="The hero crossed the mountains and bargained with the witch.",
     )
 
@@ -219,7 +217,7 @@ async def test_build_context_token_cap_drops_oldest(mocker):
         world_state={},
         difficulty=Difficulty.EASY,
         quests={},
-        character_data={"name": "Hero", "hp": 10, "max_hp": 10},
+        character_data={"name": "Hero", "hp": {"current": 10, "max": 10}},
     )
 
     ctx = await build_context(campaign, "current action", mock_db)

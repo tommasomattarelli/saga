@@ -9,7 +9,7 @@ and decision logs in the same file.
 | Document | Type | Open it when you want to… |
 |---|---|---|
 | [`../README.md`](../README.md) | Tutorial / front door | Understand what SAGA is and run it for the first time |
-| [`../CLAUDE.md`](../CLAUDE.md) | Working rules | Know how we work here — principles, engineering standards, session protocol |
+| [`../AGENTS.md`](../AGENTS.md) | Working rules | Know how we work here — principles, engineering standards, session protocol |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | Change log | See what changed and when (curated, SemVer) |
 | [`../TODO.md`](../TODO.md) | Backlog | See what's next — `## NOW` is the active near-term work; the rest is the curated backlog |
 | [`AGENTIC_ARCHITECTURE.md`](AGENTIC_ARCHITECTURE.md) | Explanation | Understand *why* the agentic DM / LangGraph design is shaped this way |

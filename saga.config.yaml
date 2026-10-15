@@ -197,6 +197,22 @@ healing:
   dm_heal_cap: 3               # DM-initiated heals per game day
 
 # ---------------------------------------------------------------------------
+# Health bands — how the player's HP reaches the DM prompt
+#
+# 0003 draws every HP number in the engine, so the DM never needs the arithmetic:
+# it gets the band the ratio falls in. Numbers in the prompt invite the model to do
+# the sums again, which is the failure 0003 closed by construction. The UI keeps
+# showing the exact figures. Each entry is the lowest ratio that still earns the band.
+# ---------------------------------------------------------------------------
+health:
+  bands:
+    unharmed:   1.00
+    grazed:     0.75
+    wounded:    0.50
+    bloodied:   0.25
+    near_death: 0.00
+
+# ---------------------------------------------------------------------------
 # Campaign difficulty (ADR 0003 B8)
 #
 # Difficulty governs the DEATH POLICY only — rolls and damage are identical at every

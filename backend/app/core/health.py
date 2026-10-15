@@ -47,6 +47,19 @@ def draw_heal_amount(heal_class: HealClass, max_hp: int) -> int:
     return max(1, round(_draw_percentage(config["classes"], heal_class.value) * max_hp))
 
 
+def hp_band(hp: dict) -> str:
+    """Project {current, max} onto the band the DM narrates from — never a number."""
+    maximum = int(hp.get("max", 0) or 0)
+    if maximum <= 0:
+        return ""
+    ratio = int(hp.get("current", 0) or 0) / maximum
+    bands = load_saga_config()["health"]["bands"]
+    return next(
+        (name for name, floor in sorted(bands.items(), key=lambda b: -b[1]) if ratio >= floor),
+        "",
+    )
+
+
 def _current_day(world_state: dict) -> int:
     return GameClock(
         total_minutes=world_state.get("clock", {}).get("total_minutes", 0)

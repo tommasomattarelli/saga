@@ -23,8 +23,6 @@ class GameContext:
     system_prompt: str = ""
     messages: list[dict] = field(default_factory=list)
     importance_score: int = 5
-    active_quests: list[dict] = field(default_factory=list)
-    recent_events: list[str] = field(default_factory=list)
 
 
 def _estimate_tokens(text: str) -> int:
@@ -174,8 +172,6 @@ async def build_context(
         system_prompt=system_prompt,
         messages=budgeted_messages,
         importance_score=score_importance(player_action, campaign),
-        active_quests=campaign.quests.get("active", []) if campaign.quests else [],
-        recent_events=[t.summary or t.narration[:100] for t in recent_turns[-3:]],
     )
 
 
