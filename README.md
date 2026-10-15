@@ -310,12 +310,16 @@ editor reads and writes the same files, and the directory is a git repository, s
 edit is versioned and revertible. See
 [ADR 0008](docs/adr/0008-world-model-multilayer-yaml.md) for the model.
 
+World directories and entity filenames use portable kebab-case slugs. Worlds must
+contain real files and directories: symbolic links and Windows junctions are rejected.
+ZIP imports must use relative paths within a single world directory.
+
 Building more worlds — and making the DM use deep world detail without saturating its
 context — is the main open content track.
 
 ### Data portability
 
-Worlds export and import as JSON from the world library in the app. Campaigns export over
+Worlds export and import as ZIP archives from the world library in the app. Campaigns export over
 the API (`GET /api/export/{campaign_id}`); a button for it in the UI is still to come.
 Nothing you make is locked in.
 

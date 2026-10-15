@@ -15,6 +15,7 @@ import structlog
 import yaml
 
 from app.config_loader import load_saga_config
+from app.core.world_paths import is_world_slug
 
 logger = structlog.get_logger()
 
@@ -77,9 +78,24 @@ def ensure_library() -> Path:
     return worlds
 
 
+def _is_world_directory(candidate: Path) -> bool:
+    manifest = candidate / "world.yaml"
+    return (
+        is_world_slug(candidate.name)
+        and not candidate.is_symlink()
+        and not candidate.is_junction()
+        and not manifest.is_symlink()
+        and manifest.is_file()
+    )
+
+
 def world_path(slug: str) -> Path | None:
-    candidate = worlds_dir() / slug
-    return candidate if (candidate / "world.yaml").is_file() else None
+    if not is_world_slug(slug) or not worlds_dir().is_dir():
+        return None
+    for candidate in worlds_dir().iterdir():
+        if candidate.name == slug and _is_world_directory(candidate):
+            return candidate
+    return None
 
 
 def list_worlds() -> list[dict]:
@@ -87,9 +103,9 @@ def list_worlds() -> list[dict]:
     if not worlds_dir().is_dir():
         return cards
     for world in sorted(worlds_dir().iterdir()):
-        manifest = world / "world.yaml"
-        if not manifest.is_file():
+        if not _is_world_directory(world):
             continue
+        manifest = world / "world.yaml"
         try:
             meta = (yaml.safe_load(manifest.read_text()) or {}).get("meta", {})
         except yaml.YAMLError:
