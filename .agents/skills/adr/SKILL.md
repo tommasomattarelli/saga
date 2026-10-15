@@ -1,11 +1,12 @@
 ---
 name: adr
-description: Author or evolve an Architecture Decision Record for SAGA through a deep, structured interview. Use to create a new ADR, or to work on an existing WIP/Proposed one (e.g. "use /adr on 0009", "let's flesh out ADR 0010", "turn this into an ADR"). Interview-driven: the owner makes every call, the skill captures decisions, rejected alternatives, and open TODOs. Never edits an Accepted ADR — proposes a new one that supersedes it.
+description: >-
+  Author or evolve an Architecture Decision Record for SAGA through a deep, structured interview. Use to create a new ADR, or to work on an existing WIP/Proposed one (e.g. "use $adr on 0009", "let's flesh out ADR 0010", "turn this into an ADR"). Interview-driven: the owner makes every call, the skill captures decisions, rejected alternatives, and open TODOs. Never edits an Accepted ADR — proposes a new one that supersedes it.
 ---
 
-# /adr — author or evolve an Architecture Decision Record
+# $adr — author or evolve an Architecture Decision Record
 
-ADRs live in `docs/adr/NNNN-kebab-title.md`. The method is a **deep interview** where the **project owner makes every decision** — the skill never decides architecture for them (CLAUDE.md principle 1). It mirrors how the real ADRs were built: structured interview → (optional) validation research → written record.
+ADRs live in `docs/adr/NNNN-kebab-title.md`. The method is a **deep interview** where the **project owner makes every decision** — the skill never decides architecture for them (AGENTS.md principle 1). It mirrors how the real ADRs were built: structured interview → (optional) validation research → written record.
 
 ## 0. Pick the target
 
@@ -26,7 +27,7 @@ Before any option, establish: what exactly are we deciding; in which subsystem; 
 For every sub-question, one at a time, in order:
 1. **State the problem precisely** — and why it isn't obvious.
 2. **Lay out the realistic options** — 2-4 genuine candidates with their trade-offs, never strawmen. If you only see one option, say so and stress-test it rather than rubber-stamping.
-3. **The owner decides — via the AskUserQuestion tool.** Never assume, never pick silently, never "fill in the obvious." **Put each fork to the owner with AskUserQuestion**: the 2-4 genuine options (step 2) as the tool's options, your recommendation **first** and tagged `(Recommended)`, each option's trade-off in its `description`, and an option `preview` whenever a concrete artifact helps compare (schema shape, formula, file layout, contract). Don't bury a load-bearing choice in prose. Prefer **more, sharper questions over fewer broad ones** — one fork per question. If the owner is unsure, give a recommendation *with* reasoning — but the call is theirs.
+3. **The owner decides — via the available Codex question tool.** Use `request_user_input_async`, or `request_user_input` when available. Present the 2-4 genuine options (step 2), your recommendation first and tagged `(Recommended)`, and explain each trade-off. Include a concrete example in the question when it helps compare schemas, formulas, or file layouts. With an asynchronous question, wait for the answer before making the dependent decision. Never pick silently; if the owner is unsure, give a recommendation with reasoning, but the call is theirs.
 4. **Capture live** — the chosen option AND each rejected alternative **with the reason it lost** (this builds the Rejected-alternatives section in real time, while the reasoning is fresh).
 5. **Tag the outcome** — **Decided** (settled), **Refined** (will be / was hardened by research), or **TODO / Open assumption** (consciously deferred to implementation, with a note on *what* must be resolved and *when*).
 
@@ -57,7 +58,7 @@ Only when **every sub-question from 1a is either Decided/Refined or an explicit 
 ## 2. Validation research — only if genuinely needed
 
 After the interview, judge whether any decision rests on a **fragile or contested assumption** (external prior art, a competitor claim, a performance assumption).
-- **If yes and it matters** → offer a `/research` pass on exactly those fragile points before finalizing; fold the result back in, marking those items **Refined** and citing `scratch/research/<slug>.md`.
+- **If yes and it matters** → offer a `$research` pass on exactly those fragile points before finalizing; fold the result back in, marking those items **Refined** and citing `scratch/research/<slug>.md`.
 - **If not** → skip it and **state explicitly why** (e.g. "decisions stand on first principles and existing code; no external validation needed").
 
 This step covers **external** fragility (prior art, competitor claims, performance assumptions). Fragile **internal** assumptions — "this code path already exists / behaves like X" — are NOT research questions: verify them inline during the interview via the 1c grounding check, not here. Step 2 passing is no excuse for an unverified internal premise.
@@ -73,6 +74,6 @@ Match the existing ADRs. **Always**: `# ADR NNNN — <title>`, a header (**Statu
 ## 4. Close out
 
 - **Update the index — `docs/adr/README.md`.** A new ADR gets a row; an evolved one gets its **Status**, **Last movement** (today) and **In brief** brought back in line with what the ADR now says. The index is hand-maintained: skip this and it starts lying within two ADRs. Status uses the ADR's own word (`Accepted` / `Proposed` / `WIP`); "In brief" is 1-2 sentences on the direction, not a summary of the decisions.
-- Cross-link `TODO.md` **only for near-term, actionable** follow-ups, and move/tick any existing TODO items the ADR closes. A **far-future** ADR — one gated behind a dependency (e.g. 0009 sits behind 0005) — keeps its implementation TODOs in **its own Decided-vs-Open index**, NOT in `## NOW`: don't pollute the active list with work that can't start yet. State explicitly that you left them in the ADR.
-- Docs-as-code: propose a commit `docs(adr): add NNNN-<slug>` (or `docs(adr): expand NNNN …`); leave the commit to the user / `/wrap-up`.
+- Cross-link `TODO.md` **only for near-term, actionable** follow-ups, and delete existing TODO items the ADR closes. A **far-future** ADR — one gated behind a dependency (e.g. 0009 sits behind 0005) — keeps its implementation TODOs in **its own Decided-vs-Open index**, NOT in `## NOW`: don't pollute the active list with work that can't start yet. State explicitly that you left them in the ADR.
+- Docs-as-code: propose a commit `docs(adr): add NNNN-<slug>` (or `docs(adr): expand NNNN …`); leave the commit to the user / `$wrap-up`.
 - Never edit an Accepted ADR; WIP/Proposed stay open until the owner declares them Accepted.

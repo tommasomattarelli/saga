@@ -7,7 +7,7 @@
      I BUG non stanno qui: vanno su GitHub issue (AGENTS.md "Issue Convention"). -->
 
 ## NOW / prossimi
-<!-- Lavoro attivo near-term: /catchup legge questa sezione, /wrap-up la aggiorna. -->
+<!-- Lavoro attivo near-term: $catchup legge questa sezione, $wrap-up la aggiorna. -->
 [~] **playtest su `v0.2.0-beta.1`**: primo giro fatto, i bug sono su GitHub. Resta da fare: rifare i turni su un modello competente (il primo giro era free-tier, vedi il commento su #52) e i cicli 0005/0008 qui sotto.
 [~] **harness modelli (`backend/eval/`)**: fatto — 5 probe, scenari `empty`/`gold`/`bloat`/`contradiction`, colonna Δ, `--dry-run` per validare i prompt senza consumare quota. Il trascritto gold e' 25 turni ancorati al world reale, con lunghezza calibrata su produzione (1375 char/turno, misurati dal DB dev) e stato derivato replayando gli update negli handler veri. RESTA:
     [ ] **ri-derivare `gold`** (34 chiamate, `uv run python eval/derive.py gold`): la prima derivazione e' CONTAMINATA — girata prima del fix di #77, il `global_summary` e' il ragionamento del modello troncato a meta' parola, e il fixture e' stato rimesso a `derived: false` finche' non si rifa'. Da rifare dopo **#78**, non prima: #77 toglie il troncamento ma il ragionamento puo' ancora finire dentro la risposta.
