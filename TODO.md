@@ -8,6 +8,17 @@
 
 ## NOW / prossimi
 <!-- Lavoro attivo near-term: $catchup legge questa sezione, $wrap-up la aggiorna. -->
+
+Ordine di ripresa concordato (2026-10-15), prima di nuove funzionalita':
+
+[ ] **1. Ambiente riproducibile**: allineare Python e Node supportati tra sviluppo, CI, Docker e installer; serve una base stabile per distinguere bachi del gioco da incompatibilita' dell'ambiente. Lo [smoke macOS](https://github.com/tommasomattarelli/saga/actions/runs/38809439074) sceglie Python 3.15, incompatibile con il `psycopg-binary` bloccato; Windows e Linux hanno passato installazione e avvio.
+[ ] **2. Dipendenze vulnerabili**: aggiornamenti mirati, prima runtime e poi sviluppo, separando backend e frontend; valutare gli advisory residui e verificare le major necessarie prima del merge, per ridurre il rischio senza confonderlo con migrazioni funzionali.
+[ ] **3. Credenziali e provider**: seguire configurazione e chiavi fino alla richiesta effettiva (#65, #55, #56, #73, #74), cosi' il gioco usa il provider e il modello scelti e addebita la chiave prevista.
+[ ] **4. Quest e persistenza**: riallineare aggiornamenti, prompt, salvataggi ed export/import (#86), poi coprire le migrazioni; lo stato deve sopravvivere ai turni e ai ripristini prima di ampliare l'interfaccia.
+[ ] **5. Debug guidato del gioco**: scenari brevi con prompt effettivi, tool call e stato risultante, per separare difetti del codice da problemi del prompt o del modello; includere memoria e dialoghi NPC, quindi riprendere le valutazioni gia' predisposte.
+
+GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimangono i dettagli del backlog esistente.
+
 [~] **playtest su `v0.2.0-beta.1`**: primo giro fatto, i bug sono su GitHub. Resta da fare: rifare i turni su un modello competente (il primo giro era free-tier, vedi il commento su #52) e i cicli 0005/0008 qui sotto.
 [~] **harness modelli (`backend/eval/`)**: fatto — 5 probe, scenari `empty`/`gold`/`bloat`/`contradiction`, colonna Δ, `--dry-run` per validare i prompt senza consumare quota. Il trascritto gold e' 25 turni ancorati al world reale, con lunghezza calibrata su produzione (1375 char/turno, misurati dal DB dev) e stato derivato replayando gli update negli handler veri. RESTA:
     [ ] **ri-derivare `gold`** (34 chiamate, `uv run python eval/derive.py gold`): la prima derivazione e' CONTAMINATA — girata prima del fix di #77, il `global_summary` e' il ragionamento del modello troncato a meta' parola, e il fixture e' stato rimesso a `derived: false` finche' non si rifa'. Da rifare dopo **#78**, non prima: #77 toglie il troncamento ma il ragionamento puo' ancora finire dentro la risposta.
@@ -41,7 +52,6 @@
 ## infra / distribuzione
 [ ] debug con docker
 [ ] nginx: serve davvero?
-[ ] installer macOS: job `macos-smoke` in `installer-smoke.yml` DA VALIDARE al primo dispatch. Sospetto principale se rosso: `brew install pgvector` builda l'estensione contro il postgres di default di brew invece di `postgresql@16` (mismatch di linking). Non testabile in locale — solo via runner CI.
 [ ] icona custom `saga.ico` per la shortcut desktop (polish; la shortcut funziona anche senza)
 [ ] dependency updates (Dependabot, 1 PR raggruppata per ecosystem): VALIDARE prima del merge. Major che rompono = NON auto-merge, sono migrazioni: (a) **frontend** React 19 + `react-i18next` v17 — i18next 15→17 rompe tutte e 32 le suite di test (PR #17/18/19 chiuse per questo) → migrazione FE dedicata; (b) **backend** `google-genai` 1.68→2.9 — la CI mocka le chiamate LLM, quindi verde NON garantisce il runtime → smoke test contro l'API reale prima di fidarsi. Postura: patch/minor+security subito, major schedulati.
 [ ] CD: `release.yml` tag-triggered — DA FARE INSIEME a Docker→GHCR, non prima. `release.sh` pubblica gia' la Release e allega gli installer; un'Action solo per quello sarebbe over-engineering — si ripaga quando la CI deve BUILDARE artefatti che non vuoi sul laptop. PREREQUISITO: i Dockerfile attuali sono DEV-image (frontend = vite dev server; backend single-stage + bind-mount + `--reload`) → NON pubblicabili. Servono prima Dockerfile di PRODUZIONE e decidere se **una sola** immagine (FastAPI serve la SPA, ADR 0000) o due. Modello scelto: tag-triggered, cosi' la CI non scrive mai su `main`. Quando si fa → ADR "CD artefatti".

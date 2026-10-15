@@ -8,6 +8,7 @@ git; the library never holds an invalid world.
 import io
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 import zipfile
@@ -18,7 +19,8 @@ from fastapi import HTTPException, status
 
 from app.config_loader import load_saga_config
 from app.core.world_library import ensure_library, world_path, worlds_dir
-from app.core.world_loader import WorldLoadError, load_world
+from app.core.world_loader import WorldAsset, WorldLoadError, load_world
+from app.core.world_paths import is_portable_component, is_world_slug, validate_world_tree
 from app.core.world_validator import validate_world
 from app.core.world_writer import to_editable, write_world
 
@@ -31,10 +33,10 @@ def _max_depth() -> int:
 
 def _slugify(name: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-    if not slug:
+    if not is_world_slug(slug):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="World name must contain at least one letter or digit",
+            detail="World name must produce a portable kebab-case directory name",
         )
     return slug
 
@@ -74,14 +76,25 @@ def _git_rollback() -> None:
         logger.error("world_library_rollback_failed")
 
 
-def _validate_dir(world_dir: Path, slug: str) -> None:
+def _load_world(world_dir: Path) -> WorldAsset:
     try:
-        asset = load_world(world_dir)
+        return load_world(world_dir)
     except WorldLoadError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"World '{slug}' failed to load: {exc}",
+            detail=f"World failed to load: {exc}",
         ) from exc
+
+
+def _write_world(payload: dict, target: Path) -> None:
+    try:
+        write_world(payload, target)
+    except WorldLoadError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _validate_dir(world_dir: Path, slug: str) -> None:
+    asset = _load_world(world_dir)
     errors = validate_world(asset, max_depth=_max_depth())
     if errors:
         raise HTTPException(
@@ -109,7 +122,7 @@ def get_editable_world(slug: str) -> dict:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"World '{slug}' not found"
         )
-    return {"slug": slug, **to_editable(load_world(path))}
+    return {"slug": slug, **to_editable(_load_world(path))}
 
 
 def create_world(meta: dict) -> dict:
@@ -144,7 +157,7 @@ def create_world(meta: dict) -> dict:
         "npcs": [],
         "encounters": [],
     }
-    write_world(payload, worlds_dir() / slug)
+    _write_world(payload, worlds_dir() / slug)
     try:
         _validate_dir(worlds_dir() / slug, slug)
     except HTTPException:
@@ -164,7 +177,7 @@ def save_world(slug: str, payload: dict) -> dict:
 
     with tempfile.TemporaryDirectory() as tmp:
         staged = Path(tmp) / slug
-        write_world(payload, staged)
+        _write_world(payload, staged)
         _validate_dir(staged, slug)
         shutil.rmtree(target)
         shutil.copytree(staged, target)
@@ -196,6 +209,10 @@ def export_world(slug: str) -> bytes:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"World '{slug}' not found"
         )
+    try:
+        validate_world_tree(target)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         for file in sorted(target.rglob("*")):
@@ -215,6 +232,14 @@ def import_world(data: bytes) -> dict:
         ) from exc
 
     with tempfile.TemporaryDirectory() as tmp:
+        for entry in archive.infolist():
+            parts = entry.orig_filename.rstrip("/").split("/")
+            if any(not is_portable_component(part) for part in parts) or stat.S_ISLNK(
+                entry.external_attr >> 16
+            ):
+                raise HTTPException(
+                    status_code=422, detail="The world zip contains an unsafe path."
+                )
         archive.extractall(tmp)
         candidates = [p for p in Path(tmp).iterdir() if (p / "world.yaml").is_file()]
         if len(candidates) != 1:

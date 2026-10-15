@@ -14,6 +14,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ## [Unreleased]
 
 ### Highlights
+- [World & DM] World editing and import/export now reject unsafe paths, Windows device filenames, and symbolic links before accessing files outside a world.
 - [Gameplay] Dice rolls now work outside combat too — lockpicking, sneaking, persuading, climbing all resolve on the same d20 frame.
 - [Gameplay] The DM classifies how hard a task is instead of picking a target number, so the same obstacle stays as hard the second time you try it.
 - [Gameplay] Traps, falls and healing are computed by the engine as a share of your health, and no tool can invent an HP number any more.
@@ -28,6 +29,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [UI] Fixed: a brand-new campaign showed no day count until enough time had passed, because the seeded clock carried only its raw minutes.
 
 ### Internal
+- Recorded the stabilization order: reproducible runtimes, vulnerable dependencies, provider credentials, quest persistence, then guided gameplay debugging.
+- World filesystem tests run on Linux, macOS and Windows for every PR, including native Windows junction checks.
 - Moved repository skills to `.agents/skills/`, fixed frontmatter validation, and aligned invocation, tools, and session checks with Codex and `AGENTS.md`.
 - Renamed the project guide to `AGENTS.md` and updated active documentation references.
 - ADR 0003 is Accepted: implemented over S1–S4, with dated implementation notes recording where the code contradicted the design.

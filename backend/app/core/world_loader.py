@@ -11,6 +11,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ValidationError
 
+from app.core.world_paths import is_world_slug, validate_world_tree
 from app.models.world import (
     EdgeDef,
     EncounterTable,
@@ -22,7 +23,6 @@ from app.models.world import (
     WorldMeta,
     WorldNode,
     WorldRootFile,
-    is_valid_slug,
 )
 
 
@@ -71,7 +71,7 @@ def _parse[M: BaseModel](model: type[M], path: Path, data: dict, slug: str | Non
 
 def _slug_of(path: Path) -> str:
     slug = path.parent.name if path.name == "_node.yaml" else path.stem
-    if not is_valid_slug(slug):
+    if not is_world_slug(slug):
         raise WorldLoadError(f"{path}: '{slug}' is not a valid kebab-case slug")
     return slug
 
@@ -111,6 +111,10 @@ def _load_collection[M: BaseModel](directory: Path, model: type[M], target: dict
 
 def load_world(world_dir: Path) -> WorldAsset:
     world_dir = Path(world_dir)
+    try:
+        validate_world_tree(world_dir)
+    except ValueError as exc:
+        raise WorldLoadError(str(exc)) from exc
     for required in ("world.yaml", "taxonomy.yaml"):
         if not (world_dir / required).is_file():
             raise WorldLoadError(f"{world_dir}: missing {required}")
@@ -124,7 +128,7 @@ def load_world(world_dir: Path) -> WorldAsset:
     root_data = _read_yaml(world_dir / "world.yaml")
     root_file = _parse(WorldRootFile, world_dir / "world.yaml", root_data)
     root_slug = world_dir.name
-    if not is_valid_slug(root_slug):
+    if not is_world_slug(root_slug):
         raise WorldLoadError(f"world directory name '{root_slug}' is not a valid slug")
 
     asset = WorldAsset(path=world_dir, meta=root_file.meta, taxonomy=taxonomy, root_slug=root_slug)
