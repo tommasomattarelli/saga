@@ -233,11 +233,9 @@ def import_world(data: bytes) -> dict:
 
     with tempfile.TemporaryDirectory() as tmp:
         for entry in archive.infolist():
-            parts = entry.filename.rstrip("/").split("/")
-            if (
-                any(not is_portable_component(part) for part in parts)
-                or stat.S_ISLNK(entry.external_attr >> 16)
-                or "\x00" in entry.orig_filename
+            parts = entry.orig_filename.rstrip("/").split("/")
+            if any(not is_portable_component(part) for part in parts) or stat.S_ISLNK(
+                entry.external_attr >> 16
             ):
                 raise HTTPException(
                     status_code=422, detail="The world zip contains an unsafe path."

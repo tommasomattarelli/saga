@@ -1,4 +1,6 @@
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -104,6 +106,44 @@ def test_world_root_cannot_be_a_symlink(tmp_path: Path, payload: dict) -> None:
         write_world(payload, target)
 
     assert (outside / "world.yaml").read_bytes() == original
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="NTFS junctions require Windows")
+@pytest.mark.parametrize("linked", ["root", "nodes", "attachments"])
+def test_world_rejects_native_windows_junction(
+    tmp_path: Path, payload: dict, monkeypatch: pytest.MonkeyPatch, linked: str
+) -> None:
+    monkeypatch.setenv("SAGA_HOME", str(tmp_path))
+    target = tmp_path / "worlds" / "the-awakening"
+    outside = tmp_path / "outside"
+    if linked == "root":
+        shutil.copytree(EXAMPLE_WORLD, outside)
+        target.parent.mkdir()
+        link = target
+    else:
+        shutil.copytree(EXAMPLE_WORLD, target)
+        link = target / linked
+        if link.exists():
+            link.rename(outside)
+        else:
+            outside.mkdir()
+            (outside / "private.txt").write_text("private")
+    original = {p.relative_to(outside): p.read_bytes() for p in outside.rglob("*") if p.is_file()}
+    subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(link), str(outside)], check=True, capture_output=True
+    )
+    assert link.is_junction()
+
+    with pytest.raises(WorldLoadError, match="junctions"):
+        load_world(target)
+    with pytest.raises(WorldLoadError, match="junctions"):
+        write_world(payload, target)
+
+    if linked == "root":
+        assert world_library.world_path("the-awakening") is None
+    assert {
+        p.relative_to(outside): p.read_bytes() for p in outside.rglob("*") if p.is_file()
+    } == original
 
 
 @pytest.mark.parametrize("linked", ["world.yaml", "taxonomy.yaml", "nodes", "npcs", "notes.txt"])
