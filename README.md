@@ -412,6 +412,9 @@ ideas belong in [Discussions](https://github.com/tommasomattarelli/saga/discussi
 
 Copyright © 2026 SAGA contributors. Licensed under the [GNU AGPL-3.0](LICENSE).
 
+Class icons are artwork by the [Game Icons contributors](https://game-icons.net/about.html),
+licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) and rendered through React Icons.
+
 - **Playing, self-hosting, modifying, forking** — all fine, no permission needed.
 - **Redistributing it**, modified or not, means shipping the complete source under the
   same licence.
