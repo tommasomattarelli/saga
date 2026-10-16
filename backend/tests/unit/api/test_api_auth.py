@@ -1,8 +1,8 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import jwt
 from fastapi.testclient import TestClient
-from jose import jwt
 
 from app.api.auth import get_current_user
 from app.config import settings
