@@ -14,6 +14,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ## [Unreleased]
 
 ### Highlights
+- [Infra] Replaced python-jose with PyJWT, removing vulnerable legacy cryptography dependencies while preserving existing tokens, login and refresh behavior.
 - [Memory & AI] Removed direct Anthropic integration while preserving historical keys and Claude access through OpenRouter; retired provider selections now fail explicitly without fallback.
 - [Installer] Native installation now uses pinned Python and Node runtimes on every platform, avoiding unsupported system versions and the macOS dependency-installation failure.
 - [World & DM] World editing and import/export now reject unsafe paths, Windows device filenames, and symbolic links before accessing files outside a world.

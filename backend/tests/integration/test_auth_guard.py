@@ -22,7 +22,7 @@ async def test_expired_token_is_rejected(client: AsyncClient):
     """Verify that an expired JWT is rejected."""
     from datetime import UTC, datetime, timedelta
 
-    from jose import jwt
+    import jwt
 
     from app.config import settings
 
