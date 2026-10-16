@@ -14,7 +14,6 @@ fi
 FROM_LOCAL="${SAGA_FROM_LOCAL:-0}"
 PG_PORT="${SAGA_PG_PORT:-54320}"
 APP_PORT="${SAGA_APP_PORT:-8000}"
-NODE_VERSION="${SAGA_NODE_VERSION:-20.18.1}"
 PGVECTOR_VERSION="${SAGA_PGVECTOR_VERSION:-0.8.4}"
 NO_LAUNCH="${SAGA_NO_LAUNCH:-0}"
 REPO="https://github.com/tommasomattarelli/saga.git"
@@ -41,9 +40,13 @@ else
 fi
 [ -d "$APP_DIR/backend" ] || { echo "SAGA app not found at $APP_DIR"; exit 1; }
 
+if [ "$FROM_LOCAL" != "1" ]; then
+  # Provision with the selected release's scripts and runtime contract.
+  exec env SAGA_FROM_LOCAL=1 bash "$APP_DIR/install/linux-macos/install_saga.sh"
+fi
+
 mkdir -p "$INSTALL_ROOT"
 PGDATA="$INSTALL_ROOT/pgdata"
-OS="$(uname -s)"
 
 # --- uv ---------------------------------------------------------------------
 if ! command -v uv >/dev/null 2>&1; then
@@ -54,23 +57,7 @@ fi
 ok "uv: $(uv --version)"
 
 # --- node (portable tarball) ------------------------------------------------
-if ! command -v node >/dev/null 2>&1; then
-  case "$OS" in
-    Linux)  NODE_PLAT="linux-x64"; NODE_EXT="tar.xz" ;;
-    Darwin) NODE_PLAT="darwin-$([ "$(uname -m)" = arm64 ] && echo arm64 || echo x64)"; NODE_EXT="tar.gz" ;;
-    *) echo "Unsupported OS: $OS"; exit 1 ;;
-  esac
-  NODE_DIR="$INSTALL_ROOT/node/node-v$NODE_VERSION-$NODE_PLAT"
-  if [ ! -x "$NODE_DIR/bin/node" ]; then
-    step "Downloading portable Node.js $NODE_VERSION..."
-    mkdir -p "$INSTALL_ROOT/node"
-    curl -L "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-$NODE_PLAT.$NODE_EXT" \
-      -o "$INSTALL_ROOT/node/node.tar"
-    tar -xf "$INSTALL_ROOT/node/node.tar" -C "$INSTALL_ROOT/node"
-    rm -f "$INSTALL_ROOT/node/node.tar"
-  fi
-  export PATH="$NODE_DIR/bin:$PATH"
-fi
+source "$SCRIPT_DIR/ensure_node.sh"
 ok "node: $(node --version)"
 
 # --- Postgres + pgvector (OS package manager) -------------------------------
