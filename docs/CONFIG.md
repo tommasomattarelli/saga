@@ -35,12 +35,17 @@ dm_narration:
 
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
-| `provider` | string | `google` | `google` \| `openai` \| `anthropic` \| `local` |
+| `provider` | string | `google` | `google` \| `openai` \| `openrouter` \| `local` |
 | `model` | string | `gemini-3.5-flash` | Any model supported by the provider |
 | `temperature` | float | `0.8`–`0.9` | Higher = more creative, lower = more predictable (if supported by the provider)|
 | `max_tokens` | int | `20000`–`40000` | Output token limit. Increase for longer narrations. |
 
-**When to change**: Switch `high.model` to a premium model (e.g. `gemini-3.1-pro`, or `claude-opus-5` on `provider: anthropic`) for better narrative quality at dramatic peaks. Keep `low.model` cheap for routine turns.
+**When to change**: Switch `high.model` to a premium model (e.g. `gemini-3.1-pro`, or a Claude model on `provider: openrouter`) for better narrative quality at dramatic peaks. Keep `low.model` cheap for routine turns.
+
+Direct `provider: anthropic` is no longer supported and fails without fallback.
+To use Claude, explicitly select `openrouter`, an OpenRouter model ID and your
+OpenRouter key; Anthropic keys are not interchangeable. Historical encrypted keys
+are retained, and legacy `ANTHROPIC_API_KEY` entries are accepted but unused.
 
 ---
 
@@ -292,8 +297,8 @@ features:
 ```yaml
 dm_narration:
   high:
-    provider: anthropic
-    model: claude-opus-5   # best narrative quality for dramatic moments
+    provider: google
+    model: gemini-3.1-pro  # pro tier for dramatic moments
 gameplay:
   context_window_turns: 12  # more verbatim context
   context_token_cap: 60000

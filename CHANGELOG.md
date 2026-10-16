@@ -14,6 +14,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ## [Unreleased]
 
 ### Highlights
+- [Memory & AI] Removed direct Anthropic integration while preserving historical keys and Claude access through OpenRouter; retired provider selections now fail explicitly without fallback.
 - [Installer] Native installation now uses pinned Python and Node runtimes on every platform, avoiding unsupported system versions and the macOS dependency-installation failure.
 - [World & DM] World editing and import/export now reject unsafe paths, Windows device filenames, and symbolic links before accessing files outside a world.
 - [Gameplay] Dice rolls now work outside combat too — lockpicking, sneaking, persuading, climbing all resolve on the same d20 frame.
@@ -30,6 +31,9 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [UI] Fixed: a brand-new campaign showed no day count until enough time had passed, because the seeded clock carried only its raw minutes.
 
 ### Internal
+- Patched backend test dependencies, including pytest temporary-directory handling and Pygments parsing.
+- Updated LangGraph, checkpoints and LangSmith to security-fixed versions without changing provider SDKs, with backend unit and PostgreSQL integration coverage.
+- Patched backend HTTP, parsing and cryptography dependencies, with malformed-Host regressions and compatibility coverage for previously encrypted provider keys.
 - CI, Docker and native installation enforce the Python lockfile; launchers keep development dependencies excluded, and frontend installation uses standard peer resolution.
 - Native installers use the pinned Node version without replacing global runtimes, with real download and cache tests on Linux, macOS and Windows.
 - Pinned development, CI and Docker to Python 3.12.14 and Node 24.22.0, with runtime contract checks and unchanged dependency versions.
