@@ -3,7 +3,7 @@ FROM node:24.22.0-alpine
 WORKDIR /app
 
 COPY package.json package-lock.json .node-version .npmrc ./
-RUN npm ci --legacy-peer-deps
+RUN npm ci
 
 COPY . .
 

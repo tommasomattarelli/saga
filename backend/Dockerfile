@@ -9,10 +9,10 @@ RUN pip install --no-cache-dir uv
 
 # Copy lockfile first for layer caching — reinstall only if deps change
 COPY pyproject.toml uv.lock .python-version ./
-RUN uv sync --frozen --no-dev
+RUN uv sync --locked --no-dev
 
 COPY . .
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "--locked", "--no-dev", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -21,12 +21,12 @@ jobs:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
           python-version: "3.12.14"
-      - run: uv sync
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run mypy
-      - run: uv run vulture app --min-confidence 80
-      - run: uv run python -m pytest tests/unit --noconftest -q
+      - run: uv sync --locked
+      - run: uv run --locked ruff check .
+      - run: uv run --locked ruff format --check .
+      - run: uv run --locked mypy
+      - run: uv run --locked vulture app --min-confidence 80
+      - run: uv run --locked python -m pytest tests/unit --noconftest -q
 
   world-filesystem:
     name: World filesystem (${{ matrix.os }})
@@ -46,10 +46,10 @@ jobs:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
           python-version: "3.12.14"
-      - run: uv sync --frozen
+      - run: uv sync --locked
       - name: Test world files and path safety
         run: >-
-          uv run --frozen python -m pytest --noconftest -q
+          uv run --locked python -m pytest --noconftest -q
           tests/unit/core/test_world_path_security.py
           tests/unit/core/test_world_writer.py
           tests/unit/core/test_world_loader.py
@@ -86,13 +86,13 @@ jobs:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
           python-version: "3.12.14"
-      - run: uv sync
+      - run: uv sync --locked
       - name: Enable pgvector extension
         run: |
           sudo apt-get update && sudo apt-get install -y postgresql-client
           PGPASSWORD=saga_test psql -h localhost -p 5432 -U saga_test -d saga_test \
             -c "CREATE EXTENSION IF NOT EXISTS vector;"
-      - run: uv run python -m pytest tests/integration tests/playtest -q
+      - run: uv run --locked python -m pytest tests/integration tests/playtest -q
 
   frontend:
     name: Frontend
@@ -107,7 +107,7 @@ jobs:
           node-version-file: frontend/.node-version
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
       - run: npm run lint
       - run: npx prettier --check "src/**/*.{ts,tsx,json,css}"
       - run: npm run test -- --run

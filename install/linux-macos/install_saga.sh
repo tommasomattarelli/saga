@@ -143,9 +143,9 @@ fi
 
 # --- build ------------------------------------------------------------------
 step "Installing backend dependencies..."
-( cd "$APP_DIR/backend" && uv sync --no-dev )
+( cd "$APP_DIR/backend" && uv sync --locked --no-dev )
 step "Building frontend..."
-( cd "$APP_DIR/frontend" && npm ci --legacy-peer-deps && npm run build )
+( cd "$APP_DIR/frontend" && npm ci && npm run build )
 ok "Build complete"
 
 ok "Installation complete. Start SAGA with: install/start_saga.sh"

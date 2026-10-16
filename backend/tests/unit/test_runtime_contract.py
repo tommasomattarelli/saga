@@ -55,3 +55,64 @@ def test_ci_matches_runtime_pins() -> None:
     assert len(versions) == 3
     assert set(versions) == {python_version}
     assert "node-version-file: frontend/.node-version" in workflow
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "backend/Dockerfile",
+        "install/linux-macos/install_saga.sh",
+        "install/windows/install_saga.ps1",
+    ],
+)
+def test_installations_cannot_update_python_lock(path: str) -> None:
+    assert "uv sync --locked --no-dev" in (ROOT / path).read_text()
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "docker-compose.yml",
+        "install/linux-macos/start_saga.sh",
+        "install/windows/start_saga.ps1",
+    ],
+)
+def test_launchers_preserve_production_dependencies(path: str) -> None:
+    assert "uv run --locked --no-dev uvicorn" in (ROOT / path).read_text()
+
+
+def test_docker_default_preserves_production_dependencies() -> None:
+    dockerfile = (ROOT / "backend/Dockerfile").read_text()
+
+    assert '["uv", "run", "--locked", "--no-dev", "uvicorn"' in dockerfile
+
+
+def test_ci_cannot_update_python_lock() -> None:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+    commands = re.findall(r"uv (?:sync|run)[^\n]*", workflow)
+
+    assert commands
+    assert all("--locked" in command for command in commands)
+
+
+def test_installer_smoke_preserves_production_dependencies() -> None:
+    workflow = (ROOT / ".github/workflows/installer-smoke.yml").read_text()
+
+    assert "'run','--locked','--no-dev','uvicorn'" in workflow
+    assert workflow.count("uv run --locked --no-dev uvicorn") == 2
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        ".github/workflows/ci.yml",
+        "frontend/Dockerfile",
+        "install/linux-macos/install_saga.sh",
+        "install/windows/install_saga.ps1",
+    ],
+)
+def test_frontend_installation_uses_standard_peer_resolution(path: str) -> None:
+    source = (ROOT / path).read_text()
+
+    assert "npm ci" in source
+    assert "--legacy-peer-deps" not in source
