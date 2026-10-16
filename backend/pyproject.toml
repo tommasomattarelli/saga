@@ -2,7 +2,7 @@
 name = "saga-backend"
 version = "0.1.0"
 description = "SAGA - AI-Driven Tabletop RPG Backend"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 license = "AGPL-3.0-or-later"
 dependencies = [
     "fastapi>=0.115.0",
