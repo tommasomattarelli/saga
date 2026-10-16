@@ -14,6 +14,7 @@ and decision logs in the same file.
 | [`../TODO.md`](../TODO.md) | Backlog | See what's next — `## NOW` is the active near-term work; the rest is the curated backlog |
 | [`AGENTIC_ARCHITECTURE.md`](AGENTIC_ARCHITECTURE.md) | Explanation | Understand *why* the agentic DM / LangGraph design is shaped this way |
 | [`CONFIG.md`](CONFIG.md) | Reference | Look up a config knob in `saga.config.yaml` |
+| [`DEPENDENCY_SECURITY.md`](DEPENDENCY_SECURITY.md) | Security reference | Review dependency audits, accepted development-tool risks and verification evidence |
 | [`adr/`](adr/) | Decision records | Understand a specific architectural decision and its rationale |
 | [`archive/`](archive/) | Historical | Read past sprint notes, verification reports, and research (frozen) |
 

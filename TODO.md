@@ -11,7 +11,6 @@
 
 Ordine di ripresa concordato (2026-10-15), prima di nuove funzionalita':
 
-[ ] **2. Dipendenze vulnerabili**: aggiornamenti mirati, prima runtime e poi sviluppo, separando backend e frontend; valutare gli advisory residui e verificare le major necessarie prima del merge, per ridurre il rischio senza confonderlo con migrazioni funzionali.
 [ ] **3. Credenziali e provider**: seguire configurazione e chiavi fino alla richiesta effettiva (#65, #55, #56, #73, #74), cosi' il gioco usa il provider e il modello scelti e addebita la chiave prevista.
 [ ] **4. Quest e persistenza**: riallineare aggiornamenti, prompt, salvataggi ed export/import (#86), poi coprire le migrazioni; lo stato deve sopravvivere ai turni e ai ripristini prima di ampliare l'interfaccia.
 [ ] **5. Debug guidato del gioco**: scenari brevi con prompt effettivi, tool call e stato risultante, per separare difetti del codice da problemi del prompt o del modello; includere memoria e dialoghi NPC, quindi riprendere le valutazioni gia' predisposte.
@@ -52,7 +51,8 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 [ ] debug con docker
 [ ] nginx: serve davvero?
 [ ] icona custom `saga.ico` per la shortcut desktop (polish; la shortcut funziona anche senza)
-[ ] dependency updates (Dependabot, 1 PR raggruppata per ecosystem): VALIDARE prima del merge. Major che rompono = NON auto-merge, sono migrazioni: (a) **frontend** React 19 + `react-i18next` v17 — i18next 15→17 rompe tutte e 32 le suite di test (PR #17/18/19 chiuse per questo) → migrazione FE dedicata; (b) **backend** `google-genai` 1.68→2.9 — la CI mocka le chiamate LLM, quindi verde NON garantisce il runtime → smoke test contro l'API reale prima di fidarsi. Postura: patch/minor+security subito, major schedulati.
+[ ] **migrazioni frontend separate**: React 19 + `react-i18next` 17 (regressioni gia' viste nelle PR #17/18/19); Tailwind 4 per eliminare le catene CSS vulnerabili residue, con audit e verifica UI/build dedicati ([stato sicurezza](docs/DEPENDENCY_SECURITY.md)).
+[ ] **migrazione `google-genai` 1→2**: la CI mocka le chiamate LLM, quindi richiede uno smoke contro l'API reale prima del merge; non e' inclusa nella bonifica di sicurezza.
 [ ] CD: `release.yml` tag-triggered — DA FARE INSIEME a Docker→GHCR, non prima. `release.sh` pubblica gia' la Release e allega gli installer; un'Action solo per quello sarebbe over-engineering — si ripaga quando la CI deve BUILDARE artefatti che non vuoi sul laptop. PREREQUISITO: i Dockerfile attuali sono DEV-image (frontend = vite dev server; backend single-stage + bind-mount + `--reload`) → NON pubblicabili. Servono prima Dockerfile di PRODUZIONE e decidere se **una sola** immagine (FastAPI serve la SPA, ADR 0000) o due. Modello scelto: tag-triggered, cosi' la CI non scrive mai su `main`. Quando si fa → ADR "CD artefatti".
 
 ## world-building / template
