@@ -10,8 +10,11 @@ SAGA is an AI-driven tabletop RPG engine designed to replicate the infinite poss
 - **Data Sovereignty**: Open-source, self-hostable, with full campaign export/import (JSON).
 
 ## Essential Commands
+Runtime pins live in `backend/.python-version` and `frontend/.node-version`; select
+the pinned Node before frontend commands, while `uv` provisions the pinned Python.
+
 ### Backend (uv based)
-- **Install**: `cd backend && uv sync`
+- **Install**: `cd backend && uv sync --locked`
 - **Run**: `cd backend && uv run uvicorn app.main:app --reload`
 - **Test (unit, no infra)**: `cd backend && uv run python -m pytest tests/unit --noconftest -q`
 - **Test (all)**: `cd backend && uv run python -m pytest tests/unit tests/integration tests/playtest`
@@ -20,7 +23,7 @@ SAGA is an AI-driven tabletop RPG engine designed to replicate the infinite poss
 - **Migrations**: `cd backend && alembic upgrade head`
 
 ### Frontend (npm based)
-- **Install**: `cd frontend && npm install`
+- **Install**: `cd frontend && npm ci`
 - **Run**: `cd frontend && npm run dev`
 - **Test**: `cd frontend && npm run test`
 - **Lint/Format**: `cd frontend && npm run lint && npm run format`

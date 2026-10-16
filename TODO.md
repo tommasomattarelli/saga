@@ -11,7 +11,6 @@
 
 Ordine di ripresa concordato (2026-10-15), prima di nuove funzionalita':
 
-[ ] **1. Ambiente riproducibile**: allineare Python e Node supportati tra sviluppo, CI, Docker e installer; serve una base stabile per distinguere bachi del gioco da incompatibilita' dell'ambiente. Lo [smoke macOS](https://github.com/tommasomattarelli/saga/actions/runs/38809439074) sceglie Python 3.15, incompatibile con il `psycopg-binary` bloccato; Windows e Linux hanno passato installazione e avvio.
 [ ] **2. Dipendenze vulnerabili**: aggiornamenti mirati, prima runtime e poi sviluppo, separando backend e frontend; valutare gli advisory residui e verificare le major necessarie prima del merge, per ridurre il rischio senza confonderlo con migrazioni funzionali.
 [ ] **3. Credenziali e provider**: seguire configurazione e chiavi fino alla richiesta effettiva (#65, #55, #56, #73, #74), cosi' il gioco usa il provider e il modello scelti e addebita la chiave prevista.
 [ ] **4. Quest e persistenza**: riallineare aggiornamenti, prompt, salvataggi ed export/import (#86), poi coprire le migrazioni; lo stato deve sopravvivere ai turni e ai ripristini prima di ampliare l'interfaccia.

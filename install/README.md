@@ -30,15 +30,29 @@ Postgres 16 + pgvector via the OS package manager (brew on macOS, apt on Debian/
 Ubuntu), then builds and launches via `linux-macos/start_saga.sh`. The provider key
 goes in `~/.local/share/saga/app/backend/.env`, same as on Windows.
 
+## Runtime versions
+
+Each release uses the exact patches in [`backend/.python-version`](../backend/.python-version)
+and [`frontend/.node-version`](../frontend/.node-version). `uv` provisions Python
+automatically rather than selecting an arbitrary system version. Node is reused only
+when its version matches the pin; otherwise the installer downloads a private portable
+copy under the SAGA installation root without replacing the global Node installation.
+
+Installation uses `uv sync --locked --no-dev` and `npm ci`; launchers keep the lockfile
+enforced and development dependencies excluded. Linux/macOS bootstrap delegates to the
+selected release's installer, so scripts and runtime pins come from the same checkout.
+
 ## Files
 
 | File | Role |
 |---|---|
 | `windows/install_saga.bat` | Downloadable bootstrapper: ensures Git, clones, hands off to the `.ps1`. |
 | `windows/install_saga.ps1` | Provisioning: uv/Node, Postgres bundle, DB init, `.env`, build, shortcut. Use `-FromLocal` to run against a checkout (CI/dev). |
+| `windows/ensure_node.ps1` | Selects the pinned system Node or provisions a private portable copy. |
 | `windows/start_saga.ps1` | Launcher: starts Postgres → runs the backend (serves API + frontend) → stops Postgres on exit. |
 | `windows/uninstall_saga.ps1` | Stops Postgres and removes `%LOCALAPPDATA%\SAGA`. |
-| `linux-macos/*.sh` | The same three scripts for Linux/macOS. |
+| `linux-macos/*.sh` | Matching install, Node provisioning, launch and uninstall scripts for Linux/macOS. |
+| `tests/` | Node provisioning regression tests, including real downloads, cache reuse and nonconforming system runtimes. |
 | `build_bundle.ps1` | Maintainer-only: assembles the Postgres+pgvector bundle zip. |
 
 ## For maintainers — the Postgres+pgvector bundle

@@ -14,6 +14,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ## [Unreleased]
 
 ### Highlights
+- [Installer] Native installation now uses pinned Python and Node runtimes on every platform, avoiding unsupported system versions and the macOS dependency-installation failure.
 - [World & DM] World editing and import/export now reject unsafe paths, Windows device filenames, and symbolic links before accessing files outside a world.
 - [Gameplay] Dice rolls now work outside combat too — lockpicking, sneaking, persuading, climbing all resolve on the same d20 frame.
 - [Gameplay] The DM classifies how hard a task is instead of picking a target number, so the same obstacle stays as hard the second time you try it.
@@ -29,6 +30,9 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [UI] Fixed: a brand-new campaign showed no day count until enough time had passed, because the seeded clock carried only its raw minutes.
 
 ### Internal
+- CI, Docker and native installation enforce the Python lockfile; launchers keep development dependencies excluded, and frontend installation uses standard peer resolution.
+- Native installers use the pinned Node version without replacing global runtimes, with real download and cache tests on Linux, macOS and Windows.
+- Pinned development, CI and Docker to Python 3.12.14 and Node 24.22.0, with runtime contract checks and unchanged dependency versions.
 - Recorded the stabilization order: reproducible runtimes, vulnerable dependencies, provider credentials, quest persistence, then guided gameplay debugging.
 - World filesystem tests run on Linux, macOS and Windows for every PR, including native Windows junction checks.
 - Moved repository skills to `.agents/skills/`, fixed frontmatter validation, and aligned invocation, tools, and session checks with Codex and `AGENTS.md`.

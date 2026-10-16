@@ -37,7 +37,7 @@ services:
       - ./worlds:/worlds:z
       - saga_home:/root/.saga
       - ./saga.config.yaml:/config/saga.config.yaml:z
-    command: uv run --no-dev uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uv run --locked --no-dev uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
     build:

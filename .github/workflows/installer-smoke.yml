@@ -43,7 +43,7 @@ jobs:
           $out = "$env:TEMP\uvicorn.out"; $err = "$env:TEMP\uvicorn.err"
           $proc = Start-Process uv -WorkingDirectory backend -PassThru `
             -RedirectStandardOutput $out -RedirectStandardError $err `
-            -ArgumentList 'run','uvicorn','app.main:app','--host','127.0.0.1','--port','8000'
+            -ArgumentList 'run','--locked','--no-dev','uvicorn','app.main:app','--host','127.0.0.1','--port','8000'
           try {
             $ok = $false
             for ($i = 0; $i -lt 30; $i++) {
@@ -81,7 +81,7 @@ jobs:
           PGBIN=/usr/lib/postgresql/16/bin
           PGDATA="$HOME/.local/share/saga/pgdata"  # SAGA_INSTALL_ROOT default
           "$PGBIN/pg_ctl" -D "$PGDATA" -o "-p 54320 -k /tmp" -l /tmp/pg.log -w start
-          ( cd backend && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 ) &
+          ( cd backend && uv run --locked --no-dev uvicorn app.main:app --host 127.0.0.1 --port 8000 ) &
           UVPID=$!
           ok=0
           for _ in $(seq 1 30); do
@@ -111,7 +111,7 @@ jobs:
           PGBIN="$(brew --prefix postgresql@16)/bin"
           PGDATA="$HOME/.local/share/saga/pgdata"  # SAGA_INSTALL_ROOT default
           "$PGBIN/pg_ctl" -D "$PGDATA" -o "-p 54320 -k /tmp" -l /tmp/pg.log -w start
-          ( cd backend && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 ) &
+          ( cd backend && uv run --locked --no-dev uvicorn app.main:app --host 127.0.0.1 --port 8000 ) &
           UVPID=$!
           ok=0
           for _ in $(seq 1 30); do
