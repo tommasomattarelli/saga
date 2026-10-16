@@ -32,6 +32,11 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [UI] Fixed: a brand-new campaign showed no day count until enough time had passed, because the seeded clock carried only its raw minutes.
 
 ### Internal
+- Covered HTTP authentication and progressive narrative reveal, and enforced the existing frontend coverage thresholds in CI without lowering them.
+- Added behavioral coverage for world authoring, including taxonomy edits, node hierarchies, encounter tables and NPC field or psychology migrations.
+- Migrated Vitest and coverage together, patched frontend tooling, and made unused type exports internal to satisfy the updated Knip checks.
+- Replaced the legacy icon wrapper with tree-shakeable Game Icons exports, removing its React 16 and Webpack 4 dependency tree while preserving class selection.
+- Updated Axios and React Router to security-fixed releases without changing React or the application's routing behavior.
 - Patched backend test dependencies, including pytest temporary-directory handling and Pygments parsing.
 - Updated LangGraph, checkpoints and LangSmith to security-fixed versions without changing provider SDKs, with backend unit and PostgreSQL integration coverage.
 - Patched backend HTTP, parsing and cryptography dependencies, with malformed-Host regressions and compatibility coverage for previously encrypted provider keys.
