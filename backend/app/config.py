@@ -41,6 +41,7 @@ class Settings(BaseSettings):
         return self
 
     openai_api_key: str = ""
+    # Accept legacy .env entries without restoring the retired provider.
     anthropic_api_key: str = ""
     google_ai_api_key: str = ""
 
@@ -48,7 +49,7 @@ class Settings(BaseSettings):
     # Set SAGA_GLOBAL_MODEL_* to define the three reasoning tiers globally.
     # Fine-grained per-call overrides (SAGA_MODEL_DM_NARRATION_HIGH etc.) still
     # take precedence over these globals.
-    saga_global_provider: str = ""  # e.g. "google", "openai", "anthropic"
+    saga_global_provider: str = ""  # e.g. "google", "openai", "openrouter"
     saga_global_model_high: str = ""  # premium model — boss fights, dramatic moments
     saga_global_model_medium: str = ""  # standard model — normal gameplay
     saga_global_model_low: str = ""  # budget model  — background tasks, simple actions

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
@@ -17,7 +17,6 @@ async def get_settings(user: User = Depends(get_current_user)) -> dict:
     return {
         "preferred_language": user.preferred_language,
         "has_openai_key": bool(user.openai_api_key_enc),
-        "has_anthropic_key": bool(user.anthropic_api_key_enc),
         "has_google_key": bool(user.google_api_key_enc),
     }
 
@@ -41,11 +40,14 @@ async def update_api_keys(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    if "anthropic" in keys:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The direct Anthropic provider was removed; select OpenRouter explicitly.",
+        )
 
     if "openai" in keys and keys["openai"]:
         user.openai_api_key_enc = encrypt_api_key(keys["openai"])
-    if "anthropic" in keys and keys["anthropic"]:
-        user.anthropic_api_key_enc = encrypt_api_key(keys["anthropic"])
     if "google" in keys and keys["google"]:
         user.google_api_key_enc = encrypt_api_key(keys["google"])
     await db.commit()
