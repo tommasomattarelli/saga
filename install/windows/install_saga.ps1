@@ -21,8 +21,6 @@ param(
   [string]$BundleUrl = $(if ($env:SAGA_BUNDLE_URL) { $env:SAGA_BUNDLE_URL } else { "https://github.com/tommasomattarelli/saga/releases/download/bundle-pg16-v1/saga-pg-bundle-pg16.zip" }),
   [int]$PgPort = 54320,
   [int]$AppPort = 8000,
-  # Pinned portable Node.js LTS (downloaded from nodejs.org, no admin).
-  [string]$NodeVersion = "20.18.1",
   # Skip launching the app at the end (CI smoke).
   [switch]$NoLaunch
 )
@@ -70,19 +68,7 @@ if (-not (Test-Tool "uv")) { throw "uv install failed. Close this window and re-
 Write-Ok "uv: $(uv --version)"
 
 # --- Ensure node (portable zip, no admin) -----------------------------------
-if (-not (Test-Tool "node")) {
-  $nodeBin = Join-Path $InstallRoot "node\node-v$NodeVersion-win-x64"
-  if (-not (Test-Path (Join-Path $nodeBin "node.exe"))) {
-    Write-Step "Downloading portable Node.js $NodeVersion (no admin)..."
-    $nodeZip = Join-Path $env:TEMP "node.zip"
-    Invoke-WebRequest -Uri "https://nodejs.org/dist/v$NodeVersion/node-v$NodeVersion-win-x64.zip" -OutFile $nodeZip
-    New-Item -ItemType Directory -Force -Path (Join-Path $InstallRoot "node") | Out-Null
-    Expand-Archive -Path $nodeZip -DestinationPath (Join-Path $InstallRoot "node") -Force
-    Remove-Item $nodeZip -Force
-  }
-  $env:Path = "$nodeBin;$env:Path"
-}
-if (-not (Test-Tool "node")) { throw "Node provisioning failed." }
+. "$PSScriptRoot\ensure_node.ps1" -AppDir $AppDir -InstallRoot $InstallRoot
 Write-Ok "node: $(node --version)"
 
 # --- Provision Postgres + pgvector bundle -----------------------------------

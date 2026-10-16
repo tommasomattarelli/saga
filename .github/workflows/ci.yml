@@ -114,6 +114,29 @@ jobs:
       - run: npm run knip
       - run: npm run build
 
+  node-provisioning:
+    name: Node provisioning (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.node-version
+      - uses: astral-sh/setup-uv@v5
+      - name: Test isolated Node provisioning
+        working-directory: backend
+        run: uv run --locked python -m pytest ../install/tests --noconftest -q
+      - name: Check provisioning test style
+        working-directory: backend
+        run: |
+          uv run --locked ruff check ../install/tests
+          uv run --locked ruff format --check ../install/tests
+
   docker-build:
     name: Docker build smoke
     runs-on: ubuntu-latest
