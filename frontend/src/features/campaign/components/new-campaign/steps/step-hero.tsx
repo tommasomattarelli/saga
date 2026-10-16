@@ -1,15 +1,15 @@
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import {
-  CrossedSwords,
-  BatteredAxe,
-  WizardStaff,
-  Bowman,
-  HolySymbol,
-  HolyOak,
-  CrystalBall,
-} from "react-game-icons";
-import type { ComponentType } from "react";
+  GiCrossedSwords,
+  GiBatteredAxe,
+  GiWizardStaff,
+  GiBowman,
+  GiHolySymbol,
+  GiHolyOak,
+  GiCrystalBall,
+} from "react-icons/gi";
+import type { IconType } from "react-icons";
 import { CLASS_PRESETS } from "../../../data/class-presets";
 import { abilityMod } from "../../../../../shared/utils/dnd";
 import type { WorldOption } from "../../../../../shared/api/client";
@@ -27,16 +27,16 @@ interface Props {
   onNext: () => void;
 }
 
-const CLASS_ICONS: Record<string, ComponentType> = {
-  warrior: CrossedSwords,
-  rogue: BatteredAxe,
-  mage: WizardStaff,
-  ranger: Bowman,
-  cleric: HolySymbol,
-  bard: HolyOak,
+const CLASS_ICONS: Record<string, IconType> = {
+  warrior: GiCrossedSwords,
+  rogue: GiBatteredAxe,
+  mage: GiWizardStaff,
+  ranger: GiBowman,
+  cleric: GiHolySymbol,
+  bard: GiHolyOak,
 };
 
-const FALLBACK_ICON: ComponentType = CrystalBall;
+const FALLBACK_ICON: IconType = GiCrystalBall;
 
 export default function StepHero({ form, selectedWorld, onChange, onBack, onNext }: Props) {
   const { t } = useTranslation();
