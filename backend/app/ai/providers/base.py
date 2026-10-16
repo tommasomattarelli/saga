@@ -113,15 +113,15 @@ _providers: dict[str, AIProvider] = {}
 
 def get_provider(name: str) -> AIProvider:
     """Get a registered AI provider by name (lazy initialization)."""
+    if name == "anthropic":
+        raise ValueError(
+            "The direct Anthropic provider was removed; select OpenRouter explicitly."
+        )
     if name not in _providers:
         if name == "openai":
             from app.ai.providers.openai import OpenAIProvider
 
             _providers[name] = OpenAIProvider()
-        elif name == "anthropic":
-            from app.ai.providers.anthropic import AnthropicProvider
-
-            _providers[name] = AnthropicProvider()
         elif name == "google":
             from app.ai.providers.google import GoogleProvider
 
