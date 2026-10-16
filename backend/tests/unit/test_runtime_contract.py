@@ -15,6 +15,34 @@ def test_jwt_runtime_excludes_retired_crypto_dependencies() -> None:
     assert importlib.util.find_spec("ecdsa") is None
 
 
+def test_frontend_excludes_legacy_icon_build_dependencies() -> None:
+    frontend = ROOT / "frontend"
+    manifest = json.loads((frontend / "package.json").read_text())
+    packages = json.loads((frontend / "package-lock.json").read_text())["packages"]
+
+    assert "react-game-icons" not in manifest["dependencies"]
+    assert not any(
+        entry.get("version", "").startswith("4.")
+        for path, entry in packages.items()
+        if path.endswith("node_modules/webpack")
+    )
+
+
+def test_frontend_test_stack_excludes_retired_workers() -> None:
+    packages = json.loads((ROOT / "frontend/package-lock.json").read_text())["packages"]
+    vitest = packages["node_modules/vitest"]["version"]
+    coverage = packages["node_modules/@vitest/coverage-v8"]["version"]
+
+    assert vitest == coverage
+    assert int(vitest.split(".")[0]) >= 4
+    assert not any(path.endswith("node_modules/tinypool") for path in packages)
+    assert not any(
+        entry["version"].startswith("5.")
+        for path, entry in packages.items()
+        if path.endswith("node_modules/vite")
+    )
+
+
 def test_python_runtime_contract() -> None:
     backend = ROOT / "backend"
     version = (backend / ".python-version").read_text().strip()

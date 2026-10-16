@@ -122,7 +122,7 @@ export interface NpcFieldDef {
 
 /* ADR 0003 B3b — coarse archetypes carrying the statblock template. The `role`
    trait stays descriptive; the class decides how tough someone is. */
-export interface NpcClassDef {
+interface NpcClassDef {
   name: string;
   hp_class?: "weak" | "standard" | "tough" | "boss";
   defense?: string;
@@ -172,7 +172,7 @@ export const importWorld = (file: File) => {
   });
 };
 
-export interface MapNode {
+interface MapNode {
   name: string;
   kind: string;
   scale: "outdoor" | "interior";
