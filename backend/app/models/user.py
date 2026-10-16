@@ -23,6 +23,7 @@ class User(Base, UUIDMixin, TimestampMixin):
 
     # Encrypted AI API keys (AES-256)
     openai_api_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Retiring the provider must not destroy existing ciphertext.
     anthropic_api_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
     google_api_key_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
 
