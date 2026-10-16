@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import re
 import tomllib
@@ -6,6 +7,12 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
+
+
+def test_jwt_runtime_excludes_retired_crypto_dependencies() -> None:
+    assert importlib.util.find_spec("jwt") is not None
+    assert importlib.util.find_spec("jose") is None
+    assert importlib.util.find_spec("ecdsa") is None
 
 
 def test_python_runtime_contract() -> None:
