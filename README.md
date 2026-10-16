@@ -3,8 +3,8 @@
 [![CI](https://github.com/tommasomattarelli/saga/actions/workflows/ci.yml/badge.svg?event=pull_request)](https://github.com/tommasomattarelli/saga/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/tommasomattarelli/saga?include_prereleases&sort=semver)](https://github.com/tommasomattarelli/saga/releases)
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab)](backend/pyproject.toml)
-[![Node 20+](https://img.shields.io/badge/node-20+-5fa04e)](frontend/package.json)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab)](backend/pyproject.toml)
+[![Node 24 LTS](https://img.shields.io/badge/node-24_LTS-5fa04e)](frontend/package.json)
 
 A single-player tabletop RPG run by an expert AI Dungeon Master. You propose actions in
 plain language; the DM adjudicates them with dice and narrative logic. NPCs carry their
@@ -49,7 +49,7 @@ in character — including by refusing to answer. Turn numbers mark each exchang
 | [**Windows — one click**](#windows--one-click) | You just want to play | Windows 10/11 |
 | [**Linux / macOS — one script**](#linux--macos--one-script) | You just want to play | Homebrew or apt |
 | [**Docker**](#docker) | Anything else, or you already run containers | Docker Compose |
-| [**From source**](#from-source) | You want to change the code | uv · Node 20 · Postgres 16 |
+| [**From source**](#from-source) | You want to change the code | uv · Node 24 · Postgres 16 |
 
 Every route needs **one AI provider key** — OpenAI, Anthropic, Google, OpenRouter, or a
 local OpenAI-compatible server. Nothing else is a service you sign up for: the database,
@@ -121,17 +121,23 @@ docker compose up --build
 
 ### From source
 
+Use the exact Python and Node patches in [`backend/.python-version`](backend/.python-version)
+and [`frontend/.node-version`](frontend/.node-version), matching CI and Docker.
+`uv` downloads the pinned Python automatically; select the pinned Node with your version
+manager before installing frontend dependencies. The supported runtime lines are Python
+3.12 and Node 24 LTS; other minor/major lines are rejected by the package manifests.
+
 ```bash
 # backend — needs PostgreSQL 16 + pgvector reachable at DATABASE_URL
 cd backend
 cp ../.env.example .env       # the backend reads .env from its own directory
-uv sync
-alembic upgrade head
-uv run uvicorn app.main:app --reload --port 8000
+uv sync --locked
+uv run --locked alembic upgrade head
+uv run --locked uvicorn app.main:app --reload --port 8000
 
 # frontend
-cd frontend
-npm install
+cd ../frontend
+npm ci
 npm run dev
 ```
 
@@ -291,7 +297,7 @@ practice:
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 18, TypeScript, Tailwind CSS, Zustand, React Query, Vite |
-| Backend | Python 3.12+, FastAPI, SQLAlchemy 2.0 (async), Pydantic v2 |
+| Backend | Python 3.12, FastAPI, SQLAlchemy 2.0 (async), Pydantic v2 |
 | Database | PostgreSQL 16 + pgvector |
 | AI | OpenAI · Anthropic · Google Gemini · any OpenAI-compatible endpoint — routed by importance in `ai/router.py`; agent loop on **LangGraph 1.0** |
 | Transport | REST + JSON. Each turn is one independent POST returning the complete result; no WebSocket, no connection state |

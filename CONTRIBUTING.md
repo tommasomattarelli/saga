@@ -18,18 +18,23 @@ check there before proposing one, it may already be planned.
 
 ## Setting up
 
+Use the runtime patches in [`backend/.python-version`](backend/.python-version) and
+[`frontend/.node-version`](frontend/.node-version). `uv` provisions Python automatically;
+install/select the pinned Node with your version manager first. Python is limited to
+3.12 and Node to 24 LTS, matching the supported lines in CI, Docker and the installers.
+
 ```bash
 git clone https://github.com/tommasomattarelli/saga.git
 cd saga
 
 # backend
-cd backend && uv sync && cp ../.env.example .env
+cd backend && uv sync --locked && cp ../.env.example .env
 # point DATABASE_URL at your local Postgres, generate the two secrets:
 #   openssl rand -hex 32
-alembic upgrade head
+uv run --locked alembic upgrade head
 
 # frontend
-cd ../frontend && npm install
+cd ../frontend && npm ci
 ```
 
 You need PostgreSQL 16 with pgvector. `make test-infra-up` starts a throwaway one in
@@ -47,16 +52,34 @@ pre-commit install
 ```bash
 # backend
 cd backend
-uv run ruff check . && uv run ruff format --check .
-uv run mypy
-uv run python -m pytest tests/unit --noconftest -q      # no infrastructure needed
-make test-infra-up && uv run python -m pytest tests/integration
+uv run --locked ruff check . && uv run --locked ruff format --check .
+uv run --locked mypy
+uv run --locked vulture app --min-confidence 80
+uv run --locked python -m pytest tests/unit --noconftest -q
+make -C .. test-infra-up
+uv run --locked python -m pytest tests/integration tests/playtest
 
 # frontend
-cd frontend && npm run lint && npm run test
+cd ../frontend
+npm run lint
+npx prettier --check "src/**/*.{ts,tsx,json,css}"
+npx tsc --noEmit
+npm run knip
+npx vitest run
+npm run build
 ```
 
-CI runs the same set on every pull request.
+CI runs these checks on every pull request, plus Docker builds, installer syntax
+checks and cross-platform Node provisioning tests. To run provisioning tests locally,
+select the pinned Node and run from the repository root:
+
+```bash
+cd backend
+uv run --locked python -m pytest ../install/tests --noconftest -q
+```
+
+These download real Node archives and need internet access. Full native installer
+smoke is manual/scheduled.
 
 ## House rules
 
