@@ -132,13 +132,18 @@ if (-not (Test-Path $envPath)) {
 # --- Build backend + frontend ----------------------------------------------
 Write-Step "Installing backend dependencies (uv sync)..."
 Push-Location (Join-Path $AppDir "backend")
-try { uv sync --no-dev } finally { Pop-Location }
+try {
+  uv sync --locked --no-dev
+  if ($LASTEXITCODE -ne 0) { throw "Backend dependency installation failed." }
+} finally { Pop-Location }
 
 Write-Step "Building frontend (npm ci + build)..."
 Push-Location (Join-Path $AppDir "frontend")
 try {
-  npm ci --legacy-peer-deps
+  npm ci
+  if ($LASTEXITCODE -ne 0) { throw "Frontend dependency installation failed." }
   npm run build
+  if ($LASTEXITCODE -ne 0) { throw "Frontend build failed." }
 } finally { Pop-Location }
 Write-Ok "Build complete"
 

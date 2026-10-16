@@ -49,7 +49,7 @@ try {
   Write-Host "SAGA is starting at http://localhost:$AppPort  (close this window or press Ctrl+C to stop)" -ForegroundColor Green
   Push-Location (Join-Path $AppDir "backend")
   try {
-    uv run uvicorn app.main:app --host 127.0.0.1 --port $AppPort
+    uv run --locked --no-dev uvicorn app.main:app --host 127.0.0.1 --port $AppPort
   } finally { Pop-Location }
 } finally {
   Stop-Job $opener -ErrorAction SilentlyContinue

@@ -44,4 +44,4 @@ trap '"$PG_BIN/pg_ctl" -D "$PGDATA" -m fast -w stop >/dev/null 2>&1 || true' EXI
 ) &
 
 echo "SAGA at http://localhost:$APP_PORT  (Ctrl+C to stop)"
-( cd "$APP_DIR/backend" && uv run uvicorn app.main:app --host 127.0.0.1 --port "$APP_PORT" )
+( cd "$APP_DIR/backend" && uv run --locked --no-dev uvicorn app.main:app --host 127.0.0.1 --port "$APP_PORT" )
