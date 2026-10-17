@@ -36,6 +36,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Removed temperature plumbing, Cohere/Groq factories, and importance scoring; generation uses provider defaults while importance survives only as neutral turn metadata.
+
 - Generation calls resolve personal credentials before use, isolate cached clients by credential and endpoint, and reject unusable profiles before claiming a turn.
 - Replaced the provider tiers with one generation model: a single output cap in `saga.config.yaml`, a provider allowlist, migrated call sites and startup validation.
 - Added personal generation and embedding profiles, named local endpoints, and server-key fallback consent, with credential provenance in the settings API and migration 006.

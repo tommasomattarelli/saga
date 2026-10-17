@@ -8,8 +8,7 @@ actually have produced after those turns — not prose written for the fixture.
 
 Routing goes through the router exactly as production does, so there is no
 `--model` flag: the fixture is derived on whatever the operator has configured
-for background work. Override a single run with
-`SAGA_MODEL_MEMORY_COMPRESSION_DEFAULT`.
+in the instance generation default in `saga.config.yaml`.
 
 Every provider call is checkpointed. A free-tier daily cap hit halfway through
 must not throw away the calls already paid for — rerun and it resumes.

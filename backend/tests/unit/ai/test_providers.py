@@ -19,3 +19,4 @@ async def test_openai_generate(mocker):
 
     res = await provider.generate("sys", [{"role": "user", "content": "hi"}])
     assert res == "openai_response"
+    assert "temperature" not in provider.client.chat.completions.create.call_args.kwargs
