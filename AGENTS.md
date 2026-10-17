@@ -39,6 +39,7 @@ instead of `bash ../scripts/with_node.sh`. Launchers reuse the native installer 
 ### Infrastructure (Docker)
 - **Up**: `make test-infra-up` (Test DB) | `docker-compose up -d` (Prod-like)
 - **Down**: `make test-infra-down` | `docker-compose down`
+- **Full tests**: `make test-all` starts the test DB, runs backend and frontend tests, and tears the DB down even after failures.
 
 ### Release (maintainer)
 - **Preview**: `bash scripts/release.sh <version> --dry-run` (renders the changelog + diff + the exact git/gh commands, then reverts — no changes kept)

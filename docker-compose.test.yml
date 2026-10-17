@@ -9,7 +9,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:z
     # Use tmpfs for ultra-fast, non-persistent test data
     tmpfs:
       - /var/lib/postgresql/data

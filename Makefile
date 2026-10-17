@@ -1,7 +1,7 @@
 # Makefile for SAGA
 
 .PHONY: help lint lint-backend lint-frontend knip format format-backend format-frontend \
-        test test-backend test-frontend test-all \
+        test test-backend test-backend-all test-frontend test-all \
         test-infra-up test-infra-down check clean
 
 # Cross-platform shell selection: PowerShell on Windows, sh elsewhere.
@@ -15,12 +15,14 @@ ifeq ($(OS),Windows_NT)
 	SUBMAKE := & "$(MAKE)"
 	WITH_NODE := & "../scripts/with_node.ps1"
 	RUN_FULL_SUITE := cd backend; $$env:TEST_DATABASE_URL='$(TEST_DB_URL)'; uv run python -m pytest tests/unit tests/integration tests/playtest
+	RUN_ALL_TESTS = $$result = 0; try { foreach ($$target in @('test-infra-up', 'test-backend-all', 'test-frontend')) { $(SUBMAKE) $$target; if ($$LASTEXITCODE -ne 0) { $$result = $$LASTEXITCODE; break } } } finally { $(SUBMAKE) test-infra-down; if ($$result -eq 0) { $$result = $$LASTEXITCODE } }; exit $$result
 	CLEAN_CACHES := if (Test-Path backend/__pycache__) { Remove-Item -Recurse -Force backend/__pycache__ }; if (Test-Path backend/.pytest_cache) { Remove-Item -Recurse -Force backend/.pytest_cache }; if (Test-Path backend/.ruff_cache) { Remove-Item -Recurse -Force backend/.ruff_cache }
 else
 	SHELL := /bin/sh
 	SUBMAKE := $(MAKE)
 	WITH_NODE := bash ../scripts/with_node.sh
 	RUN_FULL_SUITE := cd backend; TEST_DATABASE_URL='$(TEST_DB_URL)' uv run python -m pytest tests/unit tests/integration tests/playtest
+	RUN_ALL_TESTS = trap 'status=$$?; $(SUBMAKE) test-infra-down; cleanup=$$?; if [ "$$status" -ne 0 ]; then exit "$$status"; fi; exit "$$cleanup"' EXIT; $(SUBMAKE) test-infra-up && $(SUBMAKE) test-backend-all && $(SUBMAKE) test-frontend
 	CLEAN_CACHES := rm -rf backend/__pycache__ backend/.pytest_cache backend/.ruff_cache
 endif
 
@@ -30,7 +32,7 @@ help:
 	@echo "  make knip          Find unused code/deps in frontend"
 	@echo "  make format        Auto-fix code style issues"
 	@echo "  make test          Run unit tests"
-	@echo "  make test-all      Run all tests (Unit + Integration + Playtest)"
+	@echo "  make test-all      Run backend and frontend tests (with test DB)"
 	@echo "  make check         Full CI-like check"
 
 # --- LINTING & FORMATTING ---
@@ -67,6 +69,9 @@ test-backend:
 	@echo "Running backend unit tests..."
 	cd backend; uv run python -m pytest tests/unit
 
+test-backend-all:
+	$(RUN_FULL_SUITE)
+
 test-frontend:
 	@echo "Running frontend unit tests..."
 	cd frontend; $(WITH_NODE) npm run test -- --run
@@ -80,10 +85,8 @@ test-infra-down:
 	docker compose -f docker-compose.test.yml down
 
 test-all:
-	@echo "Running full test suite (Unit + Integration + Playtest)..."
-	-$(SUBMAKE) test-infra-up
-	$(RUN_FULL_SUITE)
-	-$(SUBMAKE) test-infra-down
+	@echo "Running backend and frontend test suites..."
+	@$(RUN_ALL_TESTS)
 
 # Comprehensive CI Check
 check: format lint test-all
