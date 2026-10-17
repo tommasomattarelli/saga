@@ -128,7 +128,10 @@ jobs:
         with:
           node-version-file: frontend/.node-version
       - uses: astral-sh/setup-uv@v5
-      - name: Test isolated Node provisioning
+      - name: Install GNU Make (Windows)
+        if: runner.os == 'Windows'
+        run: choco install make --yes --no-progress
+      - name: Test runtime provisioning and test workflow
         working-directory: backend
         run: uv run --locked python -m pytest ../install/tests --noconftest -q
       - name: Check provisioning test style
