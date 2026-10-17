@@ -12,7 +12,7 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.router import AICallType, get_gameplay_config, route_ai_call
+from app.ai.router import get_gameplay_config, get_instance_default
 from app.memory.compressor import summary_from
 from app.models.campaign import Campaign
 from app.models.turn import Turn
@@ -52,15 +52,9 @@ def _format_turns(turns: list[Turn]) -> str:
 
 
 async def _generate_summary(prompt: str) -> str | None:
-    from app.ai.context import GameContext
     from app.ai.providers.base import get_provider, logged_generate
 
-    dummy_context = GameContext(
-        system_prompt="",
-        messages=[],
-        importance_score=0,
-    )
-    model_config = await route_ai_call(AICallType.MEMORY_COMPRESSION, dummy_context)
+    model_config = get_instance_default()
     provider = get_provider(model_config.provider)
 
     try:
@@ -70,7 +64,6 @@ async def _generate_summary(prompt: str) -> str | None:
             system_prompt="You maintain a compact rolling summary for an ongoing RPG campaign.",
             messages=[{"role": "user", "content": prompt}],
             model=model_config.model,
-            temperature=0.3,
             max_tokens=model_config.max_tokens,
             json_mode=True,
         )

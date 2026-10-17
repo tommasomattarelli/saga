@@ -105,12 +105,12 @@ Until a user configures their own, the instance default (provider + model) appli
 first turn starts only when a usable credential exists — personal or consented fallback;
 otherwise the error names exactly what is missing.
 
-### A7 — Legacy environment variables are removed with an explicit startup error (Decided)
+### A7 — Legacy environment variables are removed (Decided)
 
 `SAGA_GLOBAL_PROVIDER`, `SAGA_GLOBAL_MODEL_HIGH/MEDIUM/LOW`, and
-`SAGA_MODEL_<CALL_TYPE>_<TIER>[_PROVIDER]` are removed from the project. If present at
-startup, the server fails with an explicit message naming them. No implicit conversion —
-the single-model contract is declared, never guessed.
+`SAGA_MODEL_<CALL_TYPE>_<TIER>[_PROVIDER]` are removed from the project: nothing reads
+them any more, and a leftover value in `.env` is simply ignored — delete it. No implicit
+conversion: the single-model contract is declared, never guessed.
 
 ### A8 — Where configuration lives (Decided)
 
@@ -197,7 +197,7 @@ commits per the commit convention:
 2. `feat(config): single-model provider configuration with startup validation (ADR 0018 A1–A2, A5–A7)`
    — rewrite `saga.config.yaml` (generation block, output cap 60000, provider allowlist,
    named local endpoints, instance default, embedding block; no tiers, no temperatures);
-   startup validation; explicit failure on legacy env vars.
+   startup validation; legacy env vars removed from the project and from .env.example.
 3. `feat(auth): per-user provider settings and fallback consent (ADR 0018 A3–A4)` —
    settings API: personal generation and embedding configuration, `openrouter` key column
    (migration), per-provider consent for server fallback, credential provenance in the

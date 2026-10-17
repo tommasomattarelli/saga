@@ -42,12 +42,10 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 from scenario_build import BUILT, load_transcript  # noqa: E402
 
-from app.ai.context import GameContext  # noqa: E402
 from app.ai.router import (  # noqa: E402
-    AICallType,
     get_gameplay_config,
+    get_instance_default,
     get_summarization_config,
-    route_ai_call,
 )
 
 # Private helpers on purpose: the point of this pass is to drive the production
@@ -264,11 +262,8 @@ def resolve_recall(probes: dict[str, dict], corpus: list[dict]) -> dict[str, lis
 # --- entry point ------------------------------------------------------------
 
 
-async def resolve_model() -> Any:
-    empty = GameContext(
-        system_prompt="", messages=[], importance_score=0, active_quests=[], recent_events=[]
-    )
-    return await route_ai_call(AICallType.MEMORY_COMPRESSION, empty)
+def resolve_model() -> Any:
+    return get_instance_default()
 
 
 def call_budget(turn_count: int, window: int) -> dict[str, int]:
@@ -299,7 +294,7 @@ async def main() -> None:
     scenario = yaml.safe_load(path.read_text(encoding="utf-8"))
     window = scenario["meta"]["active_window_turns"]
 
-    model_config = await resolve_model()
+    model_config = resolve_model()
     budget = call_budget(len(turns), window)
     print(f"{name}: {len(turns)} turns, active window {window}")
     print(f"  routing to {model_config.provider} / {model_config.model}")

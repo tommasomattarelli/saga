@@ -9,10 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.router import (
-    AICallType,
     get_gameplay_config,
+    get_instance_default,
     get_summarization_config,
-    route_ai_call,
 )
 from app.ai.sanitizer import parse_json_payload
 from app.models.turn import Turn
@@ -73,7 +72,6 @@ def summary_from(raw: str) -> str | None:
 
 async def compress_turns_batch_llm(turns: list[Turn]) -> str | None:
     """Compress a batch of turns into a 2-3 sentence summary via budget LLM (single attempt)."""
-    from app.ai.context import GameContext
     from app.ai.providers.base import get_provider, logged_generate
 
     turns_text = "\n".join(
@@ -81,12 +79,7 @@ async def compress_turns_batch_llm(turns: list[Turn]) -> str | None:
         for t in turns
     )
 
-    dummy_context = GameContext(
-        system_prompt="",
-        messages=[],
-        importance_score=0,
-    )
-    model_config = await route_ai_call(AICallType.MEMORY_COMPRESSION, dummy_context)
+    model_config = get_instance_default()
     provider = get_provider(model_config.provider)
 
     try:
@@ -98,7 +91,6 @@ async def compress_turns_batch_llm(turns: list[Turn]) -> str | None:
                 {"role": "user", "content": COMPRESSION_PROMPT.format(turns_text=turns_text)}
             ],
             model=model_config.model,
-            temperature=0.3,
             max_tokens=model_config.max_tokens,
             json_mode=True,
         )
