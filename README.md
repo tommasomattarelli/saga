@@ -51,7 +51,7 @@ in character — including by refusing to answer. Turn numbers mark each exchang
 | [**Docker**](#docker) | Anything else, or you already run containers | Docker Compose |
 | [**From source**](#from-source) | You want to change the code | uv · Node 24 · Postgres 16 |
 
-Every route needs **one AI provider key** — OpenAI, Anthropic, Google, OpenRouter, or a
+Every route needs **one AI provider key** — OpenAI, Google, OpenRouter, or a
 local OpenAI-compatible server. Nothing else is a service you sign up for: the database,
 the game and your campaigns all live on your machine.
 
@@ -285,7 +285,7 @@ SAGA routes each call to a tier by importance, so you are not paying premium rat
 background world simulation — see [`docs/CONFIG.md`](docs/CONFIG.md). What matters in
 practice:
 
-- **Best experience**: a frontier model on the narration tier (Gemini 3.1 Pro, Claude Opus 5,
+- **Best experience**: a frontier model on the narration tier (Gemini 3.1 Pro, Claude via OpenRouter,
   GPT-5.5) with a cheap model on the background tiers. That is what the shipped defaults do.
 - **Free tiers**: usable to try it out, but they saturate fast and the weakest models skip
   tool calls or drift out of English — a measured, known limitation, not a mystery.
@@ -299,7 +299,7 @@ practice:
 | Frontend | React 18, TypeScript, Tailwind CSS, Zustand, React Query, Vite |
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2.0 (async), Pydantic v2 |
 | Database | PostgreSQL 16 + pgvector |
-| AI | OpenAI · Anthropic · Google Gemini · any OpenAI-compatible endpoint — routed by importance in `ai/router.py`; agent loop on **LangGraph 1.0** |
+| AI | OpenAI · Google Gemini · OpenRouter · any OpenAI-compatible endpoint — routed by importance in `ai/router.py`; agent loop on **LangGraph 1.0** |
 | Transport | REST + JSON. Each turn is one independent POST returning the complete result; no WebSocket, no connection state |
 | Auth | JWT + bcrypt; provider keys read from the environment, never sent anywhere but the provider |
 | Infra | Docker Compose, GitHub Actions, native installers for Windows/Linux/macOS |
@@ -411,6 +411,9 @@ ideas belong in [Discussions](https://github.com/tommasomattarelli/saga/discussi
 ## License
 
 Copyright © 2026 SAGA contributors. Licensed under the [GNU AGPL-3.0](LICENSE).
+
+Class icons are artwork by the [Game Icons contributors](https://game-icons.net/about.html),
+licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) and rendered through React Icons.
 
 - **Playing, self-hosting, modifying, forking** — all fine, no permission needed.
 - **Redistributing it**, modified or not, means shipping the complete source under the

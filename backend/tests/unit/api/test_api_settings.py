@@ -16,7 +16,6 @@ def mock_user_dependency(mocker):
     mock_user.id = uuid.uuid4()
     mock_user.preferred_language = "en"
     mock_user.openai_api_key_enc = b"encrypted_key"
-    mock_user.anthropic_api_key_enc = None
     mock_user.google_ai_api_key_enc = None
 
     async def override_get_current_user():
@@ -32,7 +31,7 @@ def test_get_settings(mock_user_dependency):
     data = response.json()
     assert data["preferred_language"] == "en"
     assert data["has_openai_key"] is True
-    assert data["has_anthropic_key"] is False
+    assert "has_anthropic_key" not in data
 
 
 def test_update_settings(mocker, mock_user_dependency):
@@ -64,9 +63,7 @@ def test_update_api_keys(mocker, mock_user_dependency):
 
     app.dependency_overrides[get_db] = override_get_db
 
-    response = client.put(
-        "/api/settings/api-keys", json={"openai": "sk-12345", "anthropic": "", "google": ""}
-    )
+    response = client.put("/api/settings/api-keys", json={"openai": "sk-12345", "google": ""})
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "API keys updated"
