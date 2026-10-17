@@ -47,13 +47,11 @@ class Settings(BaseSettings):
 
     local_model_url: str = "http://localhost:8080/v1"
     openrouter_api_key: str = ""
-    cohere_api_key: str = ""
-    groq_api_key: str = ""
     saga_max_agent_steps: int = 5
 
     log_level: str = "info"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()

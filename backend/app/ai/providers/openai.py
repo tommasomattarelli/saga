@@ -31,7 +31,6 @@ class OpenAIProvider(AIProvider):
         system_prompt: str,
         messages: list[dict],
         model: str = "gpt-4o",
-        temperature: float = 0.8,
         max_tokens: int = 2000,
         json_mode: bool = False,
     ) -> str:
@@ -39,7 +38,6 @@ class OpenAIProvider(AIProvider):
         kwargs: dict = {
             "model": model,
             "messages": full_messages,
-            "temperature": temperature,
             "max_tokens": max_tokens,
         }
         if json_mode:
@@ -55,14 +53,12 @@ class OpenAIProvider(AIProvider):
         system_prompt: str,
         messages: list[dict],
         model: str = "gpt-4o",
-        temperature: float = 0.8,
         max_tokens: int = 2000,
     ) -> AsyncIterator[str]:
         full_messages = [{"role": "system", "content": system_prompt}] + messages
         stream = await self.client.chat.completions.create(
             model=model,
             messages=full_messages,
-            temperature=temperature,
             max_tokens=max_tokens,
             stream=True,
         )
@@ -82,7 +78,6 @@ class OpenAIProvider(AIProvider):
         messages: list[dict],
         tools: list[dict],
         model: str = "gpt-4o",
-        temperature: float = 0.8,
         max_tokens: int = 2000,
     ) -> AgentResponse:
         full_messages = [{"role": "system", "content": system_prompt}] + messages
@@ -91,7 +86,6 @@ class OpenAIProvider(AIProvider):
             messages=full_messages,
             tools=tools,
             tool_choice="auto",
-            temperature=temperature,
             max_tokens=max_tokens,
         )
         choice = first_choice(response, "openai")

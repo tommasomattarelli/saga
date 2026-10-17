@@ -21,7 +21,6 @@ class AIProvider(ABC):
         system_prompt: str,
         messages: list[dict],
         model: str,
-        temperature: float = 0.8,
         max_tokens: int = 2000,
         json_mode: bool = False,
     ) -> str:
@@ -34,7 +33,6 @@ class AIProvider(ABC):
         system_prompt: str,
         messages: list[dict],
         model: str,
-        temperature: float = 0.8,
         max_tokens: int = 2000,
     ) -> AsyncIterator[str]:
         """Stream a response from the AI model, yielding text chunks."""
@@ -46,7 +44,6 @@ class AIProvider(ABC):
         messages: list[dict],
         tools: list[dict],
         model: str,
-        temperature: float = 0.8,
         max_tokens: int = 2000,
     ) -> AgentResponse:
         """Generate a response with tool-calling support."""
@@ -60,7 +57,6 @@ async def logged_generate(
     system_prompt: str,
     messages: list[dict],
     model: str,
-    temperature: float = 0.8,
     max_tokens: int = 2000,
     json_mode: bool = False,
 ) -> str:
@@ -85,7 +81,6 @@ async def logged_generate(
         system_prompt=system_prompt,
         messages=messages,
         model=model,
-        temperature=temperature,
         max_tokens=max_tokens,
         json_mode=json_mode,
     )
@@ -143,22 +138,6 @@ def get_provider(
             _providers[cache_key] = LocalProvider(
                 base_url="https://openrouter.ai/api/v1",
                 api_key=api_key or settings.openrouter_api_key,
-            )
-        elif name == "cohere":
-            from app.ai.providers.local import LocalProvider
-            from app.config import settings
-
-            _providers[cache_key] = LocalProvider(
-                base_url="https://api.cohere.ai/compatibility/v1",
-                api_key=settings.cohere_api_key,
-            )
-        elif name == "groq":
-            from app.ai.providers.local import LocalProvider
-            from app.config import settings
-
-            _providers[cache_key] = LocalProvider(
-                base_url="https://api.groq.com/openai/v1",
-                api_key=settings.groq_api_key,
             )
         else:
             raise ValueError(f"Unknown AI provider: {name}")

@@ -32,7 +32,6 @@ class LocalProvider(AIProvider):
         system_prompt: str,
         messages: list[dict],
         model: str = "local",
-        temperature: float = 0.8,
         max_tokens: int = 2000,
         json_mode: bool = False,
     ) -> str:
@@ -40,7 +39,6 @@ class LocalProvider(AIProvider):
         kwargs: dict = {
             "model": model,
             "messages": full_messages,
-            "temperature": temperature,
             "max_tokens": max_tokens,
         }
         if json_mode:
@@ -56,14 +54,12 @@ class LocalProvider(AIProvider):
         system_prompt: str,
         messages: list[dict],
         model: str = "local",
-        temperature: float = 0.8,
         max_tokens: int = 2000,
     ) -> AsyncIterator[str]:
         full_messages = [{"role": "system", "content": system_prompt}] + messages
         stream = await self.client.chat.completions.create(
             model=model,
             messages=full_messages,
-            temperature=temperature,
             max_tokens=max_tokens,
             stream=True,
         )
@@ -81,7 +77,6 @@ class LocalProvider(AIProvider):
         messages: list[dict],
         tools: list[dict],
         model: str = "local",
-        temperature: float = 0.8,
         max_tokens: int = 2000,
     ) -> AgentResponse:
         full_messages = [{"role": "system", "content": system_prompt}] + messages
@@ -90,7 +85,6 @@ class LocalProvider(AIProvider):
             messages=full_messages,
             tools=tools,
             tool_choice="auto",
-            temperature=temperature,
             max_tokens=max_tokens,
         )
         msg = first_choice(response, "local").message

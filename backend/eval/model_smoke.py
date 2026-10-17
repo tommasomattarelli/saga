@@ -67,7 +67,6 @@ async def _run_once(provider: str, model: str, sc: scenarios.Scenario, probe_nam
             messages=sc.messages(probe_name),
             tools=tools,
             model=model,
-            temperature=0.8,
             max_tokens=1200,
         )
     except Exception as exc:  # a failing provider is a result, not a crash (#50)
