@@ -133,6 +133,12 @@ def _model_text_parts(contents: list[dict]) -> list[dict]:
     ]
 
 
+def _fr_parts(contents: list[dict]) -> list[dict]:
+    return [
+        part for content in contents for part in content["parts"] if "function_response" in part
+    ]
+
+
 class TestSingleToolCall:
     @pytest.mark.asyncio
     async def test_next_request_echoes_signature(self, monkeypatch):
@@ -246,6 +252,35 @@ class TestParallelToolCalls:
         assert len(rebuilt) == 2
         assert rebuilt[0]["thought_signature"] == _SIG_1
         assert "thought_signature" not in rebuilt[1]
+        # Internal synthetic ids stay out of the payload Google sees.
+        assert "id" not in rebuilt[0]["function_call"]
+        assert "id" not in rebuilt[1]["function_call"]
+        assert all("id" not in p["function_response"] for p in _fr_parts(calls[1]["contents"]))
+
+    @pytest.mark.asyncio
+    async def test_native_ids_are_echoed_on_calls_and_results(self, monkeypatch):
+        # Gemini 3 returns a unique id per call; the functionResponse must carry it back.
+        provider, calls = _make_google_provider(
+            monkeypatch,
+            [
+                _response(
+                    [
+                        _fc_part("request_dice", {"stat": "DEX"}, "native-dex", _SIG_1),
+                        _fc_part("request_dice", {"stat": "STR"}, "native-str"),
+                    ]
+                ),
+                _response([_text_part("both resolved")]),
+            ],
+        )
+
+        with _graph_env(provider):
+            await dm_graph.ainvoke(_initial_state(), config={})
+
+        contents = calls[1]["contents"]
+        call_ids = [p["function_call"]["id"] for p in _fc_parts(contents)]
+        response_ids = [p["function_response"]["id"] for p in _fr_parts(contents)]
+        assert call_ids == ["native-dex", "native-str"]
+        assert response_ids == call_ids
 
 
 class TestTextPartSignature:
