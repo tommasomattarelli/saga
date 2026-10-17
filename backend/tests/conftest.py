@@ -105,3 +105,16 @@ async def test_user(db_session: AsyncSession) -> dict:
 async def auth_client(client: AsyncClient, test_user: dict) -> AsyncClient:
     client.headers["Authorization"] = f"Bearer {test_user['token']}"
     return client
+
+
+@pytest.fixture
+async def configured_generation(auth_client: AsyncClient) -> None:
+    response = await auth_client.patch(
+        "/api/settings",
+        json={
+            "generation_provider": "local",
+            "generation_model": "test-model",
+            "generation_local_endpoint": "ollama",
+        },
+    )
+    assert response.status_code == 200

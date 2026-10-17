@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import os
+import uuid
 from dataclasses import dataclass
 
+from app.ai.providers.base import AIProvider, get_provider
 from app.config_loader import load_saga_config
+from app.dependencies import get_db_context
+from app.exceptions import ValidationError
+from app.models.user import User
 
 PROVIDER_NAMES = ("openai", "openrouter", "google", "local")
 
@@ -17,6 +22,7 @@ class ModelConfig:
     provider: str
     model: str
     max_tokens: int
+    local_endpoint: str | None = None
 
 
 def _load_config() -> dict:
@@ -36,6 +42,7 @@ def get_instance_default() -> ModelConfig:
         provider=str(default.get("provider", "")),
         model=str(default.get("model", "")),
         max_tokens=cap,
+        local_endpoint=default.get("local_endpoint"),
     )
 
 
@@ -74,12 +81,14 @@ def validate_generation_config() -> None:
         provider = str(default.get("provider", "")).strip()
         model = str(default.get("model", "")).strip()
         cap = int(generation.get("max_output_tokens", 0) or 0)
-        if provider not in get_allowed_providers():
+        if provider not in PROVIDER_NAMES or provider not in get_allowed_providers():
             problems.append(
                 f"generation.default.provider `{provider}` is not in providers.allowed"
             )
         if not model:
             problems.append("generation.default.model is empty")
+        if provider == "local" and default.get("local_endpoint") not in get_local_endpoints():
+            problems.append("generation.default.local_endpoint must name a configured endpoint")
         if cap <= 0:
             problems.append("generation.max_output_tokens must be a positive integer")
     for name, base_url in get_local_endpoints().items():
@@ -87,6 +96,24 @@ def validate_generation_config() -> None:
             problems.append(f"providers.local_endpoints.{name}.base_url must be an http(s) URL")
     if problems:
         raise ValueError("saga.config.yaml (ADR 0018): " + "; ".join(problems))
+
+
+def validate_user_generation(user: User) -> None:
+    from app.ai.credentials import resolve_generation
+
+    resolve_generation(user)
+
+
+async def get_user_generation(user_id: uuid.UUID | str) -> tuple[AIProvider, ModelConfig]:
+    from app.ai.credentials import resolve_generation
+
+    async with get_db_context() as db:
+        user = await db.get(User, uuid.UUID(str(user_id)))
+        if user is None:
+            raise ValidationError("The user's AI settings are unavailable.")
+        config, key, base_url = resolve_generation(user)
+    provider = get_provider(config.provider, api_key=key, base_url=base_url)
+    return provider, config
 
 
 _NPC_VERBOSITY_MAP: dict[str, int] = {

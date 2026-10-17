@@ -70,6 +70,22 @@ class TestProviderPolicy:
 
 
 class TestValidateGenerationConfig:
+    def test_unconfigured_default_local_endpoint_is_rejected(self):
+        with (
+            patch(
+                "app.ai.router._load_config",
+                return_value={
+                    "generation": {
+                        "default": {"provider": "local", "model": "local-model"},
+                        "max_output_tokens": 60000,
+                    },
+                    "providers": {"allowed": ["local"], "local_endpoints": {}},
+                },
+            ),
+            pytest.raises(ValueError, match="local_endpoint"),
+        ):
+            validate_generation_config()
+
     def test_repo_config_is_valid(self):
         validate_generation_config()
 
