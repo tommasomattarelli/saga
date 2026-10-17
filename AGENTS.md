@@ -10,8 +10,10 @@ SAGA is an AI-driven tabletop RPG engine designed to replicate the infinite poss
 - **Data Sovereignty**: Open-source, self-hostable, with full campaign export/import (JSON).
 
 ## Essential Commands
-Runtime pins live in `backend/.python-version` and `frontend/.node-version`; select
-the pinned Node before frontend commands, while `uv` provisions the pinned Python.
+Runtime pins live in `backend/.python-version` and `frontend/.node-version`.
+Frontend Make targets and Git hooks select pinned Node automatically without
+changing global runtimes; direct commands use the launcher below. `uv` provisions
+the pinned Python.
 
 ### Backend (uv based)
 - **Install**: `cd backend && uv sync --locked`
@@ -23,15 +25,21 @@ the pinned Node before frontend commands, while `uv` provisions the pinned Pytho
 - **Migrations**: `cd backend && alembic upgrade head`
 
 ### Frontend (npm based)
-- **Install**: `cd frontend && npm ci`
-- **Run**: `cd frontend && npm run dev`
-- **Test**: `cd frontend && npm run test`
-- **Lint/Format**: `cd frontend && npm run lint && npm run format`
-- **Full check (what CI runs)**: `cd frontend && npm run lint && npx tsc --noEmit && npm run knip && npm run test:coverage -- --run` — **`knip` and coverage thresholds are CI gates**: passing tests alone does not make the stack green.
+- **Install**: `cd frontend && bash ../scripts/with_node.sh npm ci`
+- **Run**: `cd frontend && bash ../scripts/with_node.sh npm run dev`
+- **Test**: `make test-frontend`
+- **Lint/Format**: `make lint-frontend && make format-frontend`
+- **Full check (what CI runs)**: `cd frontend && bash ../scripts/with_node.sh npm run lint && bash ../scripts/with_node.sh npx tsc --noEmit && bash ../scripts/with_node.sh npm run knip && bash ../scripts/with_node.sh npm run test:coverage -- --run` — **`knip` and coverage thresholds are CI gates**: passing tests alone does not make the stack green.
+
+For direct commands in Windows PowerShell, use
+`powershell -NoProfile -ExecutionPolicy Bypass -File ..\scripts\with_node.ps1`
+instead of `bash ../scripts/with_node.sh`. Launchers reuse the native installer cache
+(`~/.local/share/saga` or `%LOCALAPPDATA%\SAGA`); `SAGA_INSTALL_ROOT` overrides it.
 
 ### Infrastructure (Docker)
 - **Up**: `make test-infra-up` (Test DB) | `docker-compose up -d` (Prod-like)
 - **Down**: `make test-infra-down` | `docker-compose down`
+- **Full tests**: `make test-all` starts the test DB, runs backend and frontend tests, and tears the DB down even after failures.
 
 ### Release (maintainer)
 - **Preview**: `bash scripts/release.sh <version> --dry-run` (renders the changelog + diff + the exact git/gh commands, then reverts — no changes kept)
