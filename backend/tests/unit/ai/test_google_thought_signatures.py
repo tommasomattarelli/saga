@@ -21,12 +21,12 @@ _SIG_1 = b"\x00\x01opaque-signature-one"
 _SIG_2 = b"\xfe\xffopaque-signature-two"
 
 
-def _text_part(text: str) -> genai_types.Part:
-    return genai_types.Part(text=text)
+def _text_part(text: str, signature: bytes | None = None) -> genai_types.Part:
+    return genai_types.Part(text=text, thought_signature=signature)
 
 
 def _fc_part(
-    name: str, args: dict, call_id: str, signature: bytes | None = None
+    name: str, args: dict, call_id: str | None = None, signature: bytes | None = None
 ) -> genai_types.Part:
     return genai_types.Part(
         function_call=genai_types.FunctionCall(name=name, args=args, id=call_id),
@@ -123,6 +123,16 @@ def _fc_parts(contents: list[dict]) -> list[dict]:
     return [part for content in contents for part in content["parts"] if "function_call" in part]
 
 
+def _model_text_parts(contents: list[dict]) -> list[dict]:
+    return [
+        part
+        for content in contents
+        if content["role"] == "model"
+        for part in content["parts"]
+        if "text" in part
+    ]
+
+
 class TestSingleToolCall:
     @pytest.mark.asyncio
     async def test_next_request_echoes_signature(self, monkeypatch):
@@ -212,6 +222,56 @@ class TestParallelToolCalls:
         ]
         assert responses == ["request_dice", "request_dice"]
 
+    @pytest.mark.asyncio
+    async def test_idless_parallel_calls_keep_signatures_separate(self, monkeypatch):
+        # Google may omit call ids; two same-named calls must not collapse onto one key
+        # (the regression where both parts came back carrying the first call's signature).
+        provider, calls = _make_google_provider(
+            monkeypatch,
+            [
+                _response(
+                    [
+                        _fc_part("request_dice", {"stat": "DEX"}, None, _SIG_1),
+                        _fc_part("request_dice", {"stat": "STR"}, None),
+                    ]
+                ),
+                _response([_text_part("both resolved")]),
+            ],
+        )
+
+        with _graph_env(provider):
+            await dm_graph.ainvoke(_initial_state(), config={})
+
+        rebuilt = _fc_parts(calls[1]["contents"])
+        assert len(rebuilt) == 2
+        assert rebuilt[0]["thought_signature"] == _SIG_1
+        assert "thought_signature" not in rebuilt[1]
+
+
+class TestTextPartSignature:
+    @pytest.mark.asyncio
+    async def test_text_signature_is_echoed(self, monkeypatch):
+        # Gemini 2.5 may put the signature on the first part whatever its type.
+        provider, calls = _make_google_provider(
+            monkeypatch,
+            [
+                _response(
+                    [
+                        _text_part("A low growl.", _SIG_1),
+                        _fc_part("request_dice", {"stat": "DEX"}),
+                    ]
+                ),
+                _response([_text_part("resolved")]),
+            ],
+        )
+
+        with _graph_env(provider):
+            await dm_graph.ainvoke(_initial_state(), config={})
+
+        text_parts = _model_text_parts(calls[1]["contents"])
+        assert text_parts
+        assert text_parts[0]["thought_signature"] == _SIG_1
+
 
 class TestUnsignedResponse:
     @pytest.mark.asyncio
@@ -236,7 +296,7 @@ class TestOtherProvidersUnaffected:
     def _assistant_with_metadata(self) -> dict:
         return {
             "role": "assistant",
-            "content": None,
+            "content": "I look around.",
             "tool_calls": [
                 {
                     "id": "c1",
@@ -245,6 +305,7 @@ class TestOtherProvidersUnaffected:
                 }
             ],
             "tool_call_signatures": {"c1": _SIG_1},
+            "text_thought_signature": _SIG_2,
         }
 
     @pytest.mark.asyncio
@@ -268,6 +329,7 @@ class TestOtherProvidersUnaffected:
 
         sent = create.call_args.kwargs["messages"]
         assert all("tool_call_signatures" not in m for m in sent)
+        assert all("text_thought_signature" not in m for m in sent)
 
     @pytest.mark.asyncio
     async def test_local_payload_has_no_google_metadata(self, monkeypatch):
@@ -290,3 +352,4 @@ class TestOtherProvidersUnaffected:
 
         sent = create.call_args.kwargs["messages"]
         assert all("tool_call_signatures" not in m for m in sent)
+        assert all("text_thought_signature" not in m for m in sent)
