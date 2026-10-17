@@ -16,6 +16,8 @@ from app.core.dice import DiceOutcome, resolve_check
 from app.core.dm.dm_tools_executor import tools_node
 from app.models.campaign import Campaign
 
+pytestmark = pytest.mark.usefixtures("configured_generation")
+
 
 async def _create_campaign(auth_client) -> str:
     resp = await auth_client.post(

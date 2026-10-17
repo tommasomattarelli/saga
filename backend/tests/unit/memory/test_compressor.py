@@ -202,11 +202,13 @@ class TestCompressTurnsBatchLlm:
         mock_model_cfg.model = "gpt-4o-mini"
 
         with (
-            patch("app.memory.compressor.route_ai_call", new_callable=AsyncMock) as mock_route,
-            patch("app.ai.providers.base.get_provider", return_value=MagicMock()),
+            patch(
+                "app.memory.compressor.get_generation",
+                new_callable=AsyncMock,
+                return_value=(MagicMock(), mock_model_cfg),
+            ),
             patch("app.ai.providers.base.logged_generate", new_callable=AsyncMock) as mock_gen,
         ):
-            mock_route.return_value = mock_model_cfg
             mock_gen.return_value = '{"summary": "  Summary text.  "}'
             result = await compress_turns_batch_llm([mock_turn])
 
@@ -226,11 +228,13 @@ class TestCompressTurnsBatchLlm:
         mock_model_cfg.model = "gpt-4o-mini"
 
         with (
-            patch("app.memory.compressor.route_ai_call", new_callable=AsyncMock) as mock_route,
-            patch("app.ai.providers.base.get_provider", return_value=MagicMock()),
+            patch(
+                "app.memory.compressor.get_generation",
+                new_callable=AsyncMock,
+                return_value=(MagicMock(), mock_model_cfg),
+            ),
             patch("app.ai.providers.base.logged_generate", new_callable=AsyncMock) as mock_gen,
         ):
-            mock_route.return_value = mock_model_cfg
             mock_gen.side_effect = RuntimeError("LLM error")
             result = await compress_turns_batch_llm([mock_turn])
 

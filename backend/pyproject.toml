@@ -57,6 +57,7 @@ ignore = ["B008", "E501", "SIM105"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
+known-third-party = ["alembic"]
 
 [tool.coverage.run]
 omit = ["app/core/agent.py", "app/core/streaming.py"]
