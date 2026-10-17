@@ -14,6 +14,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ## [Unreleased]
 
 ### Highlights
+- [Infra] Development commands and Git hooks now select pinned Node automatically without changing global runtimes.
+- [Infra] Full tests now include both stacks, fail immediately if PostgreSQL cannot start, and always clean up test infrastructure.
 - [Infra] Updated vulnerable dependencies across both stacks, with clean runtime audits and two documented development-tool advisories retained for a separate Tailwind migration.
 - [Infra] Replaced python-jose with PyJWT, removing vulnerable legacy cryptography dependencies while preserving existing tokens, login and refresh behavior.
 - [Memory & AI] Removed direct Anthropic integration while preserving historical keys and Claude access through OpenRouter; retired provider selections now fail explicitly without fallback.
@@ -33,6 +35,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [UI] Fixed: a brand-new campaign showed no day count until enough time had passed, because the seeded clock carried only its raw minutes.
 
 ### Internal
+- Aligned Ruff hooks with the backend configuration so local commits and CI format repository tooling consistently.
 - Covered HTTP authentication and progressive narrative reveal, and enforced the existing frontend coverage thresholds in CI without lowering them.
 - Added behavioral coverage for world authoring, including taxonomy edits, node hierarchies, encounter tables and NPC field or psychology migrations.
 - Migrated Vitest and coverage together, patched frontend tooling, and made unused type exports internal to satisfy the updated Knip checks.
