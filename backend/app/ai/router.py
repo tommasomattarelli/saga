@@ -116,6 +116,12 @@ async def get_user_generation(user_id: uuid.UUID | str) -> tuple[AIProvider, Mod
     return provider, config
 
 
+async def get_generation() -> tuple[AIProvider, ModelConfig]:
+    from app.ai.generation_context import resolve_generation_context
+
+    return await resolve_generation_context()
+
+
 _NPC_VERBOSITY_MAP: dict[str, int] = {
     "null": 0,
     "minimal": 1,

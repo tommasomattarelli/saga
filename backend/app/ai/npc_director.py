@@ -8,9 +8,10 @@ from dataclasses import dataclass, field
 
 import structlog
 
+from app.ai.generation_context import generation_context
 from app.ai.prompts.npc import build_npc_prompt
-from app.ai.providers.base import get_provider, logged_generate
-from app.ai.router import get_gameplay_config, get_instance_default
+from app.ai.providers.base import logged_generate
+from app.ai.router import get_gameplay_config, get_generation
 from app.ai.sanitizer import strip_code_fences
 from app.core.npc_resolver import resolve_npc
 from app.core.psychology import resolve_psychology
@@ -56,8 +57,7 @@ async def invoke_single_npc(
         fill_empty_traits=fill_empty_traits,
     )
 
-    model_config = get_instance_default()
-    provider = get_provider(model_config.provider)
+    provider, model_config = await get_generation()
 
     try:
         raw = await logged_generate(
@@ -135,7 +135,8 @@ async def invoke_npcs_parallel(
             )
         )
 
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    with generation_context(campaign.user_id):
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
     dialogues = []
     for r in results:

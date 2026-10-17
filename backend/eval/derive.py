@@ -306,10 +306,13 @@ async def main() -> None:
         print("  dry-run: nothing called, nothing written")
         return
 
+    from app.ai.generation_context import generation_context, operator_generation
+
     state = load_state(name, resume=not args.restart)
-    per_turn = await derive_batch_summaries(name, turns, window, state)
-    global_summary = await derive_global_summary(name, turns, state)
-    corpus = await derive_fact_corpus(name, turns, meta.get("canaries") or {}, state)
+    with generation_context(operator_generation()):
+        per_turn = await derive_batch_summaries(name, turns, window, state)
+        global_summary = await derive_global_summary(name, turns, state)
+        corpus = await derive_fact_corpus(name, turns, meta.get("canaries") or {}, state)
 
     scenario["context"] = {
         "global_summary": global_summary,

@@ -105,6 +105,10 @@ Until a user configures their own, the instance default (provider + model) appli
 first turn starts only when a usable credential exists — personal or consented fallback;
 otherwise the error names exactly what is missing.
 
+**Implementation note (2026-10-17).** Background tasks inherit only the owner's ID through
+a scoped `ContextVar` and resolve their configuration in a short session before each call;
+offline evaluation explicitly selects the operator context.
+
 ### A7 — Legacy environment variables are removed (Decided)
 
 `SAGA_GLOBAL_PROVIDER`, `SAGA_GLOBAL_MODEL_HIGH/MEDIUM/LOW`, and

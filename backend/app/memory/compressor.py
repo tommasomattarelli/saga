@@ -5,12 +5,12 @@ from __future__ import annotations
 import asyncio
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.router import (
     get_gameplay_config,
-    get_instance_default,
+    get_generation,
     get_summarization_config,
 )
 from app.ai.sanitizer import parse_json_payload
@@ -72,15 +72,14 @@ def summary_from(raw: str) -> str | None:
 
 async def compress_turns_batch_llm(turns: list[Turn]) -> str | None:
     """Compress a batch of turns into a 2-3 sentence summary via budget LLM (single attempt)."""
-    from app.ai.providers.base import get_provider, logged_generate
+    from app.ai.providers.base import logged_generate
 
     turns_text = "\n".join(
         f"Turn {t.turn_number}: Player: {t.player_action[:200]} → DM: {(t.narration or '')[:300]}"
         for t in turns
     )
 
-    model_config = get_instance_default()
-    provider = get_provider(model_config.provider)
+    provider, model_config = await get_generation()
 
     try:
         raw = await logged_generate(
@@ -165,6 +164,7 @@ async def ensure_compression(
         .limit(10)
     )
     uncompressed = list(result.scalars().all())
+    await db.close()
 
     if not uncompressed:
         return
@@ -194,6 +194,11 @@ async def ensure_compression(
                 if llm_failed:
                     # Mark failed so subsequent cycles skip this turn (no infinite retry)
                     turn.summarization_failed = True
+            await db.execute(
+                update(Turn)
+                .where(Turn.id == turn.id, Turn.summary.is_(None))
+                .values(summary=turn.summary, summarization_failed=turn.summarization_failed)
+            )
 
     await db.flush()
     logger.info("turns_compressed", campaign_id=campaign_id, count=len(uncompressed))
