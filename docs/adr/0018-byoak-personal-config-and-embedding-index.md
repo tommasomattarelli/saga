@@ -1,9 +1,9 @@
 # ADR 0018 — BYOAK configuration contract: personal providers, credentials and the embedding index
 
-- **Status**: **Proposed** (design closed by the owner interview 2026-10-17; not implemented
-  yet. Lanes: point 3 implements Part A and the configuration surface, point 5 implements
-  Part B, point 6 adds the minimal provisional UI. Flips to Accepted when the point 3
-  implementation lands green.)
+- **Status**: **Proposed** (Part A and the personal configuration surface are implemented
+  on `feat/provider-credentials`; owner playtest and merge remain. Point 5 implements
+  Part B, point 6 adds the minimal provisional UI. Flips to Accepted when point 3 lands
+  green on `main`.)
 - **Date**: 2026-10-17.
 - **Context items**: GitHub #65, #73, #74, #55 (all open); supersedes ADR 0016; builds on
   ADR 0000 (BYOAK distribution model).
@@ -91,6 +91,10 @@ rejected, rate-limited or out of quota shows its error; nothing silently moves t
 the operator. Fallback changes the credential only — never the provider or the model. The
 UI shows the credential provenance (personal / consented server key / missing) without
 ever exposing the key.
+
+**Implementation note (2026-10-17).** Integration tests exposed raw SDK authentication
+and quota errors becoming generic 500s; the turn executor now returns short provider
+errors without exposing upstream payloads or retrying with the operator's key.
 
 ### A5 — Admin policy: one allowlist, named local endpoints (Decided)
 
@@ -185,7 +189,6 @@ stored texts without regenerating history or facts.
 
 Open TODOs, with where they resolve:
 
-- Exact `saga.config.yaml` block shape and key names — point 3, config commit.
 - DB field names for the per-row embedding label and rebuild state — point 5.
 - Rebuild batch size default and pacing — point 5 (config knob).
 - Queueing of facts written while a rebuild runs — point 5.

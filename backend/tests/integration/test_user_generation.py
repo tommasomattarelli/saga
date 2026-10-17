@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -18,7 +19,7 @@ def user_id(client: AsyncClient) -> uuid.UUID:
 
 
 @pytest.fixture(autouse=True)
-def clear_clients():
+def clear_clients() -> Iterator[None]:
     base._providers.clear()
     yield
     base._providers.clear()
