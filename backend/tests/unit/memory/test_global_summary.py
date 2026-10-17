@@ -9,7 +9,6 @@ import pytest
 
 
 def _mock_db_chain(campaign, turns):
-    """Build a MagicMock AsyncSession whose two execute() calls return campaign then turns."""
     campaign_result = MagicMock()
     campaign_result.scalar_one_or_none.return_value = campaign
 
@@ -19,7 +18,7 @@ def _mock_db_chain(campaign, turns):
     turns_result.scalars.return_value = turns_scalars
 
     db = AsyncMock()
-    db.execute = AsyncMock(side_effect=[campaign_result, turns_result])
+    db.execute = AsyncMock(side_effect=[campaign_result, turns_result, MagicMock()])
     return db
 
 
@@ -159,6 +158,9 @@ class TestUpdateGlobalSummary:
             async def flush(self):
                 pass
 
+            async def close(self):
+                pass
+
         db = FakeDb()
         with (
             patch(
@@ -172,4 +174,4 @@ class TestUpdateGlobalSummary:
             await update_global_summary(uuid.uuid4(), 10, db)
 
         # Query was issued (batch bound to [6..10])
-        assert len(captured["calls"]) == 2
+        assert len(captured["calls"]) == 3

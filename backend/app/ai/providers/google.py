@@ -131,13 +131,11 @@ class GoogleProvider(AIProvider):
         system_prompt: str,
         messages: list[dict],
         model: str = "gemini-2.5-pro",
-        temperature: float = 0.8,
         max_tokens: int = 2000,
         json_mode: bool = False,
     ) -> str:
         config: dict = {
             "system_instruction": system_prompt,
-            "temperature": temperature,
             "max_output_tokens": max_tokens,
         }
         if json_mode:
@@ -156,7 +154,6 @@ class GoogleProvider(AIProvider):
         system_prompt: str,
         messages: list[dict],
         model: str = "gemini-2.5-pro",
-        temperature: float = 0.8,
         max_tokens: int = 2000,
     ) -> AsyncIterator[str]:
         response = await self.client.aio.models.generate_content_stream(
@@ -164,7 +161,6 @@ class GoogleProvider(AIProvider):
             contents=_to_contents(messages),
             config={
                 "system_instruction": system_prompt,
-                "temperature": temperature,
                 "max_output_tokens": max_tokens,
             },
         )
@@ -178,7 +174,6 @@ class GoogleProvider(AIProvider):
         messages: list[dict],
         tools: list[dict],
         model: str = "gemini-2.5-pro",
-        temperature: float = 0.8,
         max_tokens: int = 2000,
     ) -> AgentResponse:
         google_tools = [
@@ -190,7 +185,6 @@ class GoogleProvider(AIProvider):
             contents=_to_contents(messages),
             config=genai_types.GenerateContentConfig(
                 system_instruction=system_prompt,
-                temperature=temperature,
                 max_output_tokens=max_tokens,
                 tools=google_tools,
                 automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(

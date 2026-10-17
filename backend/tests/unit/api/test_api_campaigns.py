@@ -18,6 +18,9 @@ def mock_user_dependency(mocker):
     mock_user = mocker.Mock()
     mock_user.id = uuid.uuid4()
     mock_user.openai_api_key_enc = b"enc"
+    mock_user.generation_provider = "local"
+    mock_user.generation_model = "test-model"
+    mock_user.generation_local_endpoint = "ollama"
 
     async def override_get_current_user():
         return mock_user

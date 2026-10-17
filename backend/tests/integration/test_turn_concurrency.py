@@ -13,6 +13,8 @@ from sqlalchemy import func, select
 
 from app.models.turn import Turn
 
+pytestmark = pytest.mark.usefixtures("configured_generation")
+
 
 def _fake_state() -> dict:
     return {

@@ -11,6 +11,7 @@ class GameState(TypedDict):
     # ── Input ────────────────────────────────────────────────────────────────
     player_action: str
     campaign_id: str
+    user_id: str
 
     # ── LLM conversation (append-only via add_messages reducer) ─────────────
     messages: Annotated[list, add_messages]
@@ -44,4 +45,4 @@ class GameState(TypedDict):
 
     # ── Internal (set by context_node, consumed by dm_node) ──────────────────
     system_prompt: str
-    model_config: dict[str, Any]  # {provider, model, temperature, max_tokens}
+    model_config: dict[str, Any]  # {provider, model, max_tokens}

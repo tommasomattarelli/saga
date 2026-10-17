@@ -1,89 +1,125 @@
+"""Generation configuration — one model for every AI call (ADR 0018)."""
+
 from __future__ import annotations
 
 import os
+import uuid
 from dataclasses import dataclass
-from enum import StrEnum
-from typing import TYPE_CHECKING
 
-from app.config import settings
+from app.ai.providers.base import AIProvider, get_provider
 from app.config_loader import load_saga_config
+from app.dependencies import get_db_context
+from app.exceptions import ValidationError
+from app.models.user import User
 
-if TYPE_CHECKING:
-    from app.ai.context import GameContext
-
-
-class AICallType(StrEnum):
-    """Types of AI calls with different routing strategies."""
-
-    DM_NARRATION = "dm_narration"
-    COMPANION_DIALOGUE = "companion_dialogue"
-    NPC_BEHAVIOR = "npc_behavior"
-    WORLD_SIM = "world_sim"
-    MEMORY_COMPRESSION = "memory_compression"
-    EMBEDDING = "embedding"
+PROVIDER_NAMES = ("openai", "openrouter", "google", "local")
 
 
 @dataclass
 class ModelConfig:
-    """Selected model configuration for an AI call."""
+    """The provider/model pair a generation call runs on (ADR 0018 A1)."""
 
     provider: str
     model: str
-    temperature: float
     max_tokens: int
+    local_endpoint: str | None = None
 
 
 def _load_config() -> dict:
     return load_saga_config()
 
 
-def _cfg_to_model_config(cfg: dict) -> ModelConfig:
+def get_instance_default() -> ModelConfig:
+    """Provider and model a user inherits before configuring their own (ADR 0018 A6)."""
+    generation = _load_config().get("generation", {})
+    default = generation.get("default", {})
+    cap = int(generation.get("max_output_tokens", 0) or 0)
+    if cap <= 0:
+        raise ValueError(
+            "saga.config.yaml: generation.max_output_tokens must be a positive integer"
+        )
     return ModelConfig(
-        provider=cfg["provider"],
-        model=cfg["model"],
-        temperature=float(cfg.get("temperature", 0.8)),
-        max_tokens=int(cfg.get("max_tokens", 2000)),
+        provider=str(default.get("provider", "")),
+        model=str(default.get("model", "")),
+        max_tokens=cap,
+        local_endpoint=default.get("local_endpoint"),
     )
 
 
-def _get_config_for_call(call_type: AICallType, tier: str = "default") -> ModelConfig:
-    """Resolve a ModelConfig with a three-level override hierarchy."""
-    config = _load_config()
-    key = call_type.value  # e.g. "dm_narration"
-    tier_cfg = config.get(key, {}).get(tier) or config.get(key, {}).get("default", {})
-    model_config = _cfg_to_model_config(tier_cfg)
+def get_allowed_providers() -> list[str]:
+    """Instance allowlist shared by generation and embeddings (ADR 0018 A5)."""
+    allowed = _load_config().get("providers", {}).get("allowed", list(PROVIDER_NAMES))
+    if isinstance(allowed, str) and allowed.strip().lower() == "all":
+        return list(PROVIDER_NAMES)
+    return [str(name) for name in allowed]
 
-    global_provider = settings.saga_global_provider.strip()
-    if global_provider:
-        model_config.provider = global_provider
 
-    global_model_by_tier: dict[str, str] = {
-        "high": settings.saga_global_model_high.strip(),
-        "medium": settings.saga_global_model_medium.strip(),
-        "low": settings.saga_global_model_low.strip(),
+def get_server_key_fallback() -> dict[str, bool]:
+    """Operator half of the double consent for server keys (ADR 0018 A4)."""
+    raw = _load_config().get("providers", {}).get("server_key_fallback", {})
+    return {str(provider): bool(enabled) for provider, enabled in raw.items()}
+
+
+def get_local_endpoints() -> dict[str, str]:
+    """Named local endpoints the backend may contact (ADR 0018 A5/B2)."""
+    raw = _load_config().get("providers", {}).get("local_endpoints", {})
+    return {
+        str(name): str(config.get("base_url", ""))
+        for name, config in raw.items()
+        if isinstance(config, dict)
     }
-    # "default" tier (background tasks) falls back to medium, then low, then high
-    global_model = global_model_by_tier.get(tier, "") or (
-        global_model_by_tier.get("medium", "")
-        or global_model_by_tier.get("low", "")
-        or global_model_by_tier.get("high", "")
-        if global_provider
-        else ""
-    )
-    if global_model:
-        model_config.model = global_model
 
-    specific_env_key = f"SAGA_MODEL_{call_type.value.upper()}_{tier.upper()}"
-    specific_model = os.getenv(specific_env_key, "").strip()
-    if specific_model:
-        model_config.model = specific_model
 
-    specific_provider_env_key = f"{specific_env_key}_PROVIDER"
-    specific_provider = os.getenv(specific_provider_env_key, "").strip()
-    if specific_provider:
-        model_config.provider = specific_provider
+def validate_generation_config() -> None:
+    """Fail fast on an unusable generation or providers block (ADR 0018 A9)."""
+    problems: list[str] = []
+    generation = _load_config().get("generation")
+    if not isinstance(generation, dict):
+        problems.append("the generation block is missing")
+    else:
+        default = generation.get("default", {})
+        provider = str(default.get("provider", "")).strip()
+        model = str(default.get("model", "")).strip()
+        cap = int(generation.get("max_output_tokens", 0) or 0)
+        if provider not in PROVIDER_NAMES or provider not in get_allowed_providers():
+            problems.append(
+                f"generation.default.provider `{provider}` is not in providers.allowed"
+            )
+        if not model:
+            problems.append("generation.default.model is empty")
+        if provider == "local" and default.get("local_endpoint") not in get_local_endpoints():
+            problems.append("generation.default.local_endpoint must name a configured endpoint")
+        if cap <= 0:
+            problems.append("generation.max_output_tokens must be a positive integer")
+    for name, base_url in get_local_endpoints().items():
+        if not base_url.startswith(("http://", "https://")):
+            problems.append(f"providers.local_endpoints.{name}.base_url must be an http(s) URL")
+    if problems:
+        raise ValueError("saga.config.yaml (ADR 0018): " + "; ".join(problems))
 
-    return model_config
+
+def validate_user_generation(user: User) -> None:
+    from app.ai.credentials import resolve_generation
+
+    resolve_generation(user)
+
+
+async def get_user_generation(user_id: uuid.UUID | str) -> tuple[AIProvider, ModelConfig]:
+    from app.ai.credentials import resolve_generation
+
+    async with get_db_context() as db:
+        user = await db.get(User, uuid.UUID(str(user_id)))
+        if user is None:
+            raise ValidationError("The user's AI settings are unavailable.")
+        config, key, base_url = resolve_generation(user)
+    provider = get_provider(config.provider, api_key=key, base_url=base_url)
+    return provider, config
+
+
+async def get_generation() -> tuple[AIProvider, ModelConfig]:
+    from app.ai.generation_context import resolve_generation_context
+
+    return await resolve_generation_context()
 
 
 _NPC_VERBOSITY_MAP: dict[str, int] = {
@@ -216,18 +252,3 @@ def get_summarization_config() -> SummarizationConfig:
         max_retries=int(os.getenv("SAGA_SUMMARIZATION_MAX_RETRIES", sc.get("max_retries", 3))),
         retry_delays_seconds=sc.get("retry_delays_seconds", [1, 5, 30]),
     )
-
-
-async def route_ai_call(call_type: AICallType, context: GameContext) -> ModelConfig:
-    """Select the appropriate model based on call type and context importance."""
-    if call_type == AICallType.DM_NARRATION:
-        importance = getattr(context, "importance_score", 5)
-        if importance <= 3:
-            tier = "low"
-        elif importance <= 6:
-            tier = "medium"
-        else:
-            tier = "high"
-        return _get_config_for_call(call_type, tier)
-
-    return _get_config_for_call(call_type, "default")
