@@ -35,6 +35,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [UI] Fixed: a brand-new campaign showed no day count until enough time had passed, because the seeded clock carried only its raw minutes.
 
 ### Internal
+
+- Generation calls resolve personal credentials before use, isolate cached clients by credential and endpoint, and reject unusable profiles before claiming a turn.
 - Replaced the provider tiers with one generation model: a single output cap in `saga.config.yaml`, a provider allowlist, migrated call sites and startup validation.
 - Added personal generation and embedding profiles, named local endpoints, and server-key fallback consent, with credential provenance in the settings API and migration 006.
 - Pinned the ruff pre-commit hook to the locked version and fixed the isort classification of the `alembic` package, so hooks and CI agree on migration imports.

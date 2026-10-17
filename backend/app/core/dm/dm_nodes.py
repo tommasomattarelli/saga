@@ -12,8 +12,7 @@ from langchain_core.runnables import RunnableConfig
 
 from app.ai.context import build_context
 from app.ai.exceptions import ContentPolicyError
-from app.ai.providers.base import get_provider
-from app.ai.router import get_instance_default
+from app.ai.router import get_user_generation
 from app.ai.sanitizer import detect_injection, sanitize_player_input
 from app.ai.tools.dm_tools import get_tool_schemas
 from app.ai.tools.tool_groups import resolve_active_tools_from_state
@@ -43,6 +42,8 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
     if detect_injection(player_action):
         player_action = "[The player looks around cautiously]"
 
+    _, model_cfg = await get_user_generation(state["user_id"])
+
     # Rule 15: compute the recall embedding before opening the session.
     query_embedding = await generate_embedding(player_action)
 
@@ -51,7 +52,6 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
         campaign: Campaign = result.scalar_one()
 
         context = await build_context(campaign, player_action, db, query_embedding=query_embedding)
-        model_cfg = get_instance_default()
 
     lc_messages = raw_history_to_lc(context.messages[:-1])
     lc_messages.append(HumanMessage(content=player_action))
@@ -74,16 +74,7 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
 
 
 async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
-    from app.ai.router import ModelConfig
-
-    raw_cfg = state["model_config"]
-    model_cfg = ModelConfig(
-        provider=raw_cfg["provider"],
-        model=raw_cfg["model"],
-        max_tokens=raw_cfg["max_tokens"],
-    )
-
-    provider = get_provider(model_cfg.provider)
+    provider, model_cfg = await get_user_generation(state["user_id"])
     system_prompt = state["system_prompt"]
     allowed_tools = resolve_active_tools_from_state(state["world_state"])
     tool_schemas = get_tool_schemas(allowed=allowed_tools)

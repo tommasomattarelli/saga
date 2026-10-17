@@ -12,6 +12,8 @@ from app.exceptions import AIProviderError
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.turn import Turn
 
+pytestmark = pytest.mark.usefixtures("configured_generation")
+
 
 def _fake_state(**overrides) -> dict:
     base = {

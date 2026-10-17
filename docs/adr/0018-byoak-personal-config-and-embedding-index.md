@@ -213,7 +213,7 @@ commits per the commit convention:
    resolved provider and model.
 7. `test(ai): two-user isolation and consent end-to-end (ADR 0018 A)` — PostgreSQL
    integration: two users with distinct keys never share a client; fallback fires only
-   when the key is absent; legacy env vars fail startup; disabled providers are rejected.
+   when the key is absent; legacy env vars are ignored per A7; disabled providers are rejected.
 
 ## 6. Rejected alternatives
 

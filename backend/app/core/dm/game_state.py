@@ -11,6 +11,7 @@ class GameState(TypedDict):
     # ── Input ────────────────────────────────────────────────────────────────
     player_action: str
     campaign_id: str
+    user_id: str
 
     # ── LLM conversation (append-only via add_messages reducer) ─────────────
     messages: Annotated[list, add_messages]

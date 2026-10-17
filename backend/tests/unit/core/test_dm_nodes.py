@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage
 
+from app.ai.router import ModelConfig
+
 
 def _make_state(**overrides) -> dict:
     base: dict = {
@@ -17,6 +19,7 @@ def _make_state(**overrides) -> dict:
         "player_action": "look",
         "difficulty": "medium",
         "campaign_id": "test-id",
+        "user_id": "test-user",
         "narration": "",
         "step_count": 1,
         "tool_events": [],
@@ -157,7 +160,10 @@ class TestContextNode:
             patch(
                 "app.core.dm.dm_nodes.build_context", new=AsyncMock(return_value=game_ctx)
             ) as mock_bc,
-            patch("app.core.dm.dm_nodes.get_instance_default", return_value=model_cfg),
+            patch(
+                "app.core.dm.dm_nodes.get_user_generation",
+                new=AsyncMock(return_value=(None, model_cfg)),
+            ),
             patch("app.core.dm.dm_nodes.sanitize_player_input", side_effect=lambda x: x),
             patch("app.core.dm.dm_nodes.detect_injection", return_value=False),
         ):
@@ -183,7 +189,10 @@ class TestDmNodeUnit:
         state = _make_state(step_count=1)
 
         with (
-            patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider),
+            patch(
+                "app.core.dm.dm_nodes.get_user_generation",
+                new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
+            ),
             patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
         ):
@@ -205,7 +214,10 @@ class TestDmNodeUnit:
         state = _make_state(step_count=1, narration="Previously: ")
 
         with (
-            patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider),
+            patch(
+                "app.core.dm.dm_nodes.get_user_generation",
+                new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
+            ),
             patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
         ):
@@ -224,7 +236,10 @@ class TestDmNodeUnit:
         state = _make_state(step_count=1)
 
         with (
-            patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider),
+            patch(
+                "app.core.dm.dm_nodes.get_user_generation",
+                new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
+            ),
             patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
         ):
@@ -252,7 +267,10 @@ class TestDmNodeUnit:
         state = _make_state(step_count=1)
 
         with (
-            patch("app.core.dm.dm_nodes.get_provider", return_value=mock_provider),
+            patch(
+                "app.core.dm.dm_nodes.get_user_generation",
+                new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
+            ),
             patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
         ):
