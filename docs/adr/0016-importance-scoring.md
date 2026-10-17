@@ -1,5 +1,9 @@
 # ADR 0016 — Importance scoring for model routing
 
+> **Superseded by [ADR 0018](0018-byoak-personal-config-and-embedding-index.md) (2026-10-17).**
+> With a single generation model per user the score routes nothing; it survives only as
+> turn metadata. Never implemented.
+
 - **Status**: Proposed (all forks closed by owner interview 2026-07-13; weights/thresholds
   are Refined defaults validated empirically via the per-turn breakdown log. Flips to
   Accepted after implementation + playtest. Single sprint, **no hard gate** — the

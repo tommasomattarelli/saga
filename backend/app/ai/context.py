@@ -171,22 +171,4 @@ async def build_context(
     return GameContext(
         system_prompt=system_prompt,
         messages=budgeted_messages,
-        importance_score=score_importance(player_action, campaign),
     )
-
-
-def score_importance(player_action: str, campaign: Campaign) -> int:
-    """Score the importance of a scene (0-10) for model routing."""
-    score = 5
-
-    action_lower = player_action.lower()
-
-    high_keywords = ["attack", "fight", "confront", "betray", "confess", "reveal", "final"]
-    if any(kw in action_lower for kw in high_keywords):
-        score += 2
-
-    low_keywords = ["look around", "rest", "wait", "inventory", "check"]
-    if any(kw in action_lower for kw in low_keywords):
-        score -= 2
-
-    return max(0, min(10, score))

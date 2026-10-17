@@ -8,8 +8,7 @@ actually have produced after those turns — not prose written for the fixture.
 
 Routing goes through the router exactly as production does, so there is no
 `--model` flag: the fixture is derived on whatever the operator has configured
-for background work. Override a single run with
-`SAGA_MODEL_MEMORY_COMPRESSION_DEFAULT`.
+in the instance generation default in `saga.config.yaml`.
 
 Every provider call is checkpointed. A free-tier daily cap hit halfway through
 must not throw away the calls already paid for — rerun and it resumes.
@@ -42,12 +41,10 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 from scenario_build import BUILT, load_transcript  # noqa: E402
 
-from app.ai.context import GameContext  # noqa: E402
 from app.ai.router import (  # noqa: E402
-    AICallType,
     get_gameplay_config,
+    get_instance_default,
     get_summarization_config,
-    route_ai_call,
 )
 
 # Private helpers on purpose: the point of this pass is to drive the production
@@ -264,11 +261,8 @@ def resolve_recall(probes: dict[str, dict], corpus: list[dict]) -> dict[str, lis
 # --- entry point ------------------------------------------------------------
 
 
-async def resolve_model() -> Any:
-    empty = GameContext(
-        system_prompt="", messages=[], importance_score=0, active_quests=[], recent_events=[]
-    )
-    return await route_ai_call(AICallType.MEMORY_COMPRESSION, empty)
+def resolve_model() -> Any:
+    return get_instance_default()
 
 
 def call_budget(turn_count: int, window: int) -> dict[str, int]:
@@ -299,7 +293,7 @@ async def main() -> None:
     scenario = yaml.safe_load(path.read_text(encoding="utf-8"))
     window = scenario["meta"]["active_window_turns"]
 
-    model_config = await resolve_model()
+    model_config = resolve_model()
     budget = call_budget(len(turns), window)
     print(f"{name}: {len(turns)} turns, active window {window}")
     print(f"  routing to {model_config.provider} / {model_config.model}")
@@ -312,10 +306,13 @@ async def main() -> None:
         print("  dry-run: nothing called, nothing written")
         return
 
+    from app.ai.generation_context import generation_context, operator_generation
+
     state = load_state(name, resume=not args.restart)
-    per_turn = await derive_batch_summaries(name, turns, window, state)
-    global_summary = await derive_global_summary(name, turns, state)
-    corpus = await derive_fact_corpus(name, turns, meta.get("canaries") or {}, state)
+    with generation_context(operator_generation()):
+        per_turn = await derive_batch_summaries(name, turns, window, state)
+        global_summary = await derive_global_summary(name, turns, state)
+        corpus = await derive_fact_corpus(name, turns, meta.get("canaries") or {}, state)
 
     scenario["context"] = {
         "global_summary": global_summary,

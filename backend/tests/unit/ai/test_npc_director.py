@@ -9,6 +9,7 @@ from app.ai.npc_director import (
     invoke_npcs_parallel,
     invoke_single_npc,
 )
+from app.ai.router import ModelConfig
 
 
 class TestInvokeSingleNPC:
@@ -21,15 +22,15 @@ class TestInvokeSingleNPC:
         )
 
         with (
-            patch("app.ai.npc_director.get_provider", return_value=mock_provider),
-            patch("app.ai.npc_director.route_ai_call", new_callable=AsyncMock) as mock_route,
+            patch(
+                "app.ai.npc_director.get_generation",
+                new_callable=AsyncMock,
+                return_value=(
+                    mock_provider,
+                    ModelConfig(provider="openai", model="gpt-4o-mini", max_tokens=300),
+                ),
+            ),
         ):
-            from app.ai.router import ModelConfig
-
-            mock_route.return_value = ModelConfig(
-                provider="openai", model="gpt-4o-mini", temperature=0.7, max_tokens=300
-            )
-
             result = await invoke_single_npc(
                 npc_name="Grenda",
                 npc_profile={"name": "Grenda", "role": "Blacksmith"},
@@ -49,15 +50,15 @@ class TestInvokeSingleNPC:
         )
 
         with (
-            patch("app.ai.npc_director.get_provider", return_value=mock_provider),
-            patch("app.ai.npc_director.route_ai_call", new_callable=AsyncMock) as mock_route,
+            patch(
+                "app.ai.npc_director.get_generation",
+                new_callable=AsyncMock,
+                return_value=(
+                    mock_provider,
+                    ModelConfig(provider="openai", model="gpt-4o-mini", max_tokens=300),
+                ),
+            ),
         ):
-            from app.ai.router import ModelConfig
-
-            mock_route.return_value = ModelConfig(
-                provider="openai", model="gpt-4o-mini", temperature=0.7, max_tokens=300
-            )
-
             result = await invoke_single_npc(
                 npc_name="Grenda",
                 npc_profile={"name": "Grenda"},
@@ -73,15 +74,15 @@ class TestInvokeSingleNPC:
         mock_provider.generate.side_effect = Exception("API error")
 
         with (
-            patch("app.ai.npc_director.get_provider", return_value=mock_provider),
-            patch("app.ai.npc_director.route_ai_call", new_callable=AsyncMock) as mock_route,
+            patch(
+                "app.ai.npc_director.get_generation",
+                new_callable=AsyncMock,
+                return_value=(
+                    mock_provider,
+                    ModelConfig(provider="openai", model="gpt-4o-mini", max_tokens=300),
+                ),
+            ),
         ):
-            from app.ai.router import ModelConfig
-
-            mock_route.return_value = ModelConfig(
-                provider="openai", model="gpt-4o-mini", temperature=0.7, max_tokens=300
-            )
-
             result = await invoke_single_npc(
                 npc_name="Grenda",
                 npc_profile={"name": "Grenda"},

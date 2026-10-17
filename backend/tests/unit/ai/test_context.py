@@ -2,31 +2,8 @@ import uuid
 
 import pytest
 
-from app.ai.context import _enforce_token_budget, build_context, score_importance
+from app.ai.context import _enforce_token_budget, build_context
 from app.models.campaign import Campaign, Difficulty
-
-
-def test_score_importance_default():
-    campaign = Campaign(world_state={})
-    score = score_importance("I walk to the tavern", campaign)
-    assert score == 5
-
-
-def test_score_importance_high_action():
-    campaign = Campaign(world_state={})
-    score = score_importance("I attack the guard!", campaign)
-    assert score == 7
-
-
-def test_score_importance_low_action():
-    campaign = Campaign(world_state={})
-    score = score_importance("I look around the empty room", campaign)
-    assert score == 3
-
-
-def test_score_importance_bounds():
-    campaign = Campaign(world_state={})
-    assert score_importance("I attack and fight and betray!", campaign) <= 10
 
 
 class TestTokenBudget:
@@ -96,7 +73,7 @@ async def test_build_context(mocker):
 
     ctx = await build_context(campaign, "I look around.", mock_db)
 
-    assert ctx.importance_score == 3
+    assert ctx.importance_score == 5
     # ADR 0003 B8 — death instructions no longer ride every prompt.
     assert "IRONMAN" not in ctx.system_prompt.upper()
     assert ctx.messages[-1]["role"] == "user"

@@ -17,7 +17,7 @@ repos:
 
   # Backend lint + format (ruff finds backend/pyproject.toml)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.6
+    rev: v0.15.7
     hooks:
       - id: ruff
         args: ["--config", "backend/pyproject.toml", "--fix"]
