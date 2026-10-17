@@ -35,6 +35,9 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [UI] Fixed: a brand-new campaign showed no day count until enough time had passed, because the seeded clock carried only its raw minutes.
 
 ### Internal
+- Replaced the provider tiers with one generation model: a single output cap in `saga.config.yaml`, a provider allowlist, migrated call sites and startup validation.
+- Added per-user provider settings and the server-key fallback consent, with credential provenance in the settings API and migration 006.
+- Pinned the ruff pre-commit hook to the locked version and fixed the isort classification of the `alembic` package, so hooks and CI agree on migration imports.
 - ADR 0018 is Proposed: one generation model and one embedding model per user, personal encrypted keys with consented server fallback, and a rebuildable embedding index.
 - Aligned Ruff hooks with the backend configuration so local commits and CI format repository tooling consistently.
 - Covered HTTP authentication and progressive narrative reveal, and enforced the existing frontend coverage thresholds in CI without lowering them.
