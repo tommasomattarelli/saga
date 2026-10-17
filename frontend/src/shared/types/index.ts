@@ -19,8 +19,8 @@ export interface Campaign {
   updated_at: string;
 }
 
-export type CampaignStatus = "active" | "paused" | "completed" | "abandoned";
-export type Difficulty = "easy" | "medium" | "hard";
+type CampaignStatus = "active" | "paused" | "completed" | "abandoned";
+type Difficulty = "easy" | "medium" | "hard";
 
 export interface CharacterData {
   name: string;
@@ -40,20 +40,20 @@ export interface CharacterData {
   active_quests: string[];
 }
 
-export interface SkillData {
+interface SkillData {
   level: number;
   uses: number;
   progress: number;
 }
 
-export interface InventoryItem {
+interface InventoryItem {
   name: string;
   description?: string;
   quantity: number;
   type: string;
 }
 
-export interface EquippedItems {
+interface EquippedItems {
   weapon?: string;
   armor?: string;
   shield?: string;
@@ -103,7 +103,7 @@ export interface WorldState {
   [key: string]: unknown;
 }
 
-export interface CompanionData {
+interface CompanionData {
   name: string;
   hp: number;
   max_hp: number;
@@ -113,7 +113,7 @@ export interface CompanionData {
   personality: string;
 }
 
-export interface FactionData {
+interface FactionData {
   name: string;
   disposition: number;
   active_plan?: string;

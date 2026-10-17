@@ -379,8 +379,10 @@ step 2: DM calls [log_event] — no narration text
 |----------|-------------|-----------|-------|
 | Google Gemini | Native | `response_mime_type: application/json` | Shipped default — a pro tier for the DM's narrative peaks, flash for everything else |
 | OpenAI | Native | `response_format: {type: json_object}` | Most reliable tool calling |
-| Anthropic | Native | Prompt-based (no API param) | Best narrative quality |
 | Local/OpenRouter | Via OpenAI SDK | `response_format: {type: json_object}` | Depends on model |
+
+The direct Anthropic adapter is retired; Claude models remain available through
+explicit OpenRouter configuration, without automatic provider or credential fallback.
 
 All NPC, companion, and world simulation calls use `json_mode=True`. DM narration calls use `generate_with_tools()` (structured tool calling, not JSON mode).
 

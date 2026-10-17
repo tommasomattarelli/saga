@@ -65,7 +65,7 @@ npm run lint
 npx prettier --check "src/**/*.{ts,tsx,json,css}"
 npx tsc --noEmit
 npm run knip
-npx vitest run
+npm run test:coverage -- --run
 npm run build
 ```
 

@@ -27,7 +27,7 @@ the pinned Node before frontend commands, while `uv` provisions the pinned Pytho
 - **Run**: `cd frontend && npm run dev`
 - **Test**: `cd frontend && npm run test`
 - **Lint/Format**: `cd frontend && npm run lint && npm run format`
-- **Full check (what CI runs)**: `cd frontend && npm run lint && npx tsc --noEmit && npm run knip && npx vitest run` — **`knip` is a CI gate**: an export nothing imports fails the build.
+- **Full check (what CI runs)**: `cd frontend && npm run lint && npx tsc --noEmit && npm run knip && npm run test:coverage -- --run` — **`knip` and coverage thresholds are CI gates**: passing tests alone does not make the stack green.
 
 ### Infrastructure (Docker)
 - **Up**: `make test-infra-up` (Test DB) | `docker-compose up -d` (Prod-like)
