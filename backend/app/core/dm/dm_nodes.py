@@ -12,6 +12,7 @@ from langchain_core.runnables import RunnableConfig
 
 from app.ai.context import build_context
 from app.ai.exceptions import PROVIDER_SDK_ERRORS, ContentPolicyError, provider_failure_message
+from app.ai.providers.schemas import TEXT_SIGNATURE_KEY, TOOL_CALL_SIGNATURES_KEY
 from app.ai.router import get_user_generation
 from app.ai.sanitizer import detect_injection, sanitize_player_input
 from app.ai.tools.dm_tools import get_tool_schemas
@@ -142,6 +143,11 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
         for tc in tool_calls_raw
     ]
     ai_msg = AIMessage(content=text, tool_calls=lc_tool_calls)
+    signatures = {tc.id: tc.signature for tc in tool_calls_raw if tc.signature is not None}
+    if signatures:
+        ai_msg.additional_kwargs[TOOL_CALL_SIGNATURES_KEY] = signatures
+    if response.text_signature is not None:
+        ai_msg.additional_kwargs[TEXT_SIGNATURE_KEY] = response.text_signature
 
     return {
         "messages": [ai_msg],

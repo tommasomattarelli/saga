@@ -7,7 +7,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.ai.providers.schemas import TEXT_SIGNATURE_KEY, TOOL_CALL_SIGNATURES_KEY
 from app.exceptions import AIProviderError
+
+_GOOGLE_ONLY_KEYS = frozenset({TOOL_CALL_SIGNATURES_KEY, TEXT_SIGNATURE_KEY})
+
+
+def strip_provider_metadata(messages: list[dict]) -> list[dict]:
+    """Drop Google-only keys before an OpenAI-compatible request (#56)."""
+    return [{k: v for k, v in msg.items() if k not in _GOOGLE_ONLY_KEYS} for msg in messages]
 
 
 def _upstream_reason(response: Any) -> str | None:

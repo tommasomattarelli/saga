@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from collections.abc import AsyncIterator
 
 import structlog
@@ -11,12 +12,20 @@ from google.genai import types as genai_types
 
 from app.ai.exceptions import ContentPolicyError
 from app.ai.providers.base import AIProvider
-from app.ai.providers.schemas import AgentResponse, ToolCall
+from app.ai.providers.schemas import (
+    TEXT_SIGNATURE_KEY,
+    TOOL_CALL_SIGNATURES_KEY,
+    AgentResponse,
+    ToolCall,
+)
 from app.config import settings
 
 logger = structlog.get_logger()
 
 _RETRY_DELAYS = [5, 15, 30]  # seconds between retries on 503
+# Google may omit the call id; we then mint an internal one for signature bookkeeping
+# only, and this prefix keeps it out of the payload (Gemini must see its own ids, not ours).
+_SYNTHETIC_CALL_ID_PREFIX = "saga-call-"
 
 
 async def _with_retry(coro_fn, *args, **kwargs):
@@ -50,17 +59,17 @@ def _to_contents(messages: list[dict]) -> list[dict]:
         # OpenAI-format tool result: role=tool
         elif msg["role"] == "tool":
             tool_name = msg.get("name") or msg.get("tool_call_id") or "tool"
+            function_response: dict = {
+                "name": tool_name,
+                "response": {"result": msg["content"]},
+            }
+            call_id = _native_call_id(msg.get("tool_call_id"))
+            if call_id:
+                function_response["id"] = call_id
             contents.append(
                 {
                     "role": "user",
-                    "parts": [
-                        {
-                            "function_response": {
-                                "name": tool_name,
-                                "response": {"result": msg["content"]},
-                            }
-                        }
-                    ],
+                    "parts": [{"function_response": function_response}],
                 }
             )
 
@@ -68,7 +77,12 @@ def _to_contents(messages: list[dict]) -> list[dict]:
         elif msg["role"] == "assistant" and msg.get("tool_calls"):
             parts = []
             if msg.get("content"):
-                parts.append({"text": msg["content"]})
+                text_part: dict = {"text": msg["content"]}
+                text_signature = msg.get(TEXT_SIGNATURE_KEY)
+                if text_signature is not None:
+                    text_part["thought_signature"] = text_signature
+                parts.append(text_part)
+            signatures = msg.get(TOOL_CALL_SIGNATURES_KEY) or {}
             for tc in msg["tool_calls"]:
                 fn = tc.get("function", {})
                 args = fn.get("arguments", {})
@@ -77,7 +91,15 @@ def _to_contents(messages: list[dict]) -> list[dict]:
                         args = _json.loads(args)
                     except (ValueError, TypeError):
                         args = {}
-                parts.append({"function_call": {"name": fn.get("name", ""), "args": args}})
+                function_call: dict = {"name": fn.get("name", ""), "args": args}
+                call_id = _native_call_id(tc.get("id"))
+                if call_id:
+                    function_call["id"] = call_id
+                part: dict = {"function_call": function_call}
+                signature = signatures.get(tc.get("id"))
+                if signature is not None:
+                    part["thought_signature"] = signature
+                parts.append(part)
             contents.append({"role": "model", "parts": parts})
 
         else:
@@ -101,6 +123,21 @@ def _to_contents(messages: list[dict]) -> list[dict]:
                 if parts:
                     contents.append({"role": role, "parts": parts})
     return contents
+
+
+def _call_id(fc: genai_types.FunctionCall) -> str:
+    # Google may omit the id; falling back to the name collides across parallel calls
+    # and smears one signature onto every same-named one, so mint a unique internal id.
+    if getattr(fc, "id", None):
+        return str(fc.id)
+    return f"{_SYNTHETIC_CALL_ID_PREFIX}{uuid.uuid4().hex}"
+
+
+def _native_call_id(value: object) -> str | None:
+    """The id to echo to Gemini: its own, never the internal synthetic one."""
+    if value and not str(value).startswith(_SYNTHETIC_CALL_ID_PREFIX):
+        return str(value)
+    return None
 
 
 def _openai_tool_to_google(tool: dict) -> dict:
@@ -195,18 +232,22 @@ class GoogleProvider(AIProvider):
         _check_safety(response)
 
         text = ""
+        text_signature: bytes | None = None
         tool_calls = []
         if response.candidates:
             for part in response.candidates[0].content.parts:
                 if hasattr(part, "text") and part.text:
                     text += part.text
+                    if text_signature is None:
+                        text_signature = getattr(part, "thought_signature", None)
                 elif hasattr(part, "function_call") and part.function_call:
                     fc = part.function_call
                     tool_calls.append(
                         ToolCall(
-                            id=fc.id if hasattr(fc, "id") and fc.id else fc.name,
+                            id=_call_id(fc),
                             name=fc.name,
                             arguments=dict(fc.args) if fc.args else {},
+                            signature=getattr(part, "thought_signature", None),
                         )
                     )
-        return AgentResponse(text=text, tool_calls=tool_calls)
+        return AgentResponse(text=text, tool_calls=tool_calls, text_signature=text_signature)
