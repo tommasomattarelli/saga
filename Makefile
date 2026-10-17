@@ -9,15 +9,17 @@ TEST_DB_URL := postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_test
 
 ifeq ($(OS),Windows_NT)
 	SHELL := powershell.exe
-	.SHELLFLAGS := -Command
+	.SHELLFLAGS := -NoProfile -ExecutionPolicy Bypass -Command
 	# Call operator + quotes: $(MAKE) resolves to a path with spaces/parens that
 	# PowerShell cannot invoke bare.
 	SUBMAKE := & "$(MAKE)"
+	WITH_NODE := & "../scripts/with_node.ps1"
 	RUN_FULL_SUITE := cd backend; $$env:TEST_DATABASE_URL='$(TEST_DB_URL)'; uv run python -m pytest tests/unit tests/integration tests/playtest
 	CLEAN_CACHES := if (Test-Path backend/__pycache__) { Remove-Item -Recurse -Force backend/__pycache__ }; if (Test-Path backend/.pytest_cache) { Remove-Item -Recurse -Force backend/.pytest_cache }; if (Test-Path backend/.ruff_cache) { Remove-Item -Recurse -Force backend/.ruff_cache }
 else
 	SHELL := /bin/sh
 	SUBMAKE := $(MAKE)
+	WITH_NODE := bash ../scripts/with_node.sh
 	RUN_FULL_SUITE := cd backend; TEST_DATABASE_URL='$(TEST_DB_URL)' uv run python -m pytest tests/unit tests/integration tests/playtest
 	CLEAN_CACHES := rm -rf backend/__pycache__ backend/.pytest_cache backend/.ruff_cache
 endif
@@ -41,11 +43,11 @@ lint-backend:
 
 lint-frontend:
 	@echo "Linting frontend..."
-	cd frontend; npm run lint
+	cd frontend; $(WITH_NODE) npm run lint
 
 knip:
 	@echo "Checking for unused code and dependencies (frontend)..."
-	cd frontend; npm run knip
+	cd frontend; $(WITH_NODE) npm run knip
 
 format: format-backend format-frontend
 
@@ -55,7 +57,7 @@ format-backend:
 
 format-frontend:
 	@echo "Formatting frontend..."
-	cd frontend; npm run format
+	cd frontend; $(WITH_NODE) npm run format
 
 # --- TESTING ---
 
@@ -67,7 +69,7 @@ test-backend:
 
 test-frontend:
 	@echo "Running frontend unit tests..."
-	cd frontend; npm run test -- --run
+	cd frontend; $(WITH_NODE) npm run test -- --run
 
 test-infra-up:
 	@echo "Starting test infrastructure..."

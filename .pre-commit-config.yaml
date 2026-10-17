@@ -20,8 +20,9 @@ repos:
     rev: v0.8.6
     hooks:
       - id: ruff
-        args: ["--fix"]
+        args: ["--config", "backend/pyproject.toml", "--fix"]
       - id: ruff-format
+        args: ["--config", "backend/pyproject.toml"]
 
   # Secret scan (std 16-18)
   - repo: https://github.com/gitleaks/gitleaks
@@ -53,21 +54,21 @@ repos:
     hooks:
       - id: frontend-eslint
         name: eslint (frontend)
-        entry: bash -c 'cd frontend && npx eslint .'
+        entry: bash -c 'cd frontend && bash ../scripts/with_node.sh npx eslint .'
         language: system
         files: ^frontend/.*\.(ts|tsx)$
         pass_filenames: false
 
       - id: frontend-prettier
         name: prettier --check (frontend)
-        entry: bash -c 'cd frontend && npx prettier --check "src/**/*.{ts,tsx,json,css}"'
+        entry: bash -c 'cd frontend && bash ../scripts/with_node.sh npx prettier --check "src/**/*.{ts,tsx,json,css}"'
         language: system
         files: ^frontend/.*\.(ts|tsx|json|css)$
         pass_filenames: false
 
       - id: frontend-vitest
         name: vitest run (frontend unit)
-        entry: bash -c 'cd frontend && npx vitest run'
+        entry: bash -c 'cd frontend && bash ../scripts/with_node.sh npx vitest run'
         language: system
         files: ^frontend/.*\.(ts|tsx)$
         pass_filenames: false
@@ -81,7 +82,7 @@ repos:
 
       - id: frontend-tsc
         name: tsc -b (frontend typecheck)
-        entry: bash -c 'cd frontend && npx tsc -b'
+        entry: bash -c 'cd frontend && bash ../scripts/with_node.sh npx tsc -b'
         language: system
         files: ^frontend/.*\.(ts|tsx)$
         pass_filenames: false
