@@ -8,13 +8,15 @@ import uuid
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import delete, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.embeddings import generate_embedding
+from app.ai.generation_context import generation_context
 from app.ai.router import get_gameplay_config, validate_user_generation
 from app.api.rate_limit import limiter, turns_limit
 from app.core.dm.dm_graph import dm_graph
 from app.core.dm.game_state import GameState
-from app.dependencies import get_db_context
+from app.dependencies import get_db, get_db_context
 from app.exceptions import AIProviderError, ValidationError
 from app.memory.compressor import compress_turn_to_summary, ensure_compression
 from app.memory.fact_extractor import extract_and_store_facts
@@ -40,6 +42,15 @@ async def submit_action(
     campaign_id: uuid.UUID,
     body: TurnSubmit,
     user: User = Depends(get_current_user),
+    auth_db: AsyncSession = Depends(get_db),
+) -> TurnResponse:
+    await auth_db.close()
+    with generation_context(user.id):
+        return await _submit_action(request, campaign_id, body, user)
+
+
+async def _submit_action(
+    request: Request, campaign_id: uuid.UUID, body: TurnSubmit, user: User
 ) -> TurnResponse:
     """Process a player action and return the complete turn result.
 

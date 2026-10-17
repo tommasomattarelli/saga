@@ -12,10 +12,10 @@ def _patched_extractor(raw: str):
     """Patch the provider round-trip so only the parsing half is exercised."""
     return (
         patch(
-            "app.memory.fact_extractor.get_instance_default",
-            return_value=MagicMock(provider="openai", model="gpt-4o-mini", max_tokens=1000),
+            "app.memory.fact_extractor.get_generation",
+            new_callable=AsyncMock,
+            return_value=(MagicMock(), MagicMock(model="gpt-4o-mini", max_tokens=1000)),
         ),
-        patch("app.memory.fact_extractor.get_provider", return_value=MagicMock()),
         patch(
             "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock, return_value=raw
         ),
@@ -28,8 +28,8 @@ class TestExtractFacts:
     async def _extract(self, raw: str) -> list[dict]:
         from app.memory.fact_extractor import extract_facts
 
-        default, provider, generate = _patched_extractor(raw)
-        with default, provider, generate:
+        generation, generate = _patched_extractor(raw)
+        with generation, generate:
             return await extract_facts("look around", "The hall is empty.")
 
     @pytest.mark.asyncio
@@ -86,7 +86,7 @@ class TestExtractAndStoreFacts:
         with patch("app.memory.fact_extractor.get_gameplay_config") as mock_cfg:
             mock_cfg.return_value.fact_extraction_enabled = False
             # Should return immediately without calling AI
-            with patch("app.memory.fact_extractor.get_instance_default") as mock_default:
+            with patch("app.memory.fact_extractor.get_generation") as mock_default:
                 await extract_and_store_facts(
                     campaign_id=uuid.uuid4(),
                     turn_number=1,
@@ -103,12 +103,10 @@ class TestExtractAndStoreFacts:
             mock_cfg.return_value.fact_extraction_enabled = True
             with (
                 patch(
-                    "app.memory.fact_extractor.get_instance_default",
-                    return_value=MagicMock(
-                        provider="openai", model="gpt-4o-mini", max_tokens=1000
-                    ),
+                    "app.memory.fact_extractor.get_generation",
+                    new_callable=AsyncMock,
+                    return_value=(MagicMock(), MagicMock(model="gpt-4o-mini", max_tokens=1000)),
                 ),
-                patch("app.memory.fact_extractor.get_provider", return_value=MagicMock()),
                 patch(
                     "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock
                 ) as mock_gen,
@@ -134,12 +132,10 @@ class TestExtractAndStoreFacts:
             mock_cfg.return_value.fact_extraction_enabled = True
             with (
                 patch(
-                    "app.memory.fact_extractor.get_instance_default",
-                    return_value=MagicMock(
-                        provider="openai", model="gpt-4o-mini", max_tokens=1000
-                    ),
+                    "app.memory.fact_extractor.get_generation",
+                    new_callable=AsyncMock,
+                    return_value=(MagicMock(), MagicMock(model="gpt-4o-mini", max_tokens=1000)),
                 ),
-                patch("app.memory.fact_extractor.get_provider", return_value=MagicMock()),
                 patch(
                     "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock
                 ) as mock_gen,
@@ -159,6 +155,7 @@ class TestExtractAndStoreFacts:
 
         facts_json = '{"facts": [{"entity_name": "Gandalf", "entity_type": "npc", "content": "Gandalf arrived in town"}]}'
         mock_db = AsyncMock()
+        mock_db.add_all = MagicMock()
         mock_session_instance = MagicMock()
         mock_session_instance.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_instance.__aexit__ = AsyncMock(return_value=False)
@@ -167,12 +164,10 @@ class TestExtractAndStoreFacts:
             mock_cfg.return_value.fact_extraction_enabled = True
             with (
                 patch(
-                    "app.memory.fact_extractor.get_instance_default",
-                    return_value=MagicMock(
-                        provider="openai", model="gpt-4o-mini", max_tokens=1000
-                    ),
+                    "app.memory.fact_extractor.get_generation",
+                    new_callable=AsyncMock,
+                    return_value=(MagicMock(), MagicMock(model="gpt-4o-mini", max_tokens=1000)),
                 ),
-                patch("app.memory.fact_extractor.get_provider", return_value=MagicMock()),
                 patch(
                     "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock
                 ) as mock_gen,
@@ -190,7 +185,7 @@ class TestExtractAndStoreFacts:
                     narration="Gandalf arrived in town.",
                 )
                 mock_embed.assert_called_once()
-                mock_db.add.assert_called_once()
+                mock_db.add_all.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_swallows_exceptions_silently(self):
@@ -199,7 +194,7 @@ class TestExtractAndStoreFacts:
         with patch("app.memory.fact_extractor.get_gameplay_config") as mock_cfg:
             mock_cfg.return_value.fact_extraction_enabled = True
             with patch(
-                "app.memory.fact_extractor.get_instance_default",
+                "app.memory.fact_extractor.get_generation",
                 side_effect=RuntimeError("API error"),
             ):
                 # Should not raise
@@ -218,12 +213,10 @@ class TestExtractAndStoreFacts:
             mock_cfg.return_value.fact_extraction_enabled = True
             with (
                 patch(
-                    "app.memory.fact_extractor.get_instance_default",
-                    return_value=MagicMock(
-                        provider="openai", model="gpt-4o-mini", max_tokens=1000
-                    ),
+                    "app.memory.fact_extractor.get_generation",
+                    new_callable=AsyncMock,
+                    return_value=(MagicMock(), MagicMock(model="gpt-4o-mini", max_tokens=1000)),
                 ),
-                patch("app.memory.fact_extractor.get_provider", return_value=MagicMock()),
                 patch(
                     "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock
                 ) as mock_gen,
@@ -243,6 +236,7 @@ class TestExtractAndStoreFacts:
 
         facts_json = '{"facts": [{"entity_name": "", "entity_type": "npc", "content": "some content"}, {"entity_name": "Valid", "entity_type": "npc", "content": ""}]}'
         mock_db = AsyncMock()
+        mock_db.add_all = MagicMock()
         mock_session_instance = MagicMock()
         mock_session_instance.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_instance.__aexit__ = AsyncMock(return_value=False)
@@ -251,12 +245,10 @@ class TestExtractAndStoreFacts:
             mock_cfg.return_value.fact_extraction_enabled = True
             with (
                 patch(
-                    "app.memory.fact_extractor.get_instance_default",
-                    return_value=MagicMock(
-                        provider="openai", model="gpt-4o-mini", max_tokens=1000
-                    ),
+                    "app.memory.fact_extractor.get_generation",
+                    new_callable=AsyncMock,
+                    return_value=(MagicMock(), MagicMock(model="gpt-4o-mini", max_tokens=1000)),
                 ),
-                patch("app.memory.fact_extractor.get_provider", return_value=MagicMock()),
                 patch(
                     "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock
                 ) as mock_gen,
@@ -270,4 +262,4 @@ class TestExtractAndStoreFacts:
                     player_action="test",
                     narration="test",
                 )
-                mock_db.add.assert_not_called()
+                mock_db.add_all.assert_not_called()

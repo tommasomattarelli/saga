@@ -36,6 +36,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Background memory and NPC calls inherit the owning user's configuration, with database read sessions closed before generation and embeddings.
+
 - Removed temperature plumbing, Cohere/Groq factories, and importance scoring; generation uses provider defaults while importance survives only as neutral turn metadata.
 
 - Generation calls resolve personal credentials before use, isolate cached clients by credential and endpoint, and reject unusable profiles before claiming a turn.

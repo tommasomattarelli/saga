@@ -9,10 +9,10 @@ from __future__ import annotations
 import uuid
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.router import get_gameplay_config, get_instance_default
+from app.ai.router import get_gameplay_config, get_generation
 from app.memory.compressor import summary_from
 from app.models.campaign import Campaign
 from app.models.turn import Turn
@@ -52,10 +52,9 @@ def _format_turns(turns: list[Turn]) -> str:
 
 
 async def _generate_summary(prompt: str) -> str | None:
-    from app.ai.providers.base import get_provider, logged_generate
+    from app.ai.providers.base import logged_generate
 
-    model_config = get_instance_default()
-    provider = get_provider(model_config.provider)
+    provider, model_config = await get_generation()
 
     try:
         raw = await logged_generate(
@@ -106,6 +105,7 @@ async def update_global_summary(
         .order_by(Turn.turn_number.asc())
     )
     batch = list(batch_result.scalars().all())
+    await db.close()
     if not batch:
         return None
 
@@ -124,6 +124,9 @@ async def update_global_summary(
         return None
 
     campaign.global_summary = summary
+    await db.execute(
+        update(Campaign).where(Campaign.id == campaign_id).values(global_summary=summary)
+    )
     await db.flush()
     logger.info(
         "global_summary_updated",

@@ -22,10 +22,13 @@ class TestInvokeSingleNPC:
         )
 
         with (
-            patch("app.ai.npc_director.get_provider", return_value=mock_provider),
             patch(
-                "app.ai.npc_director.get_instance_default",
-                return_value=ModelConfig(provider="openai", model="gpt-4o-mini", max_tokens=300),
+                "app.ai.npc_director.get_generation",
+                new_callable=AsyncMock,
+                return_value=(
+                    mock_provider,
+                    ModelConfig(provider="openai", model="gpt-4o-mini", max_tokens=300),
+                ),
             ),
         ):
             result = await invoke_single_npc(
@@ -47,10 +50,13 @@ class TestInvokeSingleNPC:
         )
 
         with (
-            patch("app.ai.npc_director.get_provider", return_value=mock_provider),
             patch(
-                "app.ai.npc_director.get_instance_default",
-                return_value=ModelConfig(provider="openai", model="gpt-4o-mini", max_tokens=300),
+                "app.ai.npc_director.get_generation",
+                new_callable=AsyncMock,
+                return_value=(
+                    mock_provider,
+                    ModelConfig(provider="openai", model="gpt-4o-mini", max_tokens=300),
+                ),
             ),
         ):
             result = await invoke_single_npc(
@@ -68,10 +74,13 @@ class TestInvokeSingleNPC:
         mock_provider.generate.side_effect = Exception("API error")
 
         with (
-            patch("app.ai.npc_director.get_provider", return_value=mock_provider),
             patch(
-                "app.ai.npc_director.get_instance_default",
-                return_value=ModelConfig(provider="openai", model="gpt-4o-mini", max_tokens=300),
+                "app.ai.npc_director.get_generation",
+                new_callable=AsyncMock,
+                return_value=(
+                    mock_provider,
+                    ModelConfig(provider="openai", model="gpt-4o-mini", max_tokens=300),
+                ),
             ),
         ):
             result = await invoke_single_npc(
