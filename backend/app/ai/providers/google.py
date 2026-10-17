@@ -11,7 +11,7 @@ from google.genai import types as genai_types
 
 from app.ai.exceptions import ContentPolicyError
 from app.ai.providers.base import AIProvider
-from app.ai.providers.schemas import AgentResponse, ToolCall
+from app.ai.providers.schemas import TOOL_CALL_SIGNATURES_KEY, AgentResponse, ToolCall
 from app.config import settings
 
 logger = structlog.get_logger()
@@ -69,6 +69,7 @@ def _to_contents(messages: list[dict]) -> list[dict]:
             parts = []
             if msg.get("content"):
                 parts.append({"text": msg["content"]})
+            signatures = msg.get(TOOL_CALL_SIGNATURES_KEY) or {}
             for tc in msg["tool_calls"]:
                 fn = tc.get("function", {})
                 args = fn.get("arguments", {})
@@ -77,7 +78,11 @@ def _to_contents(messages: list[dict]) -> list[dict]:
                         args = _json.loads(args)
                     except (ValueError, TypeError):
                         args = {}
-                parts.append({"function_call": {"name": fn.get("name", ""), "args": args}})
+                part: dict = {"function_call": {"name": fn.get("name", ""), "args": args}}
+                signature = signatures.get(tc.get("id"))
+                if signature is not None:
+                    part["thought_signature"] = signature
+                parts.append(part)
             contents.append({"role": "model", "parts": parts})
 
         else:
@@ -207,6 +212,7 @@ class GoogleProvider(AIProvider):
                             id=fc.id if hasattr(fc, "id") and fc.id else fc.name,
                             name=fc.name,
                             arguments=dict(fc.args) if fc.args else {},
+                            signature=getattr(part, "thought_signature", None),
                         )
                     )
         return AgentResponse(text=text, tool_calls=tool_calls)

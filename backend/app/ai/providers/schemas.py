@@ -4,12 +4,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+# Google returns an opaque thought_signature on function-call parts and expects it
+# echoed back on the next request. It rides message entries under this key, which
+# OpenAI-compatible providers must strip before hitting their SDK (see openai_compat).
+TOOL_CALL_SIGNATURES_KEY = "tool_call_signatures"
+
 
 @dataclass
 class ToolCall:
     id: str
     name: str
     arguments: dict
+    signature: bytes | None = None
 
 
 @dataclass
