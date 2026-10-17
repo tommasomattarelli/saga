@@ -6,6 +6,8 @@ import json
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
+from app.ai.providers.schemas import TOOL_CALL_SIGNATURES_KEY
+
 
 def tool_calls_from_ai_message(msg: AIMessage) -> list[dict]:
     tcs = getattr(msg, "tool_calls", None) or []
@@ -50,6 +52,9 @@ def messages_to_raw(messages: list) -> list[dict]:
                     }
                     for tc in msg.tool_calls
                 ]
+            signatures = msg.additional_kwargs.get(TOOL_CALL_SIGNATURES_KEY)
+            if signatures:
+                entry[TOOL_CALL_SIGNATURES_KEY] = signatures
             raw.append(entry)
         elif isinstance(msg, ToolMessage):
             raw.append(
