@@ -30,7 +30,6 @@ def _make_state(**overrides) -> dict:
         "model_config": {
             "provider": "openai",
             "model": "gpt-4o-mini",
-            "temperature": 0.7,
             "max_tokens": 2000,
         },
         "model_used": "gpt-4o-mini",
@@ -146,7 +145,7 @@ class TestContextNode:
             yield mock_db
 
         game_ctx = MagicMock(messages=[], importance_score=5, system_prompt="sys")
-        model_cfg = MagicMock(provider="openai", model="gpt-4o", temperature=0.7, max_tokens=100)
+        model_cfg = MagicMock(provider="openai", model="gpt-4o", max_tokens=100)
 
         state = _make_state(player_action="I attack the guard", campaign_id="cid")
 
@@ -158,7 +157,7 @@ class TestContextNode:
             patch(
                 "app.core.dm.dm_nodes.build_context", new=AsyncMock(return_value=game_ctx)
             ) as mock_bc,
-            patch("app.core.dm.dm_nodes.route_ai_call", new=AsyncMock(return_value=model_cfg)),
+            patch("app.core.dm.dm_nodes.get_instance_default", return_value=model_cfg),
             patch("app.core.dm.dm_nodes.sanitize_player_input", side_effect=lambda x: x),
             patch("app.core.dm.dm_nodes.detect_injection", return_value=False),
         ):

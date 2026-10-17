@@ -13,7 +13,7 @@ from langchain_core.runnables import RunnableConfig
 from app.ai.context import build_context
 from app.ai.exceptions import ContentPolicyError
 from app.ai.providers.base import get_provider
-from app.ai.router import AICallType, route_ai_call
+from app.ai.router import get_instance_default
 from app.ai.sanitizer import detect_injection, sanitize_player_input
 from app.ai.tools.dm_tools import get_tool_schemas
 from app.ai.tools.tool_groups import resolve_active_tools_from_state
@@ -51,7 +51,7 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
         campaign: Campaign = result.scalar_one()
 
         context = await build_context(campaign, player_action, db, query_embedding=query_embedding)
-        model_cfg = await route_ai_call(AICallType.DM_NARRATION, context)
+        model_cfg = get_instance_default()
 
     lc_messages = raw_history_to_lc(context.messages[:-1])
     lc_messages.append(HumanMessage(content=player_action))
@@ -68,7 +68,6 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
         "model_config": {
             "provider": model_cfg.provider,
             "model": model_cfg.model,
-            "temperature": model_cfg.temperature,
             "max_tokens": model_cfg.max_tokens,
         },
     }
@@ -81,7 +80,6 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
     model_cfg = ModelConfig(
         provider=raw_cfg["provider"],
         model=raw_cfg["model"],
-        temperature=raw_cfg["temperature"],
         max_tokens=raw_cfg["max_tokens"],
     )
 
@@ -119,7 +117,6 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
             messages=messages_raw,
             tools=tool_schemas,
             model=model_cfg.model,
-            temperature=model_cfg.temperature,
             max_tokens=model_cfg.max_tokens,
         )
     except ContentPolicyError:

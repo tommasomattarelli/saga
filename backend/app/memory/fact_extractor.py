@@ -9,7 +9,7 @@ import structlog
 
 from app.ai.embeddings import generate_embedding
 from app.ai.providers.base import get_provider, logged_generate
-from app.ai.router import AICallType, get_gameplay_config, route_ai_call
+from app.ai.router import get_gameplay_config, get_instance_default
 from app.ai.sanitizer import strip_code_fences
 from app.models.memory_fact import MemoryFact
 
@@ -64,15 +64,7 @@ async def extract_facts(
         .replace("{npc_section}", npc_section)
     )
 
-    # Use a minimal context for routing (importance 0 → budget model)
-    from app.ai.context import GameContext
-
-    dummy_context = GameContext(
-        system_prompt="",
-        messages=[],
-        importance_score=0,
-    )
-    model_config = await route_ai_call(AICallType.MEMORY_COMPRESSION, dummy_context)
+    model_config = get_instance_default()
     provider = get_provider(model_config.provider)
 
     raw = await logged_generate(
@@ -81,7 +73,6 @@ async def extract_facts(
         system_prompt="You extract structured facts from RPG game turns.",
         messages=[{"role": "user", "content": prompt_text}],
         model=model_config.model,
-        temperature=0.2,
         max_tokens=model_config.max_tokens,
     )
 

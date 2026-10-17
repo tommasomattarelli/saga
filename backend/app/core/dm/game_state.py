@@ -44,4 +44,4 @@ class GameState(TypedDict):
 
     # ── Internal (set by context_node, consumed by dm_node) ──────────────────
     system_prompt: str
-    model_config: dict[str, Any]  # {provider, model, temperature, max_tokens}
+    model_config: dict[str, Any]  # {provider, model, max_tokens}

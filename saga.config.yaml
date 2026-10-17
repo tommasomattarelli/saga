@@ -3,70 +3,42 @@
 # Edit this file to change models, gameplay behavior, feature toggles, and tool groups.
 # Secrets and infra settings stay in .env / backend/app/config.py (12-factor).
 #
-# Environment variable overrides (still supported):
-#   SAGA_MODEL_DM_NARRATION_LOW_PROVIDER, SAGA_MODEL_DM_NARRATION_HIGH, etc.
-#   SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS, SAGA_GAMEPLAY_NPC_VERBOSITY, etc.
-#   SAGA_GLOBAL_PROVIDER, SAGA_GLOBAL_MODEL_HIGH, SAGA_GLOBAL_MODEL_LOW, etc.
+# Provider configuration is per user (ADR 0018): each user picks one provider and one
+# model in their settings and enters their own API keys (BYOAK). The blocks below are
+# the instance policy and the defaults a user inherits before configuring their own.
 
 # ---------------------------------------------------------------------------
-# DM Narration — three-tier routing based on scene importance (0-10)
+# Generation — one model for every AI call (ADR 0018 A1/A2)
+#
+# There are no cost tiers and no per-call-type overrides: one model serves the DM,
+# NPCs, compression and every background job. `default` is the instance fallback;
+# `max_output_tokens` is a single runaway guardrail (std 14), not a per-call knob.
 # ---------------------------------------------------------------------------
-dm_narration:
-  low:                       # importance 0-3: routine exploration / simple responses
-    provider: google
-    model: gemini-3.5-flash
-    temperature: 0.8
-    max_tokens: 12000
-  medium:                    # importance 4-6: normal gameplay
-    provider: google
-    model: gemini-3.5-flash
-    temperature: 0.8
-    max_tokens: 14000
-  high:                      # importance 7-10: boss fights, dramatic reveals
-    provider: google
-    model: gemini-3.1-pro
-    temperature: 0.9
-    max_tokens: 16000
-
-# ---------------------------------------------------------------------------
-# Companion Dialogue — single tier, conversational
-# ---------------------------------------------------------------------------
-companion_dialogue:
+generation:
   default:
     provider: google
     model: gemini-3.5-flash
-    temperature: 0.7
-    max_tokens: 8000
+  max_output_tokens: 60000
 
 # ---------------------------------------------------------------------------
-# NPC Behavior — budget model, high volume
+# Providers — instance policy (ADR 0018 A3/A4/A5/A7)
+#
+# `allowed` is the single allowlist for generation and embeddings (all = every
+# supported provider). `server_key_fallback` is the operator half of the double
+# consent: a server key pays for a user call only when the operator enables it
+# here AND the user consents in settings, and only if the user has no key of
+# their own. `local_endpoints` names the only local endpoints the backend may
+# contact; users select from this list and never supply URLs (SSRF containment).
 # ---------------------------------------------------------------------------
-npc_behavior:
-  default:
-    provider: google
-    model: gemini-3.5-flash
-    temperature: 0.7
-    max_tokens: 8000
-
-# ---------------------------------------------------------------------------
-# World Simulation — deterministic scoring, lower temperature
-# ---------------------------------------------------------------------------
-world_sim:
-  default:
-    provider: google
-    model: gemini-3.5-flash
-    temperature: 0.5
-    max_tokens: 8000
-
-# ---------------------------------------------------------------------------
-# Memory Compression — focused summarization
-# ---------------------------------------------------------------------------
-memory_compression:
-  default:
-    provider: google
-    model: gemini-3.5-flash
-    temperature: 0.3
-    max_tokens: 8000
+providers:
+  allowed: [openai, openrouter, google, local]
+  server_key_fallback:
+    openai: false
+    openrouter: false
+    google: false
+  local_endpoints:
+    ollama:
+      base_url: http://localhost:11434/v1
 
 # ---------------------------------------------------------------------------
 # Embeddings
@@ -76,10 +48,6 @@ embedding:
     provider: google
     model: text-embedding-004
     dimensions: 1536
-
-
-# ---------------------------------------------------------------------------
-
 
 # ---------------------------------------------------------------------------
 # Gameplay Settings — runtime behavior

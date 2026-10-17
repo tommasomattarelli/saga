@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from app.ai.router import validate_generation_config
 from app.api import auth, campaigns, characters, export, journal, saves, turns, worlds
 from app.api import settings as settings_api
 from app.api.rate_limit import limiter, rate_limit_exceeded_handler
@@ -19,6 +20,7 @@ setup_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    validate_generation_config()
     await init_db()
     yield
     await close_db()

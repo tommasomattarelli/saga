@@ -10,7 +10,7 @@ import structlog
 
 from app.ai.prompts.npc import build_npc_prompt
 from app.ai.providers.base import get_provider, logged_generate
-from app.ai.router import AICallType, get_gameplay_config, route_ai_call
+from app.ai.router import get_gameplay_config, get_instance_default
 from app.ai.sanitizer import strip_code_fences
 from app.core.npc_resolver import resolve_npc
 from app.core.psychology import resolve_psychology
@@ -35,7 +35,7 @@ def _parse_axis_changes(raw: object) -> dict[str, int]:
     return {
         str(axis): int(delta)
         for axis, delta in raw.items()
-        if isinstance(delta, (int, float)) and not isinstance(delta, bool)
+        if isinstance(delta, int | float) and not isinstance(delta, bool)
     }
 
 
@@ -48,8 +48,6 @@ async def invoke_single_npc(
     fill_empty_traits: bool = False,
 ) -> NPCDialogue:
     """Call a budget LLM for a single NPC's response."""
-    from app.ai.context import GameContext
-
     prompt = build_npc_prompt(
         npc_profile,
         player_action=player_action,
@@ -58,12 +56,7 @@ async def invoke_single_npc(
         fill_empty_traits=fill_empty_traits,
     )
 
-    dummy_context = GameContext(
-        system_prompt="",
-        messages=[],
-        importance_score=0,
-    )
-    model_config = await route_ai_call(AICallType.NPC_BEHAVIOR, dummy_context)
+    model_config = get_instance_default()
     provider = get_provider(model_config.provider)
 
     try:
@@ -73,7 +66,6 @@ async def invoke_single_npc(
             system_prompt=f"You are {npc_name}, an NPC in a tabletop RPG.",
             messages=[{"role": "user", "content": prompt}],
             model=model_config.model,
-            temperature=model_config.temperature,
             max_tokens=model_config.max_tokens,
             json_mode=True,
         )
