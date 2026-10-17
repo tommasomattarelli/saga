@@ -10,7 +10,7 @@ import structlog
 
 from app.ai.exceptions import ContentPolicyError
 from app.ai.providers.base import AIProvider
-from app.ai.providers.openai_compat import first_choice, stream_choice
+from app.ai.providers.openai_compat import first_choice, stream_choice, strip_provider_metadata
 from app.ai.providers.schemas import AgentResponse, ToolCall
 
 logger = structlog.get_logger()
@@ -79,7 +79,9 @@ class LocalProvider(AIProvider):
         model: str = "local",
         max_tokens: int = 2000,
     ) -> AgentResponse:
-        full_messages = [{"role": "system", "content": system_prompt}] + messages
+        full_messages = [{"role": "system", "content": system_prompt}] + strip_provider_metadata(
+            messages
+        )
         response = await self.client.chat.completions.create(  # type: ignore[call-overload]
             model=model,
             messages=full_messages,
