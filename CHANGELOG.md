@@ -35,6 +35,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [UI] Fixed: a brand-new campaign showed no day count until enough time had passed, because the seeded clock carried only its raw minutes.
 
 ### Internal
+- ADR 0018 is Proposed: one generation model and one embedding model per user, personal encrypted keys with consented server fallback, and a rebuildable embedding index.
 - Aligned Ruff hooks with the backend configuration so local commits and CI format repository tooling consistently.
 - Covered HTTP authentication and progressive narrative reveal, and enforced the existing frontend coverage thresholds in CI without lowering them.
 - Added behavioral coverage for world authoring, including taxonomy edits, node hierarchies, encounter tables and NPC field or psychology migrations.
