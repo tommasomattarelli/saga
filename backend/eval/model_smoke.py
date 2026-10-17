@@ -37,6 +37,7 @@ from probes import PROBES, grade  # noqa: E402
 
 from app.ai.prompts.dm import build_dm_system_prompt  # noqa: E402
 from app.ai.providers.base import get_provider  # noqa: E402
+from app.ai.router import get_instance_default  # noqa: E402
 from app.ai.tools.dm_tools import get_tool_schemas  # noqa: E402
 from app.ai.tools.tool_groups import resolve_active_tools_from_state  # noqa: E402
 
@@ -67,7 +68,7 @@ async def _run_once(provider: str, model: str, sc: scenarios.Scenario, probe_nam
             messages=sc.messages(probe_name),
             tools=tools,
             model=model,
-            max_tokens=1200,
+            max_tokens=get_instance_default().max_tokens,
         )
     except Exception as exc:  # a failing provider is a result, not a crash (#50)
         return Result(sc.name, probe_name, ["error"], time.monotonic() - started, str(exc)[:160])

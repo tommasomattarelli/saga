@@ -11,7 +11,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from app.ai.context import build_context
-from app.ai.exceptions import ContentPolicyError
+from app.ai.exceptions import PROVIDER_SDK_ERRORS, ContentPolicyError, provider_failure_message
 from app.ai.router import get_user_generation
 from app.ai.sanitizer import detect_injection, sanitize_player_input
 from app.ai.tools.dm_tools import get_tool_schemas
@@ -21,6 +21,7 @@ from app.core.death import check_player_death
 from app.core.dm.dm_helpers import get_or_create_segment, messages_to_raw, raw_history_to_lc
 from app.core.dm.game_state import GameState
 from app.core.engine import CONTENT_POLICY_NARRATION
+from app.exceptions import AIProviderError
 from app.memory.world_state import advance_game_clock, migrate_world_state
 
 _llm_io = logging.getLogger("llm_io")
@@ -110,6 +111,8 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
             model=model_cfg.model,
             max_tokens=model_cfg.max_tokens,
         )
+    except PROVIDER_SDK_ERRORS as exc:
+        raise AIProviderError(model_cfg.provider, provider_failure_message(exc)) from exc
     except ContentPolicyError:
         response_text = CONTENT_POLICY_NARRATION
         ai_msg = AIMessage(content=response_text, tool_calls=[])

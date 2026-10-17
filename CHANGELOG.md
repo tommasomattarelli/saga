@@ -14,6 +14,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ## [Unreleased]
 
 ### Highlights
+
+- [Memory & AI] Personal generation keys and models now reach every foreground and background call, with consented fallback and isolated clients (#73, #74).
 - [Infra] Development commands and Git hooks now select pinned Node automatically without changing global runtimes.
 - [Infra] Full tests now include both stacks, fail immediately if PostgreSQL cannot start, and always clean up test infrastructure.
 - [Infra] Updated vulnerable dependencies across both stacks, with clean runtime audits and two documented development-tool advisories retained for a separate Tailwind migration.
@@ -36,10 +38,10 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Added PostgreSQL regressions for concurrent users, consent combinations, provider policy, ignored legacy variables and database-free model calls.
+- Covered generation credentials from #65; embedding credentials remain in ADR 0018 Part B alongside #55.
 - Background memory and NPC calls inherit the owning user's configuration, with database read sessions closed before generation and embeddings.
-
 - Removed temperature plumbing, Cohere/Groq factories, and importance scoring; generation uses provider defaults while importance survives only as neutral turn metadata.
-
 - Generation calls resolve personal credentials before use, isolate cached clients by credential and endpoint, and reject unusable profiles before claiming a turn.
 - Replaced the provider tiers with one generation model: a single output cap in `saga.config.yaml`, a provider allowlist, migrated call sites and startup validation.
 - Added personal generation and embedding profiles, named local endpoints, and server-key fallback consent, with credential provenance in the settings API and migration 006.
