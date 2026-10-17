@@ -1,4 +1,4 @@
-"""Real PostgreSQL round-trip for #56: a Google tool-loop turn echoes the signature.
+"""Real PostgreSQL round-trips for #56: a Google tool-loop turn preserves its protocol data.
 
 Runs the real DM graph and real credential resolution against the test database, with
 only the Google SDK transport faked, and inspects the contents actually delivered to
@@ -52,21 +52,11 @@ async def _configure_google(client) -> str:
     return str(resp.json()["id"])
 
 
-@pytest.mark.asyncio
-async def test_real_turn_echoes_signature_to_the_next_google_request(auth_client) -> None:
+async def _run_turn(
+    auth_client, responses: list[genai_types.GenerateContentResponse]
+) -> list[dict]:
     campaign_id = await _configure_google(auth_client)
-
     calls: list[dict] = []
-    responses = [
-        _response(
-            [
-                _text_part("You look around."),
-                _fc_part("request_dice", {"stat": "DEX"}, None, _SIG),
-                _fc_part("request_dice", {"stat": "STR"}, None),
-            ]
-        ),
-        _response([_text_part("The dice settle.")]),
-    ]
 
     class _Models:
         async def generate_content(self, **kwargs):
@@ -105,13 +95,58 @@ async def test_real_turn_echoes_signature_to_the_next_google_request(auth_client
     assert resp.status_code == 200
     tool_calls = [c for c in calls if getattr(c.get("config"), "tools", None)]
     assert len(tool_calls) == 2
+    return tool_calls
 
-    fc_parts = [
-        part
-        for content in tool_calls[1]["contents"]
-        for part in content["parts"]
-        if "function_call" in part
-    ]
+
+def _parts(contents: list[dict], kind: str) -> list[dict]:
+    return [part for content in contents for part in content["parts"] if kind in part]
+
+
+@pytest.mark.asyncio
+async def test_real_turn_echoes_signature_for_idless_parallel_calls(auth_client) -> None:
+    tool_calls = await _run_turn(
+        auth_client,
+        [
+            _response(
+                [
+                    _text_part("You look around."),
+                    _fc_part("request_dice", {"stat": "DEX"}, None, _SIG),
+                    _fc_part("request_dice", {"stat": "STR"}, None),
+                ]
+            ),
+            _response([_text_part("The dice settle.")]),
+        ],
+    )
+
+    contents = tool_calls[1]["contents"]
+    fc_parts = _parts(contents, "function_call")
     assert len(fc_parts) == 2
     assert fc_parts[0]["thought_signature"] == _SIG
     assert "thought_signature" not in fc_parts[1]
+    # No native id existed, so the internal one must not leak into the payload.
+    assert all("id" not in part["function_call"] for part in fc_parts)
+
+
+@pytest.mark.asyncio
+async def test_real_turn_echoes_native_ids_on_calls_and_results(auth_client) -> None:
+    tool_calls = await _run_turn(
+        auth_client,
+        [
+            _response(
+                [
+                    _text_part("You look around."),
+                    _fc_part("request_dice", {"stat": "DEX"}, "native-dex"),
+                    _fc_part("request_dice", {"stat": "STR"}, "native-str"),
+                ]
+            ),
+            _response([_text_part("The dice settle.")]),
+        ],
+    )
+
+    contents = tool_calls[1]["contents"]
+    call_ids = [part["function_call"]["id"] for part in _parts(contents, "function_call")]
+    response_ids = [
+        part["function_response"]["id"] for part in _parts(contents, "function_response")
+    ]
+    assert call_ids == ["native-dex", "native-str"]
+    assert response_ids == call_ids
