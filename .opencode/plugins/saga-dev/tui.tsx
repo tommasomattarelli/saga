@@ -100,9 +100,9 @@ function SagaSidebar(props: { root: string }) {
             <text> </text>
             <text>CHECKS</text>
             <text>{checksHeader(ci)}</text>
-            {ci.checks.lint ? <text>{`${checkMark(ci.checks.lint)} lint`}</text> : null}
-            {ci.checks.types ? <text>{`${checkMark(ci.checks.types)} types`}</text> : null}
-            {testsLine ? <text>{testsLine}</text> : null}
+            {ci.checks.lint ? <text>{`  ${checkMark(ci.checks.lint)} lint`}</text> : null}
+            {ci.checks.types ? <text>{`  ${checkMark(ci.checks.types)} types`}</text> : null}
+            {testsLine ? <text>{`  ${testsLine}`}</text> : null}
             <text> </text>
             <text>GIT</text>
             <text>{s.git.branch || "-"}</text>
@@ -151,7 +151,9 @@ function SagaPanel(props: { root: string; panel: SlotProps }) {
             <text>{`Local CI   ${
               ci.status === "not-run"
                 ? "not run"
-                : `${ci.scope ?? "-"} · ${formatAge(ci.finishedAt)} ago${ci.stale ? " · stale" : ""}`
+                : `last ${ci.scope ?? "-"} · ${formatAge(ci.finishedAt)} ago ${
+                    ci.status === "pass" ? "✓" : "✗"
+                  }${ci.stale ? " · stale" : ""}`
             }`}</text>
             {Object.entries(ci.checks).map(([id, check]) => (
               <text>{`  ${id.padEnd(16)} ${checkLine(check)}`}</text>
@@ -195,10 +197,9 @@ function dot(status: ServiceStatus): string {
 }
 
 function checksHeader(ci: CiSnapshot): string {
-  if (ci.status === "not-run") return "—";
-  return `${ci.status === "pass" ? "✓" : "✗"} ${ci.scope ?? "-"} · ${formatAge(ci.finishedAt)}${
-    ci.stale ? " · stale" : ""
-  }`;
+  if (ci.status === "not-run") return "last: —";
+  const mark = ci.status === "pass" ? "✓" : "✗";
+  return `last: ${ci.scope ?? "-"} · ${formatAge(ci.finishedAt)} ${mark}${ci.stale ? " · stale" : ""}`;
 }
 
 function checkMark(check: CheckResult): string {
