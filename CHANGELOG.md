@@ -39,6 +39,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Exposed authenticated embedding-index controls and startup recovery, blocking profile changes while rebuilds run.
 - Added lease-fenced embedding workers with resumable batches, atomic cutover and paced active-index maintenance.
 - Added persistent per-campaign embedding queues with idempotent ensure, explicit retry and cancellation.
 - Added versioned embedding storage and personal provider routing with validated batch adapters, finite retries and a configurable rebuild lease.
