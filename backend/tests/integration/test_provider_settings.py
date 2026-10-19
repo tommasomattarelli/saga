@@ -16,7 +16,7 @@ async def test_embedding_profile_defaults_to_instance(auth_client: AsyncClient) 
     assert payload["embedding_provider"] is None
     assert payload["embedding_model"] is None
     assert payload["embedding_local_endpoint"] is None
-    assert payload["effective_embedding_provider"] == "google"
+    assert payload["effective_embedding_provider"] == "openrouter"
     assert payload["embedding_credential_source"] == "missing"
 
 
