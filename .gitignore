@@ -67,3 +67,6 @@ playwright-report/
 
 # ruff
 .ruff_cache/
+
+# OpenCode local dev plugin state
+.opencode/state/
