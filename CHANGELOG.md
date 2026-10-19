@@ -39,6 +39,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Recorded the owner's embedding-index decisions in ADR 0018: campaign-open resumable rebuild, native dimensions, separate index tables and the OpenRouter default.
 - Added a project-local OpenCode V2 dev plugin exposing `saga_status`, `saga_check` and `saga_logs`, with a read-only sidebar and cached local checks.
 - Added a project-local OpenCode panel showing the live ensemble team, its members and task counts in the sidebar.
 - Added PostgreSQL regressions for concurrent users, consent combinations, provider policy, ignored legacy variables and database-free model calls.

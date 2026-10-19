@@ -11,7 +11,7 @@
 
 Ordine di ripresa concordato (2026-10-15), prima di nuove funzionalita':
 
-[ ] **3. Credenziali e provider — chiusura**: playtest BYOAK e PR di `feat/provider-credentials`; #65 resta aperta per le chiamate embedding, con runtime e indice alla Parte B di ADR 0018 (#55), thought signatures Gemini (#56) fuori scope.
+[ ] **3. Credenziali e provider — chiusura**: playtest BYOAK; la Parte A e' su `main`. #65 resta aperta per le chiamate embedding: runtime e indice sono il punto 5 in corso su `feat/embedding-index` (Parte B di ADR 0018, #55); thought signatures Gemini (#56) fuori scope.
 [ ] **4. Quest e persistenza**: riallineare aggiornamenti, prompt, salvataggi ed export/import (#86), poi coprire le migrazioni; lo stato deve sopravvivere ai turni e ai ripristini prima di ampliare l'interfaccia.
 [ ] **5. Debug guidato del gioco**: scenari brevi con prompt effettivi, tool call e stato risultante, per separare difetti del codice da problemi del prompt o del modello; includere memoria e dialoghi NPC, quindi riprendere le valutazioni gia' predisposte.
 

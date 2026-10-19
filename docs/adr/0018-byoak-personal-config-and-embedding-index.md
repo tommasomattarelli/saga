@@ -1,9 +1,9 @@
 # ADR 0018 — BYOAK configuration contract: personal providers, credentials and the embedding index
 
-- **Status**: **Proposed** (Part A and the personal configuration surface are implemented
-  on `feat/provider-credentials`; owner playtest and merge remain. Point 5 implements
-  Part B, point 6 adds the minimal provisional UI. Flips to Accepted when point 3 lands
-  green on `main`.)
+- **Status**: **Proposed** (Part A and the personal configuration surface have landed on
+  `main`; Part B is in progress on `feat/embedding-index` (point 5), and point 6 — the
+  minimal provisional UI — remains open. The ADR stays Proposed until both points land:
+  Part A already on `main` does not complete it.)
 - **Date**: 2026-10-17.
 - **Context items**: GitHub #65, #73, #74, #55 (all open); supersedes ADR 0016; builds on
   ADR 0000 (BYOAK distribution model).
@@ -159,13 +159,19 @@ vectors of different models are never compared, regardless of dimension. No ANN 
 introduced now — today there is none and recall is already a campaign-scoped exact sort;
 an index is added only when measurements ask for it.
 
-### B4 — Explicit, resumable, batched rebuild (Decided)
+### B4 — Resumable, batched rebuild (Decided; trigger amended 2026-10-19)
 
 Re-embedding is an explicit user action. It runs in the background, non-blocking, in
 batches (arrays of texts per request — never one call per fact; batch size is a config
 knob, std 14). It is resumable: state and progress are persisted, not held in a volatile
 task, so an interrupted rebuild never reads as completed. Progress is visible in settings;
 the game itself stays silent.
+
+**Owner decision (2026-10-19).** The rebuild is also started by the campaign screen's
+idempotent `ensure`, so a campaign nobody reopens spends nothing to adopt a new profile.
+An interrupted rebuild resumes automatically after a restart, while a cancelled or failed
+one moves again only through the user's explicit retry — see *Owner decisions
+(2026-10-19)* below, which wins where it differs.
 
 ### B5 — The old index stays active; otherwise recall is silently suspended (Decided)
 
@@ -180,6 +186,48 @@ are never mixed.
 `Turn.summary` and `MemoryFact.content` are the embedding sources; the rebuild re-embeds
 stored texts without regenerating history or facts.
 
+### Owner decisions (2026-10-19, point 5)
+
+These refine B1–B6; where they differ from the paragraphs above, they win. They are
+owner decisions, not implementation notes — the point 5 code does not exist yet.
+
+- **Separate storage.** Index versions and their vectors live in dedicated tables, not on
+  the source rows; the sources keep their text and identity. Dimensionality is native: no
+  personal reduction parameter, the observed dimension is bound to the index version, and
+  a campaign with no texts makes no paid probe — the first real response fixes it. A
+  version records the space identity — provider, model, endpoint (a URL change behind the
+  same alias is a different space) and pipeline — so a key rotation never changes it.
+  The storage contract fixes the tables: `embedding_indexes`, one row per index version,
+  and `source_embeddings`, the per-source work queue.
+- **The queue is the store.** A source's persisted records are the work queue and its
+  progress — derived by counting them, not tracked in separate counters — so no separate
+  job framework is introduced.
+- **Rebuild trigger.** The campaign screen's idempotent `ensure` starts the rebuild for
+  that campaign alone. The job is not tied to the browser tab: closing it does not stop
+  the rebuild, and no heartbeat or player-presence detection is introduced.
+- **Automatic resume vs explicit retry.** A rebuild interrupted (a restart, a backend
+  shutdown) resumes automatically, revalidating the credential and policy. A cancelled or
+  failed rebuild is never restarted by reopening the campaign — cancellation and failure
+  must not become a paid loop — but restarts on the user's explicit retry (API now,
+  point 6 UI later).
+- **Profile change.** Changing the personal embedding profile requires cancelling that
+  user's own campaigns' in-flight rebuilds first; an existing job is never retargeted.
+  Editing keys or revoking consent stays always possible.
+- **Suspension.** A job with no usable key or policy stops with a persisted reason, and
+  the game proceeds. An old index is usable only with credentials and policy authorized
+  today; recall that cannot run is suspended silently for gameplay and visible in
+  settings.
+- **Previous index retained.** The previous index is kept during the rebuild; there is no
+  unlimited history and no rollback function. Cleanup is limited to replaced or cancelled
+  versions, never the index still active.
+- **Instance default (refines B1).** The default embedding profile is
+  `openrouter / openai/text-embedding-3-small`, using only the OpenRouter key — not
+  Google, not an OpenAI key. Google remains supported, and existing personal profiles are
+  never rewritten.
+- **Batching and pacing (B4 values).** Batches of 32 texts, at least one second between
+  rebuild requests, one rebuild request at a time; the cadence is a config knob subject
+  to the provider's documented limits.
+
 ## 4. Decided vs open
 
 | Group | Items | State |
@@ -189,9 +237,6 @@ stored texts without regenerating history or facts.
 
 Open TODOs, with where they resolve:
 
-- DB field names for the per-row embedding label and rebuild state — point 5.
-- Rebuild batch size default and pacing — point 5 (config knob).
-- Queueing of facts written while a rebuild runs — point 5.
 - Authenticated local endpoints (key optional) — future extension, not scheduled.
 
 ## 5. Implementation plan — point 3 (proposed commits)
