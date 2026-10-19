@@ -31,6 +31,8 @@ the pinned Python.
 - **Lint/Format**: `make lint-frontend && make format-frontend`
 - **Full check (what CI runs)**: `cd frontend && bash ../scripts/with_node.sh npm run lint && bash ../scripts/with_node.sh npx tsc --noEmit && bash ../scripts/with_node.sh npm run knip && bash ../scripts/with_node.sh npm run test:coverage -- --run` — **`knip` and coverage thresholds are CI gates**: passing tests alone does not make the stack green.
 
+- **Status/checks (OpenCode)**: prefer `saga_status` and `saga_check` over ad-hoc `curl`/`git`/`pytest`; results are cached and single-flight.
+
 For direct commands in Windows PowerShell, use
 `powershell -NoProfile -ExecutionPolicy Bypass -File ..\scripts\with_node.ps1`
 instead of `bash ../scripts/with_node.sh`. Launchers reuse the native installer cache
