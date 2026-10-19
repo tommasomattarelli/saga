@@ -6,13 +6,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from app.ai.router import validate_generation_config
-from app.api import auth, campaigns, characters, export, journal, saves, turns, worlds
+from app.ai.router import validate_embedding_config, validate_generation_config
+from app.api import (
+    auth,
+    campaigns,
+    characters,
+    embedding_index,
+    export,
+    journal,
+    saves,
+    turns,
+    worlds,
+)
 from app.api import settings as settings_api
 from app.api.rate_limit import limiter, rate_limit_exceeded_handler
 from app.config import settings
 from app.dependencies import close_db, init_db
 from app.logging_setup import setup_logging
+from app.memory.embedding_lifecycle import recover_interrupted_rebuilds
+from app.memory.embedding_worker import start_embedding_worker, stop_embedding_worker
 from app.static_serving import mount_frontend
 
 setup_logging()
@@ -21,8 +33,12 @@ setup_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     validate_generation_config()
+    validate_embedding_config()
     await init_db()
+    await recover_interrupted_rebuilds()
+    start_embedding_worker()
     yield
+    await stop_embedding_worker()
     await close_db()
 
 
@@ -55,6 +71,7 @@ def create_app() -> FastAPI:
     app.include_router(settings_api.router, prefix="/api/settings", tags=["settings"])
     app.include_router(export.router, prefix="/api/export", tags=["export"])
     app.include_router(turns.router, prefix="/api/campaigns", tags=["turns"])
+    app.include_router(embedding_index.router, prefix="/api/campaigns", tags=["embedding-index"])
 
     mount_frontend(app)
 

@@ -8,6 +8,7 @@ from app.ai.credentials import (
     has_personal_key,
 )
 from app.ai.router import PROVIDER_NAMES, get_allowed_providers, get_local_endpoints
+from app.api.embedding_profile_guard import guard_embedding_profile_change
 from app.dependencies import get_db
 from app.models.user import User
 from app.schemas.settings import ApiKeysUpdate, SettingsPatch
@@ -53,6 +54,7 @@ async def update_settings(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     fields = updates.model_dump(exclude_unset=True)
+    await guard_embedding_profile_change(db, user, fields)
 
     if fields.get("preferred_language"):
         user.preferred_language = fields["preferred_language"]
