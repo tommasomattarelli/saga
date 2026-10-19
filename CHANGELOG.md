@@ -39,6 +39,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Added persistent per-campaign embedding queues with idempotent ensure, explicit retry and cancellation.
 - Added versioned embedding storage and personal provider routing with validated batch adapters, finite retries and a configurable rebuild lease.
 - Recorded the owner's embedding-index decisions in ADR 0018: campaign-open resumable rebuild, native dimensions, separate index tables and the OpenRouter default.
 - Added a project-local OpenCode V2 dev plugin exposing `saga_status`, `saga_check` and `saga_logs`, with a read-only sidebar and cached local checks.
