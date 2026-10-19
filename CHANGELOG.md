@@ -40,6 +40,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ### Internal
 
 - Added a project-local OpenCode V2 dev plugin exposing `saga_status`, `saga_check` and `saga_logs`, with a read-only sidebar and cached local checks.
+- Added a project-local OpenCode panel showing the live ensemble team, its members and task counts in the sidebar.
 - Added PostgreSQL regressions for concurrent users, consent combinations, provider policy, ignored legacy variables and database-free model calls.
 - Covered generation credentials from #65; embedding credentials remain in ADR 0018 Part B alongside #55.
 - Background memory and NPC calls inherit the owning user's configuration, with database read sessions closed before generation and embeddings.
