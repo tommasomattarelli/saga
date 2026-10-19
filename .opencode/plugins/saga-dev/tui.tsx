@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Plugin, usePlugin } from "@opencode/plugin/tui";
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { Show, createSignal, onCleanup, onMount } from "solid-js";
 
 import {
   formatAge,
@@ -73,49 +73,53 @@ function useSnapshot(root: string): () => Snapshot | null {
 
 function SagaSidebar(props: { root: string }) {
   const snapshot = useSnapshot(props.root);
-  const current = snapshot();
-  if (!current) return <text>SAGA · waiting for monitor…</text>;
-
-  const ci = current.ci;
-  const backendTests = ci.checks.backendTests;
-  const frontendTests = ci.checks.frontendTests;
-  const testChecks = [backendTests, frontendTests].filter((check): check is CheckResult => check != null);
-  const testsLine =
-    testChecks.length > 0
-      ? `${testChecks.every((check) => check.status === "pass") ? "✓" : "✗"} tests ${testChecks.reduce(
-          (total, check) => total + (check.passed ?? 0),
-          0,
-        )}/${testChecks.reduce((total, check) => total + (check.passed ?? 0) + (check.failed ?? 0), 0)}`
-      : null;
 
   return (
-    <box flexDirection="column">
-      <text>SAGA</text>
-      <text>────────────</text>
-      <text>SERVICES</text>
-      <text>{serviceLine("backend", current.services.backend)}</text>
-      <text>{serviceLine("frontend", current.services.frontend)}</text>
-      <text>{serviceLine("postgres", current.services.database)}</text>
-      <text> </text>
-      <text>CHECKS</text>
-      <text>{checksHeader(ci)}</text>
-      {ci.checks.lint ? <text>{`${checkMark(ci.checks.lint)} lint`}</text> : null}
-      {ci.checks.types ? <text>{`${checkMark(ci.checks.types)} types`}</text> : null}
-      {testsLine ? <text>{testsLine}</text> : null}
-      <text> </text>
-      <text>GIT</text>
-      <text>{current.git.branch || "-"}</text>
-      <text>{`+${current.git.added} -${current.git.removed}`}</text>
-      {current.browser.status !== "unavailable" ? (
-        <>
-          <text> </text>
-          <text>BROWSER</text>
-          <text>{`${current.browser.status} console=${current.browser.consoleErrors ?? "-"} network=${
-            current.browser.networkFailures ?? "-"
-          }`}</text>
-        </>
-      ) : null}
-    </box>
+    <Show when={snapshot()} keyed fallback={<text>SAGA · waiting for monitor…</text>}>
+      {(s) => {
+        const ci = s.ci;
+        const backendTests = ci.checks.backendTests;
+        const frontendTests = ci.checks.frontendTests;
+        const testChecks = [backendTests, frontendTests].filter((check): check is CheckResult => check != null);
+        const testsLine =
+          testChecks.length > 0
+            ? `${testChecks.every((check) => check.status === "pass") ? "✓" : "✗"} tests ${testChecks.reduce(
+                (total, check) => total + (check.passed ?? 0),
+                0,
+              )}/${testChecks.reduce((total, check) => total + (check.passed ?? 0) + (check.failed ?? 0), 0)}`
+            : null;
+
+        return (
+          <box flexDirection="column">
+            <text>SAGA</text>
+            <text>────────────</text>
+            <text>SERVICES</text>
+            <text>{serviceLine("backend", s.services.backend)}</text>
+            <text>{serviceLine("frontend", s.services.frontend)}</text>
+            <text>{serviceLine("postgres", s.services.database)}</text>
+            <text> </text>
+            <text>CHECKS</text>
+            <text>{checksHeader(ci)}</text>
+            {ci.checks.lint ? <text>{`${checkMark(ci.checks.lint)} lint`}</text> : null}
+            {ci.checks.types ? <text>{`${checkMark(ci.checks.types)} types`}</text> : null}
+            {testsLine ? <text>{testsLine}</text> : null}
+            <text> </text>
+            <text>GIT</text>
+            <text>{s.git.branch || "-"}</text>
+            <text>{`+${s.git.added} -${s.git.removed}`}</text>
+            {s.browser.status !== "unavailable" ? (
+              <>
+                <text> </text>
+                <text>BROWSER</text>
+                <text>{`${s.browser.status} console=${s.browser.consoleErrors ?? "-"} network=${
+                  s.browser.networkFailures ?? "-"
+                }`}</text>
+              </>
+            ) : null}
+          </box>
+        );
+      }}
+    </Show>
   );
 }
 
@@ -130,43 +134,47 @@ function SagaPanel(props: { root: string; panel: SlotProps }) {
   }));
 
   const snapshot = useSnapshot(props.root);
-  const current = snapshot();
-  if (!current) return <text>waiting for monitor…</text>;
 
-  const ci = current.ci;
   return (
-    <box flexDirection="column">
-      <text>{`SAGA DEV STATUS            ${formatAge(current.updatedAt)} ago`}</text>
-      <text> </text>
-      <text>Services</text>
-      <text>{`  ${serviceDetail("backend", current.services.backend)}`}</text>
-      <text>{`  ${serviceDetail("frontend", current.services.frontend)}`}</text>
-      <text>{`  ${serviceDetail("postgres", current.services.database)}`}</text>
-      <text> </text>
-      <text>{`Local CI   ${
-        ci.status === "not-run"
-          ? "not run"
-          : `${ci.scope ?? "-"} · ${formatAge(ci.finishedAt)} ago${ci.stale ? " · stale" : ""}`
-      }`}</text>
-      {Object.entries(ci.checks).map(([id, check]) => (
-        <text>{`  ${id.padEnd(16)} ${checkLine(check)}`}</text>
-      ))}
-      <text> </text>
-      <text>Last failure</text>
-      {ci.lastFailure
-        ? ci.lastFailure.summary.split("\n").map((line) => <text>{`  ${line}`}</text>)
-        : <text>  none</text>}
-      <text> </text>
-      <text>Git</text>
-      <text>{`  branch ${current.git.branch || "-"}`}</text>
-      <text>{`  tree   ${current.git.dirty === 0 ? "clean" : `${current.git.dirty} modified`}`}</text>
-      <text>{`  diff   +${current.git.added} -${current.git.removed}`}</text>
-      <text> </text>
-      <text>Browser</text>
-      <text>{`  ${browserLine(current.browser)}`}</text>
-      <text> </text>
-      <text>State: .opencode/state/saga-dev.json</text>
-    </box>
+    <Show when={snapshot()} keyed fallback={<text>waiting for monitor…</text>}>
+      {(s) => {
+        const ci = s.ci;
+        return (
+          <box flexDirection="column">
+            <text>{`SAGA DEV STATUS            ${formatAge(s.updatedAt)} ago`}</text>
+            <text> </text>
+            <text>Services</text>
+            <text>{`  ${serviceDetail("backend", s.services.backend)}`}</text>
+            <text>{`  ${serviceDetail("frontend", s.services.frontend)}`}</text>
+            <text>{`  ${serviceDetail("postgres", s.services.database)}`}</text>
+            <text> </text>
+            <text>{`Local CI   ${
+              ci.status === "not-run"
+                ? "not run"
+                : `${ci.scope ?? "-"} · ${formatAge(ci.finishedAt)} ago${ci.stale ? " · stale" : ""}`
+            }`}</text>
+            {Object.entries(ci.checks).map(([id, check]) => (
+              <text>{`  ${id.padEnd(16)} ${checkLine(check)}`}</text>
+            ))}
+            <text> </text>
+            <text>Last failure</text>
+            {ci.lastFailure
+              ? ci.lastFailure.summary.split("\n").map((line) => <text>{`  ${line}`}</text>)
+              : <text>  none</text>}
+            <text> </text>
+            <text>Git</text>
+            <text>{`  branch ${s.git.branch || "-"}`}</text>
+            <text>{`  tree   ${s.git.dirty === 0 ? "clean" : `${s.git.dirty} modified`}`}</text>
+            <text>{`  diff   +${s.git.added} -${s.git.removed}`}</text>
+            <text> </text>
+            <text>Browser</text>
+            <text>{`  ${browserLine(s.browser)}`}</text>
+            <text> </text>
+            <text>State: .opencode/state/saga-dev.json</text>
+          </box>
+        );
+      }}
+    </Show>
   );
 }
 
