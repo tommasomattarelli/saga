@@ -1,6 +1,8 @@
 import { readFile, stat } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { Plugin } from "@opencode/plugin/tui";
+import { Plugin, usePlugin } from "@opencode/plugin/tui";
 import { createSignal, onCleanup, onMount } from "solid-js";
 
 import {
@@ -19,10 +21,24 @@ type SlotProps = {
   sessionID?: string;
   name?: string;
   close?: () => void;
+  toggleFullscreen?: () => void;
   width?: number;
   presentation?: string;
   focused?: boolean;
 };
+
+type TuiContext = {
+  keymap: { layer(factory: () => Record<string, unknown>): unknown };
+};
+
+function pluginRoot(): string | null {
+  try {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    return path.resolve(here, "..", "..", "..");
+  } catch {
+    return null;
+  }
+}
 
 function useSnapshot(root: string): () => Snapshot | null {
   const [snapshot, setSnapshot] = createSignal<Snapshot | null>(null);
@@ -104,6 +120,15 @@ function SagaSidebar(props: { root: string }) {
 }
 
 function SagaPanel(props: { root: string; panel: SlotProps }) {
+  const plugin = usePlugin() as unknown as TuiContext;
+  plugin.keymap.layer(() => ({
+    commands: [
+      { id: "saga.dev.close", bind: "escape", run: () => props.panel.close?.() },
+      { id: "saga.dev.close-q", bind: "q", run: () => props.panel.close?.() },
+      { id: "saga.dev.fullscreen", bind: "f", run: () => props.panel.toggleFullscreen?.() },
+    ],
+  }));
+
   const snapshot = useSnapshot(props.root);
   const current = snapshot();
   if (!current) return <text>waiting for monitor…</text>;
@@ -198,12 +223,19 @@ export default Plugin.define({
     data: { location: { default(): { directory: string } | undefined } };
     ui: {
       slot(input: { append: string; render: (props: SlotProps) => unknown }): unknown;
-      panel: { open(name: string): boolean };
+      panel: {
+        open(name: string, options?: { presentation?: string }): boolean;
+        close(): void;
+        current(): unknown;
+      };
     };
     keymap: { layer(factory: () => Record<string, unknown>): unknown };
   }) {
-    const root = context.location?.directory ?? context.data.location.default()?.directory;
-    if (!root) return;
+    const root =
+      pluginRoot() ??
+      context.location?.directory ??
+      context.data.location.default()?.directory ??
+      process.cwd();
 
     context.ui.slot({
       append: "sidebar.content",
@@ -224,7 +256,13 @@ export default Plugin.define({
           group: "SAGA",
           slash: { name: "saga" },
           palette: true,
-          run: () => context.ui.panel.open("saga.dev"),
+          run: () => {
+            const current = context.ui.panel.current();
+            const name =
+              typeof current === "string" ? current : (current as { name?: string } | undefined)?.name;
+            if (name === "saga.dev") context.ui.panel.close();
+            else context.ui.panel.open("saga.dev");
+          },
         },
       ],
     }));

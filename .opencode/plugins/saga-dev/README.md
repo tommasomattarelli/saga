@@ -11,7 +11,9 @@ No LLM calls, no external services, no npm dependencies.
   every 10 seconds, and writes a normalized snapshot to
   `.opencode/state/saga-dev.json`.
 - A TUI plugin (`tui.tsx`) reads that file only. It renders a compact
-  `sidebar.content` widget and a detailed panel opened with `/saga`.
+  `sidebar.content` widget and a detailed panel opened with `/saga`. Pressing
+  `/saga` again closes it; `esc` and `q` close it too, and `f` toggles
+  fullscreen when the terminal is wide enough.
 - Three tools expose the same state to agents without shelling out:
   - `saga_status` — compact health, last CI result, git branch/diff.
   - `saga_check({ scope })` — `affected`, `fast` or `full`; writes the full log
