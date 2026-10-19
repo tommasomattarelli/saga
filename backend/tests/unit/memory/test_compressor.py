@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -49,7 +50,7 @@ class TestEnsureCompression:
         mock_db = AsyncMock()
         with patch("app.memory.compressor.get_gameplay_config") as mock_cfg:
             mock_cfg.return_value.context_window_turns = 100
-            await ensure_compression("campaign-1", current_turn=5, db=mock_db)
+            await ensure_compression(str(uuid.uuid4()), current_turn=5, db=mock_db)
             mock_db.execute.assert_not_called()
 
     @pytest.mark.asyncio
@@ -63,7 +64,10 @@ class TestEnsureCompression:
 
         with patch("app.memory.compressor.get_gameplay_config") as mock_cfg:
             mock_cfg.return_value.context_window_turns = 5
-            await ensure_compression("campaign-1", current_turn=20, db=mock_db)
+            with patch(
+                "app.memory.embedding_queue.enqueue_source_embedding", new_callable=AsyncMock
+            ):
+                await ensure_compression(str(uuid.uuid4()), current_turn=20, db=mock_db)
             mock_db.flush.assert_not_called()
 
     @pytest.mark.asyncio
@@ -80,17 +84,21 @@ class TestEnsureCompression:
         mock_db = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [mock_turn]
+        mock_result.rowcount = 1
         mock_db.execute.return_value = mock_result
 
         with patch("app.memory.compressor.get_gameplay_config") as mock_cfg:
             mock_cfg.return_value.context_window_turns = 5
             mock_cfg.return_value.compression_enabled = False
-            await ensure_compression("campaign-1", current_turn=20, db=mock_db)
+            with patch(
+                "app.memory.embedding_queue.enqueue_source_embedding", new_callable=AsyncMock
+            ):
+                await ensure_compression(str(uuid.uuid4()), current_turn=20, db=mock_db)
 
-        assert mock_turn.summary is not None
-        assert "attack goblin" in mock_turn.summary
-        # Not marked failed when LLM is explicitly disabled
-        assert mock_turn.summarization_failed is False
+        statement = mock_db.execute.call_args_list[2].args[0]
+        params = statement.compile().params
+        assert "attack goblin" in params["summary"]
+        assert params["summarization_failed"] is False
         mock_db.flush.assert_called_once()
 
     @pytest.mark.asyncio
@@ -107,6 +115,7 @@ class TestEnsureCompression:
         mock_db = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [mock_turn]
+        mock_result.rowcount = 1
         mock_db.execute.return_value = mock_result
 
         with patch("app.memory.compressor.get_gameplay_config") as mock_cfg:
@@ -117,11 +126,14 @@ class TestEnsureCompression:
                 new_callable=AsyncMock,
             ) as mock_retry:
                 mock_retry.return_value = "Player explored the forest."
-                await ensure_compression("campaign-1", current_turn=20, db=mock_db)
+                with patch(
+                    "app.memory.embedding_queue.enqueue_source_embedding", new_callable=AsyncMock
+                ):
+                    await ensure_compression(str(uuid.uuid4()), current_turn=20, db=mock_db)
 
-        # Batch prefix added
-        assert "Player explored the forest." in mock_turn.summary
-        assert mock_turn.summary.startswith("[Turn 1] ") or mock_turn.summary.startswith("[Turns ")
+        params = mock_db.execute.call_args_list[2].args[0].compile().params
+        assert "Player explored the forest." in params["summary"]
+        assert params["summary"].startswith("[Turn 1] ") or params["summary"].startswith("[Turns ")
         mock_db.flush.assert_called_once()
 
     @pytest.mark.asyncio
@@ -139,6 +151,7 @@ class TestEnsureCompression:
         mock_db = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [mock_turn]
+        mock_result.rowcount = 1
         mock_db.execute.return_value = mock_result
 
         with patch("app.memory.compressor.get_gameplay_config") as mock_cfg:
@@ -149,11 +162,14 @@ class TestEnsureCompression:
                 new_callable=AsyncMock,
             ) as mock_retry:
                 mock_retry.return_value = None
-                await ensure_compression("campaign-1", current_turn=20, db=mock_db)
+                with patch(
+                    "app.memory.embedding_queue.enqueue_source_embedding", new_callable=AsyncMock
+                ):
+                    await ensure_compression(str(uuid.uuid4()), current_turn=20, db=mock_db)
 
-        assert mock_turn.summary is not None
-        assert "cast spell" in mock_turn.summary
-        assert mock_turn.summarization_failed is True
+        params = mock_db.execute.call_args_list[2].args[0].compile().params
+        assert "cast spell" in params["summary"]
+        assert params["summarization_failed"] is True
 
     @pytest.mark.asyncio
     async def test_idempotency_skips_turns_with_existing_summary(self):
@@ -181,7 +197,7 @@ class TestEnsureCompression:
                 new_callable=AsyncMock,
             ) as mock_retry:
                 mock_retry.return_value = "New summary"
-                await ensure_compression("campaign-1", current_turn=20, db=mock_db)
+                await ensure_compression(str(uuid.uuid4()), current_turn=20, db=mock_db)
 
         # Summary was NOT overwritten
         assert mock_turn.summary == "Already written by other task"

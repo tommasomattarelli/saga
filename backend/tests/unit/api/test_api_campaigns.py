@@ -221,6 +221,14 @@ def test_post_action(mocker, mock_user_dependency):
             # Used only by the atomic turn-number claim (UPDATE ... RETURNING).
             return 2
 
+        def first(self):
+            return (camp_id,)
+
+        def scalars(self):
+            result = mocker.Mock()
+            result.all.return_value = []
+            return result
+
     mock_db.execute.return_value = MockCampaignResult()
 
     @asynccontextmanager
@@ -246,7 +254,6 @@ def test_post_action(mocker, mock_user_dependency):
     }
     mocker.patch("app.api.turns.dm_graph.ainvoke", return_value=fake_state)
     mocker.patch("app.api.turns.compress_turn_to_summary", return_value="A step forward.")
-    mocker.patch("app.api.turns.generate_embedding", return_value=[0.1] * 1536)
     mocker.patch("app.api.turns.extract_and_store_facts")
     mocker.patch("app.api.turns._background_compression")
 

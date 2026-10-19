@@ -54,11 +54,6 @@ async def test_two_real_turns_never_share_clients_or_models(
         second_campaign = await configure(second, "second-key", "second-model")
         with (
             patch("app.ai.embeddings.generate_embedding", new=AsyncMock(return_value=[0.1] * 384)),
-            patch("app.api.turns.generate_embedding", new=AsyncMock(return_value=[0.1] * 384)),
-            patch(
-                "app.memory.fact_extractor.generate_embedding",
-                new=AsyncMock(return_value=[0.1] * 384),
-            ),
         ):
             responses = await asyncio.gather(
                 auth_client.post(

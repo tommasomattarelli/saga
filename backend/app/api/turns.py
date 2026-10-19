@@ -7,10 +7,9 @@ import uuid
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.embeddings import generate_embedding
 from app.ai.generation_context import generation_context
 from app.ai.router import get_gameplay_config, validate_user_generation
 from app.api.rate_limit import limiter, turns_limit
@@ -19,11 +18,13 @@ from app.core.dm.game_state import GameState
 from app.dependencies import get_db, get_db_context
 from app.exceptions import AIProviderError, ValidationError
 from app.memory.compressor import compress_turn_to_summary, ensure_compression
+from app.memory.embedding_queue import enqueue_source_embedding
 from app.memory.fact_extractor import extract_and_store_facts
 from app.memory.global_summary import update_global_summary
 from app.memory.world_state import migrate_world_state
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.save import Save
+from app.models.source_embedding import EmbeddingSourceType
 from app.models.turn import Turn
 from app.models.user import User
 from app.schemas.campaign import TurnResponse, TurnSubmit
@@ -148,7 +149,6 @@ async def _submit_action(
     tool_events = final_state.get("tool_events", [])
 
     summary = await compress_turn_to_summary(narration, body.action)
-    embedding = await generate_embedding(summary)
 
     # Build legacy dice_rolls dict for journal backward-compat
     dice_rolls_flat: dict = {}
@@ -162,6 +162,9 @@ async def _submit_action(
         if campaign is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
 
+        await db.execute(
+            text("SELECT id FROM campaigns WHERE id = :cid FOR UPDATE"), {"cid": campaign_id}
+        )
         campaign.world_state = new_world_state
         campaign.character_data = new_char_data
 
@@ -179,9 +182,16 @@ async def _submit_action(
             model_used=final_state.get("model_used", ""),
             importance_score=final_state.get("importance_score", 5),
             summary=summary,
-            embedding=embedding,
         )
         db.add(turn)
+        await db.flush()
+        queued_indexes = await enqueue_source_embedding(
+            db,
+            campaign_id=campaign_id,
+            source_type=EmbeddingSourceType.TURN,
+            source_id=turn.id,
+            source_text=summary,
+        )
 
         await db.execute(
             delete(Save).where(Save.campaign_id == campaign_id, Save.is_auto == True)  # noqa: E712
@@ -203,6 +213,11 @@ async def _submit_action(
         )
 
         await db.commit()
+
+    if queued_indexes:
+        from app.memory.embedding_worker import wake_embedding_worker
+
+        wake_embedding_worker()
 
     logger.info("turn_completed", turn=turn_number, model=final_state.get("model_used", ""))
 
@@ -255,6 +270,9 @@ async def _background_compression(campaign_id: uuid.UUID, current_turn: int) -> 
         async with get_db_context() as db:
             await ensure_compression(str(campaign_id), current_turn, db)
             await db.commit()
+        from app.memory.embedding_worker import wake_embedding_worker
+
+        wake_embedding_worker()
     except Exception:
         logger.exception("background_compression_failed", campaign_id=str(campaign_id))
 
