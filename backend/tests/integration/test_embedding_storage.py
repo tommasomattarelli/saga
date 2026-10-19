@@ -5,7 +5,7 @@ import uuid
 from typing import Any
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.dependencies import async_session, engine
@@ -126,6 +126,41 @@ async def test_one_active_index_per_campaign(campaign: Campaign, db_session) -> 
         " dimension, is_active, rebuild_state)"
         " VALUES (gen_random_uuid(), :cid, 'openrouter', 'other', 'embed-v1', 1536, true, 'completed')",
         {"cid": campaign.id},
+    )
+
+
+async def test_source_and_queue_rollback_together(campaign: Campaign, db_session) -> None:
+    from app.memory.embedding_queue import enqueue_source_embedding
+
+    index = _index(campaign.id, is_active=True, rebuild_state=EmbeddingRebuildState.COMPLETED)
+    db_session.add(index)
+    await db_session.commit()
+    index_id = index.id
+    turn = Turn(
+        campaign_id=campaign.id,
+        turn_number=77,
+        player_action="test",
+        narration="test",
+        model_used="test-model",
+        summary="rollback summary",
+    )
+    db_session.add(turn)
+    await db_session.flush()
+    await enqueue_source_embedding(
+        db_session,
+        campaign_id=campaign.id,
+        source_type=EmbeddingSourceType.TURN,
+        source_id=turn.id,
+        source_text=turn.summary,
+    )
+    await db_session.rollback()
+
+    assert await db_session.scalar(select(Turn).where(Turn.turn_number == 77)) is None
+    assert (
+        await db_session.scalar(
+            select(SourceEmbedding).where(SourceEmbedding.index_id == index_id)
+        )
+        is None
     )
 
 

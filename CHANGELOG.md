@@ -39,6 +39,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Gameplay writers now persist embedding work atomically with facts and summaries, including concurrent compression and index cutover.
 - Exposed authenticated embedding-index controls and startup recovery, blocking profile changes while rebuilds run.
 - Added lease-fenced embedding workers with resumable batches, atomic cutover and paced active-index maintenance.
 - Added persistent per-campaign embedding queues with idempotent ensure, explicit retry and cancellation.

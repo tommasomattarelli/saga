@@ -10,6 +10,8 @@ from sqlalchemy import func, select
 from app.api.turns import _background_compression, _background_global_summary
 from app.exceptions import AIProviderError
 from app.models.campaign import Campaign, CampaignStatus
+from app.models.embedding_index import EmbeddingIndex, EmbeddingRebuildState
+from app.models.source_embedding import EmbeddingSourceType, EmbeddingWorkState, SourceEmbedding
 from app.models.turn import Turn
 
 pytestmark = pytest.mark.usefixtures("configured_generation")
@@ -54,9 +56,12 @@ async def test_dm_graph_failure_returns_500_without_persisting_turn(auth_client,
     claimed turn_number is simply skipped (gap is harmless)."""
     campaign_id = await _create_campaign(auth_client)
 
-    with patch(
-        "app.api.turns.dm_graph.ainvoke",
-        new=AsyncMock(side_effect=RuntimeError("graph boom")),
+    with (
+        patch(
+            "app.api.turns.dm_graph.ainvoke",
+            new=AsyncMock(side_effect=RuntimeError("graph boom")),
+        ),
+        patch("app.memory.embedding_worker.wake_embedding_worker") as wake,
     ):
         resp = await auth_client.post(
             f"/api/campaigns/{campaign_id}/action",
@@ -76,6 +81,48 @@ async def test_dm_graph_failure_returns_500_without_persisting_turn(auth_client,
         select(Campaign.turn_number).where(Campaign.id == uuid.UUID(campaign_id))
     )
     assert claimed == 1
+    wake.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_action_enqueues_turn_summary_for_active_index(auth_client, db_session):
+    campaign_id = await _create_campaign(auth_client)
+    campaign_uuid = uuid.UUID(campaign_id)
+    index = EmbeddingIndex(
+        campaign_id=campaign_uuid,
+        provider="openrouter",
+        model="test-model",
+        pipeline_version="embed-v1",
+        dimension=1536,
+        is_active=True,
+        rebuild_state=EmbeddingRebuildState.COMPLETED,
+    )
+    db_session.add(index)
+    await db_session.commit()
+
+    with (
+        patch("app.api.turns.dm_graph.ainvoke", new=AsyncMock(return_value=_fake_state())),
+        patch("app.api.turns.compress_turn_to_summary", new=AsyncMock(return_value="A summary.")),
+        patch("app.api.turns.extract_and_store_facts", new=AsyncMock()),
+        patch("app.api.turns._background_compression", new=AsyncMock()),
+        patch("app.memory.embedding_worker.wake_embedding_worker") as wake,
+    ):
+        response = await auth_client.post(
+            f"/api/campaigns/{campaign_id}/action", json={"action": "look around"}
+        )
+
+    assert response.status_code == 200
+    turn = await db_session.scalar(select(Turn).where(Turn.campaign_id == campaign_uuid))
+    assert turn is not None
+    queued = await db_session.scalar(
+        select(SourceEmbedding).where(SourceEmbedding.index_id == index.id)
+    )
+    assert queued is not None
+    assert queued.turn_id == turn.id
+    assert queued.text_hash
+    assert queued.work_state == EmbeddingWorkState.PENDING
+    assert queued.source_type == EmbeddingSourceType.TURN
+    wake.assert_called_once_with()
 
 
 @pytest.mark.asyncio
@@ -140,7 +187,6 @@ async def test_dice_results_are_flattened_into_dice_rolls(auth_client):
     with (
         patch("app.api.turns.dm_graph.ainvoke", new=AsyncMock(return_value=state)),
         patch("app.api.turns.compress_turn_to_summary", new=AsyncMock(return_value="summary")),
-        patch("app.api.turns.generate_embedding", new=AsyncMock(return_value=[0.0] * 384)),
         patch("app.api.turns.extract_and_store_facts", new=AsyncMock(return_value=None)),
         patch("app.api.turns._background_compression", new=AsyncMock(return_value=None)),
         patch("app.api.turns._background_global_summary", new=AsyncMock(return_value=None)),

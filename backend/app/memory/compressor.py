@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 
 import structlog
 from sqlalchemy import select, update
@@ -170,6 +171,7 @@ async def ensure_compression(
         return
 
     batch_size = 5
+    summaries: list[tuple[Turn, str, bool]] = []
     for i in range(0, len(uncompressed), batch_size):
         batch = uncompressed[i : i + batch_size]
 
@@ -181,24 +183,40 @@ async def ensure_compression(
         prefix = _batch_prefix(batch)
         llm_failed = config.compression_enabled and not summary
         for turn in batch:
-            # Idempotency: skip if another task already wrote the summary
-            if turn.summary is not None:
-                continue
             if summary:
-                turn.summary = f"{prefix}{summary}"
+                proposed_summary = f"{prefix}{summary}"
             else:
                 # LLM disabled OR failed after retries → heuristic fallback
-                turn.summary = await compress_turn_to_summary(
+                proposed_summary = await compress_turn_to_summary(
                     turn.narration or "", turn.player_action or ""
                 )
-                if llm_failed:
-                    # Mark failed so subsequent cycles skip this turn (no infinite retry)
-                    turn.summarization_failed = True
-            await db.execute(
-                update(Turn)
-                .where(Turn.id == turn.id, Turn.summary.is_(None))
-                .values(summary=turn.summary, summarization_failed=turn.summarization_failed)
-            )
+            summaries.append((turn, proposed_summary, bool(llm_failed)))
+
+    from sqlalchemy import text
+
+    from app.memory.embedding_queue import enqueue_source_embedding
+    from app.models.source_embedding import EmbeddingSourceType
+
+    for turn, proposed_summary, llm_failed in summaries:
+        await db.execute(
+            text("SELECT id FROM campaigns WHERE id = :cid FOR UPDATE"),
+            {"cid": campaign_id},
+        )
+        result = await db.execute(
+            update(Turn)
+            .where(Turn.id == turn.id, Turn.summary.is_(None))
+            .values(summary=proposed_summary, summarization_failed=llm_failed)
+            .returning(Turn.id)
+        )
+        if result.scalar_one_or_none() is None:
+            continue
+        await enqueue_source_embedding(
+            db,
+            campaign_id=uuid.UUID(campaign_id),
+            source_type=EmbeddingSourceType.TURN,
+            source_id=turn.id,
+            source_text=proposed_summary,
+        )
 
     await db.flush()
     logger.info("turns_compressed", campaign_id=campaign_id, count=len(uncompressed))

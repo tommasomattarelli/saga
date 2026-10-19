@@ -150,7 +150,7 @@ class TestExtractAndStoreFacts:
                 )
 
     @pytest.mark.asyncio
-    async def test_stores_facts_with_embeddings(self):
+    async def test_stores_facts_and_queues_them_without_embedding_inline(self):
         from app.memory.fact_extractor import extract_and_store_facts
 
         facts_json = '{"facts": [{"entity_name": "Gandalf", "entity_type": "npc", "content": "Gandalf arrived in town"}]}'
@@ -172,20 +172,20 @@ class TestExtractAndStoreFacts:
                     "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock
                 ) as mock_gen,
                 patch(
-                    "app.memory.fact_extractor.generate_embedding", new_callable=AsyncMock
-                ) as mock_embed,
+                    "app.memory.embedding_queue.enqueue_source_embedding",
+                    new_callable=AsyncMock,
+                ) as mock_enqueue,
                 patch("app.dependencies.async_session", return_value=mock_session_instance),
             ):
                 mock_gen.return_value = facts_json
-                mock_embed.return_value = [0.1] * 1536
                 await extract_and_store_facts(
                     campaign_id=uuid.uuid4(),
                     turn_number=5,
                     player_action="meet Gandalf",
                     narration="Gandalf arrived in town.",
                 )
-                mock_embed.assert_called_once()
                 mock_db.add_all.assert_called_once()
+                mock_enqueue.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_swallows_exceptions_silently(self):
@@ -252,7 +252,6 @@ class TestExtractAndStoreFacts:
                 patch(
                     "app.memory.fact_extractor.logged_generate", new_callable=AsyncMock
                 ) as mock_gen,
-                patch("app.memory.fact_extractor.generate_embedding", new_callable=AsyncMock),
                 patch("app.dependencies.async_session", return_value=mock_session_instance),
             ):
                 mock_gen.return_value = facts_json
