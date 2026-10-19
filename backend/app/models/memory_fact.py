@@ -1,7 +1,7 @@
 import uuid
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ForeignKey, Index, Integer, String, Text
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,6 +22,7 @@ class MemoryFact(Base, UUIDMixin, TimestampMixin):
     search_vector: Mapped[str | None] = mapped_column(TSVECTOR, nullable=True)
 
     __table_args__ = (
+        UniqueConstraint("id", "campaign_id", name="uq_memory_facts_id_campaign"),
         Index("ix_memory_facts_search_vector", "search_vector", postgresql_using="gin"),
         Index("ix_memory_facts_campaign_entity", "campaign_id", "entity_name"),
     )
