@@ -1,0 +1,8 @@
+{
+  "mergeOnCleanup": false,
+  "dashboardPort": 4747,
+  "stallThresholdMs": 300000,
+  "timeoutMs": 1800000,
+  "rateLimitCapacity": 6,
+  "defaultModel": "opencode/deepseek-v4.1-flash-free"
+}
