@@ -32,8 +32,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.ai.router import get_gameplay_config  # noqa: E402
 from app.core import world_instantiation  # noqa: E402
 from app.core.npc_resolver import resolve_npc  # noqa: E402
+from app.core.quests import apply_quest_update  # noqa: E402
 from app.core.world_loader import load_world  # noqa: E402
 from app.memory.updater import _HANDLERS, apply_typed_updates  # noqa: E402
+from app.models.quest import QuestRegistry  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 SCENARIOS = Path(__file__).resolve().parent / "scenarios"
@@ -107,6 +109,15 @@ def validate(meta: dict, turns: list[dict], asset: Any) -> list[str]:
         if turn.get("npc") and turn["npc"]["name"] not in npc_names:
             errors.append(f"{at}: npc '{turn['npc']['name']}' is not in the world")
         for update in turn.get("updates") or []:
+            if update["key"] == "quest_update":
+                missing = [
+                    key
+                    for key in ("quest_id", "change")
+                    if not isinstance(update.get(key), str) or not update.get(key)
+                ]
+                if missing:
+                    errors.append(f"{at}: quest_update is missing {', '.join(missing)}")
+                continue
             if update["key"] not in _HANDLERS:
                 errors.append(f"{at}: no registered handler for '{update['key']}'")
             if update["key"] == "npc_psychology" and update["target"] not in npc_names:
@@ -141,28 +152,38 @@ def _apply_patch(patch: dict, world_state: dict, slug_map: dict[str, str]) -> No
         world_state.setdefault("node_status", {})[slug_map[slug]] = status
 
 
-def replay(meta: dict, turns: list[dict], asset: Any) -> tuple[dict, dict, dict, int]:
-    """Returns (world_baseline, world_state, character_data, elapsed_minutes)."""
+def replay(meta: dict, turns: list[dict], asset: Any) -> tuple[dict, dict, dict, dict, int]:
+    """Returns (world_baseline, world_state, character_data, quests, elapsed_minutes)."""
     world_instantiation.uuid4 = _SeededUUID(meta["name"])  # type: ignore[assignment]
-    baseline, world_state, quests = world_instantiation.instantiate_world(asset)
+    baseline, world_state, seeded_quests = world_instantiation.instantiate_world(asset)
+    quests = QuestRegistry.model_validate(seeded_quests)
     slug_map = baseline["slug_map"]
 
     char_data = dict(meta["character"])
-    char_data["active_quests"] = quests.get("active", [])
     world_state["player_position"] = slug_map[meta["start"]["location"]]
     world_state["time_of_day"] = meta["start"]["time_of_day"]
     world_state["weather"] = meta["start"]["weather"]
 
     elapsed = 0
     for turn in turns:
-        world_state, char_data = apply_typed_updates(
-            world_state, char_data, turn.get("updates") or []
-        )
+        for update in turn.get("updates") or []:
+            if update["key"] == "quest_update":
+                quests, error = apply_quest_update(
+                    quests,
+                    quest_id=update["quest_id"],
+                    status=update["change"],
+                    name=update.get("name"),
+                    description=update.get("description"),
+                )
+                if error is not None:
+                    raise SystemExit(f"turn {turn['n']}: {error}")
+            else:
+                world_state, char_data = apply_typed_updates(world_state, char_data, [update])
         _apply_patch(turn.get("world_patch") or {}, world_state, slug_map)
         elapsed += int(turn.get("minutes", 0))
 
     world_state.setdefault("clock", {})["total_minutes"] = elapsed
-    return baseline, world_state, char_data, elapsed
+    return baseline, world_state, char_data, quests.model_dump(), elapsed
 
 
 def build_history(turns: list[dict], window: int) -> list[dict]:
@@ -189,7 +210,7 @@ def assemble(meta: dict, turns: list[dict], build_cfg: dict, variant: str | None
     if errors := validate(meta, turns, asset):
         raise SystemExit("scenario is incoherent:\n  " + "\n  ".join(errors))
 
-    baseline, world_state, char_data, elapsed = replay(meta, turns, asset)
+    baseline, world_state, char_data, quests, elapsed = replay(meta, turns, asset)
     window = build_cfg.get("active_window_turns") or get_gameplay_config().context_window_turns
 
     return {
@@ -223,7 +244,7 @@ def assemble(meta: dict, turns: list[dict], build_cfg: dict, variant: str | None
             "death_mode": "cronista",
             "character_data": char_data,
             "world_state": world_state,
-            "quests": {"active": char_data.get("active_quests", [])},
+            "quests": quests,
         },
         "history": build_history(turns, window),
     }

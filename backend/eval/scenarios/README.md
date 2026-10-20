@@ -44,6 +44,7 @@ transcripts/gold/                 authored play, 25 turns — costs no API
         │  scenario_build.py
         │    1. instantiate the campaign from the world
         │    2. replay each turn's `updates` through apply_typed_updates()  ← real handlers, no API
+        │       (quest rows use the production apply_quest_update transition)
         │    3. run the real summarizer / fact extractor / global summary   ← costs quota, once
         ▼
 built/gold.yaml                   committed derived artefact
@@ -115,8 +116,10 @@ measures the ceiling of a model's obligation-following.
     player_position: thornhaven
 ```
 
-`updates` uses the live handler keys: `npc_psychology`, `inventory_change`, `quest_update`,
-`hp_change`, `event_log_entry`.
+`updates` uses the live handler keys: `npc_psychology`, `inventory_change`, `hp_change`,
+`event_log_entry`. Quest rows are applied through the production quest tool contract instead:
+`{key: quest_update, quest_id: who_am_i, change: active, description: "..."}` (a new id also
+needs `name:`).
 
 `world_patch` is an escape hatch for overlay state that ADR 0008/0009 own and that no typed
 handler writes: `player_position`, `node_status`, NPC `location` / `lifecycle`, the clock.
