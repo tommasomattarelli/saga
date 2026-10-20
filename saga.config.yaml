@@ -251,6 +251,16 @@ api:
     turns_per_minute: 10     # max /turns requests per user_id per minute
 
 # ---------------------------------------------------------------------------
+# Database migrations — startup/CLI/adoption share one advisory lock
+#
+# The timeout covers waiting for another process to finish migrating. It is not
+# a retry loop: startup waits once, then aborts rather than serving a partial
+# schema. Keep it finite; 30 seconds is enough for the current chain.
+# ---------------------------------------------------------------------------
+migrations:
+  lock_timeout_seconds: 30
+
+# ---------------------------------------------------------------------------
 # Summarization — retry + deduplication settings
 # ---------------------------------------------------------------------------
 summarization:

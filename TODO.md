@@ -11,7 +11,6 @@
 
 Ordine di ripresa concordato (2026-10-20), prima di nuove funzionalita':
 
-[ ] **4. Persistenza — PR 2**: implementare bootstrap DB e copertura migrazioni secondo [ADR 0019](docs/adr/0019-quest-persistence-and-database-migrations.md) Proposed; S0 riveduto e approvato dal lead, poi review e debug guidato.
 [ ] **5. Debug guidato del gioco**: scenari brevi con prompt effettivi, tool call e stato risultante, per separare difetti del codice da problemi del prompt o del modello; includere memoria e dialoghi NPC, quindi riprendere le valutazioni gia' predisposte.
 
 GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimangono i dettagli del backlog esistente.

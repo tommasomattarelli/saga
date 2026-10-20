@@ -298,6 +298,11 @@ timestamps, three 007 server defaults and B11's retired tables. Verify this agai
 real PostgreSQL catalogs as the first implementation test; static inspection is
 not proof that no other difference exists.
 
+**Implementation note (2026-10-20).** Real PostgreSQL verification found that
+unversioned-schema detection must include non-extension application types as well
+as relations: an enum-only database would otherwise reach 000 and reuse an
+incompatible type through `checkfirst`.
+
 **Rejected:** a separate historical SQL bootstrap keeps two required entry points
 and lets direct Alembic use remain incomplete; a single chain makes the bootstrap
 path itself executable and testable.
@@ -338,6 +343,10 @@ rules from the two real commits.
 **Rejected:** allowing unrecognized extra application objects weakens the claim
 that the starting schema is known; a minimal column signature can stamp an
 incomplete schema as a successful baseline.
+
+**Implementation note (2026-10-20).** The frozen catalog records each column's
+qualified effective collation and each index's valid, ready and live flags, so
+collation drift and failed concurrent index builds cannot satisfy exact adoption.
 
 ### B7 — Migrated schemas for integration and playtest coverage (Decided)
 

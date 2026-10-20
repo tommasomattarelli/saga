@@ -1,7 +1,7 @@
 """Add memory_facts table for atomic fact storage.
 
 Revision ID: 001_memory_facts
-Revises: None
+Revises: 000_pre_001_schema
 Create Date: 2026-03-26
 """
 
@@ -11,7 +11,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 
 revision = "001_memory_facts"
-down_revision = None
+down_revision = "000_pre_001_schema"
 branch_labels = None
 depends_on = None
 
