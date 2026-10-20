@@ -7,7 +7,6 @@ import uuid
 
 import structlog
 
-from app.ai.embeddings import generate_embedding
 from app.ai.providers.base import logged_generate
 from app.ai.router import get_gameplay_config, get_generation
 from app.ai.sanitizer import strip_code_fences
@@ -131,7 +130,6 @@ async def extract_and_store_facts(
             entity_name = str(fact_data.get("entity_name")).strip()
             entity_type = str(fact_data.get("entity_type") or "event").strip()
             content = str(fact_data.get("content")).strip()
-            embedding = await generate_embedding(content)
             stored_facts.append(
                 MemoryFact(
                     campaign_id=campaign_id,
@@ -139,12 +137,31 @@ async def extract_and_store_facts(
                     entity_name=entity_name,
                     entity_type=entity_type,
                     content=content,
-                    embedding=embedding,
                 )
             )
         async with async_session() as db:
+            from sqlalchemy import text
+
+            from app.memory.embedding_queue import enqueue_source_embedding
+            from app.models.source_embedding import EmbeddingSourceType
+
+            await db.execute(
+                text("SELECT id FROM campaigns WHERE id = :cid FOR UPDATE"), {"cid": campaign_id}
+            )
             db.add_all(stored_facts)
+            await db.flush()
+            for fact in stored_facts:
+                await enqueue_source_embedding(
+                    db,
+                    campaign_id=campaign_id,
+                    source_type=EmbeddingSourceType.MEMORY_FACT,
+                    source_id=fact.id,
+                    source_text=fact.content,
+                )
             await db.commit()
+            from app.memory.embedding_worker import wake_embedding_worker
+
+            wake_embedding_worker()
             logger.info(
                 "facts_extracted",
                 campaign_id=str(campaign_id),

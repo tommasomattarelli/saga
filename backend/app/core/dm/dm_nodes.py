@@ -34,8 +34,8 @@ MAX_STEPS: int = getattr(settings, "saga_max_agent_steps", 5)
 async def context_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
     from sqlalchemy import select
 
-    from app.ai.embeddings import generate_embedding
     from app.dependencies import get_db_context
+    from app.memory.recall import embed_recall_query, snapshot_recall_query
     from app.models.campaign import Campaign
 
     campaign_id = state["campaign_id"]
@@ -46,12 +46,22 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
 
     _, model_cfg = await get_user_generation(state["user_id"])
 
-    # Rule 15: compute the recall embedding before opening the session.
-    query_embedding = await generate_embedding(player_action)
-
     async with get_db_context() as db:
         result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
         campaign: Campaign = result.scalar_one()
+        try:
+            recall_snapshot = await snapshot_recall_query(db, campaign.id)
+        except Exception:
+            logger.exception("recall_snapshot_failed", campaign_id=campaign_id)
+            recall_snapshot = None
+
+    query_embedding = (
+        await embed_recall_query(recall_snapshot, player_action) if recall_snapshot else None
+    )
+
+    async with get_db_context() as db:
+        result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
+        campaign = result.scalar_one()
 
         context = await build_context(campaign, player_action, db, query_embedding=query_embedding)
 

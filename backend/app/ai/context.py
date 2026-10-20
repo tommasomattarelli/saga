@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.router import get_gameplay_config
+from app.memory.recall import PreparedRecallQuery
 from app.memory.semantic import search_similar_facts
 from app.models.campaign import Campaign
 from app.models.turn import Turn
@@ -119,7 +120,7 @@ async def _recall_memories(
     campaign: Campaign,
     player_action: str,
     db: AsyncSession,
-    query_embedding: list[float] | None,
+    query_embedding: PreparedRecallQuery | None,
 ) -> list[str]:
     """Top-K MemoryFacts relevant to the current action (pgvector recall)."""
     try:
@@ -141,7 +142,7 @@ async def build_context(
     player_action: str,
     db: AsyncSession,
     max_history_turns: int | None = None,
-    query_embedding: list[float] | None = None,
+    query_embedding: PreparedRecallQuery | None = None,
 ) -> GameContext:
     """Assemble the DM prompt from history, batch summaries, global summary, and recall.
 

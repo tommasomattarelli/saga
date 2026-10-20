@@ -71,14 +71,6 @@ async def _run_turn(
         with (
             patch("app.ai.providers.google.genai.Client", lambda **_: client),
             patch(
-                "app.ai.embeddings.generate_embedding",
-                new=AsyncMock(return_value=[0.0] * 384),
-            ),
-            patch(
-                "app.api.turns.generate_embedding",
-                new=AsyncMock(return_value=[0.0] * 384),
-            ),
-            patch(
                 "app.api.turns.compress_turn_to_summary",
                 new=AsyncMock(return_value="summary"),
             ),

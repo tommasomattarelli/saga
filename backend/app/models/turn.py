@@ -2,7 +2,7 @@ import uuid
 from typing import TYPE_CHECKING
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,6 +14,9 @@ if TYPE_CHECKING:
 
 class Turn(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "turns"
+    # Composite target so a source_embeddings row can bind (turn, campaign)
+    # atomically and reject cross-campaign links (ADR 0018 B3).
+    __table_args__ = (UniqueConstraint("id", "campaign_id", name="uq_turns_id_campaign"),)
 
     campaign_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("campaigns.id"), index=True
