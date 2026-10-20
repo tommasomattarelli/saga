@@ -9,7 +9,9 @@ from pydantic import Field
 from app.ai.tools.tools_base import DmTool, SceneMood, ToolResult, apply, register
 from app.core.npc_resolver import resolve_npc
 from app.core.psychology import DEFAULT_PSYCHOLOGY, band_label
+from app.core.quests import apply_quest_update
 from app.models.psychology import PsychologyDef
+from app.models.quest import QuestRegistry, QuestStatus
 
 
 @register
@@ -103,17 +105,32 @@ class MoveTo(DmTool):
 
 @register
 class UpdateQuest(DmTool):
-    name: str = Field(description="Quest name")
-    status: str = Field(
+    quest_id: str = Field(
         description=(
-            "Quest status. Valid values: "
-            "'active' (start or update progress), "
-            "'completed' (finished successfully), "
-            "'failed' (failed permanently), "
-            "'abandoned' (player gave up)."
+            "Stable quest id tag, e.g. 'dragon_hunt'. The only lookup key; "
+            "never a display title. Use lowercase letters, digits and underscores."
         )
     )
-    description: str = Field(default="", description="Quest description or update notes")
+    status: QuestStatus = Field(
+        description=(
+            "Quest status. 'active' starts or revisits a quest, "
+            "'completed'/'failed'/'abandoned' conclude it. All are reversible."
+        )
+    )
+    name: str = Field(
+        default="",
+        description=(
+            "Quest display name. Required only when starting a new quest with an "
+            "unknown id; existing quests keep their name when omitted."
+        ),
+    )
+    description: str | None = Field(
+        default=None,
+        description=(
+            "Quest description. Omit to preserve the previous text; an explicit "
+            "empty string clears it."
+        ),
+    )
 
     @classmethod
     def tool_name(cls) -> str:
@@ -121,23 +138,37 @@ class UpdateQuest(DmTool):
 
     @classmethod
     def tool_description(cls) -> str:
-        return "Add, update, or complete a quest in the player's quest log."
+        return "Add, move, or update a quest in the player's quest log by its id."
 
     def execute(self, world_state: dict, char_data: dict) -> ToolResult:
-        new_state, new_char = apply(
-            world_state,
-            char_data,
-            {
-                "key": "quest_update",
-                "target": self.name,
-                "change": self.status,
-                "description": self.description,
-            },
+        return self.execute_with_context(world_state, char_data, None, QuestRegistry())
+
+    def execute_with_context(
+        self,
+        world_state: dict,
+        char_data: dict,
+        baseline: dict | None,
+        quests: QuestRegistry | None,
+    ) -> ToolResult:
+        registry, error = apply_quest_update(
+            quests or QuestRegistry(),
+            quest_id=self.quest_id,
+            status=self.status,
+            name=self.name or None,
+            description=self.description,
         )
+        if error is not None:
+            return ToolResult(
+                description=error,
+                world_state=world_state,
+                char_data=char_data,
+                quests=quests,
+            )
         return ToolResult(
-            description=f"Quest '{self.name}' → {self.status}",
-            world_state=new_state,
-            char_data=new_char,
+            description=f"Quest '{self.quest_id}' is now {self.status.value}.",
+            world_state=world_state,
+            char_data=char_data,
+            quests=registry,
         )
 
 
