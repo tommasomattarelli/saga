@@ -24,6 +24,7 @@ from app.core.dm.game_state import GameState
 from app.core.engine import CONTENT_POLICY_NARRATION
 from app.exceptions import AIProviderError
 from app.memory.world_state import advance_game_clock, migrate_world_state
+from app.models.quest import QuestRegistry
 
 _llm_io = logging.getLogger("llm_io")
 logger = structlog.get_logger()
@@ -72,6 +73,7 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
         "messages": lc_messages,
         "world_state": migrate_world_state(campaign.world_state or {}),
         "char_data": campaign.character_data or {},
+        "quests": QuestRegistry.model_validate(campaign.quests or {}),
         "world_baseline": campaign.world_baseline or {},
         "difficulty": str(campaign.difficulty),
         "model_used": model_cfg.model,

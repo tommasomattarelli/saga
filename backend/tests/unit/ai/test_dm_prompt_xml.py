@@ -183,13 +183,36 @@ def test_no_history_section_when_empty():
     assert "<history>" not in prompt
 
 
-def test_quests_section():
-    quests = {"active": [{"name": "Who Am I?", "description": "Discover your identity."}]}
+def test_quests_section_renders_active_ids_and_descriptions_only():
+    quests = {
+        "active": [
+            {
+                "id": "who_am_i",
+                "name": "Who Am I?",
+                "description": "Discover your identity.",
+                "objectives": ["Ask the villagers"],
+            }
+        ],
+        "completed": [
+            {
+                "id": "old_deed",
+                "name": "Old Deed",
+                "description": "Already done.",
+                "objectives": [],
+            }
+        ],
+        "failed": [],
+        "abandoned": [],
+    }
     campaign = _make_campaign(_WORLD_STATE, _CHAR_DATA, quests=quests)
     prompt = build_dm_system_prompt(campaign)
 
     assert "<quests>" in prompt
-    assert 'name="Who Am I?"' in prompt
+    assert '<quest id="who_am_i">Discover your identity.</quest>' in prompt
+    assert "Who Am I?" not in prompt
+    assert "Ask the villagers" not in prompt
+    assert "old_deed" not in prompt
+    assert "Already done." not in prompt
 
 
 def test_no_combat_block_when_inactive():

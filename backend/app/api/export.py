@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.models.campaign import Campaign
 from app.models.memory_fact import MemoryFact
+from app.models.quest import QuestRegistry
 from app.models.turn import Turn
 from app.models.user import User
 from app.security.auth import get_current_user
@@ -51,7 +52,7 @@ async def export_campaign(
             "character_data": campaign.character_data,
             "world_baseline": campaign.world_baseline,
             "world_state": campaign.world_state,
-            "quests": campaign.quests,
+            "quests": QuestRegistry.model_validate(campaign.quests or {}).model_dump(),
         },
         "turns": [
             {

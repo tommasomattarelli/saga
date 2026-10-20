@@ -67,7 +67,7 @@ async def test_build_context(mocker):
         id=uuid.uuid4(),
         world_state={"time": {"time_of_day": "morning"}},
         difficulty=Difficulty.HARD,
-        quests={"active": [{"title": "Quest"}]},
+        quests={"active": [{"id": "quest", "name": "Quest", "description": "", "objectives": []}]},
         character_data={"hp": {"current": 10, "max": 10}},
     )
 

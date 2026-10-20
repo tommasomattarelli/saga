@@ -137,6 +137,7 @@ class TestContextNode:
         campaign = MagicMock()
         campaign.world_state = {}
         campaign.character_data = {}
+        campaign.quests = {}
 
         db_result = MagicMock()
         db_result.scalar_one.return_value = campaign
