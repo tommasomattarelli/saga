@@ -90,6 +90,7 @@ Repository skills live in `.agents/skills/`; invoke them in Codex with `$skill-n
 - **During**: work on a **feature branch, never commit directly to `main`** — branch at the first commit of the session (`$catchup` already surfaces the current branch at Start; if it's `main`, branch before changing anything). Land work via PR, as the git history does. Then: one commit per logical change (standard 10); add a `CHANGELOG.md` `[Unreleased]` entry in the same commit; any architectural decision → a new ADR in `docs/adr/` in that same commit (docs-as-code).
 - **Implementing an ADR** (`$adr-implement`): a multi-sprint ADR gets a long-lived **integration branch `adr/NNNN-slug`** off `main`, one **sub-branch per sprint** merged into it with a local `--no-ff` `merge: sprint-N <title> (ADR NNNN)`, and **one PR at the end** — not a PR per sprint. Sprint commits carry `(ADR NNNN Sn)`. This is what 0005, 0008 and 0009 did; the skill has the full loop.
 - **End** (`$wrap-up`): ensure `[Unreleased]` reflects what shipped, **delete** the `TODO.md` items it covers, and leave the suite green. Run the **full check** of both stacks (Essential Commands) before declaring the session done — tests passing while `mypy` or `knip` fails is a red CI, not a green session.
+- **Repository layout**: the project lives in `~/Desktop/saga` as a normal checkout of `main` — never leave it bare; agent worktrees are additional checkouts beside it, and `~/Desktop/saga` stays the one VS Code opens.
 
 ## Commit Convention
 
