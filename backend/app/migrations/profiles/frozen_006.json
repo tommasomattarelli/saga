@@ -1,0 +1,858 @@
+{
+  "format": 2,
+  "kind": "adoption",
+  "profile": "frozen_006",
+  "schema": {
+    "enums": {
+      "public.campaignstatus": [
+        "ACTIVE",
+        "PAUSED",
+        "COMPLETED",
+        "ABANDONED"
+      ],
+      "public.difficulty": [
+        "EASY",
+        "MEDIUM",
+        "HARD"
+      ]
+    },
+    "format": 2,
+    "relations": {
+      "public.campaigns": "table",
+      "public.memory_facts": "table",
+      "public.saves": "table",
+      "public.turns": "table",
+      "public.users": "table"
+    },
+    "tables": {
+      "public.campaigns": {
+        "columns": {
+          "character_data": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "jsonb"
+          },
+          "created_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "difficulty": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "difficulty"
+          },
+          "global_summary": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "name": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(200)"
+          },
+          "persona_preset": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(50)"
+          },
+          "persona_xml": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "quests": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "jsonb"
+          },
+          "status": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "campaignstatus"
+          },
+          "turn_number": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "integer"
+          },
+          "updated_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "user_id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "world_baseline": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          },
+          "world_slug": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(100)"
+          },
+          "world_state": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "jsonb"
+          },
+          "world_version": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(20)"
+          }
+        },
+        "constraints": {
+          "campaigns_pkey": {
+            "definition": "PRIMARY KEY (id)",
+            "kind": "primary_key"
+          },
+          "campaigns_user_id_fkey": {
+            "definition": "FOREIGN KEY (user_id) REFERENCES users(id)",
+            "kind": "foreign_key"
+          }
+        },
+        "indexes": {
+          "campaigns_pkey": {
+            "definition": "CREATE UNIQUE INDEX campaigns_pkey ON public.campaigns USING btree (id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": true,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          },
+          "ix_campaigns_user_id": {
+            "definition": "CREATE INDEX ix_campaigns_user_id ON public.campaigns USING btree (user_id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          }
+        }
+      },
+      "public.memory_facts": {
+        "columns": {
+          "campaign_id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "content": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "text"
+          },
+          "created_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "embedding": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "vector(384)"
+          },
+          "entity_name": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(200)"
+          },
+          "entity_type": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(50)"
+          },
+          "id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "search_vector": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "tsvector"
+          },
+          "turn_number": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "integer"
+          },
+          "updated_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          }
+        },
+        "constraints": {
+          "memory_facts_campaign_id_fkey": {
+            "definition": "FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE",
+            "kind": "foreign_key"
+          },
+          "memory_facts_pkey": {
+            "definition": "PRIMARY KEY (id)",
+            "kind": "primary_key"
+          }
+        },
+        "indexes": {
+          "ix_memory_facts_campaign_entity": {
+            "definition": "CREATE INDEX ix_memory_facts_campaign_entity ON public.memory_facts USING btree (campaign_id, entity_name)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "ix_memory_facts_campaign_id": {
+            "definition": "CREATE INDEX ix_memory_facts_campaign_id ON public.memory_facts USING btree (campaign_id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "ix_memory_facts_entity_name": {
+            "definition": "CREATE INDEX ix_memory_facts_entity_name ON public.memory_facts USING btree (entity_name)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "ix_memory_facts_entity_type": {
+            "definition": "CREATE INDEX ix_memory_facts_entity_type ON public.memory_facts USING btree (entity_type)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "ix_memory_facts_search_vector": {
+            "definition": "CREATE INDEX ix_memory_facts_search_vector ON public.memory_facts USING gin (search_vector)",
+            "live": true,
+            "method": "gin",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "memory_facts_pkey": {
+            "definition": "CREATE UNIQUE INDEX memory_facts_pkey ON public.memory_facts USING btree (id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": true,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          }
+        }
+      },
+      "public.saves": {
+        "columns": {
+          "campaign_id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "campaign_snapshot": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "jsonb"
+          },
+          "created_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "is_auto": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "boolean"
+          },
+          "name": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(200)"
+          },
+          "scene_summary": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "text"
+          },
+          "turn_number": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "integer"
+          },
+          "updated_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          }
+        },
+        "constraints": {
+          "saves_campaign_id_fkey": {
+            "definition": "FOREIGN KEY (campaign_id) REFERENCES campaigns(id)",
+            "kind": "foreign_key"
+          },
+          "saves_pkey": {
+            "definition": "PRIMARY KEY (id)",
+            "kind": "primary_key"
+          }
+        },
+        "indexes": {
+          "ix_saves_campaign_id": {
+            "definition": "CREATE INDEX ix_saves_campaign_id ON public.saves USING btree (campaign_id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "saves_pkey": {
+            "definition": "CREATE UNIQUE INDEX saves_pkey ON public.saves USING btree (id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": true,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          }
+        }
+      },
+      "public.turns": {
+        "columns": {
+          "campaign_id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "companion_actions": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          },
+          "created_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "dice_rolls": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          },
+          "embedding": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "vector(384)"
+          },
+          "id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "importance_score": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "integer"
+          },
+          "model_used": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(50)"
+          },
+          "narration": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "text"
+          },
+          "narration_segments": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          },
+          "player_action": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "text"
+          },
+          "scene_mood": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(50)"
+          },
+          "suggested_actions": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          },
+          "summarization_failed": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "boolean"
+          },
+          "summary": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "turn_number": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "integer"
+          },
+          "updated_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "world_updates": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          }
+        },
+        "constraints": {
+          "turns_campaign_id_fkey": {
+            "definition": "FOREIGN KEY (campaign_id) REFERENCES campaigns(id)",
+            "kind": "foreign_key"
+          },
+          "turns_pkey": {
+            "definition": "PRIMARY KEY (id)",
+            "kind": "primary_key"
+          }
+        },
+        "indexes": {
+          "ix_turns_campaign_id": {
+            "definition": "CREATE INDEX ix_turns_campaign_id ON public.turns USING btree (campaign_id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "turns_pkey": {
+            "definition": "CREATE UNIQUE INDEX turns_pkey ON public.turns USING btree (id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": true,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          }
+        }
+      },
+      "public.users": {
+        "columns": {
+          "anthropic_api_key_enc": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "created_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "email": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(255)"
+          },
+          "embedding_local_endpoint": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(100)"
+          },
+          "embedding_model": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(200)"
+          },
+          "embedding_provider": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(20)"
+          },
+          "generation_local_endpoint": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(100)"
+          },
+          "generation_model": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(200)"
+          },
+          "generation_provider": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(20)"
+          },
+          "google_api_key_enc": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "hashed_password": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(255)"
+          },
+          "id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "is_active": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "boolean"
+          },
+          "is_admin": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "boolean"
+          },
+          "openai_api_key_enc": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "openrouter_api_key_enc": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "preferred_language": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(5)"
+          },
+          "server_key_consents": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          },
+          "updated_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "username": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(50)"
+          }
+        },
+        "constraints": {
+          "users_pkey": {
+            "definition": "PRIMARY KEY (id)",
+            "kind": "primary_key"
+          }
+        },
+        "indexes": {
+          "ix_users_email": {
+            "definition": "CREATE UNIQUE INDEX ix_users_email ON public.users USING btree (email)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          },
+          "ix_users_username": {
+            "definition": "CREATE UNIQUE INDEX ix_users_username ON public.users USING btree (username)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          },
+          "users_pkey": {
+            "definition": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": true,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          }
+        }
+      }
+    },
+    "types": {
+      "public.campaignstatus": {
+        "kind": "enum"
+      },
+      "public.difficulty": {
+        "kind": "enum"
+      }
+    }
+  },
+  "source_commit": "261ad5fb53003844efbe1d8097d9393469686291",
+  "target_revision": "006_user_provider_settings"
+}

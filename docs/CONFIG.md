@@ -4,6 +4,13 @@ All game-tunable settings live in `saga.config.yaml` at the project root. Secret
 
 Environment variable overrides are supported for all fields using the pattern `SAGA_<SECTION>_<FIELD>` (uppercase, underscores). Example: `SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS=12`.
 
+## Database migrations
+
+`migrations.lock_timeout_seconds` sets the finite wait for another process to
+finish an online schema migration. The default is `30`; a timeout aborts startup
+or the Alembic command rather than serving an unchecked schema. It must be a
+positive finite number.
+
 ---
 
 ## Model Routing
