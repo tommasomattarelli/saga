@@ -58,7 +58,6 @@ async def test_concurrent_actions_get_distinct_sequential_turn_numbers(auth_clie
             new=AsyncMock(side_effect=lambda *a, **k: _fake_state()),
         ),
         patch("app.api.turns.compress_turn_to_summary", new=AsyncMock(return_value="summary")),
-        patch("app.api.turns.generate_embedding", new=AsyncMock(return_value=[0.0] * 384)),
         patch("app.api.turns.extract_and_store_facts", new=AsyncMock(return_value=None)),
         patch("app.api.turns._background_compression", new=AsyncMock(return_value=None)),
         patch("app.api.turns._background_global_summary", new=AsyncMock(return_value=None)),

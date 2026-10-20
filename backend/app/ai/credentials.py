@@ -1,9 +1,19 @@
-"""Per-user provider credentials and consent resolution (ADR 0018 A3/A4)."""
+"""Per-user provider credentials and consent resolution (ADR 0018 A3/A4/B1)."""
 
 from __future__ import annotations
 
 from cryptography.exceptions import InvalidTag
 
+from app.ai.embedding_config import (
+    EmbeddingCredential,
+    EmbeddingSpace,
+    ResolvedEmbedding,
+    build_space,
+    check_space_contract,
+    get_embedding_default_space,
+    get_embedding_policy,
+    local_space,
+)
 from app.ai.router import (
     PROVIDER_NAMES,
     ModelConfig,
@@ -78,6 +88,26 @@ def credential_source(user: User, provider: str) -> str:
     return "missing"
 
 
+def _hosted_key(user: User, provider: str) -> str:
+    """Plaintext key for a hosted provider under the A4 order: personal, consented server."""
+    source = credential_source(user, provider)
+    if source == "personal":
+        try:
+            key = decrypt_api_key(getattr(user, _PERSONAL_KEY_FIELDS[provider]))
+        except (InvalidTag, ValueError) as exc:
+            raise ValidationError(
+                f"The personal key for `{provider}` cannot be read; enter it again in settings."
+            ) from exc
+        if not key.strip():
+            raise ValidationError(f"The personal key for `{provider}` is empty; enter it again.")
+        return key
+    if source == "server":
+        return str(getattr(settings, _SERVER_KEY_SETTINGS[provider]))
+    raise ValidationError(
+        f"Add a personal key for `{provider}` or enable consented server-key sharing in settings."
+    )
+
+
 def resolve_generation(user: User) -> tuple[ModelConfig, str | None, str | None]:
     default = get_instance_default()
     if bool(user.generation_provider) != bool(user.generation_model):
@@ -98,20 +128,43 @@ def resolve_generation(user: User) -> tuple[ModelConfig, str | None, str | None]
             raise ValidationError("Choose a configured local endpoint in settings.")
         return config, None, base_url
 
-    source = credential_source(user, provider)
-    if source == "personal":
-        try:
-            key = decrypt_api_key(getattr(user, _PERSONAL_KEY_FIELDS[provider]))
-        except (InvalidTag, ValueError) as exc:
-            raise ValidationError(
-                f"The personal key for `{provider}` cannot be read; enter it again in settings."
-            ) from exc
-        if not key.strip():
-            raise ValidationError(f"The personal key for `{provider}` is empty; enter it again.")
-    elif source == "server":
-        key = str(getattr(settings, _SERVER_KEY_SETTINGS[provider]))
-    else:
-        raise ValidationError(
-            f"Add a personal key for `{provider}` or enable consented server-key sharing in settings."
-        )
-    return config, key, None
+    return config, _hosted_key(user, provider), None
+
+
+def _profile_space(user: User) -> EmbeddingSpace:
+    """The space the user's own embedding profile names (or the instance default)."""
+    if bool(user.embedding_provider) != bool(user.embedding_model):
+        raise ValidationError("Choose both an embedding provider and a model.")
+    default = get_embedding_default_space()
+    provider = str(user.embedding_provider or default.provider)
+    model = str(user.embedding_model or default.model).strip()
+    if not model:
+        raise ValidationError("Choose an embedding model in settings.")
+    if provider == "local":
+        endpoint_name = user.embedding_local_endpoint or default.endpoint_name
+        if not endpoint_name:
+            raise ValidationError("Choose a configured local embedding endpoint in settings.")
+        return local_space(str(endpoint_name), model)
+    return build_space(provider, model)
+
+
+def _credential_for(user: User, space: EmbeddingSpace) -> EmbeddingCredential:
+    """Provenance for ONE call, re-derived every time (never persisted)."""
+    if space.provider == "local":
+        return EmbeddingCredential(key=None, source="not_required")
+    source = credential_source(user, space.provider)
+    return EmbeddingCredential(key=_hosted_key(user, space.provider), source=source)
+
+
+def resolve_embedding(user: User, space: EmbeddingSpace | None = None) -> ResolvedEmbedding:
+    """Embedding profile independent of generation (B1): own provider/model/credential.
+
+    A stored-space manifest pins the space FOREVER: its provider/model/endpoint
+    are never replaced by the user's current profile, and its endpoint (name and
+    URL) is revalidated against the instance policy today — a snapshot the
+    policy no longer authorizes fails fast instead of silently reusing it.
+    """
+    policy = get_embedding_policy()
+    space = space if space is not None else _profile_space(user)
+    check_space_contract(space)
+    return ResolvedEmbedding(space=space, credential=_credential_for(user, space), policy=policy)

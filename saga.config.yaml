@@ -41,13 +41,42 @@ providers:
       base_url: http://localhost:11434/v1
 
 # ---------------------------------------------------------------------------
-# Embeddings
+# Embeddings (ADR 0018 B)
+#
+# The embedding profile is independent of generation (B1): each user picks
+# provider + model in settings; `default` is the instance fallback. The
+# instance default runs on OpenRouter with the OpenRouter key ONLY (owner
+# decision 2026-10-19); Google stays supported.
+#
+# Vectors keep native model dimensions — no `dimensions` reduction knob; the
+# dimension is observed from the first response and persisted by the index
+# version. `target_pipeline` labels new spaces (embed-v1); the historical
+# space the pre-0018 writer produced (direct OpenAI, text-embedding-3-small,
+# 384) is embed-v1-legacy and must still be queried with dimensions=384.
+#
+# Rebuild pacing (owner decisions 7/8, finite): batch_size texts per request,
+# >= 1 second between rebuild requests, one rebuild request at a time
+# (rebuild_concurrency is validated to stay 1). max_retries=2 means at most 3
+# HTTP attempts per chunk on transient network/5xx errors only (retry_delays
+# [1,3]s); auth/quota/429 fail after ONE attempt, and SDK-internal retries
+# must stay disabled so the policy retry alone limits attempts. Documented
+# provider limits win over batch_size. rebuild_claim_ttl_seconds must cover one
+# worst-case chunk (validated against timeouts + retry delays: 94s today);
+# scan_interval_seconds is how often the worker looks for pending work.
 # ---------------------------------------------------------------------------
 embedding:
   default:
-    provider: google
-    model: text-embedding-004
-    dimensions: 1536
+    provider: openrouter
+    model: openai/text-embedding-3-small
+  target_pipeline: embed-v1
+  batch_size: 32
+  rebuild_min_interval_seconds: 1
+  rebuild_concurrency: 1
+  rebuild_claim_ttl_seconds: 600
+  scan_interval_seconds: 5
+  request_timeout_seconds: 30
+  max_retries: 2
+  retry_delays_seconds: [1, 3]
 
 # ---------------------------------------------------------------------------
 # Gameplay Settings — runtime behavior

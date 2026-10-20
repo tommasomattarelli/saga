@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useUIStore } from "../../../shared/stores/ui-store";
 import { useAuthStore } from "../../../shared/stores/auth-store";
 import { Drawer } from "../../../shared/ui/drawer";
+import SettingsAiPanel from "./settings-ai-panel";
 
 function Toggle({
   label,
@@ -89,7 +90,7 @@ export default function SettingsDrawer() {
       open={sidePanel === "settings"}
       onClose={() => setSidePanel(null)}
       title={t("game.settings")}
-      width="w-[420px]"
+      width="w-full max-w-[420px]"
     >
       {/* Audio */}
       <SectionHeader label={t("settings.audio")} />
@@ -152,6 +153,12 @@ export default function SettingsDrawer() {
           <span>A</span>
         </div>
       </div>
+
+      <SectionRule />
+
+      {/* AI */}
+      <SectionHeader label={t("settings.ai.section")} />
+      <SettingsAiPanel open={sidePanel === "settings"} />
 
       <SectionRule />
 

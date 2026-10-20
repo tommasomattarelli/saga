@@ -5,12 +5,16 @@ from __future__ import annotations
 import os
 import uuid
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from app.ai.providers.base import AIProvider, get_provider
 from app.config_loader import load_saga_config
 from app.dependencies import get_db_context
 from app.exceptions import ValidationError
 from app.models.user import User
+
+if TYPE_CHECKING:
+    from app.ai.embedding_config import EmbeddingSpace, ResolvedEmbedding
 
 PROVIDER_NAMES = ("openai", "openrouter", "google", "local")
 
@@ -102,6 +106,30 @@ def validate_user_generation(user: User) -> None:
     from app.ai.credentials import resolve_generation
 
     resolve_generation(user)
+
+
+async def get_user_embedding(
+    user_id: uuid.UUID | str, *, space: EmbeddingSpace | None = None
+) -> ResolvedEmbedding:
+    """Resolve credentials and policy for an embedding call (ADR 0018 B).
+
+    Short DB session only — network happens afterwards with no session held.
+    A manifest space is honored verbatim and revalidated against today's policy.
+    """
+    from app.ai.credentials import resolve_embedding
+
+    async with get_db_context() as db:
+        user = await db.get(User, uuid.UUID(str(user_id)))
+        if user is None:
+            raise ValidationError("The user's AI settings are unavailable.")
+        return resolve_embedding(user, space)
+
+
+def validate_embedding_config() -> None:
+    """Startup validation entry point; registration lives with the rebuild agent."""
+    from app.ai.embedding_config import validate_embedding_config as _validate
+
+    _validate()
 
 
 async def get_user_generation(user_id: uuid.UUID | str) -> tuple[AIProvider, ModelConfig]:
