@@ -6,18 +6,61 @@ from app.ai.credentials import (
     effective_embedding_provider,
     effective_generation_provider,
     has_personal_key,
+    server_key_present,
 )
-from app.ai.router import PROVIDER_NAMES, get_allowed_providers, get_local_endpoints
+from app.ai.embedding_config import get_embedding_default_space
+from app.ai.router import (
+    PROVIDER_NAMES,
+    get_allowed_providers,
+    get_instance_default,
+    get_local_endpoints,
+    get_server_key_fallback,
+)
 from app.api.embedding_profile_guard import guard_embedding_profile_change
 from app.dependencies import get_db
 from app.models.user import User
-from app.schemas.settings import ApiKeysUpdate, SettingsPatch
+from app.schemas.settings import ApiKeysUpdate, ProfileDefaults, SettingsPatch, SettingsPolicy
 from app.security.auth import get_current_user
 from app.security.encryption import encrypt_api_key
 
 router = APIRouter()
 
 # The minimal settings UI (ADR 0018, point 6) is built on these endpoints.
+
+
+def _embedding_defaults() -> ProfileDefaults:
+    """Instance default embedding space, reduced to names the UI may show."""
+    try:
+        space = get_embedding_default_space()
+    except ValueError:
+        return ProfileDefaults(provider="", model="", local_endpoint=None)
+    return ProfileDefaults(
+        provider=space.provider,
+        model=space.model,
+        local_endpoint=space.endpoint_name,
+    )
+
+
+def _policy_payload() -> SettingsPolicy:
+    """Read-only instance policy for the settings UI (no URLs, no key material)."""
+    allowed = get_allowed_providers()
+    default = get_instance_default()
+    fallback = get_server_key_fallback()
+    return SettingsPolicy(
+        allowed_providers=list(allowed),
+        local_endpoints=sorted(get_local_endpoints()),
+        generation_default=ProfileDefaults(
+            provider=default.provider,
+            model=default.model,
+            local_endpoint=default.local_endpoint,
+        ),
+        embedding_default=_embedding_defaults(),
+        server_key_sharing={
+            provider: bool(fallback.get(provider, False)) and server_key_present(provider)
+            for provider in allowed
+            if provider != "local"
+        },
+    )
 
 
 def _settings_payload(user: User) -> dict:
@@ -38,6 +81,7 @@ def _settings_payload(user: User) -> dict:
         "credential_source": credential_source(user, provider),
         "effective_embedding_provider": effective_embedding_provider(user),
         "embedding_credential_source": credential_source(user, effective_embedding_provider(user)),
+        "policy": _policy_payload().model_dump(),
     }
 
 

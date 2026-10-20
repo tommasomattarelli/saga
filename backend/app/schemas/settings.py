@@ -20,3 +20,25 @@ class ApiKeysUpdate(BaseModel):
     openrouter: str | None = None
     google: str | None = None
     anthropic: str | None = None
+
+
+class ProfileDefaults(BaseModel):
+    """The instance default a user inherits before configuring their own profile."""
+
+    provider: str
+    model: str
+    local_endpoint: str | None = None
+
+
+class SettingsPolicy(BaseModel):
+    """Read-only instance policy the settings UI needs to render its choices.
+
+    Local endpoints are NAMES only — the backend never exposes the URLs a user
+    may point at, and no key material or ciphertext is carried here.
+    """
+
+    allowed_providers: list[str]
+    local_endpoints: list[str]
+    generation_default: ProfileDefaults
+    embedding_default: ProfileDefaults
+    server_key_sharing: dict[str, bool]
