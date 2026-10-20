@@ -98,6 +98,11 @@ The tool addresses quests by ID; names are not lookup keys.
 **Design refinement (2026-10-20, owner).** Explicit tags replace the initial
 name-identity direction: titles need not be unique and must not drive updates.
 
+**S0 note (2026-10-20, implementation).** The tag contract is
+`^[a-z0-9]+(_[a-z0-9]+)*$`, at most 64 characters; duplicate authored tags fail
+world loading with the offending tag. `InitialQuest` and the scenario editor
+carry `id`, and a title may repeat across distinct tags.
+
 ### A3 — Preserve records and honor every advertised state (Decided)
 
 The tool supports `active`, `completed`, `failed` and `abandoned`. Moving between
@@ -127,6 +132,12 @@ Invalid input must not produce a success message or partial mutation. Campaign
 creation and character PATCH requests containing `active_quests` are rejected with
 HTTP 422, rather than silently dropping or retaining the retired container.
 
+**S0 note (2026-10-20, implementation).** `update_quest` takes `quest_id`,
+`status`, optional `name` and optional `description`; an omitted description
+preserves and `""` clears it. The shared `apply_quest_update` returns the
+unchanged registry plus a short message on invalid input, so no caller can
+partially mutate it.
+
 ### A4 — Connect the entire turn path (Decided direction)
 
 Carry the typed registry through the turn's input, `GameState`, quest execution
@@ -141,6 +152,11 @@ field. Adapt the existing journal to the four states without a redesign.
 The precise updater/dispatcher signatures are an implementation design task:
 choose the smallest explicit change, without refactoring unrelated tools or
 smuggling quests through `world_state`, `character_data` or untyped result extras.
+
+**S0 note (2026-10-20, implementation).** `QuestRegistry` rides
+`GameState.quests` and `ToolResult.quests`; `execute_tool` accepts it as an
+optional typed argument. `campaign.quests` is validated at the API boundary and
+written as detached data, and autosave, restore and export serialize that registry.
 
 ### A5 — Prompt: active IDs and descriptions only (Decided)
 
