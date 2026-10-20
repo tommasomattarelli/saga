@@ -44,6 +44,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Defined ADR 0019's Alembic bootstrap, validated schema adoption and migration-backed tests, with implementation gated on explicit lead approval of S0.
 - Added the campaign-owned quest registry with explicit authored IDs and one shared transition used by tools and evaluation replay.
 - Recorded ADR 0019's explicit quest IDs and canonical registry for PR 1, with database bootstrap decisions reserved for PR 2.
 - Migration backfill tests now provision and remove an isolated PostgreSQL database using the configured test endpoint.

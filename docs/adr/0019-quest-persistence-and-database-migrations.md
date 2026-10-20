@@ -1,8 +1,8 @@
 # ADR 0019 — Quest persistence and database migration coverage
 
-- **Status**: **Proposed — Part A** (owner closed the PR 1 design on 2026-10-20;
-  implementation may begin). **Part B remains WIP**: resolve its §5 design gates
-  with the owner before implementing PR 2.
+- **Status**: **Proposed** — Part A implemented in [PR #97](https://github.com/tommasomattarelli/saga/pull/97);
+  Part B's design approved by the owner on 2026-10-20, with implementation gated on
+  an explicit, reasoned lead review of S0 before any implementation code.
 - **Date**: 2026-10-20.
 - **Context items**: [GitHub #86](https://github.com/tommasomattarelli/saga/issues/86),
   `TODO.md` stabilization point 4 and its migration-coverage audit; follows ADR 0018.
@@ -222,15 +222,16 @@ PR 1 closes #86. PR 2 addresses the remaining migration work in stabilization
 point 4; it is not a condition for closing that issue and does not broaden its fix.
 The TODO item remains open for this second part after the quest fix lands.
 
-### B2 — Required outcomes, not a selected bootstrap architecture (TODO)
+### B2 — Required verification outcomes (Decided)
 
 PR 2 must replace the current coverage gap with a reproducible real-PostgreSQL
 bootstrap/upgrade path and checks that exercise the actual Alembic revisions.
-Its design pass must decide the approach in §5 **before writing implementation**.
-The quest decisions do not imply that historical migrations may be skipped,
-rewritten or stamped as successful without executing the intended changes.
+B3–B11 record the owner's subsequent design choices; implementation waits for
+explicit lead approval of S0. The quest decisions do not imply that historical
+migrations may be skipped, rewritten or stamped as successful without executing
+the intended changes; validated adoption is limited to B3 and B6.
 
-The specification for that design pass is:
+The verification contract is:
 
 - Establish how an empty PostgreSQL database with the required extensions reaches
   the supported application schema through the chosen migration/bootstrap path.
@@ -252,6 +253,199 @@ This is infrastructure work, not a quest backfill, campaign import endpoint or
 general installer redesign. Any broader data-support or startup-policy decision
 must return to the owner instead of being inferred from the deleted dev volume.
 
+### B3 — Explicit adoption of unversioned databases (Decided)
+
+An existing database without an Alembic revision is not automatically adopted at
+startup. Provide a manual adoption command that recognizes and validates a known,
+supported schema before recording its corresponding revision. Unknown or
+mismatched schemas are rejected, without an automatic wipe or a blind stamp.
+
+The adoption command supports exactly two frozen schema profiles: the current
+post-PR-1 schema at `5e9206da28a0be1d8e669dcc72ed0af6a3525eac`, and the pre-embedding
+006 schema produced by `261ad5fb53003844efbe1d8097d9393469686291`. These are SQL
+schema baselines, not a promise to convert legacy quest payloads.
+
+B6 defines the validation contract. Other unversioned schemas, including the
+latest tagged release `v0.2.1-alpha.2`, are not adoption targets in PR 2. The owner
+prioritizes a new release after stabilization over expanding the historical
+adoption matrix.
+
+**Rejected:** automatic startup adoption puts recognition and mutation into boot;
+refusing all unversioned databases without an adoption command leaves the existing
+`create_all` installations without an in-scope transition; current-only adoption
+omits the already reproducible 006 predecessor, while supporting tagged releases
+adds historical coverage the owner does not need for this delivery.
+
+### B4 — One Alembic chain from an empty database (Decided)
+
+Add a frozen initial revision before `001_memory_facts`, reconstructing the
+pre-001 schema from real historical code. Change only 001's predecessor link to
+connect that revision; preserve the existing upgrade/downgrade bodies in 001–007.
+An empty database must reach the supported schema through `alembic upgrade head`,
+executing the revisions rather than creating current ORM tables and stamping head.
+
+Add a new forward revision after 007 to reconcile verified historical omissions
+and schema drift. Known examples are campaign summary/persona columns and
+`turns.summarization_failed`; S0 must inventory the complete difference before
+implementation. Migration DDL is frozen and does not import mutable application
+models. Existing versioned databases retain their revision identity and do not
+rerun the new predecessor.
+
+**S0 note (2026-10-20, lead review).** Use the real pre-001 parent `94db17d`,
+not current ORM definitions with columns subtracted. The provisional gap inventory
+includes the four summary/persona/summarization columns, nullable memory-fact
+timestamps, three 007 server defaults and B11's retired tables. Verify this against
+real PostgreSQL catalogs as the first implementation test; static inspection is
+not proof that no other difference exists.
+
+**Rejected:** a separate historical SQL bootstrap keeps two required entry points
+and lets direct Alembic use remain incomplete; a single chain makes the bootstrap
+path itself executable and testable.
+
+### B5 — Application-owned migration startup (Decided)
+
+Replace `init_db`'s runtime `create_all` with the Alembic upgrade path before the
+application serves requests or starts embedding recovery/workers. Empty and
+already versioned databases upgrade automatically, serialized by a PostgreSQL
+lock. A database containing application schema objects but no revision stops
+startup and requires B3's manual adoption, even if its tables contain no rows;
+it is never implicitly stamped. Migration failures stop startup. Unknown or newer
+revisions are rejected, not automatically downgraded or guessed.
+
+Native and Docker installations use the same backend startup path. pgvector
+remains a provisioned prerequisite, as in ADR 0000, rather than assuming the
+application role can install extensions. This evolves the implementation of
+ADR 0000's shared startup contract without editing that Accepted record.
+
+**Rejected:** launcher-only migration duplicates required wiring across entry
+points; manual-only migration makes ordinary updates an operator task and breaks
+the desired double-click experience.
+
+### B6 — Exact, frozen schema validation for adoption (Decided)
+
+Before stamping 006 or 007, compare the database structurally with the selected
+frozen B3 profile: application tables, columns, SQL types, nullability, server
+defaults, constraints, indexes, enum definitions and vector dimensions. Differences
+outside documented semantic normalization reject adoption with readable diagnostics;
+unexpected application objects are not silently tolerated. Extension-owned objects
+are excluded from the application-schema comparison.
+
+Adoption does not repair the schema or convert campaign JSONB contents. Recognition
+must not depend on current, mutable ORM definitions pretending to describe a
+historical schema; S0 will define the frozen profile representation and equivalence
+rules from the two real commits.
+
+**Rejected:** allowing unrecognized extra application objects weakens the claim
+that the starting schema is known; a minimal column signature can stamp an
+incomplete schema as a successful baseline.
+
+### B7 — Migrated schemas for integration and playtest coverage (Decided)
+
+Prepare the integration/playtest application database through Alembic once per
+suite, replacing the current `Base.metadata.create_all` setup. Per-test data cleanup
+preserves `alembic_version` rather than truncating the migration record. Keep the
+isolated real-PostgreSQL 006→007 embedding regression and exercise the actual
+application startup path in dedicated tests.
+
+**Rejected:** keeping `create_all` for ordinary integration tests leaves a second
+schema producer able to conceal missing migration objects, even with a dedicated
+migration smoke test.
+
+### B8 — Bounded migration lock contention (Decided)
+
+Serialize concurrent startup migration attempts with a PostgreSQL lock. A waiting
+process has a finite, configurable acquisition timeout and rechecks the database
+revision after acquiring the lock. Timeout stops that startup with a clear error;
+it never permits parallel migration or starts the server on an unchecked schema.
+S0 will select the smallest shared lock mechanism and a sensible configuration
+default; no unbounded polling loop is permitted.
+
+**S0 note (2026-10-20, lead review).** The approved configuration is
+`migrations.lock_timeout_seconds: 30`, positive and finite. One explicit outer
+transaction acquires a session advisory lock before inspecting revision/schema
+state; startup, adoption and online Alembic mutation commands share this protocol.
+Alembic uses the injected connection and does not recursively invoke its own
+commands from `env.py`. Release the lock only after the owner transaction exits;
+clean up timeout/session state on success, failure and cancellation, invalidating
+the connection if safe cleanup cannot be completed.
+
+**Rejected:** immediate failure on any contention makes otherwise normal concurrent
+starts require a manual retry; unbounded waits can leave a broken startup hanging.
+
+### B9 — Full-chain schema and targeted historical data checks (Decided)
+
+Verify the whole 000→head schema path and add focused data-bearing regressions for
+the relevant 003, 005, 006 and 007 transitions. Produce predecessor schemas from
+the frozen historical code or the actual Alembic revisions, never hand-author an
+assumed old schema. Assert preserved data, intended transformations and rejection
+without data loss for invalid inputs; retain the 006→007 embedding backfill checks.
+
+Keep the scenario set small and coherent rather than building a speculative
+permutation matrix. Testing versioned SQL transitions does not expand B3's two
+unversioned adoption profiles or restore excluded legacy quest support.
+
+**Rejected:** empty-database plus 006→head tests alone leave earlier data migrations
+unexamined, even when the final schema smoke test is green.
+
+### B10 — Representable downgrade guarantees (Decided)
+
+Guarantee and test downgrade only for explicitly representable cases, including
+the existing legacy 007→006→007 round trip and additional cases justified by the
+actual migrations. Do not claim universal, lossless rollback: 004 drops templates,
+006 drops personal-profile columns, and 007 drops newly introduced embedding data.
+Document destructive boundaries and the need for backup/restore or a forward
+correction. Application startup never downgrades a database.
+
+Failed upgrades must not leave partially applied application DDL/data changes or
+advance the recorded revision. Incompatible data is reported rather than silently
+discarded or reinterpreted beyond the declared migration transformations. Startup
+and adoption diagnostics must not expose database credentials.
+
+**Rejected:** upgrade-only guarantees discard useful reversible-case checks;
+universal rollback would promise recovery of data that the historical downgrade
+operations cannot reconstruct.
+
+### B11 — Reconcile the two retired meta tables in 008 (Decided)
+
+**S0 finding (2026-10-20, review).** The actual pre-001 code at `94db17d`
+registers `achievements` and `profile_stats` through `app.models.meta`. Commit
+`bcded56` removed those unused models without a SQL migration. A faithful 000
+therefore creates both tables, while neither frozen B3 adoption profile has them.
+
+The owner explicitly authorizes 008 to drop these two retired tables, including
+any rows they contain, so fresh-chain and adopted databases converge on the
+current application schema. The owner reports having removed their historical
+development database; this is not evidence that other installations lack data.
+Document the destructive boundary and backup requirement. Do not use this choice
+to justify cascading deletion of unexpected dependencies or any other data.
+
+**Rejected:** keeping optional public legacy tables makes final schema convergence
+conditional; moving them into a new archive schema adds preservation machinery
+the owner does not want for these retired features. Dropped rows cannot be
+reconstructed by a downgrade.
+
+**S0 review gate (2026-10-20, lead).** The first S0 was not approved: revise it to
+apply one locking/transaction protocol to startup, online Alembic commands and
+adoption, not just the two application wrappers. Conditional schema correction
+must validate existing objects rather than hiding incompatible columns with
+`IF NOT EXISTS`. Missing historical timestamps must not be silently invented;
+incompatible values fail atomically under B10. Recheck the complete schema-gap
+inventory against real PostgreSQL catalogs before treating static inspection as
+verification. These are requirements for the revised S0, not permission to code.
+
+**S0 approval (2026-10-20, lead).** The revised S0 is explicitly approved for
+implementation because it unifies lock/transaction ownership across all mutation
+paths, rejects ambiguous existing objects and unknown timestamps, preserves
+frozen historical provenance and verifies convergence of all three supported
+paths. Binding refinements: no public unvalidated-stamp escape hatch for tests;
+the existing frozen-006 test helper must use validated production adoption while
+retaining its historical schema, seeded vectors and backfill assertions. In 008,
+absence of a 007 server default is valid for adopted schemas, while removal is
+limited to the known historical default; unexpected definitions fail. Freeze
+revision-local DDL/check helpers rather than importing mutable runtime migration
+helpers. A new genuine design fork or contradiction from the first catalog check
+returns to the lead/owner before proceeding.
+
 ## 4. Delivery and relationship to other ADRs
 
 - **PR 1 — quest persistence:** one focused feature/fix branch and PR to `main`,
@@ -260,6 +454,11 @@ must return to the owner instead of being inferred from the deleted dev volume.
 - **PR 2 — bootstrap and migration coverage:** a separate reviewable branch/PR
   after PR 1, using the resolved Part B design and retaining the existing migration
   regressions. The split is by logical deliverable, not one PR per sprint.
+- **PR 2 S0 gate:** a fresh implementation teammate first delivers its grounded
+  schema inventory, frozen-profile contract, startup/locking plan, focused tests
+  and logical commit plan, then stops without implementation edits. The lead
+  explicitly approves with reasons or rejects with reasons and required changes;
+  silence or a generic acknowledgement is not authorization to implement.
 - **ADR 0001:** preserve the detached-state, short-session turn lifecycle.
 - **ADR 0008:** retain world-authored initial quest descriptions and objectives;
   world import/export is unaffected.
@@ -289,14 +488,24 @@ delay a stable quest registry or be introduced as an implicit background task.
 | Omitted description preserves; explicit empty clears | Decided | A3 |
 | New DM quests have empty objectives; no extra AI call | Decided | A3, §4 |
 | Invalid tools do not mutate; retired-container writes return 422 | Decided | A3 |
-| Empty-DB bootstrap: predecessor/base revision vs explicit baseline approach | TODO | Owner design pass before PR 2 code |
-| Supported historical baselines and upgrade/downgrade coverage matrix | TODO | Owner design pass before PR 2 code; distinguish SQL history from old quest compatibility |
-| Startup/bootstrap ownership and test-fixture integration | TODO | Owner design pass before PR 2 code |
+| Existing unversioned databases: manual, validated adoption; current and frozen 006 only | Decided | B3, B6 |
+| Adoption validates the complete frozen application schema, without repairs | Decided | B6; freeze profile representation and equivalence rules in S0 |
+| Empty-DB bootstrap: frozen pre-001 revision and a new post-007 correction | Decided | B4; inventory all schema gaps in S0 |
+| Full-chain SQL schema and focused historical data upgrades | Decided | B9; distinct from unversioned adoption and legacy quest compatibility |
+| Downgrade guarantees are limited to tested, representable cases | Decided | B10; document irreversible data boundaries |
+| Startup/bootstrap ownership: automatic Alembic for empty/versioned DBs | Decided | B5, B8 |
+| All integration/playtest schemas come from Alembic; keep 006→007 isolation | Decided | B7 |
+| Concurrent startup migrations use a bounded, configurable PostgreSQL lock wait | Decided | B8; mechanism and default in S0 |
+| 008 drops only the two retired meta tables, with explicit data-loss consent | Decided | B11; no unexpected dependency cascade |
 
-The owner approved Part A as Proposed after closing its design questions. Part B
-remains a mandatory owner design pass before PR 2 and does not block PR 1. No
-external research is required for these choices: they rest on inspected code and
-the owner's constraints.
+Part A shipped in #97; the owner approved Part B as Proposed after the B3–B10
+design interview. The remaining S0 tasks are concrete implementation
+grounding: verify schema gaps against catalogs and freeze profile representation/
+equivalence rules. The revised S0 has explicit, reasoned lead approval recorded
+next to B11; B8 records its lock protocol and timeout. The first review found B11's
+additional owner decision before any implementation. New genuine design forks
+return to the owner before code. No external research is required:
+these choices rest on inspected code, Git history and the owner's constraints.
 
 ## 6. Rejected alternatives and consequences
 
@@ -320,11 +529,14 @@ the owner's constraints.
 
 **Positive:** one typed source connects the tool, next-turn prompt, journal,
 snapshots and export; a separate infrastructure PR makes migration failures visible
-without delaying the quest fix behind an undecided bootstrap design.
+without delaying the quest fix. Application startup and integration tests share
+the real migration chain, and unversioned adoption has a finite, verified scope.
 
 **Trade-offs / risks:** JSONB still rewrites the complete registry, whose archive
 grows with the campaign; the archive is not fed wholesale into the prompt. Explicit
 IDs change the authored YAML/tool contract, and DM-created objectives remain empty
 for now. Old quest payloads are not supported; restore outside the quest registry is not proven
-by these tests. Migration architecture remains an open decision, not an
-implementation instruction hidden in this record.
+by these tests. Startup now needs migration privileges and may take longer during
+an upgrade; lock acquisition is bounded, adoption rejects unrecognized schemas,
+and destructive historical migrations cannot promise universal lossless downgrade.
+This infrastructure adds no AI calls or per-turn token cost.
