@@ -154,7 +154,7 @@
   minutes: 12
   updates:
     - {key: npc_psychology, target: Aldric, changes: {trust: 4, respect: 6}, first_meeting: true}
-    - {key: quest_update, target: "The Lost Son", change: active, description: "Aldric's son Corwin went into the old mines two winters ago and never returned."}
+    - {key: quest_update, quest_id: the_lost_son, name: "The Lost Son", change: active, description: "Aldric's son Corwin went into the old mines two winters ago and never returned."}
     - {key: event_log_entry, target: "Aldric, the village elder, named his lost son: Corwin, gone into the mines two winters ago. Four strangers have gone the same way since."}
   world_patch: {}
 

@@ -69,14 +69,6 @@ campaign:
     - name: Flask of lamp oil
       quantity: 1
       description: From Marta, who would not take coin for it.
-    active_quests: &id001
-    - name: Who Am I?
-      description: Discover your identity and why you woke at the Shrine of First Light.
-      objectives:
-      - Ask the villagers of Thornhaven about strangers
-      - Examine the shrine's carved symbols
-    - name: The Lost Son
-      description: Aldric's son Corwin went into the old mines two winters ago and never returned.
   world_state:
     meta:
       schema_version: 7
@@ -250,7 +242,20 @@ campaign:
     edge_overrides: []
     consumed_encounters: {}
   quests:
-    active: *id001
+    active:
+    - id: who_am_i
+      name: Who Am I?
+      description: Discover your identity and why you woke at the Shrine of First Light.
+      objectives:
+      - Ask the villagers of Thornhaven about strangers
+      - Examine the shrine's carved symbols
+    - id: the_lost_son
+      name: The Lost Son
+      description: Aldric's son Corwin went into the old mines two winters ago and never returned.
+      objectives: []
+    completed: []
+    failed: []
+    abandoned: []
 history:
 - role: user
   content: Did anyone go in after him?

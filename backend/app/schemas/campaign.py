@@ -5,6 +5,7 @@ from pydantic import BaseModel, field_validator
 
 from app.memory.world_state import migrate_world_state
 from app.models.campaign import CampaignStatus, Difficulty
+from app.models.quest import QuestRegistry
 
 
 class CampaignCreate(BaseModel):
@@ -12,6 +13,13 @@ class CampaignCreate(BaseModel):
     name: str
     difficulty: Difficulty
     character_data: dict = {}
+
+    @field_validator("character_data")
+    @classmethod
+    def _reject_retired_quest_container(cls, value: dict) -> dict:
+        if "active_quests" in value:
+            raise ValueError("character_data.active_quests is retired; quests are campaign-owned")
+        return value
 
 
 class CampaignResponse(BaseModel):
@@ -23,7 +31,7 @@ class CampaignResponse(BaseModel):
     turn_number: int
     character_data: dict
     world_state: dict
-    quests: dict
+    quests: QuestRegistry
     created_at: datetime
     updated_at: datetime
 
@@ -55,6 +63,7 @@ class TurnResponse(BaseModel):
     npc_dialogues: list[dict] | None = None
     world_state: dict = {}
     character_data: dict = {}
+    quests: QuestRegistry
     scene_mood: str | None = None
     tool_events: list[dict] = []
     death_event: dict | None = None

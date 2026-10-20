@@ -20,6 +20,7 @@ from app.core.npc_fields import resolve_npc_fields
 from app.core.npc_resolver import resolve_npc
 from app.core.psychology import resolve_psychology
 from app.memory.updater import apply_typed_updates
+from app.models.quest import QuestRegistry
 
 
 class _ToolPriority(IntEnum):
@@ -59,6 +60,7 @@ async def tools_node(state: GameState) -> dict[str, Any]:
 
     world_state = dict(state["world_state"])
     char_data = dict(state["char_data"])
+    quests = state.get("quests") or QuestRegistry()
     tool_events = list(state["tool_events"])
     dice_results = list(state["dice_results"])
     npc_dialogues = list(state["npc_dialogues"])
@@ -137,10 +139,18 @@ async def tools_node(state: GameState) -> dict[str, Any]:
 
         # Regular tools
         tool_result = execute_tool(
-            name, args, world_state, char_data, baseline=state.get("world_baseline")
+            name,
+            args,
+            world_state,
+            char_data,
+            baseline=state.get("world_baseline"),
+            quests=quests,
         )
         world_state = tool_result.world_state
         char_data = tool_result.char_data
+        updated_quests = getattr(tool_result, "quests", None)
+        if isinstance(updated_quests, QuestRegistry):
+            quests = updated_quests
 
         if name == "set_scene_mood" and tool_result.extra.get("mood"):
             scene_mood = tool_result.extra["mood"]
@@ -172,6 +182,7 @@ async def tools_node(state: GameState) -> dict[str, Any]:
         "messages": tool_messages,
         "world_state": world_state,
         "char_data": char_data,
+        "quests": quests,
         "tool_events": tool_events,
         "dice_results": dice_results,
         "npc_dialogues": npc_dialogues,

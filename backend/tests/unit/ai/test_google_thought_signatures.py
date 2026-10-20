@@ -87,6 +87,7 @@ def _graph_env(provider):
     campaign = MagicMock()
     campaign.world_state = {}
     campaign.character_data = {}
+    campaign.quests = {}
     campaign.world_baseline = {}
     campaign.difficulty = "medium"
 

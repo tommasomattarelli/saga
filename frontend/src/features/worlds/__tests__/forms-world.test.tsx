@@ -35,7 +35,7 @@ describe("World metadata and scenario forms", () => {
     const world = createWorldPayload();
     world.scenario = {
       opening: { narration: "", start_location: "", time_of_day: "", weather: "" },
-      initial_quests: [{ name: "Find the guide" }],
+      initial_quests: [{ id: "find_the_guide", name: "Find the guide" }],
       story_arcs: [{ name: "The lost city" }],
     };
     const view = renderWorldForm(
@@ -58,7 +58,7 @@ describe("World metadata and scenario forms", () => {
         time_of_day: "dawn",
         weather: "rain",
       },
-      initial_quests: [{ name: "Find the guide" }],
+      initial_quests: [{ id: "find_the_guide", name: "Find the guide" }],
       story_arcs: [{ name: "The lost city" }],
       dm_persona: "Patient and observant",
     });

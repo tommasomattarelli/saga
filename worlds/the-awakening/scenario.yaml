@@ -24,7 +24,8 @@ opening:
   weather: clear
 
 initial_quests:
-  - name: "Who Am I?"
+  - id: "who_am_i"
+    name: "Who Am I?"
     description: "Discover your identity and why you woke at the Shrine of First Light."
     objectives:
       - "Ask the villagers of Thornhaven about strangers"

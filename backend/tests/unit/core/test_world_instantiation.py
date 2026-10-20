@@ -157,5 +157,10 @@ class TestOverlay:
 class TestQuests:
     def test_initial_quests_shape(self):
         _, _, quests = instantiated()
+        assert quests["active"][0]["id"] == "who_am_i"
         assert quests["active"][0]["name"] == "Who Am I?"
         assert quests["active"][0]["objectives"]
+        assert quests["completed"] == []
+        assert quests["failed"] == []
+        assert quests["abandoned"] == []
+        assert "status" not in quests["active"][0]

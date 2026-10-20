@@ -16,7 +16,7 @@ describe("CompanionBar Component", () => {
     turn_number: 1,
     character_data: {} as CharacterData,
     world_state: worldState,
-    quests: {},
+    quests: { active: [], completed: [], failed: [], abandoned: [] },
     created_at: "now",
     updated_at: "now",
   });

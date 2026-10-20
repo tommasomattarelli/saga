@@ -6,6 +6,8 @@ from typing import Annotated, Any, TypedDict
 
 from langgraph.graph.message import add_messages
 
+from app.models.quest import QuestRegistry
+
 
 class GameState(TypedDict):
     # ── Input ────────────────────────────────────────────────────────────────
@@ -19,6 +21,8 @@ class GameState(TypedDict):
     # ── Mutable world state ──────────────────────────────────────────────────
     world_state: dict[str, Any]
     char_data: dict[str, Any]
+    # Campaign-owned quest registry (ADR 0019 A1) — status is the containing list
+    quests: QuestRegistry
     # Frozen authored world tree (ADR 0008 C11) — read-only, never written back
     world_baseline: dict[str, Any]
     # Campaign difficulty (ADR 0003 B8) — governs the death policy only

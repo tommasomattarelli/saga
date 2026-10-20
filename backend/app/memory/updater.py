@@ -96,21 +96,6 @@ def _handle_inventory(state: dict, update: dict, char_data: dict) -> dict:
     return state
 
 
-@_register_handler("quest_update")
-def _handle_quest(state: dict, update: dict, char_data: dict) -> dict:
-    """Update active/completed quests."""
-    target = update.get("target", "")
-    change = update.get("change", "active")
-    state.setdefault("narrative", {"event_log": []})
-    active_quests = char_data.setdefault("active_quests", [])
-
-    if change == "completed":
-        char_data["active_quests"] = [q for q in active_quests if q.get("name") != target]
-    elif change == "active" and not any(q.get("name") == target for q in active_quests):
-        active_quests.append({"name": target, "description": update.get("description", "")})
-    return state
-
-
 @_register_handler("companion_loyalty")
 def _handle_companion_loyalty(state: dict, update: dict, char_data: dict) -> dict:
     """Adjust a companion's loyalty, clamped to [0, 100]."""
@@ -180,6 +165,10 @@ def apply_typed_updates(
                     update=update,
                     exc_info=True,
                 )
+        elif update_type == "quest_update":
+            # ADR 0019 A1 — quests have their own registry and tool; the old
+            # character-data path must never be revived by the generic merge.
+            logger.warning("retired_quest_update_ignored", update=update)
         else:
             # Fallback: treat as generic world_state merge
             target = update.get("target", update.get("key", ""))

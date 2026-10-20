@@ -90,7 +90,10 @@
   "journal": {
     "empty": "Nessuna missione per ora.",
     "completed": "Completate",
-    "counts": "{{active}} attive · {{completed}} completate"
+    "counts": "{{active}} attive · {{concluded}} concluse",
+    "failed": "Fallite",
+    "abandoned": "Abbandonate",
+    "concluded": "Concluse"
   },
   "settings": {
     "audio": "Audio",

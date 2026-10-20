@@ -23,6 +23,7 @@ from app.memory.fact_extractor import extract_and_store_facts
 from app.memory.global_summary import update_global_summary
 from app.memory.world_state import migrate_world_state
 from app.models.campaign import Campaign, CampaignStatus
+from app.models.quest import QuestRegistry
 from app.models.save import Save
 from app.models.source_embedding import EmbeddingSourceType
 from app.models.turn import Turn
@@ -87,6 +88,7 @@ async def _submit_action(
         turn_number = claim.scalar_one()
         prior_world_state = migrate_world_state(campaign.world_state or {})
         prior_char_data = campaign.character_data or {}
+        prior_quests = QuestRegistry.model_validate(campaign.quests or {})
         world_baseline = campaign.world_baseline or {}
         difficulty = str(campaign.difficulty)
         await db.commit()
@@ -99,6 +101,7 @@ async def _submit_action(
         "messages": [],
         "world_state": prior_world_state,
         "char_data": prior_char_data,
+        "quests": prior_quests,
         "world_baseline": world_baseline,
         "difficulty": difficulty,
         "narration": "",
@@ -142,6 +145,12 @@ async def _submit_action(
 
     new_world_state = final_state["world_state"]
     new_char_data = final_state["char_data"]
+    raw_quests = final_state.get("quests") or prior_quests
+    new_quests = (
+        raw_quests
+        if isinstance(raw_quests, QuestRegistry)
+        else QuestRegistry.model_validate(raw_quests)
+    )
     narration = final_state["narration"]
     narration_segments = final_state["narration_segments"] or None
     dice_results = final_state["dice_results"] or None
@@ -167,6 +176,7 @@ async def _submit_action(
         )
         campaign.world_state = new_world_state
         campaign.character_data = new_char_data
+        campaign.quests = new_quests.model_dump()
 
         turn = Turn(
             campaign_id=campaign_id,
@@ -255,6 +265,7 @@ async def _submit_action(
         npc_dialogues=final_state.get("npc_dialogues") or None,
         world_state=new_world_state or {},
         character_data=new_char_data or {},
+        quests=new_quests,
         scene_mood=scene_mood,
         tool_events=tool_events,
         death_event=final_state.get("death_event"),

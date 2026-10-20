@@ -13,6 +13,7 @@ from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
 from app.core.world_loader import WorldAsset
 from app.memory.world_state import CURRENT_SCHEMA_VERSION, GameClock
 from app.models.npc import NpcEngineRecord
+from app.models.quest import QuestRecord, QuestRegistry
 
 
 def _global_km(asset: WorldAsset, slug: str, cache: dict[str, dict | None]) -> dict | None:
@@ -138,13 +139,13 @@ def _build_world_state(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
 
 
 def instantiate_world(asset: WorldAsset) -> tuple[dict, dict, dict]:
-    """Returns (world_baseline, initial world_state, initial quests)."""
+    """Returns (world_baseline, initial world_state, initial quest registry)."""
     slug_map = {slug: str(uuid4()) for slug in asset.nodes}
     baseline = _build_baseline(asset, slug_map)
     world_state = _build_world_state(asset, slug_map)
-    quests = (
-        {"active": [q.model_dump() for q in asset.scenario.initial_quests]}
-        if asset.scenario and asset.scenario.initial_quests
-        else {}
+    active = (
+        [QuestRecord.model_validate(q.model_dump()) for q in asset.scenario.initial_quests]
+        if asset.scenario
+        else []
     )
-    return baseline, world_state, quests
+    return baseline, world_state, QuestRegistry(active=active).model_dump()
