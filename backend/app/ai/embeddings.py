@@ -1,17 +1,10 @@
 """Embedding runtime — batch vectors through the resolved user policy (ADR 0018 B).
 
-`generate_embedding` at the bottom is the historical pre-0018 single-text
-pipeline: it stays byte-equivalent (server OpenAI key, text-embedding-3-small,
-dimensions=384, truncate at 8000 chars, None on any error) so the four current
-writers keep working until the gameplay agent migrates them. Every NEW runtime
-call is a batch through a resolved user credential, and the resolution entry
-point is the router (short session, never held across the network).
+All runtime calls use batches through a resolved user credential, and the
+resolution entry point is the router (short session, never held across network).
 """
 
 import uuid
-
-import httpx
-import structlog
 
 from app.ai.embedding_config import (
     EmbeddingAdapter,
@@ -25,11 +18,7 @@ from app.ai.providers.embeddings_openai import (
     OpenAICompatEmbeddingAdapter,
     get_openai_compat_adapter,
 )
-from app.config import settings
 from app.exceptions import ValidationError
-
-logger = structlog.get_logger()
-
 
 # --- NEW runtime (ADR 0018 B) ------------------------------------------------------
 
@@ -123,32 +112,3 @@ async def embed_query_for_index(
 ) -> EmbeddingBatch:
     """The recall-side query wrapper: the manifest space is validated, never swapped."""
     return await embed_texts(space, [text], user_id=user_id)
-
-
-# --- LEGACY pipeline (pre-0018 writers; untouched until the gameplay agent migrates)
-
-
-async def generate_embedding(text: str) -> list[float] | None:
-    """Generate a 384-dimensional embedding for text."""
-    if not settings.openai_api_key:
-        logger.debug("embedding_skipped", reason="no_api_key")
-        return None
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.openai.com/v1/embeddings",
-                headers={"Authorization": f"Bearer {settings.openai_api_key}"},
-                json={
-                    "input": text[:8000],  # Token limit safety
-                    "model": "text-embedding-3-small",
-                    "dimensions": 384,
-                },
-                timeout=10.0,
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data["data"][0]["embedding"]
-    except Exception:
-        logger.exception("embedding_generation_failed")
-        return None

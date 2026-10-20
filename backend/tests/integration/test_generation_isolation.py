@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import openai
 import pytest
@@ -52,29 +52,26 @@ async def test_two_real_turns_never_share_clients_or_models(
     ) as second:
         first_campaign = await configure(auth_client, "first-key", "first-model")
         second_campaign = await configure(second, "second-key", "second-model")
-        with (
-            patch("app.ai.embeddings.generate_embedding", new=AsyncMock(return_value=[0.1] * 384)),
-        ):
-            responses = await asyncio.gather(
-                auth_client.post(
-                    f"/api/campaigns/{first_campaign}/action", json={"action": "look at the torch"}
-                ),
-                second.post(
-                    f"/api/campaigns/{second_campaign}/action",
-                    json={"action": "listen at the door"},
-                ),
-            )
-            background = [
-                task
-                for task in asyncio.all_tasks()
-                if getattr(task.get_coro(), "__name__", "")
-                in {
-                    "extract_and_store_facts",
-                    "_background_compression",
-                    "_background_global_summary",
-                }
-            ]
-            await asyncio.gather(*background)
+        responses = await asyncio.gather(
+            auth_client.post(
+                f"/api/campaigns/{first_campaign}/action", json={"action": "look at the torch"}
+            ),
+            second.post(
+                f"/api/campaigns/{second_campaign}/action",
+                json={"action": "listen at the door"},
+            ),
+        )
+        background = [
+            task
+            for task in asyncio.all_tasks()
+            if getattr(task.get_coro(), "__name__", "")
+            in {
+                "extract_and_store_facts",
+                "_background_compression",
+                "_background_global_summary",
+            }
+        ]
+        await asyncio.gather(*background)
 
         assert [response.status_code for response in responses] == [200, 200]
         assert [response.json()["model_used"] for response in responses] == [
@@ -153,10 +150,7 @@ async def test_rejected_personal_key_never_retries_on_the_server_key(
         response=Response(status_code, request=Request("POST", "https://provider.test/private")),
         body=None,
     )
-    with patch("app.ai.embeddings.generate_embedding", new=AsyncMock(return_value=[0.1] * 384)):
-        response = await auth_client.post(
-            f"/api/campaigns/{campaign}/action", json={"action": "look"}
-        )
+    response = await auth_client.post(f"/api/campaigns/{campaign}/action", json={"action": "look"})
     assert response.status_code == 502
     assert message in response.json()["detail"]
     assert "private-provider-payload" not in response.text

@@ -107,10 +107,7 @@ def _graph_env(provider):
             "app.core.dm.dm_nodes.get_user_generation",
             new=AsyncMock(return_value=(provider, model_cfg)),
         ),
-        patch(
-            "app.ai.embeddings.generate_embedding",
-            new=AsyncMock(return_value=[0.0] * 384),
-        ),
+        patch("app.memory.recall.snapshot_recall_query", new=AsyncMock(return_value=None)),
         patch("app.dependencies.get_db_context", side_effect=fake_ctx),
         patch("app.core.dm.dm_nodes.build_context", new=AsyncMock(return_value=game_ctx)),
         patch("app.core.dm.dm_nodes.sanitize_player_input", side_effect=lambda x: x),

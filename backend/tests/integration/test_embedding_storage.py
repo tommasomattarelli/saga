@@ -3,6 +3,7 @@
 import hashlib
 import uuid
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import select, text
@@ -161,6 +162,196 @@ async def test_source_and_queue_rollback_together(campaign: Campaign, db_session
             select(SourceEmbedding).where(SourceEmbedding.index_id == index_id)
         )
         is None
+    )
+
+
+@pytest.mark.parametrize(
+    ("old_dimension", "new_dimension", "legacy"), [(3, 3, False), (384, 1536, True)]
+)
+async def test_recall_stays_on_snapshotted_index_with_vectors_after_cutover(
+    campaign: Campaign,
+    db_session,
+    assert_no_db_held,
+    old_dimension: int,
+    new_dimension: int,
+    legacy: bool,
+) -> None:
+    from app.ai.embedding_config import EmbeddingBatch
+    from app.memory.recall import embed_recall_query, snapshot_recall_query
+    from app.memory.semantic import search_similar_facts
+    from app.models.embedding_index import text_hash
+
+    old_index = _index(
+        campaign.id,
+        provider="openai" if legacy else "openrouter",
+        model="text-embedding-3-small" if legacy else "test-model",
+        pipeline_version="embed-v1-legacy" if legacy else "embed-v1",
+        dimension=old_dimension,
+        endpoint_identity="https://api.openai.com/v1"
+        if legacy
+        else "https://openrouter.ai/api/v1",
+        is_active=True,
+        rebuild_state=EmbeddingRebuildState.COMPLETED,
+    )
+    fact = MemoryFact(
+        campaign_id=campaign.id,
+        turn_number=1,
+        entity_name="Rook",
+        entity_type="npc",
+        content="Rook guards the northern gate.",
+    )
+    db_session.add_all([old_index, fact])
+    await db_session.flush()
+    db_session.add(
+        _source(
+            old_index.id,
+            campaign.id,
+            source_type=EmbeddingSourceType.MEMORY_FACT,
+            memory_fact_id=fact.id,
+            work_state=EmbeddingWorkState.EMBEDDED,
+            embedding=[0.1] * old_dimension,
+        )
+    )
+    await db_session.commit()
+    old_index_id = old_index.id
+    snapshot = await snapshot_recall_query(db_session, campaign.id)
+    assert snapshot is not None
+    await db_session.close()
+
+    async def swap_active_and_embed(space, query, *, user_id):
+        assert_no_db_held()
+        assert space.requested_dimensions == (384 if legacy else None)
+        target_id = uuid.uuid4()
+        async with engine.begin() as conn:
+            await conn.execute(
+                text("UPDATE embedding_indexes SET is_active = false WHERE campaign_id = :cid"),
+                {"cid": campaign.id},
+            )
+            await conn.execute(
+                text(
+                    "INSERT INTO embedding_indexes (id, campaign_id, provider, model, endpoint_identity,"
+                    " pipeline_version, dimension, is_active, rebuild_state) VALUES (:id, :cid,"
+                    " 'openrouter', 'different-model', 'https://openrouter.ai/api/v1',"
+                    " 'embed-v1', :dimension, true, 'completed')"
+                ),
+                {"id": target_id, "cid": campaign.id, "dimension": new_dimension},
+            )
+            await conn.execute(
+                text(
+                    "INSERT INTO source_embeddings (id, index_id, campaign_id, source_type,"
+                    " memory_fact_id, text_hash, embedding, work_state) VALUES (gen_random_uuid(),"
+                    " :index_id, :cid, 'memory_fact', :fact_id, :text_hash, CAST(:vector AS vector),"
+                    " 'embedded')"
+                ),
+                {
+                    "index_id": target_id,
+                    "cid": campaign.id,
+                    "fact_id": fact.id,
+                    "text_hash": text_hash(fact.content),
+                    "vector": str([0.2] * new_dimension),
+                },
+            )
+        return EmbeddingBatch(space, old_dimension, (tuple([0.1] * old_dimension),))
+
+    with patch("app.memory.recall.embed_query_for_index", new=swap_active_and_embed):
+        prepared = await embed_recall_query(snapshot, "who guards the gate?")
+    assert prepared is not None
+    assert prepared.index_id == old_index_id
+    assert prepared.dimension == old_dimension
+    async with async_session() as db:
+        facts = await search_similar_facts(campaign.id, "ignored", db, query_embedding=prepared)
+    assert [item.id for item in facts] == [fact.id]
+
+    async def failed_query(space, query, *, user_id):
+        assert_no_db_held()
+        raise RuntimeError("provider unavailable")
+
+    with patch("app.memory.recall.embed_query_for_index", new=failed_query):
+        assert await embed_recall_query(snapshot, "who guards the gate?") is None
+
+
+@pytest.mark.parametrize("scenario", ["empty", "unknown_dimension", "pending_fact", "turn_only"])
+async def test_recall_skips_provider_for_indexes_without_recallable_facts(
+    campaign: Campaign, db_session, scenario: str
+) -> None:
+    from unittest.mock import AsyncMock, patch
+
+    from app.memory.recall import snapshot_recall_query
+
+    index = _index(
+        campaign.id,
+        dimension=None if scenario == "unknown_dimension" else 384,
+        endpoint_identity="https://api.openai.com/v1",
+        is_active=True,
+        rebuild_state=EmbeddingRebuildState.COMPLETED,
+    )
+    db_session.add(index)
+    if scenario in {"pending_fact", "turn_only"}:
+        turn = Turn(
+            campaign_id=campaign.id,
+            turn_number=1,
+            player_action="look",
+            narration="A guard stands watch.",
+            model_used="test",
+            summary="A guard watches the gate.",
+        )
+        fact = MemoryFact(
+            campaign_id=campaign.id,
+            turn_number=1,
+            entity_name="Guard",
+            entity_type="npc",
+            content="A guard watches the gate.",
+        )
+        db_session.add_all([turn, fact])
+        await db_session.flush()
+        if scenario == "turn_only":
+            db_session.add(
+                _source(
+                    index.id,
+                    campaign.id,
+                    source_type=EmbeddingSourceType.TURN,
+                    turn_id=turn.id,
+                    work_state=EmbeddingWorkState.EMBEDDED,
+                    embedding=[0.1] * 384,
+                )
+            )
+        else:
+            db_session.add(
+                _source(
+                    index.id,
+                    campaign.id,
+                    source_type=EmbeddingSourceType.MEMORY_FACT,
+                    memory_fact_id=fact.id,
+                    work_state=EmbeddingWorkState.PENDING,
+                )
+            )
+    await db_session.commit()
+
+    provider = AsyncMock()
+    with patch("app.memory.recall.embed_query_for_index", new=provider):
+        snapshot = await snapshot_recall_query(db_session, campaign.id)
+    assert snapshot is None
+    provider.assert_not_called()
+
+
+async def test_recall_rejects_query_prepared_for_another_campaign(
+    campaign: Campaign, db_session
+) -> None:
+    from app.ai.embedding_config import legacy_space
+    from app.memory.recall import PreparedRecallQuery
+    from app.memory.semantic import search_similar_facts
+
+    other = await _extra_campaign()
+    prepared = PreparedRecallQuery(
+        campaign.user_id,
+        campaign.id,
+        uuid.uuid4(),
+        legacy_space(),
+        384,
+        (0.1,) * 384,
+    )
+    assert (
+        await search_similar_facts(other.id, "query", db_session, query_embedding=prepared) == []
     )
 
 
