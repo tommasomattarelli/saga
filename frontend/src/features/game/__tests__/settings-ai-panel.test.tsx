@@ -471,7 +471,25 @@ describe("SettingsAiPanel", () => {
     expect(within(editor).getByRole("alert")).toHaveTextContent(
       "A rebuild is still running for one of your campaigns",
     );
+    expect(
+      screen.getByText(
+        "Cancelling this campaign may not be enough — your other campaigns may have jobs running too.",
+      ),
+    ).toBeInTheDocument();
     expect(inputValue("embedding-model")).toBe("emb-new");
+  });
+
+  it("configures the user without a campaign and asks for no index request", async () => {
+    useGameStore.setState({ campaign: null });
+    const { Wrapper } = setup();
+    render(<SettingsAiPanel open />, { wrapper: Wrapper });
+
+    expect(await screen.findByText("In use: google / gemini-3.5-flash")).toBeInTheDocument();
+    expect(screen.getByText("Open a campaign to see the memory index status.")).toBeInTheDocument();
+    const indexCalls = mockApi.get.mock.calls.filter((call) =>
+      String(call[0]).includes("/embedding-index"),
+    );
+    expect(indexCalls).toHaveLength(0);
   });
 
   it("asks for no request while the drawer is closed", () => {
