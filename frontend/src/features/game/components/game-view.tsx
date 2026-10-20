@@ -6,6 +6,7 @@ import { useUIStore } from "../../../shared/stores/ui-store";
 
 import { useCampaignData } from "../hooks/use-campaign-data";
 import { useSubmitAction } from "../hooks/use-submit-action";
+import { useEnsureEmbeddingIndex } from "../hooks/use-ensure-embedding-index";
 import NarrativeStream from "../../narrative/components/narrative-stream";
 import ActionInput from "./action-input";
 import CharacterSheet from "../../character/components/character-sheet";
@@ -83,6 +84,7 @@ export default function GameView() {
   const toggleSidePanel = useUIStore((s) => s.toggleSidePanel);
 
   const { isLoading: isDataLoading, error: dataError } = useCampaignData(campaignId);
+  useEnsureEmbeddingIndex(campaignId);
   const { mutation } = useSubmitAction(campaignId!, scrollRef);
 
   const [actionError, setActionError] = useState<string | null>(null);

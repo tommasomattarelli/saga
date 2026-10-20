@@ -8,6 +8,7 @@ import { useGameStore } from "../../../../shared/stores/game-store";
 vi.mock("../../../../shared/api/client", () => ({
   getCampaign: vi.fn(),
   getTurns: vi.fn(),
+  ensureCampaignEmbeddingIndex: vi.fn(),
 }));
 
 const mockGetCampaign = vi.mocked(client.getCampaign);

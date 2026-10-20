@@ -15,6 +15,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Highlights
 
+- [Memory & AI] Campaign settings now show embedding-index progress and allow explicit rebuild retry or cancellation.
+- [Memory & AI] AI settings now manage independent generation and embedding profiles, personal keys and server-key consent.
 - [Memory & AI] Semantic recall now pins queries to the campaign's index version and personal credentials, keeping gameplay available when memory is unavailable.
 - [Memory & AI] Fixed: Gemini multi-turn tool calls no longer fail with a 400, because the thought signature returned with each call is echoed back on the next request (#56).
 - [Memory & AI] Personal generation keys and models now reach every foreground and background call, with consented fallback and isolated clients (#73, #74).
@@ -40,6 +42,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Added read-only provider policy metadata for the provisional AI settings surface without exposing endpoint URLs or credentials.
 - Gameplay writers now persist embedding work atomically with facts and summaries, including concurrent compression and index cutover.
 - Exposed authenticated embedding-index controls and startup recovery, blocking profile changes while rebuilds run.
 - Added lease-fenced embedding workers with resumable batches, atomic cutover and paced active-index maintenance.
