@@ -15,6 +15,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Highlights
 
+- [Memory & AI] Semantic recall now pins queries to the campaign's index version and personal credentials, keeping gameplay available when memory is unavailable.
 - [Memory & AI] Fixed: Gemini multi-turn tool calls no longer fail with a 400, because the thought signature returned with each call is echoed back on the next request (#56).
 - [Memory & AI] Personal generation keys and models now reach every foreground and background call, with consented fallback and isolated clients (#73, #74).
 - [Infra] Development commands and Git hooks now select pinned Node automatically without changing global runtimes.

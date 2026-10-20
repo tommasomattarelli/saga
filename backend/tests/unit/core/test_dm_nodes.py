@@ -153,9 +153,7 @@ class TestContextNode:
         state = _make_state(player_action="I attack the guard", campaign_id="cid")
 
         with (
-            patch(
-                "app.ai.embeddings.generate_embedding", new=AsyncMock(return_value=[0.3] * 384)
-            ) as mock_embed,
+            patch("app.memory.recall.snapshot_recall_query", new=AsyncMock(return_value=None)),
             patch("app.dependencies.get_db_context", side_effect=fake_ctx),
             patch(
                 "app.core.dm.dm_nodes.build_context", new=AsyncMock(return_value=game_ctx)
@@ -169,8 +167,7 @@ class TestContextNode:
         ):
             result = await context_node(state, config={})
 
-        mock_embed.assert_awaited_once()
-        assert mock_bc.call_args.kwargs["query_embedding"] == [0.3] * 384
+        assert mock_bc.call_args.kwargs["query_embedding"] is None
         assert result["model_used"] == "gpt-4o"
 
 
