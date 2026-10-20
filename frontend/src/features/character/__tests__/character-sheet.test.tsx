@@ -21,7 +21,6 @@ describe("CharacterSheet Component", () => {
     background: "Noble",
     notes: "Tough guy",
     reputation: {},
-    active_quests: [],
   };
 
   const createMockCampaign = (charData: CharacterData | null): Campaign => ({
@@ -33,7 +32,7 @@ describe("CharacterSheet Component", () => {
     turn_number: 1,
     character_data: charData as CharacterData,
     world_state: {},
-    quests: {},
+    quests: { active: [], completed: [], failed: [], abandoned: [] },
     created_at: "now",
     updated_at: "now",
   });

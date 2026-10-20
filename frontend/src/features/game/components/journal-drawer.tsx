@@ -3,28 +3,39 @@ import { useTranslation } from "react-i18next";
 import { useGameStore } from "../../../shared/stores/game-store";
 import { useUIStore } from "../../../shared/stores/ui-store";
 import { Drawer } from "../../../shared/ui/drawer";
-import type { Quest } from "../../../shared/types";
+import type { Quest, QuestStatus } from "../../../shared/types";
 
-function QuestEntry({ quest }: { quest: Quest }) {
-  const isDone = quest.status === "completed" || quest.status === "failed";
+function QuestEntry({ quest, status }: { quest: Quest; status: QuestStatus }) {
+  const { t } = useTranslation();
+  const isConcluded = status !== "active";
 
   return (
     <div
       className="mb-3 rounded-lg p-3"
       style={{
-        border: `1px solid ${isDone ? "var(--line)" : "var(--line-strong)"}`,
-        opacity: isDone ? 0.6 : 1,
+        border: `1px solid ${isConcluded ? "var(--line)" : "var(--line-strong)"}`,
+        opacity: isConcluded ? 0.6 : 1,
       }}
     >
-      <h4
-        className="mb-1 font-display text-sm font-semibold"
-        style={{
-          color: isDone ? "var(--ink-secondary)" : "var(--ink-primary)",
-          textDecoration: isDone ? "line-through" : "none",
-        }}
-      >
-        {quest.name}
-      </h4>
+      <div className="mb-1 flex items-baseline justify-between gap-2">
+        <h4
+          className="font-display text-sm font-semibold"
+          style={{
+            color: isConcluded ? "var(--ink-secondary)" : "var(--ink-primary)",
+            textDecoration: isConcluded ? "line-through" : "none",
+          }}
+        >
+          {quest.name}
+        </h4>
+        {status !== "active" && status !== "completed" && (
+          <span
+            className="font-display text-[10px] uppercase"
+            style={{ color: "var(--ink-faded)" }}
+          >
+            {t(`journal.${status}`)}
+          </span>
+        )}
+      </div>
       <p className="mb-2 font-body text-sm italic" style={{ color: "var(--ink-secondary)" }}>
         {quest.description}
       </p>
@@ -65,9 +76,13 @@ export default function JournalDrawer() {
   const sidePanel = useUIStore((s) => s.sidePanel);
   const setSidePanel = useUIStore((s) => s.setSidePanel);
 
-  const quests = campaign?.quests as Record<string, Quest[]> | undefined;
+  const quests = campaign?.quests;
   const activeQuests: Quest[] = quests?.active ?? [];
-  const completedQuests: Quest[] = quests?.completed ?? [];
+  const concludedQuests: { quest: Quest; status: QuestStatus }[] = [
+    ...(quests?.completed ?? []).map((quest) => ({ quest, status: "completed" as const })),
+    ...(quests?.failed ?? []).map((quest) => ({ quest, status: "failed" as const })),
+    ...(quests?.abandoned ?? []).map((quest) => ({ quest, status: "abandoned" as const })),
+  ];
 
   return (
     <Drawer
@@ -82,27 +97,27 @@ export default function JournalDrawer() {
         </p>
       ) : (
         <div className="mb-6">
-          {activeQuests.map((q, i) => (
-            <QuestEntry key={i} quest={q} />
+          {activeQuests.map((q) => (
+            <QuestEntry key={q.id} quest={q} status="active" />
           ))}
         </div>
       )}
 
-      {/* Completed — Radix Accordion */}
-      {completedQuests.length > 0 && (
+      {/* Concluded — Radix Accordion */}
+      {concludedQuests.length > 0 && (
         <Accordion.Root type="single" collapsible>
-          <Accordion.Item value="completed">
+          <Accordion.Item value="concluded">
             <Accordion.Trigger
               className="mb-2 flex w-full items-center gap-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
               style={{ color: "var(--ink-faded)" }}
             >
               <span className="font-display text-xs font-semibold">
-                {t("journal.completed")} ({completedQuests.length})
+                {t("journal.concluded")} ({concludedQuests.length})
               </span>
             </Accordion.Trigger>
             <Accordion.Content>
-              {completedQuests.map((q, i) => (
-                <QuestEntry key={i} quest={q} />
+              {concludedQuests.map(({ quest, status }) => (
+                <QuestEntry key={quest.id} quest={quest} status={status} />
               ))}
             </Accordion.Content>
           </Accordion.Item>
@@ -114,7 +129,10 @@ export default function JournalDrawer() {
         className="mt-auto pt-4 text-center font-display text-[11px]"
         style={{ color: "var(--ink-faded)", borderTop: "1px solid var(--line)" }}
       >
-        {t("journal.counts", { active: activeQuests.length, completed: completedQuests.length })}
+        {t("journal.counts", {
+          active: activeQuests.length,
+          concluded: concludedQuests.length,
+        })}
       </div>
     </Drawer>
   );

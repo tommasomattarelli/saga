@@ -23,10 +23,9 @@ const makeCampaign = (overrides: Partial<Campaign> = {}): Campaign => ({
     background: "",
     notes: "",
     reputation: {},
-    active_quests: [],
   },
   world_state: {},
-  quests: {},
+  quests: { active: [], completed: [], failed: [], abandoned: [] },
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   ...overrides,
@@ -71,6 +70,19 @@ describe("game-store", () => {
     const ws = useGameStore.getState().campaign?.world_state;
     expect(ws?.location).toBe("town");
     expect(ws?.weather).toBe("rain");
+  });
+
+  it("updateQuests replaces the whole registry", () => {
+    useGameStore.getState().setCampaign(makeCampaign());
+    useGameStore.getState().updateQuests({
+      active: [{ id: "dragon_hunt", name: "Dragon Hunt", description: "", objectives: [] }],
+      completed: [],
+      failed: [],
+      abandoned: [],
+    });
+    const quests = useGameStore.getState().campaign?.quests;
+    expect(quests?.active.map((q) => q.id)).toEqual(["dragon_hunt"]);
+    expect(quests?.failed).toEqual([]);
   });
 
   it("reset clears all state", () => {

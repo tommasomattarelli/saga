@@ -35,10 +35,9 @@ const mockCampaign = {
     background: "",
     notes: "",
     reputation: {},
-    active_quests: [],
   },
   world_state: {},
-  quests: {},
+  quests: { active: [], completed: [], failed: [], abandoned: [] },
   created_at: "2026-01-01",
   updated_at: "2026-01-01",
 };

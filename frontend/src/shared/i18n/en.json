@@ -90,7 +90,10 @@
   "journal": {
     "empty": "No quests yet.",
     "completed": "Completed",
-    "counts": "{{active}} active · {{completed}} completed"
+    "counts": "{{active}} active · {{concluded}} concluded",
+    "failed": "Failed",
+    "abandoned": "Abandoned",
+    "concluded": "Concluded"
   },
   "settings": {
     "audio": "Audio",

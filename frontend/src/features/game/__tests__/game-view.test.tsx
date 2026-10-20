@@ -47,10 +47,9 @@ describe("GameView Component", () => {
       background: "",
       notes: "",
       reputation: {},
-      active_quests: [],
     },
     world_state: { location: "Mystic Cave" },
-    quests: { active: [] },
+    quests: { active: [], completed: [], failed: [], abandoned: [] },
     created_at: "now",
     updated_at: "now",
   };

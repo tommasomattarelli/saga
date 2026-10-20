@@ -16,6 +16,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ### Highlights
 
 - [Gameplay] Quests now use stable IDs and keep completed, failed and abandoned outcomes, so the DM, journal, saves and export share one registry (#86).
+- [UI] The journal now updates right after a turn and files failed and abandoned quests with completed ones instead of dropping them.
 - [Memory & AI] Campaign settings now show embedding-index progress and allow explicit rebuild retry or cancellation.
 - [Memory & AI] AI settings now manage independent generation and embedding profiles, personal keys and server-key consent.
 - [Memory & AI] Semantic recall now pins queries to the campaign's index version and personal credentials, keeping gameplay available when memory is unavailable.
