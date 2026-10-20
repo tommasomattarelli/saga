@@ -54,7 +54,7 @@ describe("useSubmitAction", () => {
         turn_number: 1,
         character_data: {} as never,
         world_state: {},
-        quests: {},
+        quests: { active: [], completed: [], failed: [], abandoned: [] },
         created_at: "",
         updated_at: "",
       },
@@ -71,6 +71,50 @@ describe("useSubmitAction", () => {
     });
 
     expect(useGameStore.getState().campaign?.turn_number).toBe(5);
+  });
+
+  it("replaces the quest registry from the turn response", async () => {
+    useGameStore.setState({
+      campaign: {
+        id: "campaign-1",
+        name: "Test",
+        world_slug: "w1",
+        status: "active",
+        difficulty: "easy",
+        turn_number: 1,
+        character_data: {} as never,
+        world_state: {},
+        quests: { active: [], completed: [], failed: [], abandoned: [] },
+        created_at: "",
+        updated_at: "",
+      },
+    });
+
+    mockSubmitAction.mockResolvedValue({
+      data: {
+        ...baseTurn,
+        quests: {
+          active: [
+            { id: "dragon_hunt", name: "Dragon Hunt", description: "Slay it", objectives: [] },
+          ],
+          completed: [],
+          failed: [],
+          abandoned: [],
+        },
+      },
+    } as never);
+
+    const { result } = renderHook(() => useSubmitAction("campaign-1", nullScrollRef), {
+      wrapper: createWrapper(),
+    });
+
+    await act(async () => {
+      await result.current.mutation.mutateAsync("action");
+    });
+
+    expect(useGameStore.getState().campaign?.quests.active.map((q) => q.id)).toEqual([
+      "dragon_hunt",
+    ]);
   });
 
   it("clears loading state on error", async () => {

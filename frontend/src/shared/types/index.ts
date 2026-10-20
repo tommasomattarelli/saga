@@ -14,7 +14,7 @@ export interface Campaign {
   turn_number: number;
   character_data: CharacterData;
   world_state: WorldState;
-  quests: Record<string, Quest[]>;
+  quests: QuestRegistry;
   created_at: string;
   updated_at: string;
 }
@@ -37,7 +37,6 @@ export interface CharacterData {
   archetype?: string;
   notes: string;
   reputation: Record<string, number>;
-  active_quests: string[];
 }
 
 interface SkillData {
@@ -61,11 +60,20 @@ interface EquippedItems {
   [slot: string]: string | undefined;
 }
 
+export type QuestStatus = "active" | "completed" | "failed" | "abandoned";
+
 export interface Quest {
+  id: string;
   name: string;
   description: string;
-  status: "active" | "completed" | "failed";
   objectives: string[];
+}
+
+export interface QuestRegistry {
+  active: Quest[];
+  completed: Quest[];
+  failed: Quest[];
+  abandoned: Quest[];
 }
 
 /* ADR 0003 B2/B3 — every hittable character is one of these. */
@@ -177,6 +185,7 @@ export interface TurnResponse {
   npc_dialogues?: NPCDialogue[] | null;
   world_state?: Record<string, unknown>;
   character_data?: Record<string, unknown>;
+  quests?: QuestRegistry;
   scene_mood: string | null;
   tool_events?: Record<string, unknown>[];
   death_event?: {
