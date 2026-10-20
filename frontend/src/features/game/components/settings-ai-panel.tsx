@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../../../shared/stores/auth-store";
+import { useGameStore } from "../../../shared/stores/game-store";
 import {
   classifySettingsError,
   type KeyProvider,
@@ -15,8 +16,10 @@ import {
   useSaveProfiles,
 } from "../hooks/use-ai-settings";
 import { useApiKeySaver } from "../hooks/use-api-keys";
+import { embeddingIndexQueryKey } from "../hooks/use-embedding-index";
 import { ProfileEditor } from "./settings-ai-profiles";
 import { SettingsAiKeys } from "./settings-ai-keys";
+import { SettingsEmbeddingIndex } from "./settings-embedding-index";
 import { ErrorNote } from "./settings-fields";
 
 /* Only the error of the session that sent the request may be shown. */
@@ -33,6 +36,7 @@ export default function SettingsAiPanel({ open }: { open: boolean }) {
   const { t } = useTranslation();
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const campaignId = useGameStore((s) => s.campaign?.id ?? null);
   const queryClient = useQueryClient();
 
   const active = open && isAuthenticated && !!userId;
@@ -47,6 +51,9 @@ export default function SettingsAiPanel({ open }: { open: boolean }) {
   useEffect(() => {
     if (previousUser.current !== userId) {
       queryClient.removeQueries({ queryKey: settingsQueryKey(previousUser.current) });
+      queryClient.removeQueries({
+        queryKey: embeddingIndexQueryKey(previousUser.current, null),
+      });
       previousUser.current = userId;
     }
   }, [userId, queryClient]);
@@ -62,6 +69,7 @@ export default function SettingsAiPanel({ open }: { open: boolean }) {
   const generationError = scopedError(saveGeneration, userId);
   const embeddingError = scopedError(saveEmbedding, userId);
   const consentError = scopedError(saveConsent, userId);
+  const conflict = embeddingError === "conflict";
 
   if (!active) return null;
 
@@ -146,6 +154,8 @@ export default function SettingsAiPanel({ open }: { open: boolean }) {
         keyError={keySaver.error}
         open={open}
       />
+
+      <SettingsEmbeddingIndex campaignId={campaignId} enabled={active} conflict={conflict} />
     </div>
   );
 }
