@@ -1,0 +1,1293 @@
+{
+  "format": 2,
+  "kind": "adoption",
+  "profile": "current_post_pr1",
+  "schema": {
+    "enums": {
+      "public.campaignstatus": [
+        "ACTIVE",
+        "PAUSED",
+        "COMPLETED",
+        "ABANDONED"
+      ],
+      "public.difficulty": [
+        "EASY",
+        "MEDIUM",
+        "HARD"
+      ],
+      "public.embedding_rebuild_state": [
+        "queued",
+        "running",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "public.embedding_source_type": [
+        "turn",
+        "memory_fact"
+      ],
+      "public.embedding_work_state": [
+        "pending",
+        "embedded",
+        "failed"
+      ]
+    },
+    "format": 2,
+    "relations": {
+      "public.campaigns": "table",
+      "public.embedding_indexes": "table",
+      "public.memory_facts": "table",
+      "public.saves": "table",
+      "public.source_embeddings": "table",
+      "public.turns": "table",
+      "public.users": "table"
+    },
+    "tables": {
+      "public.campaigns": {
+        "columns": {
+          "character_data": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "jsonb"
+          },
+          "created_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "difficulty": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "difficulty"
+          },
+          "global_summary": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "name": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(200)"
+          },
+          "persona_preset": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(50)"
+          },
+          "persona_xml": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "quests": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "jsonb"
+          },
+          "status": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "campaignstatus"
+          },
+          "turn_number": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "integer"
+          },
+          "updated_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "user_id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "world_baseline": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          },
+          "world_slug": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(100)"
+          },
+          "world_state": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "jsonb"
+          },
+          "world_version": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(20)"
+          }
+        },
+        "constraints": {
+          "campaigns_pkey": {
+            "definition": "PRIMARY KEY (id)",
+            "kind": "primary_key"
+          },
+          "campaigns_user_id_fkey": {
+            "definition": "FOREIGN KEY (user_id) REFERENCES users(id)",
+            "kind": "foreign_key"
+          }
+        },
+        "indexes": {
+          "campaigns_pkey": {
+            "definition": "CREATE UNIQUE INDEX campaigns_pkey ON public.campaigns USING btree (id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": true,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          },
+          "ix_campaigns_user_id": {
+            "definition": "CREATE INDEX ix_campaigns_user_id ON public.campaigns USING btree (user_id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          }
+        }
+      },
+      "public.embedding_indexes": {
+        "columns": {
+          "campaign_id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "claim_token": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "uuid"
+          },
+          "claimed_at": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "timestamp with time zone"
+          },
+          "created_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "dimension": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "integer"
+          },
+          "endpoint_identity": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(500)"
+          },
+          "endpoint_name": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(100)"
+          },
+          "id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "is_active": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "boolean"
+          },
+          "last_error": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(500)"
+          },
+          "model": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(200)"
+          },
+          "pipeline_version": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(50)"
+          },
+          "provider": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(20)"
+          },
+          "rebuild_state": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "embedding_rebuild_state"
+          },
+          "updated_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          }
+        },
+        "constraints": {
+          "ck_embedding_indexes_active_completed": {
+            "definition": "CHECK (NOT is_active OR rebuild_state = 'completed'::embedding_rebuild_state)",
+            "kind": "check"
+          },
+          "ck_embedding_indexes_dimension_positive": {
+            "definition": "CHECK (dimension IS NULL OR dimension > 0)",
+            "kind": "check"
+          },
+          "embedding_indexes_campaign_id_fkey": {
+            "definition": "FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE",
+            "kind": "foreign_key"
+          },
+          "embedding_indexes_pkey": {
+            "definition": "PRIMARY KEY (id)",
+            "kind": "primary_key"
+          },
+          "uq_embedding_indexes_id_campaign": {
+            "definition": "UNIQUE (id, campaign_id)",
+            "kind": "unique"
+          }
+        },
+        "indexes": {
+          "embedding_indexes_pkey": {
+            "definition": "CREATE UNIQUE INDEX embedding_indexes_pkey ON public.embedding_indexes USING btree (id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": true,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          },
+          "ix_embedding_indexes_campaign_id": {
+            "definition": "CREATE INDEX ix_embedding_indexes_campaign_id ON public.embedding_indexes USING btree (campaign_id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "uq_embedding_indexes_campaign_active": {
+            "definition": "CREATE UNIQUE INDEX uq_embedding_indexes_campaign_active ON public.embedding_indexes USING btree (campaign_id) WHERE is_active",
+            "live": true,
+            "method": "btree",
+            "predicate": "is_active",
+            "primary": false,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          },
+          "uq_embedding_indexes_campaign_open_rebuild": {
+            "definition": "CREATE UNIQUE INDEX uq_embedding_indexes_campaign_open_rebuild ON public.embedding_indexes USING btree (campaign_id) WHERE (rebuild_state = ANY (ARRAY['queued'::embedding_rebuild_state, 'running'::embedding_rebuild_state]))",
+            "live": true,
+            "method": "btree",
+            "predicate": "(rebuild_state = ANY (ARRAY['queued'::embedding_rebuild_state, 'running'::embedding_rebuild_state]))",
+            "primary": false,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          },
+          "uq_embedding_indexes_id_campaign": {
+            "definition": "CREATE UNIQUE INDEX uq_embedding_indexes_id_campaign ON public.embedding_indexes USING btree (id, campaign_id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          }
+        }
+      },
+      "public.memory_facts": {
+        "columns": {
+          "campaign_id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "content": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "text"
+          },
+          "created_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "embedding": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "vector(384)"
+          },
+          "entity_name": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(200)"
+          },
+          "entity_type": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(50)"
+          },
+          "id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "search_vector": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "tsvector"
+          },
+          "turn_number": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "integer"
+          },
+          "updated_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          }
+        },
+        "constraints": {
+          "memory_facts_campaign_id_fkey": {
+            "definition": "FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE",
+            "kind": "foreign_key"
+          },
+          "memory_facts_pkey": {
+            "definition": "PRIMARY KEY (id)",
+            "kind": "primary_key"
+          },
+          "uq_memory_facts_id_campaign": {
+            "definition": "UNIQUE (id, campaign_id)",
+            "kind": "unique"
+          }
+        },
+        "indexes": {
+          "ix_memory_facts_campaign_entity": {
+            "definition": "CREATE INDEX ix_memory_facts_campaign_entity ON public.memory_facts USING btree (campaign_id, entity_name)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "ix_memory_facts_campaign_id": {
+            "definition": "CREATE INDEX ix_memory_facts_campaign_id ON public.memory_facts USING btree (campaign_id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "ix_memory_facts_entity_name": {
+            "definition": "CREATE INDEX ix_memory_facts_entity_name ON public.memory_facts USING btree (entity_name)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "ix_memory_facts_entity_type": {
+            "definition": "CREATE INDEX ix_memory_facts_entity_type ON public.memory_facts USING btree (entity_type)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "ix_memory_facts_search_vector": {
+            "definition": "CREATE INDEX ix_memory_facts_search_vector ON public.memory_facts USING gin (search_vector)",
+            "live": true,
+            "method": "gin",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "memory_facts_pkey": {
+            "definition": "CREATE UNIQUE INDEX memory_facts_pkey ON public.memory_facts USING btree (id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": true,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          },
+          "uq_memory_facts_id_campaign": {
+            "definition": "CREATE UNIQUE INDEX uq_memory_facts_id_campaign ON public.memory_facts USING btree (id, campaign_id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          }
+        }
+      },
+      "public.saves": {
+        "columns": {
+          "campaign_id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "campaign_snapshot": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "jsonb"
+          },
+          "created_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "is_auto": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "boolean"
+          },
+          "name": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(200)"
+          },
+          "scene_summary": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "text"
+          },
+          "turn_number": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "integer"
+          },
+          "updated_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          }
+        },
+        "constraints": {
+          "saves_campaign_id_fkey": {
+            "definition": "FOREIGN KEY (campaign_id) REFERENCES campaigns(id)",
+            "kind": "foreign_key"
+          },
+          "saves_pkey": {
+            "definition": "PRIMARY KEY (id)",
+            "kind": "primary_key"
+          }
+        },
+        "indexes": {
+          "ix_saves_campaign_id": {
+            "definition": "CREATE INDEX ix_saves_campaign_id ON public.saves USING btree (campaign_id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "saves_pkey": {
+            "definition": "CREATE UNIQUE INDEX saves_pkey ON public.saves USING btree (id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": true,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          }
+        }
+      },
+      "public.source_embeddings": {
+        "columns": {
+          "campaign_id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "created_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "embedding": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "vector"
+          },
+          "id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "index_id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "last_error": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(500)"
+          },
+          "memory_fact_id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "uuid"
+          },
+          "source_type": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "embedding_source_type"
+          },
+          "text_hash": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(64)"
+          },
+          "turn_id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "uuid"
+          },
+          "updated_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "work_state": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "embedding_work_state"
+          }
+        },
+        "constraints": {
+          "ck_source_embeddings_embedded_has_vector": {
+            "definition": "CHECK (work_state <> 'embedded'::embedding_work_state OR embedding IS NOT NULL)",
+            "kind": "check"
+          },
+          "ck_source_embeddings_kind_matches_reference": {
+            "definition": "CHECK (source_type = 'turn'::embedding_source_type AND turn_id IS NOT NULL OR source_type = 'memory_fact'::embedding_source_type AND memory_fact_id IS NOT NULL)",
+            "kind": "check"
+          },
+          "ck_source_embeddings_single_source": {
+            "definition": "CHECK (num_nonnulls(turn_id, memory_fact_id) = 1)",
+            "kind": "check"
+          },
+          "fk_source_embeddings_index_campaign": {
+            "definition": "FOREIGN KEY (index_id, campaign_id) REFERENCES embedding_indexes(id, campaign_id) ON DELETE CASCADE",
+            "kind": "foreign_key"
+          },
+          "fk_source_embeddings_memory_fact_campaign": {
+            "definition": "FOREIGN KEY (memory_fact_id, campaign_id) REFERENCES memory_facts(id, campaign_id) ON DELETE CASCADE",
+            "kind": "foreign_key"
+          },
+          "fk_source_embeddings_turn_campaign": {
+            "definition": "FOREIGN KEY (turn_id, campaign_id) REFERENCES turns(id, campaign_id) ON DELETE CASCADE",
+            "kind": "foreign_key"
+          },
+          "source_embeddings_pkey": {
+            "definition": "PRIMARY KEY (id)",
+            "kind": "primary_key"
+          }
+        },
+        "indexes": {
+          "ix_source_embeddings_campaign_id": {
+            "definition": "CREATE INDEX ix_source_embeddings_campaign_id ON public.source_embeddings USING btree (campaign_id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "ix_source_embeddings_index_work_state": {
+            "definition": "CREATE INDEX ix_source_embeddings_index_work_state ON public.source_embeddings USING btree (index_id, work_state)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "source_embeddings_pkey": {
+            "definition": "CREATE UNIQUE INDEX source_embeddings_pkey ON public.source_embeddings USING btree (id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": true,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          },
+          "uq_source_embeddings_index_memory_fact": {
+            "definition": "CREATE UNIQUE INDEX uq_source_embeddings_index_memory_fact ON public.source_embeddings USING btree (index_id, memory_fact_id) WHERE (memory_fact_id IS NOT NULL)",
+            "live": true,
+            "method": "btree",
+            "predicate": "(memory_fact_id IS NOT NULL)",
+            "primary": false,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          },
+          "uq_source_embeddings_index_turn": {
+            "definition": "CREATE UNIQUE INDEX uq_source_embeddings_index_turn ON public.source_embeddings USING btree (index_id, turn_id) WHERE (turn_id IS NOT NULL)",
+            "live": true,
+            "method": "btree",
+            "predicate": "(turn_id IS NOT NULL)",
+            "primary": false,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          }
+        }
+      },
+      "public.turns": {
+        "columns": {
+          "campaign_id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "companion_actions": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          },
+          "created_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "dice_rolls": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          },
+          "embedding": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "vector(384)"
+          },
+          "id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "importance_score": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "integer"
+          },
+          "model_used": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(50)"
+          },
+          "narration": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "text"
+          },
+          "narration_segments": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          },
+          "player_action": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "text"
+          },
+          "scene_mood": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(50)"
+          },
+          "suggested_actions": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          },
+          "summarization_failed": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "boolean"
+          },
+          "summary": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "turn_number": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "integer"
+          },
+          "updated_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "world_updates": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          }
+        },
+        "constraints": {
+          "turns_campaign_id_fkey": {
+            "definition": "FOREIGN KEY (campaign_id) REFERENCES campaigns(id)",
+            "kind": "foreign_key"
+          },
+          "turns_pkey": {
+            "definition": "PRIMARY KEY (id)",
+            "kind": "primary_key"
+          },
+          "uq_turns_id_campaign": {
+            "definition": "UNIQUE (id, campaign_id)",
+            "kind": "unique"
+          }
+        },
+        "indexes": {
+          "ix_turns_campaign_id": {
+            "definition": "CREATE INDEX ix_turns_campaign_id ON public.turns USING btree (campaign_id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": false,
+            "valid": true
+          },
+          "turns_pkey": {
+            "definition": "CREATE UNIQUE INDEX turns_pkey ON public.turns USING btree (id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": true,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          },
+          "uq_turns_id_campaign": {
+            "definition": "CREATE UNIQUE INDEX uq_turns_id_campaign ON public.turns USING btree (id, campaign_id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          }
+        }
+      },
+      "public.users": {
+        "columns": {
+          "anthropic_api_key_enc": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "created_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "email": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(255)"
+          },
+          "embedding_local_endpoint": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(100)"
+          },
+          "embedding_model": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(200)"
+          },
+          "embedding_provider": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(20)"
+          },
+          "generation_local_endpoint": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(100)"
+          },
+          "generation_model": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(200)"
+          },
+          "generation_provider": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "character varying(20)"
+          },
+          "google_api_key_enc": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "hashed_password": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(255)"
+          },
+          "id": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "uuid"
+          },
+          "is_active": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "boolean"
+          },
+          "is_admin": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "boolean"
+          },
+          "openai_api_key_enc": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "openrouter_api_key_enc": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "text"
+          },
+          "preferred_language": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(5)"
+          },
+          "server_key_consents": {
+            "collation": null,
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": true,
+            "type": "jsonb"
+          },
+          "updated_at": {
+            "collation": null,
+            "default": "now()",
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "timestamp with time zone"
+          },
+          "username": {
+            "collation": "pg_catalog.\"default\"",
+            "default": null,
+            "generated": "",
+            "identity": "",
+            "nullable": false,
+            "type": "character varying(50)"
+          }
+        },
+        "constraints": {
+          "users_pkey": {
+            "definition": "PRIMARY KEY (id)",
+            "kind": "primary_key"
+          }
+        },
+        "indexes": {
+          "ix_users_email": {
+            "definition": "CREATE UNIQUE INDEX ix_users_email ON public.users USING btree (email)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          },
+          "ix_users_username": {
+            "definition": "CREATE UNIQUE INDEX ix_users_username ON public.users USING btree (username)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": false,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          },
+          "users_pkey": {
+            "definition": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)",
+            "live": true,
+            "method": "btree",
+            "predicate": null,
+            "primary": true,
+            "ready": true,
+            "unique": true,
+            "valid": true
+          }
+        }
+      }
+    },
+    "types": {
+      "public.campaignstatus": {
+        "kind": "enum"
+      },
+      "public.difficulty": {
+        "kind": "enum"
+      },
+      "public.embedding_rebuild_state": {
+        "kind": "enum"
+      },
+      "public.embedding_source_type": {
+        "kind": "enum"
+      },
+      "public.embedding_work_state": {
+        "kind": "enum"
+      }
+    }
+  },
+  "source_commit": "5e9206da28a0be1d8e669dcc72ed0af6a3525eac",
+  "target_revision": "007_embedding_index"
+}
