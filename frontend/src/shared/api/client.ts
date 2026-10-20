@@ -55,6 +55,9 @@ export const getCampaigns = () => api.get<Campaign[]>("/campaigns");
 
 export const getCampaign = (id: string) => api.get<Campaign>(`/campaigns/${id}`);
 
+export const ensureCampaignEmbeddingIndex = (id: string) =>
+  api.post(`/campaigns/${id}/embedding-index/ensure`);
+
 export const deleteCampaign = (id: string) => api.delete(`/campaigns/${id}`);
 
 export const createCampaign = (data: {
