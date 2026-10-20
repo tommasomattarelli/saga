@@ -42,6 +42,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Accepted ADR 0018 after implementing the versioned embedding runtime and essential settings surface together in one PR.
 - Added read-only provider policy metadata for the provisional AI settings surface without exposing endpoint URLs or credentials.
 - Gameplay writers now persist embedding work atomically with facts and summaries, including concurrent compression and index cutover.
 - Exposed authenticated embedding-index controls and startup recovery, blocking profile changes while rebuilds run.

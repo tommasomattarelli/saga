@@ -1,9 +1,7 @@
 # ADR 0018 — BYOAK configuration contract: personal providers, credentials and the embedding index
 
-- **Status**: **Proposed** (Part A and the personal configuration surface have landed on
-  `main`; Part B is in progress on `feat/embedding-index` (point 5), and point 6 — the
-  minimal provisional UI — remains open. The ADR stays Proposed until both points land:
-  Part A already on `main` does not complete it.)
+- **Status**: **Accepted** (points 3, 5 and 6 are implemented; points 5 and 6 land together
+  in the embedding-index integration PR.)
 - **Date**: 2026-10-17.
 - **Context items**: GitHub #65, #73, #74, #55 (all open); supersedes ADR 0016; builds on
   ADR 0000 (BYOAK distribution model).
@@ -189,7 +187,7 @@ stored texts without regenerating history or facts.
 ### Owner decisions (2026-10-19, point 5)
 
 These refine B1–B6; where they differ from the paragraphs above, they win. They are
-owner decisions, not implementation notes — the point 5 code does not exist yet.
+owner decisions made before implementation; the implementation note below records delivery.
 
 - **Separate storage.** Index versions and their vectors live in dedicated tables, not on
   the source rows; the sources keep their text and identity. Dimensionality is native: no
@@ -208,8 +206,8 @@ owner decisions, not implementation notes — the point 5 code does not exist ye
 - **Automatic resume vs explicit retry.** A rebuild interrupted (a restart, a backend
   shutdown) resumes automatically, revalidating the credential and policy. A cancelled or
   failed rebuild is never restarted by reopening the campaign — cancellation and failure
-  must not become a paid loop — but restarts on the user's explicit retry (API now,
-  point 6 UI later).
+  must not become a paid loop — but restarts on the user's explicit retry, available in
+  settings.
 - **Profile change.** Changing the personal embedding profile requires cancelling that
   user's own campaigns' in-flight rebuilds first; an existing job is never retargeted.
   Editing keys or revoking consent stays always possible.
@@ -227,6 +225,12 @@ owner decisions, not implementation notes — the point 5 code does not exist ye
 - **Batching and pacing (B4 values).** Batches of 32 texts, at least one second between
   rebuild requests, one rebuild request at a time; the cadence is a config knob subject
   to the provider's documented limits.
+
+**Implementation note (2026-10-20).** Points 5 and 6 are delivered together: the versioned
+campaign index, persistent rebuild lifecycle, gameplay writers and manifest-pinned recall
+are paired with the essential settings surface for profiles, keys, consent and rebuild
+status/actions. The UI stays in the existing drawer; keys are never returned and policy
+metadata is read-only.
 
 ## 4. Decided vs open
 
@@ -320,9 +324,9 @@ commits per the commit convention:
   the score routes nothing; it survives only as turn metadata.
 - **Builds on ADR 0000** (distribution): BYOAK per-turn cost on the user's key is the
   premise this contract finally implements.
-- **Enables point 5** (embedding index rebuild) and **point 6** (minimal UI). No conflict
-  with ADR 0004 (`dm.yaml` untouched) or ADR 0017 (dialogue contract untouched — NPC calls
-  simply resolve through the owning user's configuration).
+- **Delivers points 5 and 6** (embedding index rebuild and minimal settings UI) together. No
+  conflict with ADR 0004 (`dm.yaml` untouched) or ADR 0017 (dialogue contract untouched —
+  NPC calls simply resolve through the owning user's configuration).
 - Not gated by any other ADR.
 
 ## 9. Notes / sources
