@@ -11,7 +11,6 @@
 
 Ordine di ripresa concordato (2026-10-20), prima di nuove funzionalita':
 
-[ ] **4. Quest e persistenza**: due PR distinte — registro quest canonico con ID espliciti, prompt, salvataggi ed export (#86; design pronto), poi bootstrap DB e copertura migrazioni (design aperto); specifiche in [ADR 0019](docs/adr/0019-quest-persistence-and-database-migrations.md), prima del debug guidato.
 [ ] **5. Debug guidato del gioco**: scenari brevi con prompt effettivi, tool call e stato risultante, per separare difetti del codice da problemi del prompt o del modello; includere memoria e dialoghi NPC, quindi riprendere le valutazioni gia' predisposte.
 
 GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimangono i dettagli del backlog esistente.

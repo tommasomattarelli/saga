@@ -9,10 +9,9 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 
 
 async def init_db() -> None:
-    from app.models.base import Base  # noqa: F401
+    from app.migrations.runner import upgrade_database
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    await upgrade_database(engine)
 
 
 async def close_db() -> None:

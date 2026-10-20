@@ -14,7 +14,7 @@ from tests.integration import migration_baseline as mb
 def baseline(tmp_path_factory) -> Iterator[None]:
     mb.create_migration_database()
     try:
-        mb.build_baseline_and_stamp(tmp_path_factory.mktemp("p5_baseline"))
+        mb.build_baseline_and_adopt(tmp_path_factory.mktemp("p5_baseline"))
         yield
     finally:
         mb.drop_migration_database()

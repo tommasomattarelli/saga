@@ -10,7 +10,7 @@ from sqlalchemy.pool import NullPool
 
 import app.dependencies
 from app.main import app as fastapi_app
-from app.models.base import Base
+from app.migrations.runner import upgrade_database
 from app.models.user import User
 from app.security.auth import create_access_token
 
@@ -42,9 +42,7 @@ async def setup_database(tmp_path_factory):
     # the bundled example World on first use.
     os.environ["SAGA_HOME"] = str(tmp_path_factory.mktemp("saga-home"))
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+    await upgrade_database(engine)
     yield
     await engine.dispose()
 
@@ -55,9 +53,12 @@ async def clean_database():
     async with engine.begin() as conn:
         # Get all table names
         result = await conn.execute(
-            text("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public';")
+            text(
+                "SELECT tablename FROM pg_catalog.pg_tables"
+                " WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
+            )
         )
-        tables = [row[0] for row in result.fetchall()]
+        tables = [f'"{row[0]}"' for row in result.fetchall()]
         if tables:
             await conn.execute(text(f"TRUNCATE {', '.join(tables)} CASCADE;"))
     yield

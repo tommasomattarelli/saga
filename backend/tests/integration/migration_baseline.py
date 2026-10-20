@@ -3,8 +3,8 @@
 The baseline schema must come from the immutable pre-change code at 261ad5f
 (lead constraint): this helper archives that commit, runs its `create_all` from
 the extracted tree, seeds the legacy 384-dim vectors the pre-change writers
-produced, then stamps 006 so the real 007 revision can be applied on top.
-No hand-written schema, no subtraction against the working-tree models.
+produced, then uses production's validated adoption to record 006 before the
+real 007 revision runs. No hand-written schema or working-tree model subtraction.
 """
 
 import asyncio
@@ -17,6 +17,8 @@ from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
+
+from app.migrations.adopt import adopt_unversioned_database
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 REPO_ROOT = BACKEND_DIR.parent
@@ -208,7 +210,7 @@ def run_alembic(args: list[str]) -> None:
     )
 
 
-def build_baseline_and_stamp(workdir: Path) -> None:
+def build_baseline_and_adopt(workdir: Path) -> None:
     """Rebuild the migration database at the frozen 006 baseline, seeded."""
     asyncio.run(_drop_public_tables())
 
@@ -231,4 +233,12 @@ def build_baseline_and_stamp(workdir: Path) -> None:
     script_path.unlink()
 
     asyncio.run(_seed_legacy_rows())
-    run_alembic(["stamp", "006_user_provider_settings"])
+    asyncio.run(_adopt_frozen_baseline())
+
+
+async def _adopt_frozen_baseline() -> None:
+    engine = create_async_engine(MIGRATION_DATABASE_URL)
+    try:
+        await adopt_unversioned_database("frozen_006", engine=engine)
+    finally:
+        await engine.dispose()
