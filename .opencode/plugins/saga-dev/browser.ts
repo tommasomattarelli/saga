@@ -67,10 +67,9 @@ const CAMPAIGN = {
     background: "",
     notes: "",
     reputation: {},
-    active_quests: [],
   },
   world_state: {},
-  quests: {},
+  quests: { active: [], completed: [], failed: [], abandoned: [] },
   created_at: "now",
   updated_at: "now",
 };

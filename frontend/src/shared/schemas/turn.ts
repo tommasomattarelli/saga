@@ -49,6 +49,20 @@ const DiceResultSchema = z.object({
   rolls: z.record(z.string(), DiceRollResultSchema),
 });
 
+const QuestSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  objectives: z.array(z.string()),
+});
+
+const QuestRegistrySchema = z.object({
+  active: z.array(QuestSchema),
+  completed: z.array(QuestSchema),
+  failed: z.array(QuestSchema),
+  abandoned: z.array(QuestSchema),
+});
+
 export const TurnResponseSchema = z.object({
   turn_number: z.number(),
   player_action: z.string().optional(),
@@ -59,6 +73,7 @@ export const TurnResponseSchema = z.object({
   npc_dialogues: z.array(NPCDialogueSchema).nullable().optional(),
   world_state: z.record(z.string(), z.unknown()).optional(),
   character_data: z.record(z.string(), z.unknown()).optional(),
+  quests: QuestRegistrySchema.optional(),
   scene_mood: z.string().nullable(),
   tool_events: z.array(z.record(z.string(), z.unknown())).optional(),
   death_event: z

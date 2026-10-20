@@ -15,6 +15,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Highlights
 
+- [Gameplay] Quests now use stable IDs and keep completed, failed and abandoned outcomes, so the DM, journal, saves and export share one registry (#86).
+- [UI] The journal now updates right after a turn and files failed and abandoned quests with completed ones instead of dropping them.
 - [Memory & AI] Campaign settings now show embedding-index progress and allow explicit rebuild retry or cancellation.
 - [Memory & AI] AI settings now manage independent generation and embedding profiles, personal keys and server-key consent.
 - [Memory & AI] Semantic recall now pins queries to the campaign's index version and personal credentials, keeping gameplay available when memory is unavailable.
@@ -42,6 +44,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Added the campaign-owned quest registry with explicit authored IDs and one shared transition used by tools and evaluation replay.
+- Recorded ADR 0019's explicit quest IDs and canonical registry for PR 1, with database bootstrap decisions reserved for PR 2.
 - Migration backfill tests now provision and remove an isolated PostgreSQL database using the configured test endpoint.
 - The PostgreSQL migration CI job fetches history required to reconstruct its frozen pre-migration baseline.
 - Accepted ADR 0018 after implementing the versioned embedding runtime and essential settings surface together in one PR.

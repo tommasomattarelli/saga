@@ -165,30 +165,26 @@ class TestCompanionLoyalty:
         assert new_state["companions"]["Lyra"]["loyalty"] == 100
 
 
-class TestQuestUpdate:
-    def test_add_quest(self):
-        char = {"active_quests": []}
-        _, new_char = apply_typed_updates(
+class TestRetiredQuestUpdate:
+    def test_quest_update_never_falls_into_the_generic_world_state_merge(self):
+        """ADR 0019 A1 — quests live in the campaign registry, not world_state.
+        A stale update must not mutate state instead of being routed to a tool."""
+        state = {"narrative": {"event_log": []}}
+        new_state, new_char = apply_typed_updates(
+            state,
             {},
-            char,
             [
                 {
                     "key": "quest_update",
                     "target": "DragonHunt",
                     "change": "active",
-                    "description": "Slay the dragon",
+                    "value": {"smuggled": True},
                 }
             ],
         )
-        assert len(new_char["active_quests"]) == 1
-        assert new_char["active_quests"][0]["name"] == "DragonHunt"
-
-    def test_complete_quest(self):
-        char = {"active_quests": [{"name": "DragonHunt", "description": "Slay the dragon"}]}
-        _, new_char = apply_typed_updates(
-            {}, char, [{"key": "quest_update", "target": "DragonHunt", "change": "completed"}]
-        )
-        assert len(new_char["active_quests"]) == 0
+        assert new_state == state
+        assert "active_quests" not in new_char
+        assert "DragonHunt" not in new_state
 
 
 class TestEventLog:

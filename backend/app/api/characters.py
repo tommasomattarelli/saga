@@ -36,6 +36,11 @@ async def update_character(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Update character data."""
+    if "active_quests" in updates:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="character_data.active_quests is retired; quests are campaign-owned",
+        )
     result = await db.execute(
         select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user.id)
     )

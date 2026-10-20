@@ -11,7 +11,7 @@
 
 Ordine di ripresa concordato (2026-10-20), prima di nuove funzionalita':
 
-[ ] **4. Quest e persistenza**: riallineare aggiornamenti, prompt, salvataggi ed export/import (#86), poi coprire le migrazioni; lo stato deve sopravvivere ai turni e ai ripristini prima di ampliare l'interfaccia.
+[ ] **4. Quest e persistenza**: due PR distinte — registro quest canonico con ID espliciti, prompt, salvataggi ed export (#86; design pronto), poi bootstrap DB e copertura migrazioni (design aperto); specifiche in [ADR 0019](docs/adr/0019-quest-persistence-and-database-migrations.md), prima del debug guidato.
 [ ] **5. Debug guidato del gioco**: scenari brevi con prompt effettivi, tool call e stato risultante, per separare difetti del codice da problemi del prompt o del modello; includere memoria e dialoghi NPC, quindi riprendere le valutazioni gia' predisposte.
 
 GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimangono i dettagli del backlog esistente.
@@ -84,6 +84,8 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 [ ] "player input come ispirazione" (parcheggiato da ADR 0013, e' gameplay non UI) → merita un ADR suo
 
 ## homebrew / custom
+[ ] **obiettivi delle quest create dal DM — futuro**: valutare una compilazione AI separata; per ora restano vuoti, senza chiamate aggiuntive o obiettivi nel contesto strutturato del DM (ADR 0019).
+[ ] **import campagne — futuro, non prioritario**: l'endpoint non esiste; distinto dall'import dei mondi, resta fuori dalle due PR di ADR 0019 e dal fix di #86.
 [ ] upload PDF lore homebrew → chunking + embedding su pgvector, associato a campagna, recuperato nel recall (riusa pgvector, non LanceDB) [dnd-llm-game]
 [ ] formalizzare lo schema "pacchetto campagna" export/import (aree/NPC/mostri/plot): estende export.py + pillar data-sovereignty [NEQ moduli drop-in]
 

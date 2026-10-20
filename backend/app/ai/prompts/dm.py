@@ -1,6 +1,7 @@
 """DM system prompt — agentic version with XML structure and selective context."""
 
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 import yaml
 
@@ -13,6 +14,7 @@ from app.core.psychology import band_label, is_salient, resolve_psychology
 from app.core.world_access import WorldView
 from app.models.campaign import Campaign
 from app.models.psychology import PsychologyDef
+from app.models.quest import QuestRegistry
 
 _PROMPTS = yaml.safe_load((Path(__file__).parent / "dm.yaml").read_text(encoding="utf-8"))
 
@@ -154,15 +156,13 @@ def build_dm_system_prompt(
                 lines.append(f"  - {memory.strip()}")
         lines.append("</recalled_memories>")
 
-    # <quests>
-    active_quests = campaign.quests.get("active", []) if campaign.quests else []
-    if active_quests:
+    # <quests> — ADR 0019 A5: active tags and descriptions only. No display names,
+    # objectives or concluded archive in the permanent DM context.
+    registry = QuestRegistry.model_validate(campaign.quests or {})
+    if registry.active:
         lines.append("\n<quests>")
-        for q in active_quests:
-            if isinstance(q, dict):
-                lines.append(f'  <quest name="{q.get("name", "Unknown")}" status="active"/>')
-            else:
-                lines.append(f'  <quest name="{q}" status="active"/>')
+        for quest in registry.active:
+            lines.append(f'  <quest id="{quest.id}">{escape(quest.description)}</quest>')
         lines.append("</quests>")
 
     return "\n".join(lines)

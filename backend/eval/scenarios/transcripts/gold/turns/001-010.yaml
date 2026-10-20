@@ -35,7 +35,7 @@
   updates:
     - {key: npc_psychology, target: Lyra, changes: {trust: 2}}
     - {key: event_log_entry, target: "Woke at the Shrine of First Light with no memory. Met Lyra, a forest ranger."}
-    - {key: quest_update, target: "Who Am I?", change: active, description: "Discover your identity and why you woke at the Shrine of First Light."}
+    - {key: quest_update, quest_id: who_am_i, change: active, description: "Discover your identity and why you woke at the Shrine of First Light."}
   world_patch: {}
 
 - n: 2

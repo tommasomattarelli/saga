@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import type { Campaign, TurnResponse, WorldState, CharacterData } from "../types";
+import type { Campaign, TurnResponse, WorldState, CharacterData, QuestRegistry } from "../types";
 
 interface GameState {
   campaign: Campaign | null;
@@ -18,6 +18,7 @@ interface GameState {
   clearPendingDice: () => void;
   updateWorldState: (updates: Partial<WorldState>) => void;
   updateCharacter: (updates: Partial<CharacterData>) => void;
+  updateQuests: (quests: QuestRegistry) => void;
   updateTurnNumber: (n: number) => void;
   reset: () => void;
 }
@@ -68,6 +69,12 @@ export const useGameStore = create<GameState>()(
               character_data: { ...state.campaign.character_data, ...updates },
             },
           };
+        }),
+
+      updateQuests: (quests) =>
+        set((state) => {
+          if (!state.campaign) return state;
+          return { campaign: { ...state.campaign, quests } };
         }),
 
       updateTurnNumber: (n) =>
