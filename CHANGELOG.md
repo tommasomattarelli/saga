@@ -42,6 +42,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Added the campaign-owned quest registry with explicit authored IDs and one shared transition used by tools and evaluation replay.
 - Recorded ADR 0019's explicit quest IDs and canonical registry for PR 1, with database bootstrap decisions reserved for PR 2.
 - Migration backfill tests now provision and remove an isolated PostgreSQL database using the configured test endpoint.
 - The PostgreSQL migration CI job fetches history required to reconstruct its frozen pre-migration baseline.

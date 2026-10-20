@@ -134,12 +134,58 @@ class TestLoadWorld:
                     "narration": "You wake up.",
                     "start_location": "karak",
                 },
-                "initial_quests": [{"name": "Who am I?"}],
+                "initial_quests": [{"id": "who_am_i", "name": "Who am I?"}],
                 "story_arcs": [{"name": "The Threat", "trigger": "mines"}],
             },
         )
         asset = load_world(root)
         assert asset.scenario.opening.start_location == "karak"
+        assert asset.scenario.initial_quests[0].id == "who_am_i"
+
+    def test_duplicate_authored_quest_ids_are_rejected(self, tmp_path):
+        root = make_world(tmp_path)
+        write(
+            root / "scenario.yaml",
+            {
+                "opening": {"narration": "You wake up.", "start_location": "karak"},
+                "initial_quests": [
+                    {"id": "dragon_hunt", "name": "Dragon Hunt"},
+                    {"id": "dragon_hunt", "name": "Dragon Hunt Again"},
+                ],
+            },
+        )
+        with pytest.raises(WorldLoadError, match="dragon_hunt"):
+            load_world(root)
+
+    def test_duplicate_authored_titles_are_allowed(self, tmp_path):
+        root = make_world(tmp_path)
+        write(
+            root / "scenario.yaml",
+            {
+                "opening": {"narration": "You wake up.", "start_location": "karak"},
+                "initial_quests": [
+                    {"id": "dragon_hunt", "name": "Dragon Hunt"},
+                    {"id": "dragon_hunt_on_winter", "name": "Dragon Hunt"},
+                ],
+            },
+        )
+        asset = load_world(root)
+        assert [q.id for q in asset.scenario.initial_quests] == [
+            "dragon_hunt",
+            "dragon_hunt_on_winter",
+        ]
+
+    def test_initial_quest_requires_an_explicit_id(self, tmp_path):
+        root = make_world(tmp_path)
+        write(
+            root / "scenario.yaml",
+            {
+                "opening": {"narration": "You wake up.", "start_location": "karak"},
+                "initial_quests": [{"name": "No id"}],
+            },
+        )
+        with pytest.raises(WorldLoadError, match="scenario"):
+            load_world(root)
 
     def test_collections_loaded(self, tmp_path):
         root = make_world(tmp_path)

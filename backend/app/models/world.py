@@ -15,6 +15,7 @@ from app.core.dice import DifficultyLevel
 from app.models.npc_class import DamageClass, HpClass, NpcClassDef
 from app.models.npc_fields import NpcFieldDef
 from app.models.psychology import PsychologyDef
+from app.models.quest import QUEST_ID_PATTERN
 
 SLUG_PATTERN = r"^[a-z0-9]+(-[a-z0-9]+)*$"
 DICE_PATTERN = r"^\d+d\d+([+-]\d+)?$"
@@ -272,9 +273,17 @@ class NpcRecord(BaseModel):
 class InitialQuest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    id: str = Field(min_length=1, max_length=64, pattern=QUEST_ID_PATTERN)
     name: str
     description: str = ""
     objectives: list[str] = []
+
+    @field_validator("name")
+    @classmethod
+    def _display_name_is_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("a quest display name cannot be blank")
+        return value
 
 
 class StoryArc(BaseModel):
@@ -301,6 +310,14 @@ class ScenarioDef(BaseModel):
     initial_quests: list[InitialQuest] = []
     story_arcs: list[StoryArc] = []
     dm_persona: str | None = None
+
+    @model_validator(mode="after")
+    def _quest_ids_are_unique(self) -> "ScenarioDef":
+        ids = [quest.id for quest in self.initial_quests]
+        duplicates = sorted({quest_id for quest_id in ids if ids.count(quest_id) > 1})
+        if duplicates:
+            raise ValueError(f"duplicate initial quest ids: {', '.join(duplicates)}")
+        return self
 
 
 class WorldMeta(BaseModel):

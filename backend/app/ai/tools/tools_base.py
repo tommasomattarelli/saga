@@ -12,6 +12,7 @@ from enum import StrEnum
 from pydantic import BaseModel
 
 from app.memory.updater import apply_typed_updates
+from app.models.quest import QuestRegistry
 
 
 class SceneMood(StrEnum):
@@ -36,6 +37,7 @@ class ToolResult:
     world_state: dict
     char_data: dict
     extra: dict = field(default_factory=dict)  # tool-specific data (dice result, NPC dialogue…)
+    quests: QuestRegistry | None = None
 
 
 class DmTool(BaseModel):
@@ -65,6 +67,16 @@ class DmTool(BaseModel):
         """Override for tools that read the frozen world tree (ADR 0008 C11)."""
         return self.execute(world_state, char_data)
 
+    def execute_with_context(
+        self,
+        world_state: dict,
+        char_data: dict,
+        baseline: dict | None,
+        quests: QuestRegistry | None,
+    ) -> ToolResult:
+        """Entry point for tools that also read or write the campaign quest registry."""
+        return self.execute_with_baseline(world_state, char_data, baseline)
+
     @classmethod
     def to_openai_schema(cls) -> dict:
         """Return the OpenAI function-calling schema for this tool."""
@@ -85,8 +97,21 @@ class DmTool(BaseModel):
             target = defs.get(ref.rsplit("/", 1)[-1], {})
             return {**target, **{k: val for k, val in v.items() if k not in ("$ref", "anyOf")}}
 
+        def _collapse_nullable(v: dict) -> dict:
+            """A nullable primitive is an anyOf with one non-null branch; keep it typed."""
+            branches = v.get("anyOf")
+            if not branches:
+                return v
+            non_null = [branch for branch in branches if branch.get("type") != "null"]
+            if len(non_null) != 1:
+                return v
+            return {
+                **non_null[0],
+                **{k: value for k, value in v.items() if k != "anyOf"},
+            }
+
         def _clean_prop(v: dict) -> dict:
-            resolved = _inline_enum(v)
+            resolved = _inline_enum(_collapse_nullable(v))
             cleaned = {kk: vv for kk, vv in resolved.items() if kk in _allowed}
             if "items" in cleaned and isinstance(cleaned["items"], dict):
                 cleaned["items"] = {
@@ -138,6 +163,7 @@ def execute_tool(
     world_state: dict,
     char_data: dict,
     baseline: dict | None = None,
+    quests: QuestRegistry | None = None,
 ) -> ToolResult:
     tool_cls = _TOOLS.get(name)
     if not tool_cls:
@@ -148,7 +174,7 @@ def execute_tool(
         )
     try:
         instance = tool_cls(**arguments)
-        return instance.execute_with_baseline(world_state, char_data, baseline)
+        return instance.execute_with_context(world_state, char_data, baseline, quests)
     except Exception as exc:
         safe_msg = str(exc).replace("\n", " ").strip()[:120]
         return ToolResult(

@@ -43,6 +43,17 @@ def test_visible_tools_set():
     assert "change_npc_psychology" not in VISIBLE_TOOLS
 
 
+def test_nullable_tool_field_keeps_its_type_and_optionality():
+    """ADR 0019 A3 — an omitted description preserves state, so it must stay
+    optional without losing the string contract the provider validates."""
+    parameters = UpdateQuest.to_openai_schema()["function"]["parameters"]
+    description = parameters["properties"]["description"]
+
+    assert description["type"] == "string"
+    assert description["description"]
+    assert "description" not in parameters["required"]
+
+
 # ── Inventory tools ───────────────────────────────────────────────────────────
 
 
@@ -93,19 +104,55 @@ def test_move_to_without_baseline_reports_no_map():
     assert "no world map" in result.description.lower()
 
 
-def test_update_quest_adds_active_quest():
-    cd = {}
-    result = UpdateQuest(
-        name="Dragon Hunt", status="active", description="Find the dragon"
-    ).execute({}, cd)
-    quests = result.char_data.get("active_quests", [])
-    assert any(q["name"] == "Dragon Hunt" for q in quests)
+def test_update_quest_adds_active_quest_to_the_registry():
+    from app.models.quest import QuestRegistry
+
+    result = execute_tool(
+        "update_quest",
+        {"quest_id": "dragon_hunt", "status": "active", "name": "Dragon Hunt"},
+        {},
+        {},
+        quests=QuestRegistry(),
+    )
+    quests = result.quests
+    assert quests is not None
+    assert [(q.id, q.name, q.objectives) for q in quests.active] == [
+        ("dragon_hunt", "Dragon Hunt", [])
+    ]
 
 
-def test_update_quest_completes_quest():
-    cd = {"active_quests": [{"name": "Dragon Hunt", "description": "..."}]}
-    result = UpdateQuest(name="Dragon Hunt", status="completed").execute({}, cd)
-    assert all(q["name"] != "Dragon Hunt" for q in result.char_data.get("active_quests", []))
+def test_update_quest_completes_quest_without_deleting_it():
+    from app.models.quest import QuestRecord, QuestRegistry
+
+    registry = QuestRegistry(
+        active=[QuestRecord(id="dragon_hunt", name="Dragon Hunt", objectives=["Find it"])]
+    )
+    result = execute_tool(
+        "update_quest",
+        {"quest_id": "dragon_hunt", "status": "completed"},
+        {},
+        {},
+        quests=registry,
+    )
+    assert result.quests is not None
+    assert result.quests.active == []
+    assert result.quests.completed[0].objectives == ["Find it"]
+
+
+def test_update_quest_unknown_id_reports_a_short_error_without_mutation():
+    from app.models.quest import QuestRegistry
+
+    registry = QuestRegistry()
+    result = execute_tool(
+        "update_quest",
+        {"quest_id": "dragon_hunt", "status": "completed", "name": "Dragon Hunt"},
+        {},
+        {},
+        quests=registry,
+    )
+    assert "does not exist" in result.description
+    assert result.quests == registry
+    assert "Traceback" not in result.description
 
 
 def test_change_npc_psychology_updates_axes():

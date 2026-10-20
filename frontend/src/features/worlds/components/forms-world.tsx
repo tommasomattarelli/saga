@@ -233,7 +233,7 @@ export function ScenarioForm({ payload, onChange }: FormProps) {
     story_arcs: [],
   }) as {
     opening: { narration: string; start_location: string; time_of_day: string; weather: string };
-    initial_quests: { name: string; description?: string; objectives?: string[] }[];
+    initial_quests: { id: string; name: string; description?: string; objectives?: string[] }[];
     story_arcs: { name: string; trigger?: string; description?: string }[];
     dm_persona?: string;
   };
