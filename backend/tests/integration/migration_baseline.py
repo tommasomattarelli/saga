@@ -11,18 +11,26 @@ import asyncio
 import os
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 
 from sqlalchemy import text
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 REPO_ROOT = BACKEND_DIR.parent
 PRECHANGE_COMMIT = "261ad5f"
 
-MIGRATION_DATABASE_URL = (
-    "postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_p5_migration"
+_TEST_DATABASE_URL = make_url(
+    os.getenv(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_test",
+    )
 )
+MIGRATION_DATABASE_NAME = f"saga_migration_{uuid.uuid4().hex}"
+MIGRATION_DATABASE_URL = _TEST_DATABASE_URL.set(database=MIGRATION_DATABASE_NAME)
+_ADMIN_DATABASE_URL = _TEST_DATABASE_URL.set(database="postgres")
 
 LEGACY_DIMENSIONS = 384
 TURN_TEXT = "The player struck and the goblin fled."
@@ -68,6 +76,44 @@ def _run(cmd: list[str], cwd: Path, env_extra: dict[str, str] | None = None) -> 
         raise RuntimeError(
             f"{' '.join(cmd)} failed (cwd={cwd}):\n{result.stdout}\n{result.stderr}"
         )
+
+
+async def _create_migration_database() -> None:
+    admin_engine = create_async_engine(_ADMIN_DATABASE_URL, isolation_level="AUTOCOMMIT")
+    try:
+        async with admin_engine.connect() as conn:
+            await conn.exec_driver_sql(f'CREATE DATABASE "{MIGRATION_DATABASE_NAME}"')
+    finally:
+        await admin_engine.dispose()
+
+    engine = create_async_engine(MIGRATION_DATABASE_URL)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    except BaseException:
+        await engine.dispose()
+        await _drop_migration_database()
+        raise
+    await engine.dispose()
+
+
+async def _drop_migration_database() -> None:
+    engine = create_async_engine(_ADMIN_DATABASE_URL, isolation_level="AUTOCOMMIT")
+    try:
+        async with engine.connect() as conn:
+            await conn.exec_driver_sql(
+                f'DROP DATABASE IF EXISTS "{MIGRATION_DATABASE_NAME}" WITH (FORCE)'
+            )
+    finally:
+        await engine.dispose()
+
+
+def create_migration_database() -> None:
+    asyncio.run(_create_migration_database())
+
+
+def drop_migration_database() -> None:
+    asyncio.run(_drop_migration_database())
 
 
 async def _drop_public_tables() -> None:
@@ -158,7 +204,7 @@ def run_alembic(args: list[str]) -> None:
     _run(
         [sys.executable, "-m", "alembic", *args],
         cwd=BACKEND_DIR,
-        env_extra={"DATABASE_URL": MIGRATION_DATABASE_URL},
+        env_extra={"DATABASE_URL": MIGRATION_DATABASE_URL.render_as_string(hide_password=False)},
     )
 
 
@@ -180,7 +226,7 @@ def build_baseline_and_stamp(workdir: Path) -> None:
     _run(
         [sys.executable, str(script_path)],
         cwd=extracted_backend,
-        env_extra={"DATABASE_URL": MIGRATION_DATABASE_URL},
+        env_extra={"DATABASE_URL": MIGRATION_DATABASE_URL.render_as_string(hide_password=False)},
     )
     script_path.unlink()
 

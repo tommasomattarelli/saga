@@ -1,6 +1,7 @@
 """ADR 0018 point 5 — real alembic 007 upgrade from the frozen 006 baseline."""
 
 import hashlib
+from collections.abc import Iterator
 
 import pytest
 from sqlalchemy import text
@@ -10,8 +11,13 @@ from tests.integration import migration_baseline as mb
 
 
 @pytest.fixture(scope="module")
-def baseline(tmp_path_factory) -> None:
-    mb.build_baseline_and_stamp(tmp_path_factory.mktemp("p5_baseline"))
+def baseline(tmp_path_factory) -> Iterator[None]:
+    mb.create_migration_database()
+    try:
+        mb.build_baseline_and_stamp(tmp_path_factory.mktemp("p5_baseline"))
+        yield
+    finally:
+        mb.drop_migration_database()
 
 
 async def _fetch_one(sql: str, params: dict | None = None):
