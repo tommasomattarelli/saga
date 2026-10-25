@@ -46,6 +46,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 - Defined ADR 0019's Alembic bootstrap, validated schema adoption and migration-backed tests, with implementation gated on explicit lead approval of S0.
 - Accepted ADR 0019 after the frozen Alembic chain, exact unversioned-schema adoption and the migration-backed suites landed in #97 and #98.
+- The frontend dev server can proxy to a local backend through `VITE_DEV_PROXY_TARGET`, keeping the Docker hostname as the default.
 - Bootstrapped fresh databases through a frozen Alembic chain, serialized online migration paths and added exact unversioned-schema adoption with real PostgreSQL coverage.
 - Moved integration and playtest setup to the production Alembic chain while preserving the frozen 006 embedding backfill regression.
 - Added the campaign-owned quest registry with explicit authored IDs and one shared transition used by tools and evaluation replay.
