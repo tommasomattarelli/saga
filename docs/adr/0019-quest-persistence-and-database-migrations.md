@@ -1,8 +1,8 @@
 # ADR 0019 — Quest persistence and database migration coverage
 
-- **Status**: **Proposed** — Part A implemented in [PR #97](https://github.com/tommasomattarelli/saga/pull/97);
-  Part B's design approved by the owner on 2026-10-20, with implementation gated on
-  an explicit, reasoned lead review of S0 before any implementation code.
+- **Status**: **Accepted** — Part A implemented in [PR #97](https://github.com/tommasomattarelli/saga/pull/97);
+  Part B's S0 was approved by the owner on 2026-10-20 and implemented in
+  [PR #98](https://github.com/tommasomattarelli/saga/pull/98). Accepted on merge (2026-10-20).
 - **Date**: 2026-10-20.
 - **Context items**: [GitHub #86](https://github.com/tommasomattarelli/saga/issues/86),
   `TODO.md` stabilization point 4 and its migration-coverage audit; follows ADR 0018.
@@ -515,6 +515,11 @@ next to B11; B8 records its lock protocol and timeout. The first review found B1
 additional owner decision before any implementation. New genuine design forks
 return to the owner before code. No external research is required:
 these choices rest on inspected code, Git history and the owner's constraints.
+
+**Merge note (2026-10-20, implementation).** Part B landed in #98 and the record is
+now Accepted. The frozen Alembic chain, the exact adoption of the two unversioned
+profiles and the migration-backed integration/playtest suites are in the code, so
+the S0 open items above are closed by implementation rather than still pending.
 
 ## 6. Rejected alternatives and consequences
 
