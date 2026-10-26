@@ -13,7 +13,7 @@ Scope: backend turn flow first, frontend second, one scenario per area
 | Step | Command | Expected |
 |---|---|---|
 | Dev DB up | `docker compose up -d db` | `docker compose ps` shows `db` healthy on `5432` |
-| DB versioned | `cd backend && uv run python -m app.migrations.adopt --profile current_post_pr1` | prints nothing on success; `select * from alembic_version` → `007_embedding_index`, which the first boot then upgrades to the head revision |
+| Existing unversioned DB only | `cd backend && uv run python -m app.migrations.adopt --profile current_post_pr1` | exact profile match required; stamps `007_embedding_index`, which startup then upgrades to head; skip adoption for empty or already-versioned DBs |
 | Config sane | `uv run python -c "from app.ai.router import validate_generation_config, validate_embedding_config; validate_generation_config(); validate_embedding_config(); print('ok')"` | `ok` |
 | Dev DB reachable | `docker compose exec db psql -U saga -d saga -c "select turn_number, status from campaigns"` | one row per campaign |
 
@@ -78,9 +78,9 @@ Port `8000` must be free: stop the compose `backend` service first
 Graph order: `context_node → dm_node → (tools_node → dm_node)* → post_process_node`
 (`core/dm/dm_graph.py:65-75`).
 
-Useful wants: the prompt → breakpoint in `build_dm_system_prompt` and inspect the
-returned string; the tool call → breakpoint at `dm_node.py:120` and read
-`tool_calls`; a tool's outcome → `tools_node` right after the branch; what got
+Useful wants: the prompt → `dm_nodes.py:96`, inspect `state["system_prompt"]`;
+the model's tool requests → `dm_nodes.py:138`, after the provider returns, inspect
+`response.tool_calls`; a tool's outcome → `tools_node` right after the branch; what got
 persisted → `turns.py:177-179`.
 
 ## 4. The scenarios
@@ -91,8 +91,9 @@ One per area. Do not add more until these produce something actionable.
 
 - **State**: an active campaign, a fresh turn.
 - **Action**: `"I look around and take in the scene."`
-- **Expect**: no tool call, `tool_events: []`, narration only; one new `turns`
-  row, one replaced auto-save, quests untouched.
+- **Check**: whether the model actually returns no tool calls (the action does not
+  force this). `tool_events: []` alone is not proof: some tools are invisible there.
+  For a no-tool turn, expect narration, one turn, one replaced auto-save and unchanged quests.
 - **Watch**: the `<instructions>`, `<character>`, `<scene>`, `<history>` and
   `<quests>` blocks actually rendered — empty or duplicated blocks are a tuning
   finding, not a bug. Then `turn_number` before/after in `turns.py:82-88`.
@@ -101,8 +102,10 @@ One per area. Do not add more until these produce something actionable.
 
 - **State**: player and one NPC in the scene.
 - **Action**: `"I swing my sword at him."`
-- **Expect**: one `attack` call, `dice_results` in the response, target HP reduced
-  by the server, life bar consistent; the narration must **not** invent numbers.
+- **Expect**: `attack` resolves hit/miss and server-side damage; a miss leaves HP
+  unchanged, a hit updates the life bar. Currently `tool_events` carries the outcome
+  and damage, but `dice_results` can be empty: exposing attack rolls is a UI decision,
+  not evidence that the engine skipped the roll. Narration must not invent numbers.
 - **Watch**: `core/attack.py:174-230` (`resolve_attack`) — resolve sides,
   modifier, tier, the d20, `_damage_for`; then `core/health.py:93-122`
   (`apply_hp_delta`). HP lives at `character_data["hp"]{current,max}` for the
@@ -114,9 +117,9 @@ One per area. Do not add more until these produce something actionable.
 - **State**: an NPC present (`npcs_present`), so the `social` tool group is
   active (`saga.config.yaml:301-308`).
 - **Action**: `"I ask the innkeeper what he knows about the road."`
-- **Expect**: one `invoke_npc`, `npc_dialogues` in the response, the line used
-  **verbatim** in the narration, psychology axes moved only if the exchange
-  justifies it.
+- **Expect**: `invoke_npc`, `npc_dialogues` preserved **verbatim** in the response
+  and rendered in their own segment. Check separately whether the DM adds invented
+  NPC lines in its prose, and whether psychological changes fit the exchange.
 - **Watch**: `dm_tools_executor.py:90-138` → `invoke_npcs_parallel`
   (`ai/npc_director.py`), then `_handle_npc_results` (`:278-323`). Compare the
   NPC's produced line with the narrated one character by character — paraphrasing
@@ -135,6 +138,11 @@ One per area. Do not add more until these produce something actionable.
   Recall is `context.py:119-137`. If embeddings fail, gameplay continues and
   recall is empty — verify **which** of the two you are looking at before calling
   it a bug.
+- **Isolate use from availability**: a fact in `<recalled_memories>` proves retrieval
+  and injection, not that the model used it. A temporary
+  `SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS=1` in the backend launch config reduces verbatim
+  history after restart, but leaves summaries and other prompt blocks. Inspect those
+  too before claiming an isolated recall test; remove the override afterwards.
 
 ### 4.5 Quest
 
@@ -145,7 +153,8 @@ One per area. Do not add more until these produce something actionable.
   and the export carrying it.
 - **Watch**: `ai/tools/tools_world.py:146-166` → `core/quests.py`
   (`apply_quest_update`), then `campaigns.quests` (JSONB — there is no `quests`
-  table) and the `<quests>` block in the next prompt. `quest_update` in
+  table). The next prompt's `<quests>` block contains **only active** IDs and
+  descriptions, not the concluded registry or objectives. `quest_update` in
   `memory/updater.py:168-171` is retired; if you see it fire, that's a finding.
 
 ## 5. Reading a failure
@@ -158,13 +167,45 @@ Ask in this order, and stop at the first yes:
    earlier.
 3. **Did the model answer?** Breakpoint at `dm_nodes.py:120`. Empty content, a
    refusal, or a malformed tool call is a model finding, not engine logic.
-4. **Did the tool run?** `tool_events` in the response, or a breakpoint in
-   `tools_node`. A `Tool … failed: …` string is the sanitized path
-   (`tools_base.py:178-184`) — the original exception is only in the logs.
+4. **Did the tool run?** Check the model's requests in `llm_io.log`, then the
+   `ToolMessage`, handler and resulting state. `tool_events` is not a full audit:
+   ordinary tools are filtered by `visible()`, and dice/NPC calls use separate payloads.
 5. **Did it persist?** Read the row, not the response. A response can carry state
    the transaction rolled back.
 6. **Is it the frontend?** Response correct + UI wrong → frontend. Response wrong →
    backend. Check in that order, never the reverse.
+
+### 5.1 Read tool requests without stopping the debugger
+
+With the shipped launch config, local logs live in `backend/logs/`; inside the
+backend container they live in `/app/logs`. `saga.log` has application events,
+while `llm_io.log` is a separate rotating trace, enabled independently of `LOG_LEVEL`.
+
+From the repository root, show the last ten DM outputs:
+
+```bash
+grep '^{"direction": "output", "step":' backend/logs/llm_io.log | tail -10
+```
+
+Each matched line contains `step`, `text_preview` and `tool_calls` (names and
+arguments). Step numbering starts at **0 for each turn**, not at a new game turn.
+Other callers use multiline JSON in the same file; it is not all JSON Lines.
+
+- `tool_calls: []` means that DM response requested **no tools**. A narrated journey
+  is not proof of `move_to`, and its handler breakpoint cannot fire without a call.
+- A named call proves a **request**, not success: inspect the returned `ToolMessage`
+  and persisted state. For example, `kill_npc` can be requested and then rejected.
+- Compare step sequences with `dm_node_step` and `turn_completed` in `saga.log`;
+  the DM trace has no turn ID/timestamp, and tests may share the same log files.
+- DM prompt/text previews are truncated; inspect `state["system_prompt"]` or the
+  full message in the debugger when you need the actual prompt or narration.
+
+Adding breakpoints does **not** require a restart. If a stop at `dm_nodes.py:96`
+works but one in a tool does not, first check whether that tool was requested.
+Place breakpoints on executable body lines, not just the `def` declaration;
+lazy imports can also leave an unbound breakpoint until the module is loaded.
+
+Logs may contain private campaign content. Share only the relevant redacted excerpt.
 
 ## 6. Triage: what to do with a finding
 
@@ -211,7 +252,7 @@ docker compose exec db psql -U saga -d saga
 ```sql
 select turn_number, quests, jsonb_pretty(character_data->'hp') from campaigns;
 select turn_number, player_action, left(narration, 120) from turns order by turn_number desc limit 3;
-select id, entity_name, left(fact, 90) from memory_facts order by created_at desc limit 10;
+select id, entity_name, left(content, 90) from memory_facts order by created_at desc limit 10;
 select source_type, work_state, count(*) from source_embeddings group by 1,2;
 select version_num from alembic_version;
 ```
