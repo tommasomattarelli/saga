@@ -12,3 +12,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 `[Unreleased]` is reset; this root file keeps only `[Unreleased]`.
 
 ## [Unreleased]
+
+### Internal
+
+- Clarified LangSmith graph-state traces versus model prompts and recorded persistent identity and profile requirements for rich auto-created NPCs.
