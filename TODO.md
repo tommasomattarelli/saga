@@ -41,6 +41,11 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 [ ] passare in rassegna le funzioni marcate #TODO nel codice (capire se servono)
 [ ] code quality: barrel export puliti — `index.ts` per feature/modulo FE che ri-esportano l'API pubblica. Per il BE valutare `__init__.py` con re-export MA attenzione ai cicli d'import (Python preferisce path espliciti — barrel meno idiomatico che in TS; farlo solo dove riduce davvero il rumore).
 
+## decisioni e direzioni dal punto 5 (2026-10-26)
+[ ] **dado in UI per attacchi e azioni del giocatore**: decidere se e come mostrare i tiri per attacchi, sneak, persuasione, arrampicata e altre prove; oggi `request_dice` espone il tiro, `attack` no, pur calcolandolo. Opzioni aperte: reveal, dettaglio espandibile o nessun dado visibile.
+[ ] **default e fallback sempre su OpenRouter**: direzione decisa dall'owner; scegliere gli ID dei modelli e precisare il comportamento del fallback prima di implementare, senza introdurre implicitamente una catena di modelli o il consenso alla server key.
+[ ] **estrazione fatti e input del recall, lavoro collegato**: preferenza per una sola PR con due branch consecutivi, prima estrazione a batch (voce gia' sopra), poi input/selezione del recall. Tenere separati commit e verifiche dei due passaggi; criteri e parametri restano da progettare.
+
 ## avvertimenti operativi
 <!-- Cose che non stanno in nessun ADR e che ci si dimentica. -->
 [!] **vulture**: e' euristico. Se un falso positivo blocca una PR (route FastAPI, fixture pytest, `relationship` SQLAlchemy, attributi dinamici) **NON abbassare la soglia** — aggiungere un file whitelist (equivalente di `knip.json`). NB: a `--min-confidence 80` NON ha intercettato `decrypt_api_key`, funzione pubblica mai chiamata (vedi #65) — la soglia lascia passare proprio il caso che sarebbe servito.
@@ -71,6 +76,7 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 [ ] timeout esplicito per singola tool-call LLM in combat (oltre al recursion cap), con fallback "il turno prosegue" [llm-rpg] — NB ridimensionato da ADR 0003 B1: il combat non fa piu' chiamate LLM per le azioni nemiche; resta il timeout generico per tool-call
 
 ## prosa / output
+[ ] **formattazione della narrazione** (punto 5, 2026-10-26): l'owner segnala markdown e frammenti elencati poco leggibili (turno 9); verificare testo grezzo e rendering, poi decidere le convenzioni e se intervenire nel prompt, nel renderer o in uscita.
 [ ] **prompt tuning pass dedicato**: rivedere e calibrare i prompt DM/NPC. Ora ha una base empirica — `model_smoke.py` misura la compliance, e le issue #51/#52/#53 hanno i numeri. Include la qualita' di `axis_changes` (ADR 0005). Da fare col factoring di ADR 0004, non prima.
 [ ] LangSmith: verificare su tracce reali cosa entra davvero nel contesto per ogni nodo del grafo (prompt effettivi, non presunti)
 [ ] slop-buster: lista parole/n-gram in saga.config.yaml + check post-prosa nel DM (qualita' prosa = pillar) [ai_rpg]
@@ -96,6 +102,7 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 # ============================================================
 
 ## secondari — combat / gioco
+[ ] **tempo minimo per turno** (punto 5, 2026-10-26): valutare un avanzamento minimo configurabile quando nessun tool muove l'orologio; conversazioni e combattimenti hanno lasciato il clock fermo. Coordinare con F1 (doppio avanzamento di `advance_time`), senza aggiungere un'altra applicazione del tempo.
 [ ] toggle prompt combat full/compresso, CONFIGURABILE in saga.config.yaml [NEQ]
 [ ] op_dominant: reframe narrativo su tier-gap forte (combattente molto superiore) [aidm]
 [ ] focus-budget: limite caratteri dell'azione come stat di gioco [llm-rpg]
@@ -114,6 +121,7 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 # nota: calendario fantasy (mesi/stagioni/festivita') = gia' coperto da "template fatti bene"
 
 ## secondari — infra / dev
+[ ] **loggatura da rifare — bassa priorita'** (punto 5, 2026-10-26): riordinare log applicativi, access log e tracce LLM, rendendo correlabili turno e step; per i probe `/health` oggi in 404, decidere se aggiungere l'endpoint o rimuovere/aggiornare il chiamante, senza nascondere indiscriminatamente gli errori.
 [ ] narrative-probe v2 per calibrare quali modelli nei tier del router [otgm] — primo mattone posato: `model_smoke.py` misura la compliance ai tool. Manca il pezzo "qualita' narrativa" e il collegamento ai tier di ADR 0016.
 [ ] LLM-fixture-file per test end-to-end deterministici [ai_rpg]
 [ ] subprocess isolation per generazione modulo AI lunga [NEQ]
@@ -130,13 +138,10 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 # ============================================================
 
 ## prompt tuning — bersagli gia' noti (fare col pass di ADR 0004)
+[ ] **valutare e migliorare i cache hit** (punto 5, 2026-10-26): OpenRouter mostra 0% nella sessione; verificare supporto del modello/provider, soglie, routing e prefissi effettivamente identici prima di attribuire la causa al prompt. Coordinare eventuali cambi alla struttura del contesto con ADR 0004.
 [ ] **la convenzione di scambio e' l'unico punto di ADR 0003 non chiuso per costruzione** (deciso 2026-08-04, vedi nota su C1c). Senza round, se il DM si dimentica di chiamare `attack` per i nemici il giocatore mena gratis — fallisce in silenzio e a suo favore. Il backstop deterministico e' stato progettato e rifiutato dall'owner: era fattibile (gli eventi `attack` esistono da S2b, nessun LLM coinvolto), ma la regola di disingaggio sotto non ha una risposta difendibile senza dati di playtest. Da misurare col playtest e poi con la probe nell'harness: **quante volte per scontro gli ostili in scena non rispondono**. Se il numero e' basso resta com'e'.
 [ ] **`recent_events` e' calcolato e mai letto** (`ai/context.py:178` — gli ultimi 3 turni riassunti, `build_dm_system_prompt` non li tocca). Renderizzarli nel prompt e' un candidato del tuning pass: dare al DM il filo di cosa e' appena successo abbassa la probabilita' che si dimentichi lo scambio. NB: abbassa le probabilita', non chiude il buco. Quarta chiave morta trovata in questa sessione (con `in_combat`, `char_data["death_mode"]` e il tier `low`/`medium` identico) — vale la pena un giro sistematico a caccia di lettori senza scrittori e scrittori senza lettori.
 
-## infra — migrazioni mai eseguite dai test
-[ ] **nessuna migrazione alembic e' coperta dalla suite, e questo ha gia' morso** (2026-08-04, ADR 0003 S3/S4). `tests/conftest.py` costruisce lo schema con `Base.metadata.create_all`; la catena alembic non e' comunque eseguibile da zero (`001_add_memory_facts` presuppone che le tabelle esistano). Quindi una migrazione rotta passa la CI **verde**. **Prova**: la `005_campaign_difficulty` e' stata spedita con un baco che avrebbe messo a NULL la colonna di ogni campagna — SQLAlchemy persiste uno `StrEnum` col **nome** del membro (`CRONISTA`), la migrazione confrontava i **valori** (`cronista`). Verifica a mano su un DB costruito a mano NON l'ha preso, perche' avevo creato il tipo con le label che assumevo io: la fixture riproduce l'assunzione, non il database. L'ha preso il docker dev al primo avvio. Ora la 005 e' corretta, ha un guard che solleva sui valori non mappabili, ed e' verificata upgrade/downgrade/upgrade su una **copia del DB dev** con dati reali — ma il buco strutturale resta.
-    NB operativo: il DB dev non aveva `alembic_version` (creato da `create_all`, alembic non ci ha mai girato). E' stato stampato a `004` e migrato. Un DB utente nella stessa condizione ha bisogno dello stesso trattamento.
-    Da sanare: o una migrazione `000` che crea lo schema base, oppure una fixture che fa `alembic upgrade head` invece di `create_all` — la seconda copre davvero ma richiede la prima. Terza opzione piu' economica: un singolo test di integrazione che, su un DB usa-e-getta seedato da `create_all` + `alembic stamp <penultima>`, gira l'ultima migrazione avanti e indietro.
 
 ## ADR 0016 (Proposed) — da RIDIRIGERE: ritirare, non sistemare
 [ ] **l'importance scoring non instrada niente, e 0016 non lo sa** (trovato 2026-08-04 con ADR 0003 S0). Tre cose insieme: le keyword sono inglesi, quindi in italiano il punteggio e' 5 fisso; il bonus combat leggeva `world_state["in_combat"]` che **nessuno scriveva** tranne il test che lo asseriva — riga e chiave cancellate da 0003 C1b, resta la sola formula a keyword; e i tier `low`/`medium` della config di default hanno **lo stesso modello**. Quindi due terzi della scala non cambierebbero nulla comunque. Piu' l'argomento dell'owner: in BYOAK gli utenti montano modelli free o da pochi centesimi, mai un modello da 25$/M — lo spread che il router ottimizza non esiste, e un router che declassa in silenzio e' peggio di nessun router. Direzione: 0016 passa da "sistemare il punteggio" a **"ritirare il punteggio, tenere il routing per tipo di chiamata"** (`dm_narration` vs `memory_compression`/`embedding` risparmia davvero — sono l'alto volume). Il pillar AGENTS.md "Intelligent AI Routing" sopravvive letto come cost routing per call type. Quando si fa: droppare anche la colonna `Turn.importance_score` (alembic) + lo schema API. Serve un design pass in place su 0016 (e' Proposed, si puo' — precedente: 0003 ha superseduto la sua bozza in place). ADR 0003 ha cancellato solo la riga morta (C1b), non l'ha sostituita.

@@ -24,7 +24,8 @@ frontend/.vite/
 .env.*.local
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/launch.json
 .idea/
 *.swp
 *.swo
