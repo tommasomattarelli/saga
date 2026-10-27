@@ -288,7 +288,7 @@ class TestHandleNpcResults:
         baseline = {
             "taxonomy": {"psychology": {"axes": {"trust": {"bands": [{"min": 0, "label": "x"}]}}}}
         }
-        with patch("app.core.dm.dm_tools_executor.apply_typed_updates") as mock_updates:
+        with patch("app.core.dm.npc_results.apply_typed_updates") as mock_updates:
             mock_updates.return_value = ({}, {})
             _handle_npc_results(
                 npc_name="Elder",

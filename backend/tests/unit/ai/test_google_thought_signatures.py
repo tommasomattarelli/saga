@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from google.genai import types as genai_types
 
+from app.ai.context import GameContext
 from app.ai.providers.google import GoogleProvider
 from app.ai.router import ModelConfig
 from app.core.dm.dm_graph import dm_graph
@@ -100,7 +101,7 @@ def _graph_env(provider):
     async def fake_ctx():
         yield mock_db
 
-    game_ctx = MagicMock(messages=[], importance_score=1, system_prompt="sys")
+    game_ctx = GameContext(messages=[], importance_score=1, system_prompt="sys")
     model_cfg = ModelConfig(provider="google", model="gemini-3.5-flash", max_tokens=1000)
 
     with (

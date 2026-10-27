@@ -165,6 +165,7 @@ class GameplayConfig:
     """Runtime gameplay settings loaded from saga.config.yaml."""
 
     context_window_turns: int = 8
+    max_agent_steps: int = 8
     context_token_cap: int = 12000
     npc_verbosity: str = "medium"
     compression_enabled: bool = True
@@ -179,6 +180,10 @@ class GameplayConfig:
     global_summary_max_input_chars: int = 4000
     npc_condition_max_chars: int = 80
     npc_name_match_threshold: float = 0.85
+
+    def __post_init__(self) -> None:
+        if self.max_agent_steps < 1 or self.consecutive_empty_steps_max < 1:
+            raise ValueError("DM call and stall limits must be positive integers.")
 
     @property
     def max_npc_calls(self) -> int:
@@ -211,6 +216,9 @@ def get_gameplay_config() -> GameplayConfig:
     gs = config.get("features", {}).get("global_summary", {})
 
     return GameplayConfig(
+        max_agent_steps=int(
+            os.getenv("SAGA_GAMEPLAY_MAX_AGENT_STEPS", gp.get("max_agent_steps", 8))
+        ),
         context_window_turns=int(
             os.getenv("SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS", gp.get("context_window_turns", 8))
         ),

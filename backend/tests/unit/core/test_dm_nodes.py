@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage
 
+from app.ai.context import GameContext
 from app.ai.router import ModelConfig
 
 
@@ -147,7 +148,7 @@ class TestContextNode:
         async def fake_ctx():
             yield mock_db
 
-        game_ctx = MagicMock(messages=[], importance_score=5, system_prompt="sys")
+        game_ctx = GameContext(messages=[], importance_score=5, system_prompt="sys")
         model_cfg = MagicMock(provider="openai", model="gpt-4o", max_tokens=100)
 
         state = _make_state(player_action="I attack the guard", campaign_id="cid")
@@ -190,7 +191,7 @@ class TestDmNodeUnit:
                 "app.core.dm.dm_nodes.get_user_generation",
                 new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
             ),
-            patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
+            patch("app.core.dm.loop_policy.resolve_active_tools_from_state", return_value=set()),
             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
         ):
             result = await dm_node(state, config={})
@@ -215,7 +216,7 @@ class TestDmNodeUnit:
                 "app.core.dm.dm_nodes.get_user_generation",
                 new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
             ),
-            patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
+            patch("app.core.dm.loop_policy.resolve_active_tools_from_state", return_value=set()),
             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
         ):
             result = await dm_node(state, config={})
@@ -237,7 +238,7 @@ class TestDmNodeUnit:
                 "app.core.dm.dm_nodes.get_user_generation",
                 new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
             ),
-            patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
+            patch("app.core.dm.loop_policy.resolve_active_tools_from_state", return_value=set()),
             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
         ):
             result = await dm_node(state, config={})
@@ -268,7 +269,7 @@ class TestDmNodeUnit:
                 "app.core.dm.dm_nodes.get_user_generation",
                 new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
             ),
-            patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
+            patch("app.core.dm.loop_policy.resolve_active_tools_from_state", return_value=set()),
             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
         ):
             result = await dm_node(state, config={})
