@@ -10,6 +10,7 @@ from typing import Any
 import structlog
 
 from app.ai.generation_context import generation_context
+from app.ai.prompts.loader import template
 from app.ai.prompts.npc import build_npc_prompt
 from app.ai.providers.base import logged_generate
 from app.ai.router import get_gameplay_config, get_generation
@@ -71,7 +72,7 @@ async def invoke_single_npc(
         raw = await logged_generate(
             provider,
             caller=f"npc_director:{npc_name}",
-            system_prompt=f"You are {npc_name}, an NPC in a tabletop RPG.",
+            system_prompt=template("npc", "system").format(name=npc_name),
             messages=[{"role": "user", "content": prompt}],
             model=model_config.model,
             max_tokens=model_config.max_tokens,

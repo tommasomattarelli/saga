@@ -16,6 +16,9 @@ from app.models.quest import QuestRegistry, QuestStatus
 
 @register
 class MoveTo(DmTool):
+    obligation = "move_to"
+    terminal_safe = False
+
     location: str = Field(description="Name of the destination (place name or slug)")
 
     @classmethod
@@ -105,6 +108,9 @@ class MoveTo(DmTool):
 
 @register
 class UpdateQuest(DmTool):
+    obligation = "update_quest"
+    terminal_safe = False
+
     quest_id: str = Field(
         description=(
             "Stable quest id tag, e.g. 'dragon_hunt'. The only lookup key; "
@@ -174,6 +180,9 @@ class UpdateQuest(DmTool):
 
 @register
 class ChangeNpcPsychology(DmTool):
+    obligation = "change_npc_psychology"
+    terminal_safe = False
+
     npc: str = Field(description="NPC name")
     changes: dict[str, int] = Field(
         description='Per-axis integer deltas, e.g. {"trust": -5, "fear": 8}. '
@@ -240,6 +249,9 @@ class ChangeNpcPsychology(DmTool):
 
 @register
 class LogEvent(DmTool):
+    obligation = "log_event"
+    terminal_safe = True
+
     description: str = Field(
         description="A short, factual description of the event to record in the world history"
     )
@@ -268,6 +280,9 @@ class LogEvent(DmTool):
 
 @register
 class SetSceneMood(DmTool):
+    obligation = "set_scene_mood"
+    terminal_safe = True
+
     mood: str = Field(
         description=(
             "Scene mood. One of: calm_exploration, tense_anticipation, combat_fury, "
@@ -302,6 +317,9 @@ class SetSceneMood(DmTool):
 
 @register
 class AdvanceTime(DmTool):
+    obligation = "advance_time"
+    terminal_safe = True
+
     minutes: int = Field(
         description=(
             "Minutes of in-game time to advance. "

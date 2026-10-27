@@ -8,9 +8,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import ClassVar
 
 from pydantic import BaseModel
 
+from app.ai.prompts.loader import template
 from app.memory.updater import apply_typed_updates
 from app.models.quest import QuestRegistry
 
@@ -44,6 +46,8 @@ class DmTool(BaseModel):
     """Base class for DM tools. Subclass fields define the tool parameters."""
 
     model_config = {"extra": "forbid"}
+    obligation: ClassVar[str]
+    terminal_safe: ClassVar[bool]
 
     @classmethod
     def tool_name(cls) -> str:
@@ -140,6 +144,9 @@ _TOOLS: dict[str, type[DmTool]] = {}
 
 
 def register(cls: type[DmTool]) -> type[DmTool]:
+    if not isinstance(cls.__dict__.get("terminal_safe"), bool):
+        raise ValueError(f"Tool {cls.tool_name()} must declare its loop policy.")
+    template("tool_obligations", cls.obligation)
     _TOOLS[cls.tool_name()] = cls
     return cls
 
@@ -148,7 +155,7 @@ def get_tool_schemas(allowed: set[str] | None = None) -> list[dict]:
     """Return tool schemas in OpenAI format, optionally filtered to `allowed` names."""
     return [
         cls.to_openai_schema()
-        for name, cls in _TOOLS.items()
+        for name, cls in sorted(_TOOLS.items())
         if allowed is None or name in allowed
     ]
 

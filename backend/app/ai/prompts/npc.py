@@ -1,41 +1,11 @@
 """NPC prompt — the NPC playing itself sees its full traits (ADR 0009 G3)."""
 
+from app.ai.prompts.loader import template
 from app.core.campaign_language import LANGUAGES, validate_language
 from app.core.psychology import DEFAULT_PSYCHOLOGY, band_label
 from app.models.psychology import PsychologyDef
 
-NPC_BASE_PROMPT = """You are an NPC in a tabletop RPG. You have your own life, goals, and psychology.
-
-## Your Identity
-- Name: {name}
-- Location: {location}
-
-## Your Character
-{traits_block}
-{fill_guidance}
-## How you feel about the player
-{axes_block}
-
-## What just happened
-The player did: "{player_action}"
-The DM narrated: "{dm_narration}"
-{recent_history}
-## Rules
-- Write your public dialogue and action in {campaign_language}, regardless of the player's input or authored world language. Keep your established name unchanged.
-- You do NOT exist to serve the player. You have your own agenda.
-- React realistically to the player's approach (intimidation, charm, deception)
-- You may lie, refuse, or be unhelpful if it fits your character
-- If threatened, respond as a real person would (comply, flee, fight, call for help)
-- Keep dialogue natural and period-appropriate
-- Respond in 1-3 sentences, in character
-
-Respond as JSON:
-{{"dialogue": "What you say", "action": "What you do (or null)", "axis_changes": {{}}, "reveals_secret": false}}
-
-In axis_changes report how this exchange shifted your feelings — only these axes: {axis_names}.
-Integer deltas, max ±{max_delta} each; omit axes that did not move.
-
-IMPORTANT: respond with valid JSON only. No markdown fences, no explanation."""
+NPC_BASE_PROMPT = template("npc", "base")
 
 
 def _render_axes(npc_data: dict, pdef: PsychologyDef) -> str:
@@ -57,7 +27,7 @@ def _render_traits(traits: dict) -> tuple[str, list[str]]:
             lines.append(f"- {key.replace('_', ' ').capitalize()}: {value}")
         else:
             empty.append(key)
-    block = "\n".join(lines) or "- (no established facts about you yet)"
+    block = "\n".join(lines) or template("npc", "empty_traits")
     return block, empty
 
 
@@ -75,15 +45,12 @@ def build_npc_prompt(
     # D2 rich level: the NPC invents its own missing facts, in character.
     fill_guidance = ""
     if fill_empty_traits and empty:
-        fill_guidance = (
-            f"\nNot yet established about you: {', '.join(empty)}. "
-            "Invent them in character as they come up, and stay consistent.\n"
-        )
+        fill_guidance = template("npc", "fill_guidance").format(names=", ".join(empty))
 
     last_interactions: list[str] = npc_data.get("last_interactions", [])
     if last_interactions:
         history_lines = "\n".join(f"  - {entry}" for entry in last_interactions[-3:])
-        recent_history = f"\n## Recent history with player\n{history_lines}\n"
+        recent_history = template("npc", "recent_history").format(entries=history_lines)
     else:
         recent_history = ""
 
