@@ -55,6 +55,16 @@ export const getCampaigns = () => api.get<Campaign[]>("/campaigns");
 
 export const getCampaign = (id: string) => api.get<Campaign>(`/campaigns/${id}`);
 
+export interface CampaignLanguageOption {
+  code: string;
+  display_name: string;
+}
+
+export const getCampaignLanguages = () => api.get<CampaignLanguageOption[]>("/campaigns/languages");
+
+export const updateCampaignLanguage = (id: string, language: string) =>
+  api.patch<Campaign>(`/campaigns/${id}`, { language });
+
 export const ensureCampaignEmbeddingIndex = (id: string) =>
   api.post(`/campaigns/${id}/embedding-index/ensure`);
 
@@ -64,6 +74,7 @@ export const createCampaign = (data: {
   world_id: string;
   name: string;
   difficulty: string;
+  language?: string;
   character_data?: Record<string, unknown>;
 }) => api.post<Campaign>("/campaigns", data);
 

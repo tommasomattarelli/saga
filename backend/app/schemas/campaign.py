@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
+from app.core.campaign_language import LanguageCode, default_campaign_language
 from app.memory.world_state import migrate_world_state
 from app.models.campaign import CampaignStatus, Difficulty
 from app.models.quest import QuestRegistry
@@ -12,6 +13,7 @@ class CampaignCreate(BaseModel):
     world_id: str
     name: str
     difficulty: Difficulty
+    language: LanguageCode = Field(default_factory=default_campaign_language)
     character_data: dict = {}
 
     @field_validator("character_data")
@@ -22,9 +24,21 @@ class CampaignCreate(BaseModel):
         return value
 
 
+class CampaignUpdate(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    language: LanguageCode
+
+
+class CampaignLanguageOption(BaseModel):
+    code: LanguageCode
+    display_name: str
+
+
 class CampaignResponse(BaseModel):
     id: uuid.UUID
     name: str
+    language: LanguageCode = "en"
     world_slug: str
     status: CampaignStatus
     difficulty: Difficulty

@@ -41,6 +41,7 @@ def test_list_campaigns(mocker, mock_user_dependency):
                         Campaign(
                             id=uuid.uuid4(),
                             name="Test Campaign",
+                            language="en",
                             user_id=mock_user_dependency.id,
                             world_slug="fantasy",
                             status=CampaignStatus.ACTIVE,
@@ -120,6 +121,7 @@ def test_get_campaign(mocker, mock_user_dependency):
     camp = Campaign(
         id=uuid.UUID(camp_id),
         name="Test Campaign",
+        language="en",
         user_id=mock_user_dependency.id,
         world_slug="fantasy",
         status=CampaignStatus.ACTIVE,
