@@ -329,3 +329,28 @@ load-bearing for A5's serial beats.
 No `/research` pass. Every decision rests on the live code (grounded above with file and
 line) and on decisions already taken in 0014; no external prior-art or competitor claim is
 load-bearing here.
+
+## 8. Planned corrections before implementation (2026-10-27, planning)
+
+PR 1 (ADR 0004 S2) lands the prompt, tool, language and loop contracts first. Five
+claims below are already superseded by that work or by owner decisions taken with it.
+They are corrected here now so nobody implements against obsolete wording; PR 2's own
+S0 re-grounds the rest against the merged code.
+
+- **D3's hardcoded 300-token NPC cap is already gone.** `npc_director` passes the shared
+  ADR 0018 generation cap. No per-NPC output-token setting is introduced; the line cap
+  and the shared cap remain the only knobs.
+- **B3's fuzzy name resolution is rejected.** Placement handles tolerate casing and
+  exterior whitespace only. A resolver threshold must never place a line: wrong or
+  ambiguous names degrade to the B5 fallback instead of guessing.
+- **F2's old-turn compatibility is dropped.** The owner accepted wiping development
+  data, so there is no legacy segment adapter and no old-turn branch to maintain.
+- **A2's promoted-NPC pre-pass stays deferred with ADR 0014.** PR 2 must not ship
+  dormant pre-pass code, promotion schemas or party automation.
+- **#53 is not guaranteed eliminated from free DM prose.** Markers guarantee exact
+  insertion and no duplicate insertion of a produced line; they cannot prevent the DM
+  from inventing or paraphrasing speech elsewhere. No semantic validator is approved.
+
+PR 2's S0 re-grounds every remaining claim in §1 and §3 against the merged code and
+records the outcome as dated implementation notes. Where a sprint's real constraint
+contradicts a line above, the note wins; the decision itself is not silently rewritten.

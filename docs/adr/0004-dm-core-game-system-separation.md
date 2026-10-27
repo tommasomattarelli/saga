@@ -3,7 +3,8 @@
 - **Status**: Proposed (direction 2026-06-09; expanded in place by the 2026-07-13 design
   pass — every fork closed by owner interview, re-anchored on what 0003/0010 already
   decided. Flips to Accepted after implementation + playtest. S1 has **no gate**; S2 is
-  sequenced after the 0003 implementation.)
+  sequenced after the 0003 implementation — its implementation pass is §8, 2026-10-27.
+  S1 remains unimplemented, so the ADR stays Proposed.)
 - **Date**: 2026-06-09; design pass 2026-07-13.
 - **Context items**: Research session 2026-06-09 (NEQ + 6 OS repos) — Fork C; owner
   interview 2026-07-13. Absorbs the `prompt-as-yaml` backlog line as its S2 vehicle.
@@ -172,7 +173,77 @@ length-cap values.
   composition from active groups; `npc.py` → yaml; single prompts directory; regression:
   composed prompt equivalence tests per tool-group combination.
 
-## 8. Notes / sources
+## 8. S2 implementation pass (2026-10-27)
+
+S2 is implemented on `adr/0004-dm-prompt-contracts` together with three changes
+the original plan did not name. They are recorded here because they change what
+S2's prompts say, where its values live, and how the loop that consumes them is
+bounded.
+
+### 8.1 Campaign language replaces "language mirroring" (Decided)
+
+A's `<dm_core>` listed language mirroring among universal GM craft. The owner
+replaced it with an explicit campaign-owned target language:
+
+- ISO 639-1 code persisted on the campaign (`campaigns.language`), default `en`
+  from `saga.config.yaml`. A missing value means English, including existing
+  campaigns (the forward migration backfills them).
+- Selectable at creation, editable in campaign settings. A read-only,
+  authenticated `GET /api/campaigns/languages` serves the catalog so the
+  frontend does not keep a second handwritten list.
+- The same explicit target reaches DM and NPC generation, independent of the
+  player's input language, `User.preferred_language`, the frontend locale and
+  the language of authored world text.
+- It is a campaign preference, not rewindable gameplay state: save/load keeps
+  the current value, export carries it, and changing it affects subsequent
+  generation only. Stored turns, summaries and facts are never translated.
+- An unsupported supplied code is a structured validation error, never a silent
+  substitution.
+
+Rejected: keeping the inferential rule (issue #51 shows it is fragile on small
+models); inferring the target per call (extra detection work, inconsistent
+results across DM and actors).
+
+### 8.2 Prompt sources (Refined)
+
+`app/ai/prompts/templates/` holds the YAML (`dm.yaml`, `npc.yaml`,
+`tool_obligations.yaml`, `personas.yaml`, `fact_extractor.yaml`,
+`compressor.yaml`, `global_summary.yaml`); Python gathers and validates data and
+renders dynamic context. Paths resolve relative to the package, not the process
+working directory. Static instructions and the short system messages embedded in
+generation callers move into YAML; no program logic moves into templates.
+
+Each tool declares, next to its definition, the obligation block it references
+and its loop classification. Composition selects only the blocks of the tools
+exposed in that step, in stable deterministic order. The final-step filter
+affects schemas and obligations together. Missing or unknown references fail
+validation, and a test asserts every registered tool has an obligation or an
+explicit exemption.
+
+### 8.3 Result-aware loop and time authority (Decided)
+
+- `gameplay.max_agent_steps` (default **8**) is the single DM-call bound, read
+  through the gameplay config path. The import-time `Settings.saga_max_agent_steps`
+  constant is retired. Actor calls are separate calls and do not consume DM
+  steps.
+- The LangGraph recursion limit is derived from the configured bound and the
+  graph's actual transitions, not a fixed 30.
+- Every non-terminal-safe tool requires a follow-up DM opportunity. Only
+  `advance_time`, `set_scene_mood` and `log_event` are terminal-safe.
+- The last permitted DM call exposes and executes only those three, with an
+  explicit closing instruction. A hallucinated unavailable tool is rejected
+  without executing it and without adding a cleanup call.
+- Tools are the sole writers of elapsed game time. `time_passed_minutes` reports
+  the canonical clock difference for the turn; post-processing does not apply it
+  again (#99).
+
+### 8.4 Scope guard
+
+S1 (tone + `config_override`) remains unimplemented, so 0004 stays **Proposed**.
+The NPC dialogue contract stays as it is until 0017 (PR 2): S2 does not batch
+actor calls, introduce markers, or change the single-line NPC result.
+
+## 9. Notes / sources
 
 Survey sources (2026-06-09): open-tabletop-gm SKILL.md/system.md split, aidm DNA axes,
 ai_rpg writing_style_notes. Design pass grounded in code (presets.py, campaign model,
