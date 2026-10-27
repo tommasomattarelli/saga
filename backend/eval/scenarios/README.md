@@ -154,10 +154,36 @@ It exists because those move through tool executors, not through `apply_typed_up
 ## Live runs: ledger, resume, budget
 
 Every provider call is a request, and the free tier does not forgive an overshoot. Pass
-`--ledger <path> --budget N` and the harness reserves each attempt on disk before the call and
-records its result after it. A crash or a 429 leaves a checkpoint: `--resume` skips what
-finished, counts what was interrupted, and `--out` writes machine-readable results with the
-code commit that produced them.
+`--user <owner-uuid> --checkpoint pr1 --ledger <daily-path> --budget N`. Credentials and
+policy come from that user's existing configuration; the explicitly selected free model
+is applied only to the evaluation, never saved to the profile. The copied provider client
+has SDK retries disabled so a trial cannot hide extra requests.
+
+The harness reserves each attempt before the call and retains full prompt/messages/tool
+schemas, raw public response and scores. `--resume` skips only matching checkpoint/model/
+request identities; failed and interrupted attempts still consume budget. `--out` writes
+the selected checkpoint's results, not pooled before/after scores.
+
+```text
+uv run python eval/model_smoke.py --model nvidia/nemotron-3-ultra-550b-a55b:free \
+  --scenario debug-shrine --probe travel_move --dry-run
+
+uv run python eval/model_smoke.py --user OWNER_UUID --checkpoint pr1 \
+  --model nvidia/nemotron-3-ultra-550b-a55b:free --scenario debug-shrine \
+  --probe travel_move --runs 3 --ledger DAILY_LEDGER --budget REMAINING_AUTHORIZED_BUDGET \
+  --out REPORT_JSON --resume
+```
+
+Supply the deployment's normal environment, including its encryption secret and database
+URL, before resolving a personal profile. Never extract keys into scenarios or reports.
+Reuse one daily ledger across checkpoints/models; `--budget` is its total authorized
+request count, not a fresh allocation on every command. If earlier SDK retries were not
+instrumented, establish actual remaining usage before another live run.
+
+If the owner explicitly confirms a residual allocation instead, keep it in a separate
+ledger with that exact cap and reference the earlier ledger; never treat it as a new
+daily allocation. Small batches can resume the missing trials without repeating completed
+requests, provided commit/checkpoint/request identity stays unchanged.
 
 `--actor` adds the bounded real-actor path (`actor_probe.py`): one real `invoke_single_npc`
 call per run against a present NPC, because the DM probes inject the actor result and so cannot
@@ -165,6 +191,11 @@ see the actor's own prompt (#51). Batched beats and multi-line results are ADR 0
 
 On exhaustion the run stops, writes what it has and exits 3 — it never sleeps until quota
 renews.
+
+DM smoke probes do not execute the requested tools; they measure foreground invocation
+and prose compliance. A tool request is not evidence of successful travel or persistence.
+The real actor path measures prompt/parser output; the migration-backed integration
+suites separately verify effects, final-step execution limits, time and persistence.
 
 ## Deliberately out of scope
 

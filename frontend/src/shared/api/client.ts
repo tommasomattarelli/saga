@@ -58,6 +58,7 @@ export const getCampaign = (id: string) => api.get<Campaign>(`/campaigns/${id}`)
 export interface CampaignLanguageOption {
   code: string;
   display_name: string;
+  is_default: boolean;
 }
 
 export const getCampaignLanguages = () => api.get<CampaignLanguageOption[]>("/campaigns/languages");

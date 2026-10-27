@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.campaign_language import LANGUAGES
+from app.core.campaign_language import LANGUAGES, default_campaign_language
 from app.dependencies import get_db
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.user import User
@@ -43,8 +43,9 @@ async def list_campaigns(
 
 @router.get("/languages", response_model=list[CampaignLanguageOption])
 async def list_languages(user: User = Depends(get_current_user)) -> list[CampaignLanguageOption]:
+    default = default_campaign_language()
     return [
-        CampaignLanguageOption(code=code, display_name=name)
+        CampaignLanguageOption(code=code, display_name=name, is_default=code == default)
         for code, name in sorted(LANGUAGES.items(), key=lambda item: item[1])
     ]
 
