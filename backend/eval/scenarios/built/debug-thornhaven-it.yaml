@@ -1,0 +1,18 @@
+# Overlay, not a copy: same captured Thornhaven state as `debug-thornhaven`, with an
+# Italian campaign target over English authored world content. This is the direction
+# #51 actually reported (Italian play, English bubble); `debug-shrine` covers the other.
+extends: debug-thornhaven
+meta:
+  name: debug-thornhaven-it
+  language: it
+  notes: "Italian campaign target over English world content; same captured state as debug-thornhaven."
+probes:
+  npc_speaks:
+    player: "Aldric, sai chi sono? Mi hai già visto prima?"
+  language_conflict:
+    player: "Chiedo ad Aldric se sa chi sono."
+recall:
+  npc_speaks:
+    - "Aldric è l'anziano del villaggio di Thornhaven; suo figlio andò nelle vecchie miniere e non tornò mai."
+  language_conflict:
+    - "Thornhaven si trova a est oltre la linea degli alberi, a circa quarantacinque minuti di cammino."
