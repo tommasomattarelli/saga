@@ -18,6 +18,7 @@ const mockCampaign = {
   id: "c1",
   name: "The Lost Realm",
   world_slug: "w1",
+  language: "en",
   status: "active",
   difficulty: "easy",
   turn_number: 3,

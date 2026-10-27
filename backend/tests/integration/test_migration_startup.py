@@ -49,7 +49,7 @@ async def test_injected_startup_accepts_percent_encoded_database_url(
             "postgresql+asyncpg://saga:pa%40ss@localhost/saga",
         )
         await database.upgrade_via_app()
-        assert await database.version() == "008_schema_reconciliation"
+        assert await database.version() == "009_campaign_language"
 
 
 async def test_direct_alembic_accepts_percent_encoded_test_password() -> None:
@@ -57,7 +57,7 @@ async def test_direct_alembic_accepts_percent_encoded_test_password() -> None:
         encoded_url = database.url.replace("saga_test:saga_test@", "saga_test:%73aga_test@")
         result = await database.run_alembic("upgrade", "head", database_url=encoded_url)
         assert result.returncode == 0, result.stdout + result.stderr
-        assert await database.version() == "008_schema_reconciliation"
+        assert await database.version() == "009_campaign_language"
 
 
 async def test_direct_alembic_error_does_not_expose_encoded_credentials() -> None:

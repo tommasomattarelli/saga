@@ -8,6 +8,7 @@ export interface User {
 export interface Campaign {
   id: string;
   name: string;
+  language: string;
   world_slug: string;
   status: CampaignStatus;
   difficulty: Difficulty;

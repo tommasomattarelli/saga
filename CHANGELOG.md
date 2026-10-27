@@ -13,6 +13,10 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ## [Unreleased]
 
+### Highlights
+
+- [World & DM] Choose a campaign language at creation or in settings; narration and NPCs share that target, while saves retain the current preference and existing text remains unchanged.
+
 ### Internal
 
 - Added a resumable request ledger, captured saturated scenarios and a bounded real-actor path to the model smoke harness.

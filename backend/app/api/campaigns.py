@@ -4,10 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.campaign_language import LANGUAGES
 from app.dependencies import get_db
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.user import User
-from app.schemas.campaign import CampaignCreate, CampaignResponse
+from app.schemas.campaign import (
+    CampaignCreate,
+    CampaignLanguageOption,
+    CampaignResponse,
+    CampaignUpdate,
+)
 from app.security.auth import get_current_user
 from app.services import campaign_service
 
@@ -33,6 +39,28 @@ async def list_campaigns(
         select(Campaign).where(Campaign.user_id == user.id).order_by(Campaign.updated_at.desc())
     )
     return list(result.scalars().all())
+
+
+@router.get("/languages", response_model=list[CampaignLanguageOption])
+async def list_languages(user: User = Depends(get_current_user)) -> list[CampaignLanguageOption]:
+    return [
+        CampaignLanguageOption(code=code, display_name=name)
+        for code, name in sorted(LANGUAGES.items(), key=lambda item: item[1])
+    ]
+
+
+@router.patch("/{campaign_id}", response_model=CampaignResponse)
+async def update_campaign(
+    campaign_id: uuid.UUID,
+    body: CampaignUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Campaign:
+    campaign = await get_campaign(campaign_id, user, db)
+    campaign.language = body.language
+    await db.commit()
+    await db.refresh(campaign)
+    return campaign
 
 
 @router.get("/{campaign_id}", response_model=CampaignResponse)

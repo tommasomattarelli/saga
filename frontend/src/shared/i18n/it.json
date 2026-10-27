@@ -42,6 +42,12 @@
     "in_scene": "Nella scena"
   },
   "campaign": {
+    "language": "Lingua della campagna",
+    "language_search": "Cerca una lingua",
+    "language_hint": "Usata per nuove narrazioni e dialoghi NPC. I testi precedenti non cambiano.",
+    "language_load_error": "Impossibile caricare le lingue.",
+    "language_retry": "Riprova",
+    "language_save_error": "Impossibile salvare la lingua della campagna. Riprova.",
     "your_campaigns": "Le tue campagne, {{name}}",
     "loading": "Caricamento campagne…",
     "new_card": "Nuova campagna",

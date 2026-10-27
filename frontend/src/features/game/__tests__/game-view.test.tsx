@@ -29,6 +29,7 @@ describe("GameView Component", () => {
   const mockCampaign: Campaign = {
     id: "c123",
     world_slug: "w1",
+    language: "en",
     name: "Epic Quest",
     status: "active",
     difficulty: "medium",

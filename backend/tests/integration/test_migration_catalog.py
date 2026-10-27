@@ -44,8 +44,8 @@ async def test_pre_001_fixture_matches_frozen_create_all() -> None:
 async def test_empty_database_chain_converges_on_current_profile() -> None:
     async with DisposableDatabase() as database:
         await database.upgrade()
-        assert await database.version() == "008_schema_reconciliation"
-        require_profile_match(load_profile("current_post_pr1"), await database.snapshot())
+        assert await database.version() == "009_campaign_language"
+        await database.require_head_schema()
 
 
 async def test_pre_001_revision_matches_its_fixture() -> None:

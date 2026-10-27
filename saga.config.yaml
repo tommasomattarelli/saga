@@ -82,6 +82,7 @@ embedding:
 # Gameplay Settings — runtime behavior
 # ---------------------------------------------------------------------------
 gameplay:
+  default_campaign_language: en  # persisted at creation; existing campaigns keep their language
   context_window_turns: 8        # verbatim turns in DM prompt
   context_token_cap: 12000       # max tokens in DM prompt before oldest verbatim turns are dropped
   npc_verbosity: "medium"        # null=0 minimal=1 low=2 medium=3 high=5 unlimited=999

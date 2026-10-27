@@ -1,5 +1,6 @@
 """NPC prompt — the NPC playing itself sees its full traits (ADR 0009 G3)."""
 
+from app.core.campaign_language import LANGUAGES, validate_language
 from app.core.psychology import DEFAULT_PSYCHOLOGY, band_label
 from app.models.psychology import PsychologyDef
 
@@ -20,6 +21,7 @@ The player did: "{player_action}"
 The DM narrated: "{dm_narration}"
 {recent_history}
 ## Rules
+- Write your public dialogue and action in {campaign_language}, regardless of the player's input or authored world language. Keep your established name unchanged.
 - You do NOT exist to serve the player. You have your own agenda.
 - React realistically to the player's approach (intimidation, charm, deception)
 - You may lie, refuse, or be unhelpful if it fits your character
@@ -65,6 +67,7 @@ def build_npc_prompt(
     dm_narration: str = "",
     psychology: PsychologyDef | None = None,
     fill_empty_traits: bool = False,
+    language: str = "en",
 ) -> str:
     pdef = psychology or DEFAULT_PSYCHOLOGY
     traits_block, empty = _render_traits(npc_data.get("traits", {}))
@@ -85,6 +88,7 @@ def build_npc_prompt(
         recent_history = ""
 
     return NPC_BASE_PROMPT.format(
+        campaign_language=f"{LANGUAGES[validate_language(language)]} ({language})",
         name=npc_data.get("name", "Unknown"),
         location=npc_data.get("location_name") or "Unknown",
         traits_block=traits_block,

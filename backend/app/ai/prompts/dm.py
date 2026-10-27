@@ -7,6 +7,7 @@ import yaml
 
 from app.ai.prompts.presets import PERSONA_PRESETS
 from app.ai.prompts.scene import render_location_block
+from app.core.campaign_language import LANGUAGES, validate_language
 from app.core.health import hp_band
 from app.core.npc_fields import resolve_npc_fields
 from app.core.npc_resolver import npcs_at_current_location
@@ -95,7 +96,10 @@ def build_dm_system_prompt(
 
     # ADR 0003 B8 — no static death block: those instructions reach the DM only when
     # the player actually hits 0, as the per-turn check's narrative_instruction.
-    lines.append(f"<instructions>\n{BASE_DM_PROMPT}")
+    code = getattr(campaign, "language", None)
+    code = validate_language(code) if isinstance(code, str) else "en"
+    instructions = BASE_DM_PROMPT.replace("{campaign_language}", f"{LANGUAGES[code]} ({code})")
+    lines.append(f"<instructions>\n{instructions}")
     lines.append("</instructions>")
 
     # <character>

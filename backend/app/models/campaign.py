@@ -9,6 +9,7 @@ from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.campaign_language import default_campaign_language
 from app.models.base import Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
@@ -42,6 +43,9 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
     # World version stamped at instantiation (ADR 0008 C3b) — saves are frozen
     world_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
     name: Mapped[str] = mapped_column(String(200))
+    language: Mapped[str] = mapped_column(
+        String(2), default=default_campaign_language, server_default="en"
+    )
     status: Mapped[CampaignStatus] = mapped_column(
         SAEnum(CampaignStatus), default=CampaignStatus.ACTIVE
     )

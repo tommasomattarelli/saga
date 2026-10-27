@@ -49,6 +49,7 @@ async def invoke_single_npc(
     psychology: PsychologyDef | None = None,
     fill_empty_traits: bool = False,
     generation: tuple[Any, Any] | None = None,
+    language: str = "en",
 ) -> NPCDialogue:
     """Call a budget LLM for a single NPC's response.
 
@@ -61,6 +62,7 @@ async def invoke_single_npc(
         dm_narration=dm_narration,
         psychology=psychology,
         fill_empty_traits=fill_empty_traits,
+        language=language,
     )
 
     provider, model_config = generation or await get_generation()
@@ -116,6 +118,8 @@ async def invoke_npcs_parallel(
     psychology = resolve_psychology(baseline.get("taxonomy"))
     # D2: at rich detail the NPC is told to invent its missing traits in character.
     fill_empty = config.npc_auto_create_detail == "rich"
+    language = getattr(campaign, "language", None)
+    language = language if isinstance(language, str) else "en"
 
     tasks = []
     for name in names:
@@ -138,6 +142,7 @@ async def invoke_npcs_parallel(
                 dm_narration=dm_narration,
                 psychology=psychology,
                 fill_empty_traits=fill_empty,
+                language=language,
             )
         )
 

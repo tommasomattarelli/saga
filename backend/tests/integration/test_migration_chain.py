@@ -181,7 +181,7 @@ async def test_008_reconciles_schema_and_preserves_rows() -> None:
             {"id": FACT_ID, "campaign": CAMPAIGN_ID},
         )
 
-        await database.upgrade()
+        await database.upgrade("008_schema_reconciliation")
         assert await database.version() == "008_schema_reconciliation"
         assert await _column(database, "campaigns", "global_summary") == ("text", "YES", None)
         assert await _column(database, "turns", "summarization_failed") == (
@@ -254,7 +254,7 @@ async def test_008_refuses_incompatible_state_atomically(setup: str) -> None:
 
 async def test_008_downgrade_refuses_to_recreate_dropped_data() -> None:
     async with DisposableDatabase() as database:
-        await database.upgrade()
+        await database.upgrade("008_schema_reconciliation")
         result = await database.run_alembic("downgrade", "007_embedding_index")
         assert result.returncode != 0
         assert "cannot restore rows dropped" in (result.stdout + result.stderr)
