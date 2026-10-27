@@ -15,6 +15,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Highlights
 
+- [World & DM] Narrate tool outcomes from refreshed in-turn state, with a configurable eight-call DM limit, terminal-safe closing steps and a guard against repeated no-progress tool results.
 - [Gameplay] Apply elapsed time once and report the actual clock change, including completed or interrupted travel, with tool feedback reading the canonical clock (#99).
 - [World & DM] Choose a campaign language at creation or in settings; narration and NPCs share that target, while saves retain the current preference and existing text remains unchanged.
 

@@ -47,7 +47,6 @@ class Settings(BaseSettings):
 
     local_model_url: str = "http://localhost:8080/v1"
     openrouter_api_key: str = ""
-    saga_max_agent_steps: int = 5
 
     log_level: str = "info"
 

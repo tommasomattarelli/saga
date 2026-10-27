@@ -6,6 +6,7 @@ from typing import Annotated, Any, TypedDict
 
 from langgraph.graph.message import add_messages
 
+from app.ai.prompts.dm import DMPromptContext
 from app.models.quest import QuestRegistry
 
 
@@ -44,9 +45,15 @@ class GameState(TypedDict):
 
     # ── Control flow ─────────────────────────────────────────────────────────
     step_count: int
-    consecutive_empty_steps: int  # steps with only silent tools + no narration
+    max_agent_steps: int
+    consecutive_empty_steps: int  # steps without state changes or fresh playable results
+    progress_fingerprints: list[str]
+    allowed_tools: list[str]
+    closing_step: bool
+    followup_required: bool
     death_event: dict[str, Any] | None
 
     # ── Internal (set by context_node, consumed by dm_node) ──────────────────
     system_prompt: str
+    prompt_context: DMPromptContext
     model_config: dict[str, Any]  # {provider, model, max_tokens}
