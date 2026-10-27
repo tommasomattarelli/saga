@@ -19,9 +19,11 @@ export default function LanguageSelect({ value, onChange, disabled = false }: Pr
     staleTime: Infinity,
   });
   const query = search.trim().toLowerCase();
+  const selected = value || data?.find((entry) => entry.is_default)?.code || "";
   const options = data?.filter(
     (entry) =>
-      entry.code === value || `${entry.display_name} ${entry.code}`.toLowerCase().includes(query),
+      entry.code === selected ||
+      `${entry.display_name} ${entry.code}`.toLowerCase().includes(query),
   );
   const controlClass =
     "w-full rounded-lg px-3 py-2 font-display text-sm focus:outline-none focus:ring-1 focus:ring-accent";
@@ -52,7 +54,7 @@ export default function LanguageSelect({ value, onChange, disabled = false }: Pr
       />
       <select
         id={id}
-        value={value}
+        value={selected}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled || isPending || isError}
         className={controlClass}

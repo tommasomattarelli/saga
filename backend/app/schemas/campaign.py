@@ -33,6 +33,7 @@ class CampaignUpdate(BaseModel):
 class CampaignLanguageOption(BaseModel):
     code: LanguageCode
     display_name: str
+    is_default: bool
 
 
 class CampaignResponse(BaseModel):

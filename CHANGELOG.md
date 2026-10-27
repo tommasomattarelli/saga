@@ -21,6 +21,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Hardened live evaluation with personal AI settings, retry-free request accounting, full traces and identity-aware resume/reporting; verified campaign-language defaults and rejected tool-call correlations.
 - Factored prompt text into packaged YAML and composed deterministic tool obligations from each step's exposed tool registry (ADR 0004 S2).
 - Added a resumable request ledger, captured saturated scenarios and a bounded real-actor path to the model smoke harness.
 - Recorded the ADR 0004 S2 implementation decisions — campaign language, prompt sources, result-aware loop, clock authority — and the ADR 0017 claims they supersede.

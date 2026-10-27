@@ -84,8 +84,8 @@ async def test_languages_is_authenticated_catalog_not_a_campaign_id(
     assert response.status_code == 200
     entries = response.json()
     assert len(entries) == 184
-    assert {"code": "en", "display_name": "English"} in entries
-    assert {"code": "it", "display_name": "Italian"} in entries
+    assert {"code": "en", "display_name": "English", "is_default": True} in entries
+    assert {"code": "it", "display_name": "Italian", "is_default": False} in entries
     assert len({entry["code"] for entry in entries}) == len(entries)
     client.headers.pop("Authorization")
     assert (await client.get("/api/campaigns/languages")).status_code == 401

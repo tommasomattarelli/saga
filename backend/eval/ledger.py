@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
 
@@ -32,6 +32,12 @@ class Attempt:
     seconds: float = 0.0
     error: str = ""
     at: str = ""
+    checkpoint: str = ""
+    model: str = ""
+    commit: str = ""
+    dirty: bool = False
+    request: dict = field(default_factory=dict)
+    response: dict = field(default_factory=dict)
 
 
 class RequestLedger:
@@ -90,16 +96,9 @@ class RequestLedger:
             if data.get("event") == "reserve":
                 self._reserved.append(key)
                 continue
+            names = {item.name for item in fields(Attempt)}
             self._results[key] = Attempt(
-                key=key,
-                scenario=str(data.get("scenario", "")),
-                probe=str(data.get("probe", "")),
-                run=int(data.get("run", 0)),
-                status=str(data.get("status", "ok")),
-                failed=list(data.get("failed") or []),
-                seconds=float(data.get("seconds", 0.0)),
-                error=str(data.get("error", "")),
-                at=str(data.get("at", "")),
+                **{key: value for key, value in data.items() if key in names}
             )
 
     def _write(self, payload: dict) -> None:

@@ -9,8 +9,8 @@ import type { Campaign } from "../../../shared/types";
 vi.mock("../../../shared/api/client", () => ({
   getCampaignLanguages: vi.fn(async () => ({
     data: [
-      { code: "en", display_name: "English" },
-      { code: "it", display_name: "Italian" },
+      { code: "en", display_name: "English", is_default: true },
+      { code: "it", display_name: "Italian", is_default: false },
     ],
   })),
   updateCampaignLanguage: vi.fn(),

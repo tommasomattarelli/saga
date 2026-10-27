@@ -36,6 +36,9 @@ class Scenario:
     reconstructed: bool = False
     notes: str = ""
 
+    def __post_init__(self) -> None:
+        self.campaign.language = self.language
+
     @property
     def unsupported(self) -> set[str]:
         """Probes this scene cannot ask honestly — e.g. no present NPC to address.

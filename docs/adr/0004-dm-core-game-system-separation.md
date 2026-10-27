@@ -175,7 +175,8 @@ length-cap values.
 
 ## 8. S2 implementation pass (2026-10-27)
 
-S2 is implemented on `adr/0004-dm-prompt-contracts` together with three changes
+S2 code is implemented on `adr/0004-dm-prompt-contracts`; final live comparisons
+and owner playtest remain acceptance gates. It includes three changes
 the original plan did not name. They are recorded here because they change what
 S2's prompts say, where its values live, and how the loop that consumes them is
 bounded.
@@ -190,7 +191,8 @@ replaced it with an explicit campaign-owned target language:
   campaigns (the forward migration backfills them).
 - Selectable at creation, editable in campaign settings. A read-only,
   authenticated `GET /api/campaigns/languages` serves the catalog so the
-  frontend does not keep a second handwritten list.
+  frontend does not keep a second handwritten list; `is_default` exposes the
+  YAML-selected default rather than hardcoding the wizard's initial selection.
 - The same explicit target reaches DM and NPC generation, independent of the
   player's input language, `User.preferred_language`, the frontend locale and
   the language of authored world text.
@@ -275,6 +277,13 @@ Rejected: counting every prose-empty step (cuts valid beats); dropping the stall
 guard entirely (wastes the whole budget on useless retries); a semantic LLM judge
 (extra cost and a new fallible decision layer). The existing configured threshold
 remains 2, now counting stalls rather than missing narration.
+
+**S2 note (2026-10-27, implementation).** Prompt history/recall is loaded once;
+each DM call renders current world, HP/inventory, quest and presence data with
+exactly that response's allowed tools. The executor enforces that same frozen
+allowlist. Migration-backed graph tests exercise call caps 1/3/8/17, early
+completion, terminal tools, rejected hallucinations, repeated dice outcomes and
+travel/actor progress; no extra closing call escapes the cap.
 
 ## 9. Notes / sources
 

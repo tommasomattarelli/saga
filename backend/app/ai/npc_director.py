@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import dataclass, field
-from typing import Any
 
 import structlog
 
@@ -49,14 +48,8 @@ async def invoke_single_npc(
     dm_narration: str,
     psychology: PsychologyDef | None = None,
     fill_empty_traits: bool = False,
-    generation: tuple[Any, Any] | None = None,
     language: str = "en",
 ) -> NPCDialogue:
-    """Call a budget LLM for a single NPC's response.
-
-    `generation` exists for the offline evaluation harness, which drives the real
-    prompt and parser without a user's personal configuration (ADR 0018).
-    """
     prompt = build_npc_prompt(
         npc_profile,
         player_action=player_action,
@@ -66,7 +59,7 @@ async def invoke_single_npc(
         language=language,
     )
 
-    provider, model_config = generation or await get_generation()
+    provider, model_config = await get_generation()
 
     try:
         raw = await logged_generate(
