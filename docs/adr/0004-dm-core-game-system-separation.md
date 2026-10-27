@@ -237,6 +237,11 @@ explicit exemption.
   the canonical clock difference for the turn; post-processing does not apply it
   again (#99).
 
+**S2 note (2026-10-27, implementation).** The executor accumulates the canonical
+clock difference before/after each tools node, including travel and mixed batches;
+post-processing never writes time. Real migrated-DB turn tests cover +15 (not +30),
+completed travel +45, interrupted travel +22, rejection +0 and mixed tools +48.
+
 ### 8.4 Scope guard
 
 S1 (tone + `config_override`) remains unimplemented, so 0004 stays **Proposed**.

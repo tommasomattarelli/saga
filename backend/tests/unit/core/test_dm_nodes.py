@@ -101,17 +101,16 @@ class TestPostProcessNode:
         assert len(segments) == 1
         assert segments[0]["text"] == full_text
 
-    def test_advances_clock_when_time_passed(self):
+    def test_reported_time_does_not_advance_clock_again(self):
         from app.core.dm.dm_nodes import post_process_node
 
         state = _make_state(
             time_passed_minutes=30,
-            world_state={"time": {"hour": 10, "minute": 0}},
+            world_state={"clock": {"total_minutes": 630}},
             char_data={"hp": {"current": 10, "max": 10}},
         )
         result = post_process_node(state)
-        # Should have advanced the time — world state should be updated
-        assert result["world_state"] is not None
+        assert result["world_state"]["clock"]["total_minutes"] == 630
 
     def test_no_clock_advance_when_zero_time(self):
         from app.core.dm.dm_nodes import post_process_node
