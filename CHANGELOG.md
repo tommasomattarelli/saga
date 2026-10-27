@@ -15,5 +15,6 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Added a resumable request ledger, captured saturated scenarios and a bounded real-actor path to the model smoke harness.
 - Recorded the ADR 0004 S2 implementation decisions — campaign language, prompt sources, result-aware loop, clock authority — and the ADR 0017 claims they supersede.
 - Clarified LangSmith graph-state traces versus model prompts and recorded persistent identity and profile requirements for rich auto-created NPCs.

@@ -67,9 +67,17 @@ Two properties this buys, both deliberate:
 
 ## Same format, two producers
 
-`scenario_build.py --from-campaign <uuid> --at-turn 25` emits the **same** format from a real
-campaign in the database. The harness cannot tell the difference. That is why the format was
-fixed before either producer was written.
+`capture_scenario.py --campaign <uuid>` emits the **same** format from a real campaign in the
+database: the world overlay, the active-window history and the batch summaries are captured,
+not replayed. The harness cannot tell the difference. That is why the format was fixed before
+either producer was written.
+
+A captured state is only as faithful as the moment it was taken. A fixture that has to move the
+player — to put a living NPC in the scene, or to sit at the turn where the failure happened —
+is marked `reconstructed: true`, and the report prints it. Never silently.
+
+Stimuli and per-probe recall are authored in `scenarios/stimuli/<name>.yaml` and merged by the
+capture, because they belong to the scene, not to the database.
 
 Anonymise before committing anything extracted from real play — this repo goes public.
 
@@ -87,6 +95,13 @@ under load:
 | `gold` | baseline: coherent, no entropy |
 | `bloat` | **length** — same events, much longer summaries |
 | `contradiction` | **inconsistency** — the player asserts things that contradict canon |
+
+Built scenarios are not all transcript variants. `debug-shrine` and `debug-thornhaven` are
+**captured** from the 2026-10-25/26 debug campaign. `debug-thornhaven` moves the captured state
+to Thornhaven so a living NPC is present (`reconstructed: true`); `debug-thornhaven-it` is an
+**overlay** (`extends:`) that changes only the campaign language and the Italian stimuli, so
+the two language directions share one captured state. A probe a scene cannot ask honestly —
+`npc_speaks` where no living NPC is present — is reported `n/a`, never invented.
 
 More were considered (`rename`, `death`, `abandoned`, `language`) and deliberately not built:
 they are speculative until `bloat` and `contradiction` say something. Add one when a
@@ -135,6 +150,21 @@ It exists because those move through tool executors, not through `apply_typed_up
      probe — is impossible while embeddings are hardcoded to OpenAI and silently return
      None. The corpus IS stored in built/*.yaml under `fact_corpus` so the switch needs no
      format change. Until #55 is closed, do not read these recalls as faithful. -->
+
+## Live runs: ledger, resume, budget
+
+Every provider call is a request, and the free tier does not forgive an overshoot. Pass
+`--ledger <path> --budget N` and the harness reserves each attempt on disk before the call and
+records its result after it. A crash or a 429 leaves a checkpoint: `--resume` skips what
+finished, counts what was interrupted, and `--out` writes machine-readable results with the
+code commit that produced them.
+
+`--actor` adds the bounded real-actor path (`actor_probe.py`): one real `invoke_single_npc`
+call per run against a present NPC, because the DM probes inject the actor result and so cannot
+see the actor's own prompt (#51). Batched beats and multi-line results are ADR 0017's PR 2.
+
+On exhaustion the run stops, writes what it has and exits 3 — it never sleeps until quota
+renews.
 
 ## Deliberately out of scope
 
