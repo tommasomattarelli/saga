@@ -25,6 +25,9 @@ _ENGINE_WRITABLE = ("name", "condition", "location", "faction")
 
 @register
 class UpdateNpc(DmTool):
+    obligation = "update_npc"
+    terminal_safe = False
+
     name: str = Field(description="NPC name — an existing NPC to update, or a new one to create")
     updates: dict[str, str] = Field(
         description="Field → new value. Writable: name (rename = identity reveal, never a "
@@ -148,6 +151,9 @@ def _reject(world_state: dict, char_data: dict, message: str) -> ToolResult:
 
 @register
 class KillNpc(DmTool):
+    obligation = "kill_npc"
+    terminal_safe = False
+
     name: str = Field(description="Exact name of the NPC that dies")
     cause: str = Field(description="Brief cause of death (e.g. 'duel', 'poison')")
 
@@ -187,6 +193,9 @@ class KillNpc(DmTool):
 
 @register
 class RemoveNpc(DmTool):
+    obligation = "remove_npc"
+    terminal_safe = False
+
     name: str = Field(description="Exact name of the NPC leaving the story")
     reason: str = Field(description="Why they leave (e.g. 'departed for the capital')")
 
@@ -220,6 +229,9 @@ class RemoveNpc(DmTool):
 
 @register
 class RestoreNpc(DmTool):
+    obligation = "restore_npc"
+    terminal_safe = False
+
     name: str = Field(description="Exact name of the removed NPC returning to the story")
     location: str | None = Field(default=None, description="Where they reappear (place name)")
 

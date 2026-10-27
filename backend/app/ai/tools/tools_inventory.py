@@ -9,6 +9,9 @@ from app.ai.tools.tools_base import DmTool, ToolResult, apply, register
 
 @register
 class AddItem(DmTool):
+    obligation = "add_item"
+    terminal_safe = False
+
     name: str = Field(description="Item name")
     description: str = Field(default="", description="Brief item description")
     quantity: int = Field(default=1, description="Quantity to add")
@@ -46,6 +49,9 @@ class AddItem(DmTool):
 
 @register
 class RemoveItem(DmTool):
+    obligation = "remove_item"
+    terminal_safe = False
+
     name: str = Field(description="Exact item name to remove from inventory")
 
     @classmethod

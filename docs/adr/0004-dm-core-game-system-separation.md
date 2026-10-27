@@ -220,6 +220,11 @@ affects schemas and obligations together. Missing or unknown references fail
 validation, and a test asserts every registered tool has an obligation or an
 explicit exemption.
 
+**S2 note (2026-10-27, implementation).** All seven YAML files are packaged under
+`app/ai/prompts/templates`; the missing build backend was made explicit so a real
+wheel includes them. Extraction hashes preserve memory, persona and actor text;
+DM core and per-tool obligations are deliberately revised, not claimed equivalent.
+
 ### 8.3 Result-aware loop and time authority (Decided)
 
 - `gameplay.max_agent_steps` (default **8**) is the single DM-call bound, read
@@ -247,6 +252,29 @@ completed travel +45, interrupted travel +22, rejection +0 and mixed tools +48.
 S1 (tone + `config_override`) remains unimplemented, so 0004 stays **Proposed**.
 The NPC dialogue contract stays as it is until 0017 (PR 2): S2 does not batch
 actor calls, introduce markers, or change the single-line NPC result.
+
+### 8.5 Stall guard refinement (Decided, 2026-10-27)
+
+The real migrated-DB regression `test_result_aware_loop.py` showed that a valid
+travel followed by a valid NPC response consumed the two prose-empty steps and
+ended with no result narration. The owner chose combined observable progress and
+exact-repeat detection (A+C), not the old absence-of-prose criterion:
+
+- A real change to world, character or quest state is progress, including nested
+  mutations. A fresh resolved dice result or NPC public result is playable progress
+  even if no state changed. DM prose and display bookkeeping do not count.
+- Fingerprints contain normalized tool name/arguments plus the semantic public
+  result, excluding provider tool-call IDs and step IDs. The same request/result
+  without a new effect is a stall; a different random outcome is fresh progress.
+  A real state change wins over repetition, including actual time advancement.
+- At the configured consecutive-stall threshold, reserve the next available DM
+  opportunity for closing, with the same terminal-safe subset as the budget's last
+  step. It remains inside the total call limit, never an extra cleanup call.
+
+Rejected: counting every prose-empty step (cuts valid beats); dropping the stall
+guard entirely (wastes the whole budget on useless retries); a semantic LLM judge
+(extra cost and a new fallible decision layer). The existing configured threshold
+remains 2, now counting stalls rather than missing narration.
 
 ## 9. Notes / sources
 

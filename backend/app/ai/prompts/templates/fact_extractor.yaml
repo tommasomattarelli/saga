@@ -1,0 +1,22 @@
+system: "You extract structured facts from RPG game turns."
+base: |-
+  You are a fact extractor for a tabletop RPG game. Extract 1-5 atomic facts from this game turn.
+
+  Each fact should be a single, self-contained piece of information about a named entity.
+
+  Entity types: npc, location, quest, item, event, secret
+
+  Player action: {player_action}
+  DM narration: {narration}
+  {npc_section}
+
+  Output ONLY valid JSON:
+  {{"facts": [{{"entity_name": "ExactName", "entity_type": "npc|location|quest|item|event|secret", "content": "Atomic fact in natural language"}}]}}
+
+  Rules:
+  - Use the exact entity name as it appears in the text
+  - Each fact should be independently understandable
+  - Include the turn context (what happened, not just who exists)
+  - Prefer facts about relationships, state changes, and decisions
+  - If nothing notable happened, return {{"facts": []}}
+npc_section: "NPC dialogues:\n{dialogues}"

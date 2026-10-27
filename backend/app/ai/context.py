@@ -8,6 +8,7 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.prompts.dm import DMPromptContext, campaign_prompt_context
 from app.ai.router import get_gameplay_config
 from app.memory.recall import PreparedRecallQuery
 from app.memory.semantic import search_similar_facts
@@ -24,6 +25,7 @@ class GameContext:
     system_prompt: str = ""
     messages: list[dict] = field(default_factory=list)
     importance_score: int = 5
+    prompt_context: DMPromptContext = field(default_factory=DMPromptContext)
 
 
 def _estimate_tokens(text: str) -> int:
@@ -172,4 +174,7 @@ async def build_context(
     return GameContext(
         system_prompt=system_prompt,
         messages=budgeted_messages,
+        prompt_context=campaign_prompt_context(
+            campaign, summary_context, global_summary, recalled
+        ),
     )

@@ -1,0 +1,32 @@
+attack: |-
+  Resolve every attempted blow with attack(attacker, target), including creatures striking back in the same exchange. There is no combat mode to open or close. The engine decides hit, miss and damage: narrate only its returned outcome, never an uncomputed blow or wound.
+request_dice: |-
+  Request a roll for an uncertain action with meaningful stakes, not for trivial or impossible actions. Supply the specific check label and one difficulty: trivial, easy, normal, hard, very_hard, near_impossible. Classify the task, not the character; advantage and disadvantage describe circumstances and cancel each other. The engine returns the tier and hazard damage. A partial success grants success with a cost; describe that result after the roll.
+heal: |-
+  Restore health through heal(healer, target, heal_class); the healer must actually be present. The engine computes the amount and limits. Narrate the returned healing or rejection, not an invented HP change.
+add_item: |-
+  Every acquired inventory object requires add_item: taking, picking up, looting, stealing or receiving an object. Resolve the acquisition before narrating that the object is now owned.
+remove_item: |-
+  Every consumed, used up, given away, thrown away, broken or lost inventory object requires remove_item. Narrate the returned inventory outcome rather than assuming removal succeeded.
+invoke_npc: |-
+  A present NPC's speech, answer or verbal reaction comes from invoke_npc(name, context), never from the narrator. Invite an actor proactively when it would naturally speak; check actual scene presence, not merely the existence of social tools. Call one NPC at a time, sequentially in narrative order. The returned single line and action are already displayed in a dedicated bubble: continue with the environment, consequences and the next beat, leaving that spoken exchange in its bubble instead of retelling or expanding it.
+move_to: |-
+  Resolve every attempted change of player location with move_to using a canonical destination name or slug. Before the result, describe only setting out or attempting the journey. Afterward narrate the actual arrival, rejection or interruption; an interrupted journey has not arrived. The tool already pays elapsed travel time, including interruptions. Do not pay that journey again with advance_time.
+update_quest: |-
+  Persist quest changes through update_quest(quest_id, status), addressing the stable id rather than the display title. Valid statuses are active, completed, failed, abandoned; they are reversible. Preserve existing fields unless explicitly changing them. Narrate only the actual update or rejection returned by the engine.
+change_npc_psychology: |-
+  Use change_npc_psychology for a narrated shift in an NPC's feelings outside the actor's own conversation updates. Use world-defined axes; the engine validates presence, axes and deltas. Narrate the returned result rather than assuming the shift succeeded.
+update_npc: |-
+  Establish or change NPC identity, condition, traits or location with update_npc. Respect the existing record and canonical identity. The tool validates which fields may change and whether a new NPC may be created; narrate its result, not a presumed mutation.
+kill_npc: |-
+  Use kill_npc for a narrative death outside damage resolution. A lethal attack already records death, so do not kill that NPC again. Narrate only the returned outcome or rejection.
+remove_npc: |-
+  Use remove_npc to record a living NPC leaving the active world, not to kill it. Narrate the departure after the tool confirms it.
+restore_npc: |-
+  Use restore_npc to return a previously removed NPC to the world. Respect lifecycle and presence checks and narrate the returned outcome, not an assumed restoration.
+advance_time: |-
+  Advance the clock for genuinely elapsed additional time, including passive waiting (dialogue 1-5 minutes, exploration 10-30 minutes). A passive turn should also introduce a concrete world event. move_to already pays travel duration: do not add it again. The tool's returned canonical clock is authoritative.
+set_scene_mood: |-
+  Use set_scene_mood when the emotional tone changes meaningfully. Choose an available mood value matching the current atmosphere; neutral is for mundane exploration. This is silent presentation metadata, not prose.
+log_event: |-
+  Use log_event to persist a significant world event that actually occurred. Logging does not perform movement, damage, inventory changes or other mechanics; those require their own tools.
