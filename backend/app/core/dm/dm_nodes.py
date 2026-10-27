@@ -23,7 +23,7 @@ from app.core.dm.dm_helpers import get_or_create_segment, messages_to_raw, raw_h
 from app.core.dm.game_state import GameState
 from app.core.engine import CONTENT_POLICY_NARRATION
 from app.exceptions import AIProviderError
-from app.memory.world_state import advance_game_clock, migrate_world_state
+from app.memory.world_state import migrate_world_state
 from app.models.quest import QuestRegistry
 
 _llm_io = logging.getLogger("llm_io")
@@ -182,9 +182,6 @@ def post_process_node(state: GameState) -> dict[str, Any]:
             seg = get_or_create_segment(narration_segments, last_step)
             if not seg["text"]:
                 seg["text"] = full_narration[covered:]
-
-    if state["time_passed_minutes"] > 0:
-        world_state = advance_game_clock(world_state, state["time_passed_minutes"])
 
     # The difficulty rides the state from context_node. It used to be read off
     # char_data, a key nothing ever wrote, so every campaign silently resolved as

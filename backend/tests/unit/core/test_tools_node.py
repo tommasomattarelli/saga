@@ -145,24 +145,15 @@ class TestToolsNodeRegularTool:
         tc = {"id": "tc1", "name": "advance_time", "args": {"minutes": 30}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
-        mock_tool_result = MagicMock()
-        mock_tool_result.world_state = {}
-        mock_tool_result.char_data = {}
-        mock_tool_result.description = "Time advanced."
-        mock_tool_result.extra = {}
-
-        mock_tool_cls = MagicMock()
-        mock_tool_cls.visible.return_value = False
-
-        state = _make_state(messages=[ai_msg], time_passed_minutes=10)
-
-        with (
-            patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_tool_result),
-            patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls),
-        ):
-            result = await tools_node(state)
+        state = _make_state(
+            messages=[ai_msg],
+            time_passed_minutes=10,
+            world_state={"clock": {"total_minutes": 490}},
+        )
+        result = await tools_node(state)
 
         assert result["time_passed_minutes"] == 40
+        assert result["world_state"]["clock"]["total_minutes"] == 520
 
     @pytest.mark.asyncio
     async def test_visible_tool_added_to_tool_events(self):

@@ -67,6 +67,7 @@ async def tools_node(state: GameState) -> dict[str, Any]:
     called_npcs = list(state["called_npcs"])
     scene_mood = state["scene_mood"]
     time_passed = state["time_passed_minutes"]
+    initial_clock = world_state.get("clock", {}).get("total_minutes", 480)
     narration_segments = list(state["narration_segments"])
     step = state["step_count"] - 1  # step_count already incremented by dm_node
 
@@ -154,9 +155,6 @@ async def tools_node(state: GameState) -> dict[str, Any]:
 
         if name == "set_scene_mood" and tool_result.extra.get("mood"):
             scene_mood = tool_result.extra["mood"]
-        if name == "advance_time":
-            time_passed += args.get("minutes", 0)
-
         tool_cls = get_tool(name)
         if tool_cls and tool_cls.visible():
             tool_events.append(
@@ -188,7 +186,9 @@ async def tools_node(state: GameState) -> dict[str, Any]:
         "npc_dialogues": npc_dialogues,
         "called_npcs": called_npcs,
         "scene_mood": scene_mood,
-        "time_passed_minutes": time_passed,
+        "time_passed_minutes": time_passed
+        + world_state.get("clock", {}).get("total_minutes", initial_clock)
+        - initial_clock,
         "narration_segments": narration_segments,
         "consecutive_empty_steps": consecutive_empty_steps,
     }
