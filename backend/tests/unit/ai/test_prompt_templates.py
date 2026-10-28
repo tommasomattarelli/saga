@@ -59,6 +59,44 @@ def test_filtered_prompt_and_schemas_have_the_same_obligations():
     assert "FIRST response: write your full narration" not in prompt
 
 
+@pytest.mark.parametrize("closing", [False, True])
+def test_current_state_authority_is_explicit_without_erasing_historical_context(closing):
+    from app.ai.prompts.dm import build_dm_system_prompt
+    from app.models.campaign import Campaign
+
+    campaign = Campaign(world_state={}, character_data={}, quests={}, language="en")
+    summary = "Earlier narration placed the player in Thornhaven."
+    memory = "The player previously reached the village gate."
+    prompt = build_dm_system_prompt(
+        campaign,
+        summary_context=summary,
+        recalled_memories=[memory],
+        allowed_tools={"advance_time"} if closing else {"move_to"},
+        closing=closing,
+    )
+
+    assert "CURRENT STATE IS AUTHORITATIVE:" in prompt
+    assert (
+        "override conflicting earlier assistant messages, summaries and recalled memories"
+        in prompt
+    )
+    assert "Do not say the player is already there based on history alone" in prompt
+    assert prompt.index("CURRENT STATE IS AUTHORITATIVE:") < prompt.index("<history label=")
+    assert summary in prompt and memory in prompt
+    assert ('tool="move_to"' in prompt) is not closing
+
+
+def test_movement_obligation_uses_canonical_location_when_history_claims_arrival():
+    from app.ai.prompts.obligations import compose_obligations
+
+    obligation = compose_obligations({"move_to"})
+    assert (
+        "Compare the destination with the current canonical location, not earlier prose"
+        in obligation
+    )
+    assert "still resolve the requested journey with move_to" in obligation
+
+
 def test_unknown_obligation_reference_is_rejected(monkeypatch):
     from app.ai.prompts.obligations import compose_obligations
 

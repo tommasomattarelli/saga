@@ -1,0 +1,18 @@
+# Controlled evaluation overlay, not a captured pre-turn-11 snapshot.
+extends: debug-shrine
+meta:
+  name: travel-coherent
+  origin: controlled
+  derived: false
+  reconstructed: true
+  notes: >-
+    Authored coherent history at the shrine, retaining the captured mechanical state,
+    summaries, recall and travel action; no earlier arrival at Thornhaven is narrated.
+history:
+  - role: user
+    content: I take in my surroundings at the shrine.
+  - role: assistant
+    content: >-
+      You stand at the Shrine of First Light, surrounded by moss-covered pillars.
+      Beyond the stone circle, a forest path leads east toward Thornhaven,
+      roughly forty-five minutes away through the trees.

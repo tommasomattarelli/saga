@@ -103,6 +103,38 @@ to Thornhaven so a living NPC is present (`reconstructed: true`); `debug-thornha
 the two language directions share one captured state. A probe a scene cannot ask honestly —
 `npc_speaks` where no living NPC is present — is reported `n/a`, never invented.
 
+### Travel prevention versus conflict recovery
+
+Use the same `travel_move` probe with two explicitly different cases:
+
+- **`travel-coherent`**: an authored, reconstructed conversation that still places the
+  player at the shrine before setting out for Thornhaven; it is not a captured state
+  from before the original turn 11.
+- **`travel-conflict`**: the original captured post-turn-14 mechanical state and unchanged
+  history, where previous DM narration already claimed arrival but canonical position
+  remains the shrine; this tests recovery from an existing conflict.
+
+Both extend `debug-shrine`, preserving canonical state, summaries, recall, tools and the
+same current player action. Only the coherent case replaces evaluation history; neither
+rewrites the saved campaign or the original captured fixture. Both require `move_to`
+because the canonical starting position is the shrine. Score and inspect them separately:
+a coherent-case pass does not establish recovery, and recovery alone does not establish
+normal coherent play. The quote/length/language heuristics still require manual review.
+
+Offline assembly only, with no provider or catalog requests:
+
+```text
+uv run python eval/model_smoke.py --model nvidia/nemotron-3-ultra-550b-a55b:free \
+  --model nvidia/nemotron-3.5-super-vl:free \
+  --scenario travel-coherent --scenario travel-conflict --probe travel_move --dry-run
+```
+
+Future owner-authorized live runs must use a new checkpoint such as
+`pr1-state-authority`, not append revised-prompt scores to the old `pr1-final` or
+`pr1-context-diagnostics` comparison. The owner requested no commit until positive live
+results: retain the truthful dirty-tree marker and exact request digest rather than
+describing the new prompt as a clean run of the previous HEAD. Live validation is pending.
+
 More were considered (`rename`, `death`, `abandoned`, `language`) and deliberately not built:
 they are speculative until `bloat` and `contradiction` say something. Add one when a
 measurement asks for it.

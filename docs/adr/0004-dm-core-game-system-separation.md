@@ -285,6 +285,26 @@ allowlist. Migration-backed graph tests exercise call caps 1/3/8/17, early
 completion, terminal tools, rejected hallucinations, repeated dice outcomes and
 travel/actor progress; no extra closing call escapes the cap.
 
+### 8.6 Current-state precedence (2026-10-28)
+
+The owner approved stronger prompt guidance after offline inspection of captured
+story/state divergence: current canonical scene/character/quests and latest confirmed
+tool results take precedence over conflicting earlier prose, summaries and memories.
+Travel obligations compare the requested destination with canonical position, not an
+old narrated arrival. This adds no automatic movement, prose deletion, retry or judge.
+
+**S2 note (2026-10-28, implementation; live validation pending).** `travel-coherent`
+provides explicitly reconstructed shrine history; `travel-conflict` preserves the
+original captured contradiction. Both retain the same mechanical state and travel
+request. Offline tests verify composition and preserved history, not model obedience;
+no behavioral issue is declared fixed and commits await positive owner-authorized calls.
+
+**S2 note (2026-10-28, implementation update).** Owner-approved live trials requested
+`move_to` in every valid short and ten-turn coherent-history response (3/3 per model in
+each case); the long Ultra batch also returned one HTTP 502. This supports preventing new
+divergence during coherent play, not restoring an already-inconsistent history. The sample
+does not establish a general reliability rate.
+
 ## 9. Notes / sources
 
 Survey sources (2026-06-09): open-tabletop-gm SKILL.md/system.md split, aidm DNA axes,
