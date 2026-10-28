@@ -22,6 +22,7 @@ def actor_arguments(scenario: Scenario) -> dict:
         "npc_name": str(profile.get("name") or npc_id),
         "npc_profile": profile,
         "player_action": scenario.stimuli["npc_speaks"].player,
+        "invocation_context": scenario.stimuli["npc_speaks"].npc_context,
         "dm_narration": scenario.history[-1]["content"] if scenario.history else "",
         "psychology": resolve_psychology(baseline.get("taxonomy")),
         "language": scenario.language,

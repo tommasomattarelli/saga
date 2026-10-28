@@ -26,6 +26,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Prepared ADR 0017's retry-free, resumable two-day foreground evaluation with captured baselines, real parallel actors and offline quota/identity checks; live execution awaits owner approval.
 - Added typed narration parts and frozen NPC line handles with deterministic placement, malformed-marker cleanup and dice-safe end-of-turn fallback (ADR 0017).
 - Grounded ADR 0017 S0 on merged PR 1, recording ordinary-NPC beat, failure, visibility and transcript contracts with quota-bounded two-day final evaluation.
 - Live probes requested `move_to` for every valid response in short and ten-turn coherent travel; recovery of already-conflicting history remains unreliable (#101).
