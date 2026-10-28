@@ -1,0 +1,7 @@
+# Preserve the original captured post-turn-14 state and contradictory history.
+extends: debug-shrine
+meta:
+  name: travel-conflict
+  notes: >-
+    Recovery case: the captured canonical position remains the shrine while the
+    unchanged previous narration already places the player in Thornhaven.
