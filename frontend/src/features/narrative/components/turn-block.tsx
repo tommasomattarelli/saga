@@ -4,7 +4,12 @@ import DiceRoller from "./dice-roller";
 import NPCBubble from "./npc-bubble";
 import Typewriter from "./typewriter";
 import PlayerAction from "./player-action";
-import type { DiceResult, NarrationSegment, TurnResponse } from "../../../shared/types";
+import type {
+  DiceResult,
+  NarrationPart,
+  NarrationSegment,
+  TurnResponse,
+} from "../../../shared/types";
 
 function DmParagraphs({
   text,
@@ -62,19 +67,31 @@ function SegmentView({
   onDiceRevealed?: (step: number) => void;
 }) {
   const stepDice = diceResults?.find((d) => d.step === segment.step)?.rolls ?? segment.dice;
+  const parts: NarrationPart[] = segment.parts;
 
   return (
     <Fragment>
-      <div className="font-body text-lg" style={{ color: "var(--ink-primary)" }}>
-        <DmParagraphs
-          text={segment.text}
-          useTypewriter={useTypewriter}
-          dropCap={isFirstTurn && segment.step === 1}
-        />
-      </div>
-      {segment.npc_dialogues?.map((npc, i) => (
-        <NPCBubble key={`npc-${segment.step}-${i}`} {...npc} />
-      ))}
+      {parts.map((part, i) =>
+        part.type === "text" ? (
+          <div
+            key={`text-${segment.step}-${i}`}
+            className="font-body text-lg"
+            style={{ color: "var(--ink-primary)" }}
+          >
+            <DmParagraphs
+              text={part.text}
+              useTypewriter={useTypewriter}
+              dropCap={isFirstTurn && segment.step === 1 && i === 0}
+            />
+          </div>
+        ) : (
+          <NPCBubble
+            key={`npc-${part.npc_id}-${part.line_index}`}
+            npc_name={part.npc_name}
+            dialogue={part.dialogue}
+          />
+        ),
+      )}
       {stepDice && (
         <DiceRoller
           rolls={stepDice}
