@@ -420,6 +420,15 @@ promoted pre-pass remains owned by 0014, with no dormant automation here.
 
 ### 9.4 Delivery and acceptance
 
+**S1 note (2026-10-28, delivery).** The code is split into seven logical commits:
+S0, actor outcomes, pure composition contracts, beat execution/backend transport,
+frontend rendering, the separately tracked memory-input fix (#106), and evaluation.
+The final suite is prepared offline: 36 trials, nominal 66 requests, maximum 72
+under its explicit foreground caps. Captured PR 1 evidence is reused, not rerun.
+Owner subsequently requested an explicit stop before any OpenRouter contact,
+including catalog metadata. No PR 2 live request has been made; acceptance and
+issue closures remain pending the completed two-day suite and owner review.
+
 **S1 note (2026-10-28, memory integration).** Batch compression and rolling
 summary each truncated every narration to its first 300 characters before the
 model call (#106). That would drop later spliced/fallback speech, so both now
