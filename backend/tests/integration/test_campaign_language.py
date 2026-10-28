@@ -194,14 +194,19 @@ async def test_language_reaches_real_dm_and_actor_and_survives_autosave_restore(
     )
 
     async def actor_reply(**kwargs: object) -> str:
-        return '{"dialogue": "Salve.", "axis_changes": {}}'
+        return '{"status":"speaking","lines":["Salve."], "axis_changes": {}}'
 
     provider.generate.side_effect = actor_reply
     first = await _take_turn(auth_client, campaign_id, "Hello, Lyra!")
     assert "Italian (it)" in captured[0]["system_prompt"]
     actor = provider.generate.call_args.kwargs
     assert "Italian (it)" in actor["messages"][0]["content"]
-    assert first["npc_dialogues"][0]["dialogue"] == "Salve."
+    assert (
+        next(
+            p for s in first["narration_segments"] for p in s["parts"] if p["type"] == "npc_speech"
+        )["dialogue"]
+        == "Salve."
+    )
     save_id, snapshot = await _autosave(db_session, campaign_id)
     assert "language" not in snapshot
     await auth_client.patch(f"/api/campaigns/{campaign_id}", json={"language": "en"})

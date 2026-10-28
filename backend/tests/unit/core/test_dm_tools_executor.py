@@ -168,163 +168,39 @@ class TestHandleDiceHazard:
         assert char_data["hp"]["current"] == 30
 
 
-class TestHandleNpcResults:
-    def test_returns_dialogue_string(self):
-        from app.core.dm.dm_tools_executor import _handle_npc_results
+class TestNpcResults:
+    def test_apply_actor_effects_uses_uuid_target_and_baseline_taxonomy(self):
+        from app.core.dm.npc_results import apply_actor_effects
 
-        npc_result = NPCSpeaking("Aria", ("Greetings, traveler.",))
-
-        result_str, ws, cd = _handle_npc_results(
-            npc_name="Aria",
-            npc_results=[npc_result],
-            npc_dialogues=[],
-            narration_segments=[],
-            step=0,
-            world_state={},
-            char_data={},
-        )
-
-        assert "Aria" in result_str
-        assert "Greetings, traveler." in result_str
-
-    def test_action_appended_to_dialogue(self):
-        from app.core.dm.dm_tools_executor import _handle_npc_results
-
-        npc_result = NPCSpeaking("Guard", ("Halt!",), "blocks the path")
-
-        result_str, _, _ = _handle_npc_results(
-            npc_name="Guard",
-            npc_results=[npc_result],
-            npc_dialogues=[],
-            narration_segments=[],
-            step=0,
-            world_state={},
-            char_data={},
-        )
-
-        assert "[blocks the path]" in result_str
-
-    def test_empty_results_returns_no_response(self):
-        from app.core.dm.dm_tools_executor import _handle_npc_results
-
-        result_str, _, _ = _handle_npc_results(
-            npc_name="Ghost",
-            npc_results=[],
-            npc_dialogues=[],
-            narration_segments=[],
-            step=0,
-            world_state={},
-            char_data={},
-        )
-
-        assert "Ghost does not respond." in result_str
-
-    def test_updates_npc_world_state_history(self):
-        from app.core.dm.dm_tools_executor import _handle_npc_results
-
-        npc_result = NPCSpeaking("Merchant", ("Wares for sale!",))
-
-        world_state = {"npcs": {"Merchant": {"name": "Merchant", "role": "trader"}}}
-        _handle_npc_results(
-            npc_name="Merchant",
-            npc_results=[npc_result],
-            npc_dialogues=[],
-            narration_segments=[],
-            step=0,
-            world_state=world_state,
-            char_data={},
-        )
-
-        assert "last_interactions" in world_state["npcs"]["Merchant"]
-        assert '"Wares for sale!"' in world_state["npcs"]["Merchant"]["last_interactions"]
-
-    def test_history_capped_at_3(self):
-        from app.core.dm.dm_tools_executor import _handle_npc_results
-
-        existing_history = ['"old1"', '"old2"', '"old3"']
-        world_state = {
-            "npcs": {"NPC": {"name": "NPC", "last_interactions": existing_history.copy()}}
-        }
-
-        npc_result = NPCSpeaking("NPC", ("new line",))
-
-        _handle_npc_results(
-            npc_name="NPC",
-            npc_results=[npc_result],
-            npc_dialogues=[],
-            narration_segments=[],
-            step=0,
-            world_state=world_state,
-            char_data={},
-        )
-
-        history = world_state["npcs"]["NPC"]["last_interactions"]
-        assert len(history) == 3
-        assert '"new line"' in history
-
-    def test_axis_changes_applied_with_world_config(self):
-        from app.core.dm.dm_tools_executor import _handle_npc_results
-
-        npc_result = NPCSpeaking(
-            "Elder", ("You have earned my trust.",), axis_changes={"trust": 8}
-        )
-
-        baseline = {
-            "taxonomy": {"psychology": {"axes": {"trust": {"bands": [{"min": 0, "label": "x"}]}}}}
-        }
-        with patch("app.core.dm.npc_results.apply_typed_updates") as mock_updates:
-            mock_updates.return_value = ({}, {})
-            _handle_npc_results(
-                npc_name="Elder",
-                npc_results=[npc_result],
-                npc_dialogues=[],
-                narration_segments=[],
-                step=0,
-                world_state={},
-                char_data={},
-                baseline=baseline,
+        baseline = {"taxonomy": {"psychology": {"axes": {"trust": {"default": 0}}}}}
+        with patch("app.core.dm.npc_results.apply_typed_updates", return_value=({}, {})) as update:
+            apply_actor_effects(
+                "npc-uuid", NPCSpeaking("Elder", (), axis_changes={"trust": 8}), {}, {}, baseline
             )
-            mock_updates.assert_called_once()
-            update = mock_updates.call_args[0][2][0]
-            assert update["key"] == "npc_psychology"
-            assert update["changes"] == {"trust": 8}
-            assert update["config"] == baseline["taxonomy"]["psychology"]
+        record = update.call_args.args[2][0]
+        assert record["key"] == "npc_psychology"
+        assert record["target"] == "npc-uuid"
+        assert record["changes"] == {"trust": 8}
+        assert record["config"] == baseline["taxonomy"]["psychology"]
 
-    def test_zero_changes_still_apply_to_flip_met_player(self):
-        # ADR 0005 B3: a completed dialogue is an interaction — met is met.
-        from app.core.dm.dm_tools_executor import _handle_npc_results
+    def test_flush_history_groups_typed_public_results_by_npc(self):
+        from app.core.dm.npc_context import NPCBeat, PublicNPCResult
+        from app.core.dm.npc_results import flush_interaction_history
 
-        npc_result = NPCSpeaking("Farmer", ("Good day.",))
-
-        world_state = {"npcs": {"Farmer": {"name": "Farmer", "met_player": False}}}
-        _, ws, _ = _handle_npc_results(
-            npc_name="Farmer",
-            npc_results=[npc_result],
-            npc_dialogues=[],
-            narration_segments=[],
-            step=0,
-            world_state=world_state,
-            char_data={},
+        world_state = {"npcs": {"id-1": {"last_interactions": ['"old"']}}}
+        beat = NPCBeat(
+            0,
+            frozenset(),
+            "square",
+            (
+                PublicNPCResult("id-1", "Merchant", ("Wares!",), "opens a crate"),
+                PublicNPCResult("missing", "Ghost", (), None),
+            ),
         )
-        assert ws["npcs"]["Farmer"]["met_player"] is True
-
-    def test_npc_dialogues_list_updated(self):
-        from app.core.dm.dm_tools_executor import _handle_npc_results
-
-        npc_result = NPCSpeaking("Wizard", ("Magic!",), "waves wand")
-
-        npc_dialogues: list[dict] = []
-        _handle_npc_results(
-            npc_name="Wizard",
-            npc_results=[npc_result],
-            npc_dialogues=npc_dialogues,
-            narration_segments=[],
-            step=0,
-            world_state={},
-            char_data={},
-        )
-
-        assert len(npc_dialogues) == 1
-        assert npc_dialogues[0]["npc_name"] == "Wizard"
-        assert npc_dialogues[0]["dialogue"] == "Magic!"
-        assert npc_dialogues[0]["action"] is None
+        with patch("app.core.dm.npc_results.get_gameplay_config") as config:
+            config.return_value.npc_last_interactions_kept = 3
+            flush_interaction_history(world_state, [beat])
+        assert world_state["npcs"]["id-1"]["last_interactions"] == [
+            '"old"',
+            '"Wares!" opens a crate',
+        ]

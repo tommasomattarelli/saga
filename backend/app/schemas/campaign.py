@@ -7,6 +7,7 @@ from app.core.campaign_language import LanguageCode, default_campaign_language
 from app.memory.world_state import migrate_world_state
 from app.models.campaign import CampaignStatus, Difficulty
 from app.models.quest import QuestRegistry
+from app.schemas.narration import NarrationSegment
 
 
 class CampaignCreate(BaseModel):
@@ -70,12 +71,11 @@ class TurnResponse(BaseModel):
     turn_number: int
     player_action: str = ""
     narration: str
-    narration_segments: list[dict] | None = None
+    narration_segments: list[NarrationSegment] | None = None
     # dice_results: pre-rolled by server, frontend animates as clickable UX
     dice_results: list[dict] | None = None
     # kept for backward-compat with journal endpoint
     dice_rolls: dict | None = None
-    npc_dialogues: list[dict] | None = None
     world_state: dict = {}
     character_data: dict = {}
     quests: QuestRegistry

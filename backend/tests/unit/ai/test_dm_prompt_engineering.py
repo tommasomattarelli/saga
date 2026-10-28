@@ -138,15 +138,16 @@ class TestEmptyInputHandler:
         assert "passively" in BASE_DM_PROMPT or "perceives" in BASE_DM_PROMPT
 
 
-# ── I4 — Multi-NPC sequential guidance ───────────────────────────────────────
+# ── I4 — Multi-NPC beat guidance ─────────────────────────────────────────────
 
 
 class TestMultiNpcGuidance:
-    def test_active_actor_obligation_keeps_one_npc_at_a_time_until_pr2(self):
+    def test_actor_obligation_batches_independent_reactions_and_places_handles(self):
         from app.ai.prompts.obligations import compose_obligations
 
         lower = compose_obligations({"invoke_npc"}).lower()
-        assert "one" in lower and ("at a time" in lower or "sequentially" in lower)
+        assert "together in one response" in lower and "parallel beat" in lower
+        assert "subsequent beat" in lower and "[[npc:lyra:1]]" in lower
 
 
 # ── I5 — update_quest status enum ────────────────────────────────────────────

@@ -41,6 +41,7 @@ def build_npc_prompt(
     language: str = "en",
     invocation_context: str = "",
     observed_beats: str = "",
+    scene_context: str = "",
 ) -> str:
     pdef = psychology or DEFAULT_PSYCHOLOGY
     traits_block, empty = _render_traits(npc_data.get("traits", {}))
@@ -69,6 +70,7 @@ def build_npc_prompt(
         player_action=player_action,
         invocation_context=invocation_context,
         observed_beats=observed_beats,
+        scene_context=scene_context,
         dm_narration=dm_narration[-get_gameplay_config().npc_narrative_max_chars :],
         max_lines=get_gameplay_config().npc_max_lines,
         recent_history=recent_history,
