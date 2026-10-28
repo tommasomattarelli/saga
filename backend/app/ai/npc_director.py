@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import dataclass, field
 
 import structlog
 
 from app.ai.generation_context import generation_context
+from app.ai.npc_outcomes import NPCFailure, NPCInteraction, NPCResult, parse_actor_result
 from app.ai.prompts.loader import template
 from app.ai.prompts.npc import build_npc_prompt
 from app.ai.providers.base import logged_generate
@@ -22,25 +22,6 @@ from app.models.psychology import PsychologyDef
 logger = structlog.get_logger()
 
 
-@dataclass
-class NPCDialogue:
-    npc_name: str
-    dialogue: str
-    action: str | None = None
-    axis_changes: dict[str, int] = field(default_factory=dict)
-    reveals_secret: bool = False
-
-
-def _parse_axis_changes(raw: object) -> dict[str, int]:
-    if not isinstance(raw, dict):
-        return {}
-    return {
-        str(axis): int(delta)
-        for axis, delta in raw.items()
-        if isinstance(delta, int | float) and not isinstance(delta, bool)
-    }
-
-
 async def invoke_single_npc(
     npc_name: str,
     npc_profile: dict,
@@ -49,7 +30,9 @@ async def invoke_single_npc(
     psychology: PsychologyDef | None = None,
     fill_empty_traits: bool = False,
     language: str = "en",
-) -> NPCDialogue:
+    invocation_context: str = "",
+    observed_beats: str = "",
+) -> NPCResult:
     prompt = build_npc_prompt(
         npc_profile,
         player_action=player_action,
@@ -57,11 +40,12 @@ async def invoke_single_npc(
         psychology=psychology,
         fill_empty_traits=fill_empty_traits,
         language=language,
+        invocation_context=invocation_context,
+        observed_beats=observed_beats,
     )
 
-    provider, model_config = await get_generation()
-
     try:
+        provider, model_config = await get_generation()
         raw = await logged_generate(
             provider,
             caller=f"npc_director:{npc_name}",
@@ -80,17 +64,11 @@ async def invoke_single_npc(
 
             data = json.loads(repair_json(cleaned))
 
-        return NPCDialogue(
-            npc_name=npc_name,
-            dialogue=data.get("dialogue", "..."),
-            action=data.get("action"),
-            axis_changes=_parse_axis_changes(data.get("axis_changes")),
-            reveals_secret=bool(data.get("reveals_secret", False)),
-        )
+        return parse_actor_result(npc_name, data, get_gameplay_config().npc_max_lines)
 
     except Exception:
         logger.warning("npc_invoke_failed", npc_name=npc_name, exc_info=True)
-        return NPCDialogue(npc_name=npc_name, dialogue="...")
+        return NPCFailure(npc_name)
 
 
 async def invoke_npcs_parallel(
@@ -98,7 +76,7 @@ async def invoke_npcs_parallel(
     campaign: Campaign,
     player_action: str,
     dm_narration: str,
-) -> list[NPCDialogue]:
+) -> list[NPCResult]:
     """Invoke NPC dialogue calls in parallel, respecting the configured cap."""
     config = get_gameplay_config()
     max_npcs = config.max_npc_calls
@@ -144,11 +122,11 @@ async def invoke_npcs_parallel(
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
     dialogues = []
-    for r in results:
-        if isinstance(r, NPCDialogue):
+    for name, r in zip(names, results, strict=True):
+        if isinstance(r, NPCInteraction | NPCFailure):
             dialogues.append(r)
         else:
-            logger.warning("npc_gather_exception", error=str(r))
+            dialogues.append(NPCFailure(name))
 
     logger.info("npcs_invoked", count=len(dialogues), names=[d.npc_name for d in dialogues])
     return dialogues

@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.ai.npc_director import (
-    NPCDialogue,
     invoke_npcs_parallel,
     invoke_single_npc,
 )
+from app.ai.npc_outcomes import NPCSpeaking
 from app.ai.router import ModelConfig
 
 
@@ -17,7 +17,7 @@ class TestInvokeSingleNPC:
     async def test_invoke_returns_dialogue(self):
         mock_provider = AsyncMock()
         mock_provider.generate.return_value = (
-            '{"dialogue": "Well met!", "action": null,'
+            '{"status":"speaking","lines": ["Well met!"], "action": null,'
             ' "axis_changes": {"trust": 5, "fear": -2}, "reveals_secret": false}'
         )
 
@@ -39,15 +39,13 @@ class TestInvokeSingleNPC:
             )
 
             assert result.npc_name == "Grenda"
-            assert result.dialogue == "Well met!"
+            assert result.lines == ("Well met!",)
             assert result.axis_changes == {"trust": 5, "fear": -2}
 
     @pytest.mark.asyncio
     async def test_malformed_axis_changes_dropped(self):
         mock_provider = AsyncMock()
-        mock_provider.generate.return_value = (
-            '{"dialogue": "Hm.", "axis_changes": {"trust": "lots", "fear": 3.7, "respect": true}}'
-        )
+        mock_provider.generate.return_value = '{"status":"speaking","lines": ["Hm."], "axis_changes": {"trust": "lots", "fear": 3.7, "respect": true}}'
 
         with (
             patch(
@@ -91,7 +89,7 @@ class TestInvokeSingleNPC:
             )
 
             assert result.npc_name == "Grenda"
-            assert result.dialogue == "..."
+            assert result.status == "failure"
 
 
 class TestInvokeNPCsParallel:
@@ -110,7 +108,7 @@ class TestInvokeNPCsParallel:
         ):
             nonlocal call_count
             call_count += 1
-            return NPCDialogue(npc_name=npc_name, dialogue="Hello.")
+            return NPCSpeaking(npc_name=npc_name, lines=("Hello.",))
 
         with (
             patch("app.ai.npc_director.invoke_single_npc", side_effect=mock_invoke),

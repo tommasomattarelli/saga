@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
+from app.ai.npc_outcomes import NPCSpeaking
 
 
 def _fixed_roll(die: int, draw: int):
@@ -170,11 +172,7 @@ class TestHandleNpcResults:
     def test_returns_dialogue_string(self):
         from app.core.dm.dm_tools_executor import _handle_npc_results
 
-        npc_result = MagicMock()
-        npc_result.npc_name = "Aria"
-        npc_result.dialogue = "Greetings, traveler."
-        npc_result.action = None
-        npc_result.axis_changes = {}
+        npc_result = NPCSpeaking("Aria", ("Greetings, traveler.",))
 
         result_str, ws, cd = _handle_npc_results(
             npc_name="Aria",
@@ -192,11 +190,7 @@ class TestHandleNpcResults:
     def test_action_appended_to_dialogue(self):
         from app.core.dm.dm_tools_executor import _handle_npc_results
 
-        npc_result = MagicMock()
-        npc_result.npc_name = "Guard"
-        npc_result.dialogue = "Halt!"
-        npc_result.action = "blocks the path"
-        npc_result.axis_changes = {}
+        npc_result = NPCSpeaking("Guard", ("Halt!",), "blocks the path")
 
         result_str, _, _ = _handle_npc_results(
             npc_name="Guard",
@@ -228,11 +222,7 @@ class TestHandleNpcResults:
     def test_updates_npc_world_state_history(self):
         from app.core.dm.dm_tools_executor import _handle_npc_results
 
-        npc_result = MagicMock()
-        npc_result.npc_name = "Merchant"
-        npc_result.dialogue = "Wares for sale!"
-        npc_result.action = None
-        npc_result.axis_changes = {}
+        npc_result = NPCSpeaking("Merchant", ("Wares for sale!",))
 
         world_state = {"npcs": {"Merchant": {"name": "Merchant", "role": "trader"}}}
         _handle_npc_results(
@@ -256,11 +246,7 @@ class TestHandleNpcResults:
             "npcs": {"NPC": {"name": "NPC", "last_interactions": existing_history.copy()}}
         }
 
-        npc_result = MagicMock()
-        npc_result.npc_name = "NPC"
-        npc_result.dialogue = "new line"
-        npc_result.action = None
-        npc_result.axis_changes = {}
+        npc_result = NPCSpeaking("NPC", ("new line",))
 
         _handle_npc_results(
             npc_name="NPC",
@@ -279,11 +265,9 @@ class TestHandleNpcResults:
     def test_axis_changes_applied_with_world_config(self):
         from app.core.dm.dm_tools_executor import _handle_npc_results
 
-        npc_result = MagicMock()
-        npc_result.npc_name = "Elder"
-        npc_result.dialogue = "You have earned my trust."
-        npc_result.action = None
-        npc_result.axis_changes = {"trust": 8}
+        npc_result = NPCSpeaking(
+            "Elder", ("You have earned my trust.",), axis_changes={"trust": 8}
+        )
 
         baseline = {
             "taxonomy": {"psychology": {"axes": {"trust": {"bands": [{"min": 0, "label": "x"}]}}}}
@@ -310,11 +294,7 @@ class TestHandleNpcResults:
         # ADR 0005 B3: a completed dialogue is an interaction — met is met.
         from app.core.dm.dm_tools_executor import _handle_npc_results
 
-        npc_result = MagicMock()
-        npc_result.npc_name = "Farmer"
-        npc_result.dialogue = "Good day."
-        npc_result.action = None
-        npc_result.axis_changes = {}
+        npc_result = NPCSpeaking("Farmer", ("Good day.",))
 
         world_state = {"npcs": {"Farmer": {"name": "Farmer", "met_player": False}}}
         _, ws, _ = _handle_npc_results(
@@ -331,11 +311,7 @@ class TestHandleNpcResults:
     def test_npc_dialogues_list_updated(self):
         from app.core.dm.dm_tools_executor import _handle_npc_results
 
-        npc_result = MagicMock()
-        npc_result.npc_name = "Wizard"
-        npc_result.dialogue = "Magic!"
-        npc_result.action = "waves wand"
-        npc_result.axis_changes = {}
+        npc_result = NPCSpeaking("Wizard", ("Magic!",), "waves wand")
 
         npc_dialogues: list[dict] = []
         _handle_npc_results(
@@ -351,4 +327,4 @@ class TestHandleNpcResults:
         assert len(npc_dialogues) == 1
         assert npc_dialogues[0]["npc_name"] == "Wizard"
         assert npc_dialogues[0]["dialogue"] == "Magic!"
-        assert npc_dialogues[0]["action"] == "waves wand"
+        assert npc_dialogues[0]["action"] is None
