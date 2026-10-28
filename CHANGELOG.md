@@ -18,6 +18,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [World & DM] Distinguish NPC speech, intentional silence and failed generation, rejecting unusable responses without fake dialogue or conversation effects (#102).
 - [World & DM] Dispatch independent NPCs in observable parallel beats, preserve per-turn interaction history and compose verbatim speech through one ordered transcript (ADR 0017).
 - [UI] Interleave NPC speech with narration through ordered parts, without repeating actions below bubbles or bypassing progressive dice reveal.
+- [Memory & AI] Summarize complete turn transcripts instead of 300-character narration prefixes, and feed NPC speech once to fact extraction (#106).
 - [World & DM] Reduced new travel narration/state divergence by requiring `move_to` on coherent histories; old conflicting history is not repaired (#101).
 - [World & DM] Narrate tool outcomes from refreshed in-turn state, with a configurable eight-call DM limit, terminal-safe closing steps and a guard against repeated no-progress tool results.
 - [Gameplay] Apply elapsed time once and report the actual clock change, including completed or interrupted travel, with tool feedback reading the canonical clock (#99).

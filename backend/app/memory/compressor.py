@@ -68,7 +68,7 @@ async def compress_turns_batch_llm(turns: list[Turn]) -> str | None:
     from app.ai.providers.base import logged_generate
 
     turns_text = "\n".join(
-        f"Turn {t.turn_number}: Player: {t.player_action[:200]} → DM: {(t.narration or '')[:300]}"
+        f"Turn {t.turn_number}: Player: {t.player_action[:200]} → DM: {t.narration or ''}"
         for t in turns
     )
 
