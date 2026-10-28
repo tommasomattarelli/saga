@@ -282,7 +282,7 @@ async def test_memory_and_npc_jobs_use_the_owner_without_holding_database_connec
         dialogue = await invoke_single_npc("Innkeeper", {"name": "Innkeeper"}, "hello", "An inn.")
 
     assert result == "The inn is closed."
-    assert dialogue.dialogue == "Welcome!"
+    assert dialogue.lines == ("Welcome!",)
     provider = generation_clients["jobs-key"][0]
     assert provider.generate.await_count == 4
     for call in provider.generate.call_args_list:

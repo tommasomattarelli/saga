@@ -11,6 +11,7 @@ from langchain_core.messages import ToolMessage
 from pydantic import ValidationError
 
 from app.ai.npc_director import invoke_npcs_parallel
+from app.ai.npc_outcomes import NPCFailure
 from app.ai.router import get_gameplay_config
 from app.ai.tools.dm_tools import execute_tool, get_tool
 from app.core.dm.dice_results import _handle_dice
@@ -166,14 +167,11 @@ async def tools_node(state: GameState) -> dict[str, Any]:
                 baseline=state.get("world_baseline"),
             )
             public = [
-                {"npc_name": npc.npc_name, "dialogue": npc.dialogue, "action": npc.action}
+                {"npc_name": npc.npc_name, "lines": npc.lines, "action": npc.action}
                 for npc in npc_results
+                if not isinstance(npc, NPCFailure)
             ]
-            usable = any(
-                isinstance(entry["dialogue"], str)
-                and entry["dialogue"].strip() not in {"", "...", "…"}
-                for entry in public
-            )
+            usable = bool(public)
             progress.record(name, args, public, playable=usable)
             tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
             continue

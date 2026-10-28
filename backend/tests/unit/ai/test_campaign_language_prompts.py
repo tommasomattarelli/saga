@@ -37,7 +37,7 @@ async def test_campaign_target_is_explicit_in_dm_and_real_actor_call(
     assert f"{name} ({code})" in prompt
     assert "same language the player uses" not in prompt
     provider = AsyncMock()
-    provider.generate.return_value = '{"dialogue": "Test.", "axis_changes": {}}'
+    provider.generate.return_value = '{"status":"speaking","lines": ["Test."], "axis_changes": {}}'
     monkeypatch.setattr(
         "app.ai.npc_director.get_generation",
         AsyncMock(return_value=(provider, ModelConfig("local", "test", 60000))),

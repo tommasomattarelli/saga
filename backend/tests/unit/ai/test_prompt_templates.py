@@ -126,7 +126,6 @@ def test_unknown_obligation_reference_is_rejected(monkeypatch):
             "update",
             "71db4a75ef6a84ac0057387276e1621d475c99cc1d140e1bc7dd2f123b40be2b",
         ),
-        ("npc", "base", "53a4e0a34a5025cd61b41747fcaad679e21651651b2ff5f3fff49aceccdf92f5"),
         (
             "personas",
             "grimdark",

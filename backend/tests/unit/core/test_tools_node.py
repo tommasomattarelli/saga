@@ -213,11 +213,9 @@ class TestToolsNodeInvokeNpc:
         }
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
-        mock_npc_result = MagicMock()
-        mock_npc_result.npc_name = "Guard"
-        mock_npc_result.dialogue = "Stop right there!"
-        mock_npc_result.action = None
-        mock_npc_result.disposition_change = 0
+        from app.ai.npc_outcomes import NPCSpeaking
+
+        mock_npc_result = NPCSpeaking("Guard", ("Stop right there!",))
 
         mock_campaign = MagicMock()
 
