@@ -94,5 +94,5 @@ async def test_rejected_closing_calls_each_keep_their_provider_result_id():
         call["id"] for call in calls
     }
     assert len(result["messages"]) == len(calls)
-    assert result["dice_results"] == result["npc_dialogues"] == result["tool_events"] == []
+    assert result["dice_results"] == result["npc_lines"] == result["tool_events"] == []
     assert result["world_state"] == result["char_data"] == {}

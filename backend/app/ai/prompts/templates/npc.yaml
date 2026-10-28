@@ -16,6 +16,7 @@ base: |-
   The player did: "{player_action}"
   Your invocation context: "{invocation_context}"
   The DM narrated: "{dm_narration}"
+  Current scene and condition: {scene_context}
   Completed public beats you observed:
   {observed_beats}
   {recent_history}

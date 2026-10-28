@@ -420,6 +420,17 @@ promoted pre-pass remains owned by 0014, with no dormant automation here.
 
 ### 9.4 Delivery and acceptance
 
+**S1 note (2026-10-28, implementation).** The executor now prepares all actors
+after ordinary mechanics, without reloading a detached campaign. Explicit per-step
+text deltas replace cumulative-text slicing; narrative observers are captured before
+that response's mechanics, beat observers after them. This prevents a journey from
+retroactively exposing the departure scene to an NPC met at the destination. Actor
+snapshots contain only their own profile and public scene/player data; public beat
+records exclude psychology deltas and private profiles. Psychology applies at beat
+time and history flushes once at finalization. Frozen handles are independent of
+later lifecycle/location changes. The final no-dice fallback segment comes after
+every original step, preserving progressive reveal without a new dice part type.
+
 One playable cross-stack sprint on `adr/0017-s1-dialogue-pipeline`, merged locally
 with `--no-ff` into `adr/0017-npc-dialogue-turns`; one final PR. Six logical units:
 S0, actor contract, beat/context/effects, composition, cross-stack transcript switch,
