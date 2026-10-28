@@ -9,10 +9,9 @@ describe("NPCBubble", () => {
     expect(screen.getByText(/Halt, traveler\./)).toBeInTheDocument();
   });
 
-  it("renders the optional action only when provided", () => {
-    const { rerender } = render(<NPCBubble npc_name="Gable" dialogue="Hi" />);
+  it("renders speech without adding an action", () => {
+    render(<NPCBubble npc_name="Gable" dialogue="Hi" />);
+    expect(screen.getByText(/Hi/)).toBeInTheDocument();
     expect(screen.queryByText(/draws a blade/)).not.toBeInTheDocument();
-    rerender(<NPCBubble npc_name="Gable" dialogue="Hi" action="draws a blade" />);
-    expect(screen.getByText(/draws a blade/)).toBeInTheDocument();
   });
 });

@@ -31,12 +31,21 @@ function segmentedTurn(): TurnResponse {
     narration_segments: [
       {
         step: 1,
-        text: "You reach the gate.\nA guard waits.",
+        parts: [
+          { type: "text", text: "You reach the gate." },
+          {
+            type: "npc_speech",
+            npc_id: "guard-1",
+            npc_name: "Guide",
+            line_index: 0,
+            dialogue: "Careful",
+          },
+          { type: "text", text: "A guard waits." },
+        ],
         dice: { inline: { ...roll, rolls: [3], total: 5 } },
-        npc_dialogues: [{ npc_name: "Guide", dialogue: "Careful", action: "whispers" }],
       },
-      { step: 2, text: "The gate opens.", dice: { Lock: roll }, npc_dialogues: [] },
-      { step: 3, text: "A courtyard lies beyond.", dice: null, npc_dialogues: [] },
+      { step: 2, parts: [{ type: "text", text: "The gate opens." }], dice: { Lock: roll } },
+      { step: 3, parts: [{ type: "text", text: "A courtyard lies beyond." }], dice: null },
     ],
     dice_results: [{ step: 1, rolls: { Gate: roll } }],
   });
@@ -61,11 +70,38 @@ describe("Turn presentation and dice gating", () => {
     expect(screen.getByText("Look around")).toBeInTheDocument();
     expect(screen.getByText("A guard waits.")).toBeInTheDocument();
     expect(screen.getByText(/Careful/)).toBeInTheDocument();
+    expect(screen.queryByText("whispers")).not.toBeInTheDocument();
     expect(screen.getByText("The gate opens.")).toBeInTheDocument();
     expect(screen.getByText("A courtyard lies beyond.")).toBeInTheDocument();
     expect(screen.getAllByText("17")).toHaveLength(2);
+    expect(screen.getAllByText(/Careful/)).toHaveLength(1);
     expect(screen.queryByText("inline")).not.toBeInTheDocument();
     expect(screen.getByRole("separator", { hidden: true })).toBeInTheDocument();
+  });
+
+  it("validates the serialized interleaved parts contract", async () => {
+    const { TurnResponseSchema } = await import("../../../shared/schemas/turn");
+    expect(TurnResponseSchema.safeParse(segmentedTurn()).success).toBe(true);
+  });
+
+  it("reveals a final no-dice segment only after the preceding dice", async () => {
+    render(
+      <TurnBlock
+        turn={segmentedTurn()}
+        isLatest
+        isFresh={false}
+        isFirst={false}
+        showDivider={false}
+      />,
+    );
+    expect(screen.queryByText("The gate opens.")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Roll"));
+    await act(async () => vi.runAllTimersAsync());
+    expect(screen.getByText("The gate opens.")).toBeInTheDocument();
+    expect(screen.queryByText("A courtyard lies beyond.")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Roll"));
+    await act(async () => vi.runAllTimersAsync());
+    expect(screen.getByText("A courtyard lies beyond.")).toBeInTheDocument();
   });
 
   it("reveals each live segment only after its dice and notifies after the final roll", async () => {
