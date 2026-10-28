@@ -1,0 +1,264 @@
+# Controlled evaluation overlay, not a captured pre-turn-11 snapshot.
+extends: travel-coherent
+meta:
+  name: travel-coherent-long
+  origin: controlled
+  derived: false
+  reconstructed: true
+  notes: >-
+    Ten authored coherent turns, not a captured or replayed campaign; this stress test
+    exceeds production's default eight-turn active window.
+history:
+  - role: user
+    content: I study the marks cut into the nearest pillar without touching it.
+  - role: assistant
+    content: >-
+      The nearest pillar is taller than you by a head, its surface softened by
+      centuries of rain and greened over where moss has taken hold. The marks do
+      not form a line of writing you can simply follow. They gather in small
+      clusters: a hooked stroke beside three shallow dots, a curve interrupted
+      by a narrow notch, then a spiral whose center has worn almost flat. From
+      one angle they seem deliberate; from another, the cracks and lichen make
+      a pattern where none may have been intended.
+
+      You lean closer, careful not to brush the stone. The air beside it carries
+      a faint mineral smell, like damp slate after rain, though the clearing
+      around you remains quiet. A low vibration is difficult to separate from
+      the pressure in your ears. It may be the old hum the shrine is known for,
+      or the ordinary sensation of standing close to a mass of stone. Nothing
+      answers your attention. No image opens in the marks, and no meaning comes
+      with certainty. You can only notice that the lower carvings are more
+      worn than the ones above, as if hands once rested there often.
+
+      Behind you, Lyra's stillness remains part of the clearing. The forest
+      beyond the pillars keeps its own small sounds: a leaf turning, a bird
+      calling once from somewhere among the branches. The path east is visible
+      between the trunks, but the pattern holds your gaze a little longer.
+  - role: user
+    content: I circle the stones slowly and compare the carvings from different angles.
+  - role: assistant
+    content: >-
+      You move around the inside of the stone circle at an unhurried pace,
+      letting the pillars overlap and separate against the trees. Their spacing
+      is not perfectly even. One stands a little apart from its neighbors, and
+      the gaps between the others narrow and widen as you pass, though the
+      circle still feels intentional when viewed from the center. Their tops
+      are irregular, chipped into blunt points and sloping shoulders rather
+      than a matching set of shapes.
+
+      The carved marks vary too. Some are crisp enough to catch a thin line of
+      shadow; others have become no more than shallow grooves under the moss.
+      A repeated forked shape appears on two separate faces, but you cannot tell
+      whether it is the same sign or simply damage that resembles it. The light
+      lies across the clearing in pale morning shafts, making each surface look
+      different as you shift position. Nothing in the arrangement gives up an
+      obvious map or instruction.
+
+      At the far side, the earth is dark with old leaf litter. A few small
+      roots thread between the stones and disappear under the grass. You hear
+      the soft scrape of your boots and, farther off, the faint rustle of the
+      woods. Lyra's body remains where it fell; you do not find a living voice
+      or movement in the circle. From here, the eastern path is a narrow break
+      in the green, not much more than a direction through the trees.
+  - role: user
+    content: I listen for a while, trying to separate the shrine's hum from the forest sounds.
+  - role: assistant
+    content: >-
+      You stand still and let the clearing settle around you. At first there is
+      only the small inventory of ordinary sounds: leaves rubbing together high
+      overhead, a faint tick as a twig shifts against another, and the distant
+      uneven calls of birds. Somewhere close to the ground an insect gives a
+      brief dry rasp, then falls quiet. The forest does not become silent so
+      much as reveal how many little sounds it had been making all along.
+
+      Beneath them, or perhaps behind them, there is a pressure you might call
+      a hum. It does not have a clear pitch. You feel it more than hear it, a
+      slight tremor in the stone under your soles and a tightness at the base
+      of your hearing. When you turn your head, it seems to shift with you, but
+      that may be the acoustics of the ring. The pillars give no visible sign
+      of changing, and the morning light remains steady between their edges.
+
+      You remember that the stones have been associated with a stronger hum at
+      midnight, and with visions in stories told about them. That recollection
+      is not an experience happening now. Nothing appears before your eyes;
+      the marks stay marks, the clearing stays a clearing. The sound could be
+      the shrine, your pulse, or the forest carrying some distant noise. After
+      a time, a crow calls from above the trees and leaves the question open.
+  - role: user
+    content: I look at the ground near the base of the stones for signs of how people used this place.
+  - role: assistant
+    content: >-
+      You crouch only as far as your side comfortably allows and inspect the
+      earth around the nearest bases. The ground is a patchwork of damp soil,
+      old leaves, and moss pressed close to the stone. There are marks, but
+      they are not neat footprints laid out for easy reading. A shallow
+      depression beside one pillar could come from someone kneeling, or from
+      rainwater pooling where the earth slopes. A thin root has lifted the edge
+      of another patch, breaking any outline that might once have been there.
+
+      Near the circle's center, the grass is worn lower than at the boundary.
+      Perhaps many feet have crossed it; perhaps shade and soil alone explain
+      the difference. You notice a few pale chips among the leaves that match
+      the stone's color. Their edges are old and blunt, with no fresh fracture
+      to suggest that anything has just broken away. No dropped object catches
+      your eye, and you find no clear trail circling the pillars.
+
+      The clearing's rough round shape is easier to appreciate from this low
+      vantage. Beyond it, ferns and tree trunks crowd together, interrupted to
+      the east by the path you already noticed. The forest floor there looks
+      much like the ground here: leaf litter, roots, and scattered green. You
+      straighten carefully. Your grazed side tugs at the movement, but the
+      discomfort does not turn into anything new. The stones offer no verdict
+      on who stood here before you.
+  - role: user
+    content: I try to recall what Lyra said about people waking at this shrine.
+  - role: assistant
+    content: >-
+      You search your memory for Lyra's words, and what comes back is more
+      impression than a complete account. She had spoken of people waking here
+      without knowing how they arrived, and of watching the shrine for years
+      because she wanted to understand why it happened. The memory carries her
+      practical, guarded manner more clearly than every exact phrase. You
+      cannot tell whether she had answers she never shared or only questions
+      she had learned to live beside.
+
+      The thought of her voice presses against the present quiet. You look
+      toward where she lies, but there is no reply to draw from the still
+      figure. Whatever she knew died with her, unless it was already recorded
+      somewhere you have not found. You do not remember a map, a list of names,
+      or a precise count that you can trust. Fragments about the shrine and
+      Thornhaven come and go without arranging themselves into a solution to
+      your own missing past.
+
+      The pillars stand around you as they did before you began searching your
+      memory. Their worn grooves might have been made by tools, weather, or
+      hands; none of those possibilities becomes more certain. The old question
+      of your identity remains just that. You can keep examining the place, or
+      leave the thought unfinished for now. The morning continues in the
+      clearing without offering a sign that chooses for you.
+  - role: user
+    content: I watch the sunlight across the clearing and note which parts of the shrine are lit.
+  - role: assistant
+    content: >-
+      The light comes through the canopy in broken bands, warm gold on the
+      grass and cooler green where leaves filter it. A narrow shaft reaches
+      the side of one pillar, catching the shallow cuts there until they look
+      darker than the stone around them. The opposite face stays in shadow.
+      Nothing sharpens into a symbol you recognize; the shifting brightness
+      only makes the old surface easier to see for a moment.
+
+      You follow the sunlit patches as they lie across the clearing. A fern's
+      fronds cast fine, comb-like shadows over a fallen leaf. Dust or pollen
+      drifts through one bright beam, visible only while it crosses that strip
+      of light. The platform stones underfoot are uneven, their seams holding
+      soil and tiny green shoots. The scene feels ordinary in its details,
+      even with the pillars gathered around it. The light does not flare or
+      change color, and the stones show no response to your watching.
+
+      From the circle, you can glimpse the forest path east between two trunks.
+      It bends out of sight soon after leaving the clearing. Thornhaven lies
+      beyond the treeline, a distant village roughly forty-five minutes away
+      by that route if the trail is clear; you see none of its buildings from
+      here. Lyra remains still behind you. A breeze moves the canopy, and the
+      bright bands tremble over the moss before settling into a slightly
+      different pattern.
+  - role: user
+    content: I look over the clearing for anything that seems out of place.
+  - role: assistant
+    content: >-
+      You let your eyes travel from the outer ring inward, taking the clearing
+      as a whole rather than studying a single mark. The pillars are the most
+      striking feature, but their roughness and the moss make them feel less
+      like a display than remnants of something whose purpose has blurred with
+      time. At the edge of the circle, bracken leans into the open ground. A
+      few flattened grasses could have been pressed by passing feet, though
+      there is no clear direction to them.
+
+      Near the center, the weathered platform is marked by seams and small
+      chips. You spot no fresh writing, bright metal, or object that obviously
+      does not belong. The crow's dark shape shifts among branches overhead,
+      then is partly hidden by leaves. It makes no effort to come down. The
+      sounds around you remain sparse and natural: a distant call, a soft
+      stir in the canopy, the quiet scrape of your own clothing as you turn.
+
+      Lyra's death is the one unmistakable change the clearing has witnessed
+      recently. Her body lies where it fell, and the stillness around it is
+      difficult to look at for long. You do not discover another person or a
+      new threat among the trees, nor does the forest give you a clear answer
+      about what happened here before you woke. The path east remains open to
+      view. Nothing you see makes its destination closer or farther away.
+  - role: user
+    content: I trace one of the symbols in the air, following its shape without touching the stone.
+  - role: assistant
+    content: >-
+      You lift a finger and follow the outline a short distance from the
+      pillar's face. The gesture is slower than the mark itself: a shallow
+      curve, a short return stroke, then a break where lichen obscures the
+      groove. From this side the carving resembles a bent branch. When you
+      shift your stance, the resemblance falls apart, and it could just as
+      easily be a boundary or a tool mark. Your hand meets only cool air.
+
+      The movement brings no sudden memory. You have the familiar sense that
+      the lines ought to mean something, but that feeling is not the same as
+      recognizing them. The stone does not glow, ring, or move. If there is a
+      hum, it stays faint and hard to distinguish from the hush of the woods.
+      You lower your hand and notice how your shadow crosses the lower part of
+      the carving, briefly joining two marks that do not actually connect.
+
+      You wonder whether someone once stood here and made the same gesture,
+      perhaps trying to learn the shapes, perhaps simply tracing what the
+      weather had left behind. It is only a possibility, not a memory you can
+      claim. Across the circle, the trees frame a narrow strip of the eastern
+      path. The shrine offers no confirmation, and you are left with an
+      imperfect sketch in your mind rather than a new fact about yourself or
+      the place.
+  - role: user
+    content: I sit on the edge of the stone platform and take a moment to gather my thoughts.
+  - role: assistant
+    content: >-
+      You ease yourself onto the platform's edge. The stone is cool through
+      your clothes, rough where its surface has flaked and smooth along a
+      shallow worn lip. You settle carefully, keeping the tender graze at your
+      side from pressing hard against it. It still aches when you shift, a
+      reminder rather than a new injury. For a little while you do not ask the
+      shrine to explain anything.
+
+      Your thoughts arrive without order: the blank space where a name should
+      be, Lyra's guarded attention, the carved marks, the eastern way through
+      the forest. Some details are clear because you have just seen them;
+      others belong to a past you cannot verify. You resist turning a
+      resemblance in stone or a remembered phrase into certainty. There is no
+      reason to decide that every strange thing here points to one answer.
+
+      The birds continue somewhere above the clearing. A leaf drifts down and
+      catches against a crack in the platform, barely moving when the air
+      stirs. The pillars give you their same patient outlines. Lyra remains
+      silent, and the abandoned question of who you are has not changed while
+      you sat with it. When you are ready to rise, the path will still be
+      visible between the trees; for now, the pause belongs to you.
+  - role: user
+    content: I stand and look once more toward the eastern trail, considering what to do next.
+  - role: assistant
+    content: >-
+      You stand slowly and let your eyes find the break in the trees again.
+      The trail begins beyond the edge of the clearing, where packed earth
+      threads between roots and low ferns. It is not a broad road, and from
+      here you can see only its first bend before the trunks conceal it. The
+      direction is plain enough: east, toward Thornhaven, still distant beyond
+      the forest. The village is roughly forty-five minutes away along the
+      path if it remains clear, but that estimate does not tell you what you
+      would find there.
+
+      The morning light lies pale on the trailhead. A few leaves have gathered
+      in the shallow ruts, and the canopy above it moves gently in the breeze.
+      You hear no voices from the route, only the intermittent calls of birds
+      and the low rustle of branches. The forest looks passable from where you
+      stand, though its deeper turns are hidden from view. Nothing blocks the
+      way, and nothing urges you to hurry.
+
+      Behind you, the stone circle keeps the same quiet presence. Lyra's body
+      is still, and the memory of her warnings remains incomplete. Your side
+      is grazed, your hands empty of anything notable, and your unanswered
+      questions have not been settled by the time spent looking. You have not
+      yet stepped onto the trail. The choice remains open in the clearing as
+      you take in the path and decide what you want to do.

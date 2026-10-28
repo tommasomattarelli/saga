@@ -7,6 +7,7 @@ import uuid
 
 import structlog
 
+from app.ai.prompts.loader import template
 from app.ai.providers.base import logged_generate
 from app.ai.router import get_gameplay_config, get_generation
 from app.ai.sanitizer import strip_code_fences
@@ -16,25 +17,7 @@ logger = structlog.get_logger()
 
 _MAX_FACT_RAW_CHARS = 4000
 
-FACT_EXTRACTION_PROMPT = """You are a fact extractor for a tabletop RPG game. Extract 1-5 atomic facts from this game turn.
-
-Each fact should be a single, self-contained piece of information about a named entity.
-
-Entity types: npc, location, quest, item, event, secret
-
-Player action: {player_action}
-DM narration: {narration}
-{npc_section}
-
-Output ONLY valid JSON:
-{{"facts": [{{"entity_name": "ExactName", "entity_type": "npc|location|quest|item|event|secret", "content": "Atomic fact in natural language"}}]}}
-
-Rules:
-- Use the exact entity name as it appears in the text
-- Each fact should be independently understandable
-- Include the turn context (what happened, not just who exists)
-- Prefer facts about relationships, state changes, and decisions
-- If nothing notable happened, return {{"facts": []}}"""
+FACT_EXTRACTION_PROMPT = template("fact_extractor", "base")
 
 
 def _is_storable(fact: object) -> bool:
@@ -55,7 +38,9 @@ async def extract_facts(
     can reuse the real extractor without a database."""
     npc_section = ""
     if npc_dialogues:
-        npc_section = "NPC dialogues:\n" + "\n".join(f"- {d}" for d in npc_dialogues)
+        npc_section = template("fact_extractor", "npc_section").format(
+            dialogues="\n".join(f"- {d}" for d in npc_dialogues)
+        )
 
     prompt_text = (
         FACT_EXTRACTION_PROMPT.replace("{player_action}", player_action)
@@ -68,7 +53,7 @@ async def extract_facts(
     raw = await logged_generate(
         provider,
         caller="fact_extractor",
-        system_prompt="You extract structured facts from RPG game turns.",
+        system_prompt=template("fact_extractor", "system"),
         messages=[{"role": "user", "content": prompt_text}],
         model=model_config.model,
         max_tokens=model_config.max_tokens,

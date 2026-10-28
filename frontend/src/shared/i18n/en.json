@@ -42,6 +42,12 @@
     "in_scene": "In the scene"
   },
   "campaign": {
+    "language": "Campaign language",
+    "language_search": "Search languages",
+    "language_hint": "Used for new narration and NPC dialogue. Existing text stays unchanged.",
+    "language_load_error": "Couldn't load languages.",
+    "language_retry": "Try again",
+    "language_save_error": "Couldn't save the campaign language. Try again.",
     "your_campaigns": "Your campaigns, {{name}}",
     "loading": "Loading campaigns…",
     "new_card": "New campaign",

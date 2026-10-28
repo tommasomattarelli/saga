@@ -2,24 +2,26 @@
 
 from __future__ import annotations
 
+import copy
 from enum import IntEnum
 from typing import Any
 
 import structlog
 from langchain_core.messages import ToolMessage
+from pydantic import ValidationError
 
 from app.ai.npc_director import invoke_npcs_parallel
 from app.ai.router import get_gameplay_config
 from app.ai.tools.dm_tools import execute_tool, get_tool
-from app.core.dice import DifficultyLevel, resolve_check
+from app.core.dm.dice_results import _handle_dice
 from app.core.dm.dm_helpers import get_or_create_segment, sync_narration_to_segment
 from app.core.dm.game_state import GameState
+from app.core.dm.loop_policy import dm_call_limit, needs_followup, step_tools
 from app.core.dm.npc_prehook import validate_or_create_npc
-from app.core.health import HazardClass, draw_hazard_damage
+from app.core.dm.npc_results import _handle_npc_results
+from app.core.dm.progress import StepProgress
 from app.core.npc_fields import resolve_npc_fields
-from app.core.npc_resolver import resolve_npc
 from app.core.psychology import resolve_psychology
-from app.memory.updater import apply_typed_updates
 from app.models.quest import QuestRegistry
 
 
@@ -58,15 +60,19 @@ async def tools_node(state: GameState) -> dict[str, Any]:
     if not tool_calls:
         return {}
 
-    world_state = dict(state["world_state"])
-    char_data = dict(state["char_data"])
+    world_state = copy.deepcopy(state["world_state"])
+    char_data = copy.deepcopy(state["char_data"])
     quests = state.get("quests") or QuestRegistry()
+    progress = StepProgress(world_state, char_data, quests, state.get("progress_fingerprints", []))
+    closing = state.get("closing_step", state["step_count"] >= dm_call_limit(state))
+    allowed = set(state.get("allowed_tools", step_tools(world_state, closing=closing)))
     tool_events = list(state["tool_events"])
     dice_results = list(state["dice_results"])
     npc_dialogues = list(state["npc_dialogues"])
     called_npcs = list(state["called_npcs"])
     scene_mood = state["scene_mood"]
     time_passed = state["time_passed_minutes"]
+    initial_clock = world_state.get("clock", {}).get("total_minutes", 480)
     narration_segments = list(state["narration_segments"])
     step = state["step_count"] - 1  # step_count already incremented by dm_node
 
@@ -79,11 +85,36 @@ async def tools_node(state: GameState) -> dict[str, Any]:
         args = tc.get("args", {})
         tc_id = tc.get("id", name)
 
+        if name not in allowed:
+            note = (
+                "Unknown tool."
+                if get_tool(name) is None
+                else "This tool is unavailable in this step."
+            )
+            tool_messages.append(ToolMessage(content=note, tool_call_id=tc_id, name=name))
+            continue
+
+        if name in {"request_dice", "invoke_npc"}:
+            tool = get_tool(name)
+            assert tool is not None
+            try:
+                args = tool(**args).model_dump(mode="json")
+            except ValidationError:
+                tool_messages.append(
+                    ToolMessage(
+                        content="Invalid tool arguments. Check the tool's required fields.",
+                        tool_call_id=tc_id,
+                        name=name,
+                    )
+                )
+                continue
+
         if name == "request_dice":
             result_str, roll_data, char_data = _handle_dice(
                 args, char_data, step, narration_segments
             )
             dice_results.append({"step": step, "rolls": roll_data})
+            progress.record(name, args, roll_data, playable=True)
             tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
             continue
 
@@ -134,6 +165,16 @@ async def tools_node(state: GameState) -> dict[str, Any]:
                 char_data,
                 baseline=state.get("world_baseline"),
             )
+            public = [
+                {"npc_name": npc.npc_name, "dialogue": npc.dialogue, "action": npc.action}
+                for npc in npc_results
+            ]
+            usable = any(
+                isinstance(entry["dialogue"], str)
+                and entry["dialogue"].strip() not in {"", "...", "…"}
+                for entry in public
+            )
+            progress.record(name, args, public, playable=usable)
             tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
             continue
 
@@ -151,12 +192,10 @@ async def tools_node(state: GameState) -> dict[str, Any]:
         updated_quests = getattr(tool_result, "quests", None)
         if isinstance(updated_quests, QuestRegistry):
             quests = updated_quests
+        progress.record(name, args, tool_result.description)
 
         if name == "set_scene_mood" and tool_result.extra.get("mood"):
             scene_mood = tool_result.extra["mood"]
-        if name == "advance_time":
-            time_passed += args.get("minutes", 0)
-
         tool_cls = get_tool(name)
         if tool_cls and tool_cls.visible():
             tool_events.append(
@@ -174,9 +213,10 @@ async def tools_node(state: GameState) -> dict[str, Any]:
 
     sync_narration_to_segment(narration_segments, step, state["narration"])
 
-    has_narration = bool(state["narration"].strip())
     prev_empty = state.get("consecutive_empty_steps", 0)
-    consecutive_empty_steps = 0 if has_narration else prev_empty + 1
+    consecutive_empty_steps = (
+        0 if progress.changed(world_state, char_data, quests) else prev_empty + 1
+    )
 
     return {
         "messages": tool_messages,
@@ -188,136 +228,11 @@ async def tools_node(state: GameState) -> dict[str, Any]:
         "npc_dialogues": npc_dialogues,
         "called_npcs": called_npcs,
         "scene_mood": scene_mood,
-        "time_passed_minutes": time_passed,
+        "time_passed_minutes": time_passed
+        + world_state.get("clock", {}).get("total_minutes", initial_clock)
+        - initial_clock,
         "narration_segments": narration_segments,
         "consecutive_empty_steps": consecutive_empty_steps,
+        "progress_fingerprints": progress.fingerprints,
+        "followup_required": needs_followup({tc["name"] for tc in tool_calls}),
     }
-
-
-# ── Private helpers ────────────────────────────────────────────────────────────
-
-# request_dice passes a 3-letter stat code; the frontend persists full lowercase names.
-_STAT_FULL_NAMES = {
-    "STR": "strength",
-    "DEX": "dexterity",
-    "CON": "constitution",
-    "INT": "intelligence",
-    "WIS": "wisdom",
-    "CHA": "charisma",
-}
-
-
-def _character_modifier(char_data: dict, stat: str) -> int:
-    """Sheet → modifier. ADR 0010-E2/E3 replaces this with world-defined skill ids."""
-    abilities = char_data.get("abilities", {})
-    full = _STAT_FULL_NAMES.get(stat.upper(), stat.lower())
-    stat_score = abilities.get(full, abilities.get(stat, abilities.get(stat.lower(), 10)))
-    return (stat_score - 10) // 2
-
-
-def _handle_dice(
-    args: dict, char_data: dict, step: int, narration_segments: list[dict]
-) -> tuple[str, dict, dict]:
-    stat = args.get("stat", "DEX")
-    check = args.get("check") or f"{stat} check"
-    reason = args.get("reason", "")
-    difficulty = DifficultyLevel(args.get("difficulty", DifficultyLevel.NORMAL))
-
-    resolution = resolve_check(
-        modifier=_character_modifier(char_data, stat),
-        difficulty=difficulty,
-        advantage=bool(args.get("advantage")),
-        disadvantage=bool(args.get("disadvantage")),
-    )
-    roll_obj = resolution.roll
-    check_label = check.replace("_", " ").title()
-
-    roll_data = {
-        check_label: {
-            "expression": roll_obj.expression,
-            "rolls": roll_obj.rolls,
-            "modifier": resolution.modifier,
-            "difficulty": difficulty.value,
-            "difficulty_draw": resolution.difficulty_draw,
-            "total": resolution.total,
-            "success": resolution.success,
-            "outcome": resolution.outcome.value,
-            "is_critical": resolution.is_critical,
-        }
-    }
-
-    hazard = args.get("hazard_class")
-    damage = 0
-    if hazard:
-        hp = char_data.get("hp", {})
-        damage = draw_hazard_damage(
-            HazardClass(hazard), resolution.outcome, int(hp.get("max", 10))
-        )
-        if damage:
-            _, char_data = apply_typed_updates(
-                {}, char_data, [{"key": "hp_change", "change": -damage}]
-            )
-        roll_data[check_label]["hazard_damage"] = damage
-
-    seg = get_or_create_segment(narration_segments, step)
-    seg["dice"] = {**(seg.get("dice") or {}), **roll_data}
-
-    result_str = (
-        f"{check.title()} check ({difficulty.value}): rolled {resolution.total} "
-        f"({resolution.modifier:+d} modifier, {resolution.difficulty_draw:+d} difficulty) "
-        f"→ {resolution.outcome.value}."
-    )
-    if hazard:
-        current = char_data.get("hp", {}).get("current", 0)
-        result_str += f" Hazard deals {damage} damage — HP now {current}."
-    if reason:
-        result_str += f" Context: {reason}"
-    return result_str, roll_data, char_data
-
-
-def _handle_npc_results(
-    npc_name: str,
-    npc_results: list,
-    npc_dialogues: list[dict],
-    narration_segments: list[dict],
-    step: int,
-    world_state: dict,
-    char_data: dict,
-    baseline: dict | None = None,
-) -> tuple[str, dict, dict]:
-    dialogue_parts: list[str] = []
-    kept = get_gameplay_config().npc_last_interactions_kept
-
-    for npc in npc_results:
-        evt = {"npc_name": npc.npc_name, "dialogue": npc.dialogue, "action": npc.action}
-        npc_dialogues.append(evt)
-
-        seg = get_or_create_segment(narration_segments, step)
-        seg["npc_dialogues"].append(evt)
-
-        part = f'{npc.npc_name}: "{npc.dialogue}"'
-        if npc.action:
-            part += f" [{npc.action}]"
-        dialogue_parts.append(part)
-
-        resolution = resolve_npc(npc.npc_name, world_state)
-        if resolution.npc_id is not None:
-            npc_ws = world_state["npcs"][resolution.npc_id]
-            history: list[str] = npc_ws.setdefault("last_interactions", [])
-            history.append(f'"{npc.dialogue}"')
-            if len(history) > kept:
-                history[:] = history[-kept:]
-
-        # Always applied: a completed dialogue flips met_player even with zero deltas (B3).
-        update: dict = {
-            "key": "npc_psychology",
-            "target": resolution.npc_id or npc.npc_name,
-            "changes": dict(npc.axis_changes),
-        }
-        psychology_config = ((baseline or {}).get("taxonomy") or {}).get("psychology")
-        if psychology_config:
-            update["config"] = psychology_config
-        world_state, char_data = apply_typed_updates(world_state, char_data, [update])
-
-    result_str = " | ".join(dialogue_parts) if dialogue_parts else f"{npc_name} does not respond."
-    return result_str, world_state, char_data

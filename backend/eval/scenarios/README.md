@@ -67,9 +67,17 @@ Two properties this buys, both deliberate:
 
 ## Same format, two producers
 
-`scenario_build.py --from-campaign <uuid> --at-turn 25` emits the **same** format from a real
-campaign in the database. The harness cannot tell the difference. That is why the format was
-fixed before either producer was written.
+`capture_scenario.py --campaign <uuid>` emits the **same** format from a real campaign in the
+database: the world overlay, the active-window history and the batch summaries are captured,
+not replayed. The harness cannot tell the difference. That is why the format was fixed before
+either producer was written.
+
+A captured state is only as faithful as the moment it was taken. A fixture that has to move the
+player — to put a living NPC in the scene, or to sit at the turn where the failure happened —
+is marked `reconstructed: true`, and the report prints it. Never silently.
+
+Stimuli and per-probe recall are authored in `scenarios/stimuli/<name>.yaml` and merged by the
+capture, because they belong to the scene, not to the database.
 
 Anonymise before committing anything extracted from real play — this repo goes public.
 
@@ -87,6 +95,45 @@ under load:
 | `gold` | baseline: coherent, no entropy |
 | `bloat` | **length** — same events, much longer summaries |
 | `contradiction` | **inconsistency** — the player asserts things that contradict canon |
+
+Built scenarios are not all transcript variants. `debug-shrine` and `debug-thornhaven` are
+**captured** from the 2026-10-25/26 debug campaign. `debug-thornhaven` moves the captured state
+to Thornhaven so a living NPC is present (`reconstructed: true`); `debug-thornhaven-it` is an
+**overlay** (`extends:`) that changes only the campaign language and the Italian stimuli, so
+the two language directions share one captured state. A probe a scene cannot ask honestly —
+`npc_speaks` where no living NPC is present — is reported `n/a`, never invented.
+
+### Travel prevention versus conflict recovery
+
+Use the same `travel_move` probe with two explicitly different cases:
+
+- **`travel-coherent`**: an authored, reconstructed conversation that still places the
+  player at the shrine before setting out for Thornhaven; it is not a captured state
+  from before the original turn 11.
+- **`travel-conflict`**: the original captured post-turn-14 mechanical state and unchanged
+  history, where previous DM narration already claimed arrival but canonical position
+  remains the shrine; this tests recovery from an existing conflict.
+
+Both extend `debug-shrine`, preserving canonical state, summaries, recall, tools and the
+same current player action. Only the coherent case replaces evaluation history; neither
+rewrites the saved campaign or the original captured fixture. Both require `move_to`
+because the canonical starting position is the shrine. Score and inspect them separately:
+a coherent-case pass does not establish recovery, and recovery alone does not establish
+normal coherent play. The quote/length/language heuristics still require manual review.
+
+Offline assembly only, with no provider or catalog requests:
+
+```text
+uv run python eval/model_smoke.py --model nvidia/nemotron-3-ultra-550b-a55b:free \
+  --model nvidia/nemotron-3.5-super-vl:free \
+  --scenario travel-coherent --scenario travel-conflict --probe travel_move --dry-run
+```
+
+Future owner-authorized live runs must use a new checkpoint such as
+`pr1-state-authority`, not append revised-prompt scores to the old `pr1-final` or
+`pr1-context-diagnostics` comparison. The owner requested no commit until positive live
+results: retain the truthful dirty-tree marker and exact request digest rather than
+describing the new prompt as a clean run of the previous HEAD. Live validation is pending.
 
 More were considered (`rename`, `death`, `abandoned`, `language`) and deliberately not built:
 they are speculative until `bloat` and `contradiction` say something. Add one when a
@@ -135,6 +182,52 @@ It exists because those move through tool executors, not through `apply_typed_up
      probe — is impossible while embeddings are hardcoded to OpenAI and silently return
      None. The corpus IS stored in built/*.yaml under `fact_corpus` so the switch needs no
      format change. Until #55 is closed, do not read these recalls as faithful. -->
+
+## Live runs: ledger, resume, budget
+
+Every provider call is a request, and the free tier does not forgive an overshoot. Pass
+`--user <owner-uuid> --checkpoint pr1 --ledger <daily-path> --budget N`. Credentials and
+policy come from that user's existing configuration; the explicitly selected free model
+is applied only to the evaluation, never saved to the profile. The copied provider client
+has SDK retries disabled so a trial cannot hide extra requests.
+
+The harness reserves each attempt before the call and retains full prompt/messages/tool
+schemas, raw public response and scores. `--resume` skips only matching checkpoint/model/
+request identities; failed and interrupted attempts still consume budget. `--out` writes
+the selected checkpoint's results, not pooled before/after scores.
+
+```text
+uv run python eval/model_smoke.py --model nvidia/nemotron-3-ultra-550b-a55b:free \
+  --scenario debug-shrine --probe travel_move --dry-run
+
+uv run python eval/model_smoke.py --user OWNER_UUID --checkpoint pr1 \
+  --model nvidia/nemotron-3-ultra-550b-a55b:free --scenario debug-shrine \
+  --probe travel_move --runs 3 --ledger DAILY_LEDGER --budget REMAINING_AUTHORIZED_BUDGET \
+  --out REPORT_JSON --resume
+```
+
+Supply the deployment's normal environment, including its encryption secret and database
+URL, before resolving a personal profile. Never extract keys into scenarios or reports.
+Reuse one daily ledger across checkpoints/models; `--budget` is its total authorized
+request count, not a fresh allocation on every command. If earlier SDK retries were not
+instrumented, establish actual remaining usage before another live run.
+
+If the owner explicitly confirms a residual allocation instead, keep it in a separate
+ledger with that exact cap and reference the earlier ledger; never treat it as a new
+daily allocation. Small batches can resume the missing trials without repeating completed
+requests, provided commit/checkpoint/request identity stays unchanged.
+
+`--actor` adds the bounded real-actor path (`actor_probe.py`): one real `invoke_single_npc`
+call per run against a present NPC, because the DM probes inject the actor result and so cannot
+see the actor's own prompt (#51). Batched beats and multi-line results are ADR 0017's PR 2.
+
+On exhaustion the run stops, writes what it has and exits 3 — it never sleeps until quota
+renews.
+
+DM smoke probes do not execute the requested tools; they measure foreground invocation
+and prose compliance. A tool request is not evidence of successful travel or persistence.
+The real actor path measures prompt/parser output; the migration-backed integration
+suites separately verify effects, final-step execution limits, time and persistence.
 
 ## Deliberately out of scope
 

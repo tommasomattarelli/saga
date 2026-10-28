@@ -32,8 +32,6 @@ from app.ai.tools.tools_world import (
 # Computed after all tool modules above have registered themselves.
 VISIBLE_TOOLS: frozenset[str] = visible_tool_names()
 
-MEANINGFUL_TOOLS: frozenset[str] = frozenset({"invoke_npc", "request_dice", "attack"})
-
 __all__ = [
     "AddItem",
     "AdvanceTime",
@@ -44,7 +42,6 @@ __all__ = [
     "InvokeNpc",
     "KillNpc",
     "LogEvent",
-    "MEANINGFUL_TOOLS",
     "MoveTo",
     "RemoveItem",
     "RemoveNpc",

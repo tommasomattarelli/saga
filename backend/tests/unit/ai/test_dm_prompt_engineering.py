@@ -142,11 +142,10 @@ class TestEmptyInputHandler:
 
 
 class TestMultiNpcGuidance:
-    def test_base_prompt_contains_one_npc_at_a_time_rule(self):
-        """BASE_DM_PROMPT mandates sequential invoke_npc calls."""
-        from app.ai.prompts.dm import BASE_DM_PROMPT
+    def test_active_actor_obligation_keeps_one_npc_at_a_time_until_pr2(self):
+        from app.ai.prompts.obligations import compose_obligations
 
-        lower = BASE_DM_PROMPT.lower()
+        lower = compose_obligations({"invoke_npc"}).lower()
         assert "one" in lower and ("at a time" in lower or "sequentially" in lower)
 
 
@@ -164,11 +163,11 @@ class TestUpdateQuestEnum:
         for expected in ("active", "completed", "failed", "abandoned"):
             assert expected in status_desc
 
-    def test_update_quest_description_in_base_prompt(self):
-        """BASE_DM_PROMPT mentions update_quest in tool guidance."""
-        from app.ai.prompts.dm import BASE_DM_PROMPT
+    def test_quest_obligation_only_appears_when_tool_is_active(self):
+        from app.ai.prompts.obligations import compose_obligations
 
-        assert "update_quest" in BASE_DM_PROMPT
+        assert "update_quest" in compose_obligations({"update_quest"})
+        assert "update_quest" not in compose_obligations({"advance_time"})
 
 
 # ── I6 — Backstop rule ───────────────────────────────────────────────────────
@@ -180,7 +179,7 @@ class TestBackstopRule:
         from app.ai.prompts.dm import BASE_DM_PROMPT
 
         lower = BASE_DM_PROMPT.lower()
-        assert "backstop" in lower or ("every" in lower and "tool call" in lower)
+        assert "state change" in lower and "matching tool call" in lower
 
     def test_backstop_mentions_no_narration_only_changes(self):
         """Backstop rule explicitly prohibits narration-only state changes."""

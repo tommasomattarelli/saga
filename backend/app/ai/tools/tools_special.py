@@ -11,6 +11,9 @@ from app.core.health import HazardClass
 
 @register
 class RequestDice(DmTool):
+    obligation = "request_dice"
+    terminal_safe = False
+
     check: str = Field(description="Type of check (e.g. 'stealth', 'persuasion', 'lockpicking')")
     stat: str = Field(description="Ability stat to use: STR, DEX, CON, INT, WIS, or CHA")
     difficulty: DifficultyLevel = Field(
@@ -65,6 +68,9 @@ class RequestDice(DmTool):
 
 @register
 class InvokeNpc(DmTool):
+    obligation = "invoke_npc"
+    terminal_safe = False
+
     name: str = Field(description="NPC name to speak")
     context: str = Field(
         default="", description="Brief context for what this NPC should respond to"

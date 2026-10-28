@@ -4,13 +4,14 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import NewCampaign from "../components/new-campaign";
-import { getWorlds, createCampaign } from "../../../shared/api/client";
+import { getWorlds, createCampaign, getCampaignLanguages } from "../../../shared/api/client";
 import type { WorldOption } from "../../../shared/api/client";
 import type { Campaign } from "../../../shared/types";
 
 vi.mock("../../../shared/api/client", () => ({
   getWorlds: vi.fn(),
   createCampaign: vi.fn(),
+  getCampaignLanguages: vi.fn(),
 }));
 
 const mockNavigate = vi.fn();
@@ -37,6 +38,12 @@ describe("NewCampaign Component", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getCampaignLanguages).mockResolvedValue(
+      createMockResponse([
+        { code: "en", display_name: "English", is_default: true },
+        { code: "it", display_name: "Italian", is_default: false },
+      ]),
+    );
   });
 
   const renderComponent = () =>
@@ -139,10 +146,14 @@ describe("NewCampaign Component", () => {
     fireEvent.click(screen.getByText(/Continue/));
 
     const submitBtn = await screen.findByText("Create campaign");
+    await screen.findByRole("option", { name: "Italian (it)" });
+    fireEvent.change(screen.getByRole("combobox", { name: "Campaign language" }), {
+      target: { value: "it" },
+    });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(createCampaign).toHaveBeenCalled();
+      expect(createCampaign).toHaveBeenCalledWith(expect.objectContaining({ language: "it" }));
       expect(mockNavigate).toHaveBeenCalledWith("/game/c1");
     });
   });

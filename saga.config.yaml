@@ -82,20 +82,21 @@ embedding:
 # Gameplay Settings — runtime behavior
 # ---------------------------------------------------------------------------
 gameplay:
+  default_campaign_language: en  # persisted at creation; existing campaigns keep their language
   context_window_turns: 8        # verbatim turns in DM prompt
   context_token_cap: 12000       # max tokens in DM prompt before oldest verbatim turns are dropped
   npc_verbosity: "medium"        # null=0 minimal=1 low=2 medium=3 high=5 unlimited=999
   compression_enabled: true
   fact_extraction_enabled: true   # background only, used in v2 pgvector search
   semantic_resolver_enabled: false # disabled until v1.5 (NPC filtering + intent classification)
-  max_agent_steps: 5
+  max_agent_steps: 8             # DM calls only; final call is terminal-safe
   pgvector_hybrid: false          # enable hybrid RRF search (vector + tsvector) — v1.1 feature flag
   auto_create_npcs: true          # if true, invoke_npc auto-creates missing NPCs
   npc_auto_create_detail: standard # detail level for auto-created NPCs: minimal|standard|rich
   npc_last_interactions_kept: 3   # recent NPC lines kept in world_state per NPC
   npc_condition_max_chars: 80     # cap on the free-form NPC condition descriptor (ADR 0009 A4)
   npc_name_match_threshold: 0.85  # fuzzy cutoff before update_npc may create a new NPC (ADR 0009 B4)
-  consecutive_empty_steps_max: 2  # max tool-only steps with no narration before forcing loop exit
+  consecutive_empty_steps_max: 2  # consecutive steps without state/playable progress force a closing call
 
 # ---------------------------------------------------------------------------
 # Resolution — one d20 frame for every check in the game (ADR 0003 A1-A6)

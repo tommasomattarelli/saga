@@ -12,24 +12,22 @@ from langchain_core.runnables import RunnableConfig
 
 from app.ai.context import build_context
 from app.ai.exceptions import PROVIDER_SDK_ERRORS, ContentPolicyError, provider_failure_message
+from app.ai.prompts.dm import DMPromptContext, DMPromptState, render_dm_prompt
 from app.ai.providers.schemas import TEXT_SIGNATURE_KEY, TOOL_CALL_SIGNATURES_KEY
 from app.ai.router import get_user_generation
 from app.ai.sanitizer import detect_injection, sanitize_player_input
 from app.ai.tools.dm_tools import get_tool_schemas
-from app.ai.tools.tool_groups import resolve_active_tools_from_state
-from app.config import settings
 from app.core.death import check_player_death
 from app.core.dm.dm_helpers import get_or_create_segment, messages_to_raw, raw_history_to_lc
 from app.core.dm.game_state import GameState
+from app.core.dm.loop_policy import closing_step, dm_call_limit, step_tools
 from app.core.engine import CONTENT_POLICY_NARRATION
 from app.exceptions import AIProviderError
-from app.memory.world_state import advance_game_clock, migrate_world_state
+from app.memory.world_state import migrate_world_state
 from app.models.quest import QuestRegistry
 
 _llm_io = logging.getLogger("llm_io")
 logger = structlog.get_logger()
-
-MAX_STEPS: int = getattr(settings, "saga_max_agent_steps", 5)
 
 
 async def context_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
@@ -79,6 +77,7 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
         "model_used": model_cfg.model,
         "importance_score": context.importance_score,
         "system_prompt": context.system_prompt,
+        "prompt_context": context.prompt_context,
         "model_config": {
             "provider": model_cfg.provider,
             "model": model_cfg.model,
@@ -88,9 +87,20 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
 
 
 async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
+    if state["step_count"] >= dm_call_limit(state):
+        raise ValueError("DM call budget exhausted.")
     provider, model_cfg = await get_user_generation(state["user_id"])
-    system_prompt = state["system_prompt"]
-    allowed_tools = resolve_active_tools_from_state(state["world_state"])
+    closing = closing_step(state)
+    allowed_tools = step_tools(state["world_state"], closing=closing)
+    scene = DMPromptState(
+        state["world_state"],
+        state["char_data"],
+        state.get("world_baseline") or {},
+        state.get("quests") or QuestRegistry(),
+    )
+    system_prompt = render_dm_prompt(
+        scene, state.get("prompt_context") or DMPromptContext(), allowed_tools, closing=closing
+    )
     tool_schemas = get_tool_schemas(allowed=allowed_tools)
 
     logger.info(
@@ -165,6 +175,9 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
         "messages": [ai_msg],
         "narration": state["narration"] + text,
         "step_count": state["step_count"] + 1,
+        "allowed_tools": sorted(allowed_tools),
+        "closing_step": closing,
+        "system_prompt": system_prompt,
     }
 
 
@@ -182,9 +195,6 @@ def post_process_node(state: GameState) -> dict[str, Any]:
             seg = get_or_create_segment(narration_segments, last_step)
             if not seg["text"]:
                 seg["text"] = full_narration[covered:]
-
-    if state["time_passed_minutes"] > 0:
-        world_state = advance_game_clock(world_state, state["time_passed_minutes"])
 
     # The difficulty rides the state from context_node. It used to be read off
     # char_data, a key nothing ever wrote, so every campaign silently resolved as

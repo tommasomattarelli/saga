@@ -4,6 +4,7 @@ import { useUIStore } from "../../../shared/stores/ui-store";
 import { useAuthStore } from "../../../shared/stores/auth-store";
 import { Drawer } from "../../../shared/ui/drawer";
 import SettingsAiPanel from "./settings-ai-panel";
+import SettingsCampaignLanguage from "./settings-campaign-language";
 
 function Toggle({
   label,
@@ -92,6 +93,8 @@ export default function SettingsDrawer() {
       title={t("game.settings")}
       width="w-full max-w-[420px]"
     >
+      <SettingsCampaignLanguage />
+
       {/* Audio */}
       <SectionHeader label={t("settings.audio")} />
       <Toggle label={t("settings.dice_sound")} checked={soundEnabled} onChange={setSoundEnabled} />

@@ -1,0 +1,23 @@
+# Authored stimuli for the captured `debug-shrine` fixture (eval/capture_scenario.py).
+# Scene: Shrine of First Light, the state the 2026-10-25/26 debug session left behind.
+# Lyra is dead here, so probes that need a present NPC are deliberately absent:
+# a scenario that cannot ask a probe honestly reports it as n/a instead of inventing a scene.
+probes:
+  travel_move:
+    player: "I follow the forest path east toward Thornhaven."
+  language_conflict:
+    player: "Seguo il sentiero del bosco verso est, in direzione di Thornhaven."
+  item_pickup:
+    player: "I pick up the rusty knife lying at the foot of the fallen menhir."
+  passive_turn:
+    player: "I wait."
+  narration_without_tool:
+    player: "I toss my old knife into the tall grass and walk away."
+recall:
+  travel_move:
+    - "Thornhaven lies east through the treeline, roughly forty-five minutes away if the trail is clear."
+    - "The standing stones hum louder at midnight and sometimes show visions, but touching them after dark is dangerous."
+  language_conflict:
+    - "Thornhaven lies east through the treeline, roughly forty-five minutes away if the trail is clear."
+  passive_turn:
+    - "A crow perches on a branch above the shrine and ruffles its feathers but does not fly away."

@@ -1,0 +1,25 @@
+system: "You maintain a compact rolling summary for an ongoing RPG campaign."
+initial: |-
+  Write a compact rolling summary of this RPG campaign so far.
+  Focus on: key story beats, major decisions, relationships, unresolved threads, world state changes.
+  Write in flowing prose, 4-6 sentences. No meta-commentary, no lists.
+
+  Recent turns:
+  {turns_text}
+
+  Output ONLY valid JSON:
+  {{"summary": "the summary prose"}}
+update: |-
+  You maintain a rolling summary of an RPG campaign. Extend the existing summary with the new turns below.
+  Keep the total length under 10 sentences — drop stale details to make room for new beats.
+  Focus on: key story beats, major decisions, relationships, unresolved threads, world state changes.
+  Write in flowing prose. No meta-commentary, no lists.
+
+  Existing summary:
+  {existing}
+
+  New turns:
+  {turns_text}
+
+  Output ONLY valid JSON:
+  {{"summary": "the updated summary prose"}}

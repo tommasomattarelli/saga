@@ -138,13 +138,14 @@ Used by `fact_extractor` for MemoryFact embeddings and `search_similar_facts` fo
 
 ```yaml
 gameplay:
+  default_campaign_language: en
   context_window_turns: 8
   context_token_cap: 60000
   npc_verbosity: "medium"
   compression_enabled: true
   fact_extraction_enabled: true
   semantic_resolver_enabled: false
-  max_agent_steps: 5
+  max_agent_steps: 8
   pgvector_hybrid: false
   auto_create_npcs: true
   npc_auto_create_detail: standard
@@ -159,11 +160,12 @@ gameplay:
 | `compression_enabled` | bool | `true` | Whether to run async batch summarization after each turn. Disable only for debugging. |
 | `fact_extraction_enabled` | bool | `true` | Whether to extract and store MemoryFacts after each turn. Powers pgvector recall. |
 | `semantic_resolver_enabled` | bool | `false` | Disabled in v1. Will enable NPC filtering + intent classification in v1.5. |
-| `max_agent_steps` | int | `5` | Hard cap on LangGraph loop iterations per turn. Prevents runaway tool loops. |
+| `default_campaign_language` | string | `en` | ISO 639-1 target persisted for new campaigns; existing campaigns retain their selection across saves and global-default changes. |
+| `max_agent_steps` | int | `8` | Hard DM-call cap; the last call exposes only active `advance_time`, `set_scene_mood`, `log_event`. Actor calls are separate; graph recursion is derived from this cap. Override with `SAGA_GAMEPLAY_MAX_AGENT_STEPS`. |
 | `pgvector_hybrid` | bool | `false` | Enable hybrid RRF search (vector + tsvector) for semantic recall. v1.1 feature flag. |
 | `auto_create_npcs` | bool | `true` | If `invoke_npc` is called for an NPC not in `world_state`, auto-create a minimal profile. |
 | `npc_auto_create_detail` | string | `standard` | Detail level for auto-created NPC profiles: `minimal` \| `standard` \| `rich` |
-| `consecutive_empty_steps_max` | int | `2` | After this many agent steps with no narration text (only silent tools), force loop exit. Prevents infinite fire-and-forget loops. |
+| `consecutive_empty_steps_max` | int | `2` | Consecutive steps without state change or fresh playable dice/NPC results force a terminal-safe closing call within the remaining budget; repeated identical request/results without new effects stall, regardless of prose. |
 
 ### `npc_auto_create_detail` — what gets created
 

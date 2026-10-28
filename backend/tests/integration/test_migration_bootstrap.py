@@ -18,7 +18,6 @@ from app.migrations.errors import (
     SchemaMismatchError,
 )
 from app.migrations.lock import LOCK_KEY, migration_transaction
-from app.migrations.profiles import load_profile, require_profile_match
 from tests.integration.migration_db import DisposableDatabase
 
 CURRENT_COMMIT = "5e9206da28a0be1d8e669dcc72ed0af6a3525eac"
@@ -95,7 +94,7 @@ async def test_direct_alembic_mutations_share_bounded_lock(command: str, tmp_pat
 
         if command == "upgrade":
             await database.upgrade()
-            assert await database.version() == "008_schema_reconciliation"
+            assert await database.version() == "009_campaign_language"
         elif command == "ensure_version":
             assert not await database.table_exists("alembic_version")
             result = await database.run_alembic("ensure_version")
@@ -117,8 +116,8 @@ async def test_startup_serializes_concurrent_upgrades_and_rechecks_head() -> Non
             database.upgrade_via_app(),
             database.upgrade_via_app(),
         )
-        assert await database.version() == "008_schema_reconciliation"
-        require_profile_match(load_profile("current_post_pr1"), await database.snapshot())
+        assert await database.version() == "009_campaign_language"
+        await database.require_head_schema()
 
 
 async def test_lock_timeout_and_cancellation_do_not_leak_session_locks() -> None:
@@ -127,7 +126,7 @@ async def test_lock_timeout_and_cancellation_do_not_leak_session_locks() -> None
             with pytest.raises(MigrationLockTimeoutError):
                 await database.upgrade_via_app(lock_timeout_seconds=0.15)
         await database.upgrade_via_app()
-        assert await database.version() == "008_schema_reconciliation"
+        assert await database.version() == "009_campaign_language"
 
     async with DisposableDatabase() as database:
         engine = create_async_engine(database.url, poolclass=NullPool)
@@ -196,7 +195,7 @@ async def test_application_lifespan_migrates_before_recovery_and_workers(
         events: list[str] = []
         await _run_lifespan(monkeypatch, database, events)
         assert events == ["migration", "recovery", "worker"]
-        assert await database.version() == "008_schema_reconciliation"
+        assert await database.version() == "009_campaign_language"
 
 
 async def test_current_schema_adoption_preserves_rows_and_converges() -> None:
@@ -211,8 +210,8 @@ async def test_current_schema_adoption_preserves_rows_and_converges() -> None:
             await database.adopt("current_post_pr1")
 
         await database.upgrade_via_app()
-        assert await database.version() == "008_schema_reconciliation"
-        require_profile_match(load_profile("current_post_pr1"), await database.snapshot())
+        assert await database.version() == "009_campaign_language"
+        await database.require_head_schema()
 
 
 async def test_frozen_006_adoption_runs_real_007_backfill_and_converges() -> None:
@@ -231,7 +230,7 @@ async def test_frozen_006_adoption_runs_real_007_backfill_and_converges() -> Non
         assert (await database.fetch_one("SELECT count(*) FROM source_embeddings"))[0] == 2
         assert (await database.fetch_one("SELECT count(*) FROM turns"))[0] == 1
         assert (await database.fetch_one("SELECT count(*) FROM memory_facts"))[0] == 1
-        require_profile_match(load_profile("current_post_pr1"), await database.snapshot())
+        await database.require_head_schema()
 
 
 async def test_adoption_mismatch_leaves_versioning_untouched() -> None:
