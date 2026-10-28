@@ -1,8 +1,8 @@
 # ADR 0017 — NPC dialogue: batched beats and engine-spliced verbatim lines
 
-- **Status**: Proposed (every structural fork closed by the owner interview 2026-08-02;
-  numeric values, the exact marker token and the frontend segment split remain explicit
-  TODOs. Flips to Accepted after implementation + playtest. Supersedes *in place* the
+- **Status**: Proposed (structural forks closed by the owner interview 2026-08-02;
+  the implementation pass in §9 settles values, markers and segment shape for ordinary
+  NPCs. Flips to Accepted only after owner review and playtest. Supersedes *in place* the
   2026-07-26 WIP stub of this same ADR, which recorded the problem and six open forks and
   decided none of them.)
 - **Date**: 2026-07-26 (stub); design interview 2026-08-02.
@@ -354,3 +354,82 @@ S0 re-grounds the rest against the merged code.
 PR 2's S0 re-grounds every remaining claim in §1 and §3 against the merged code and
 records the outcome as dated implementation notes. Where a sprint's real constraint
 contradicts a line above, the note wins; the decision itself is not silently rewritten.
+
+## 9. S0 implementation pass (2026-10-28)
+
+PR 1 merged as #105 (`ed3a5fd`), closing #99 and #101's prevention scope. Fresh
+full baseline: 1327 backend / 271 frontend, all gates green
+(`check-20261028-173215-full.log`). PR 2 implements ordinary NPCs only; A2's
+promoted pre-pass remains owned by 0014, with no dormant automation here.
+
+### 9.1 Actor outcomes and budgets (owner decisions)
+
+- A typed speaking result carries ordered usable lines, optional descriptive action
+  and psychology deltas; explicit silence is successful without a speech bubble.
+  Failure is distinct, with no fake line, psychology, met-player or interaction effect.
+  Missing content is never inferred to be intentional silence; repair must still
+  satisfy the result contract. No actor retry or semantic validator is introduced.
+- `gameplay.npc_max_lines` defaults to **6**; truncate before assigning handles.
+  Reject reserved marker-shaped content in actor public fields before any effects.
+- D3's separate token cap stays retired: every call uses 0018's shared generation
+  cap and personal credential resolution. PR 1's configurable **8** DM calls and
+  terminal-safe final step remain unchanged; actors count separately for API usage.
+- Actions can express mechanical intentions, not mechanical outcomes. Existing tools
+  alone realize damage/movement; an intention arriving before the final DM call can
+  remain unresolved, without an extra call or automatic deferred-action queue.
+
+### 9.2 Beats, effects and observability (owner decisions)
+
+- All `invoke_npc` calls in one DM response form one concurrent beat, after ordinary
+  mechanics. Resolve canonical identity, deduplicate aliases and validate before the
+  existing verbosity-derived cap (medium/3); over-cap candidates create no records.
+  Create only selected identities, freeze live in-turn inputs, dispatch concurrently
+  and apply results in original-call order. Every emitted call gets its own tool result.
+- A selected auto-created NPC keeps its minimal identity if generation fails, but
+  receives no conversation effects. A subsequent beat may invoke it again.
+- Apply psychology/met-player once per successful beat. Accumulate all successful
+  beats into one `last_interactions` entry per NPC at turn finalization.
+- Pass the actual player action and invocation context separately. Actors see all
+  completed public beats they observed, never same-beat peers or private actor data.
+  Record observers and location at event time, not at the next invocation.
+- `gameplay.npc_narrative_max_chars` defaults to **1000** for visible narrative only;
+  remove the accidental 300-character action and duplicate 500-character truncations.
+  The narrative channel follows the same visibility boundary as structured beats and
+  strips unresolved placement syntax. This is not a semantic secrecy classifier.
+
+### 9.3 Composition and transcript (owner decisions)
+
+- Engine-issued `[[npc:Lyra:1]]` handles use monotonic per-NPC indices over the whole
+  turn and freeze identity, display name, beat and verbatim speech. Placement resolves
+  only exact labels, case and exterior-whitespace tolerant; never fuzzy resolution.
+  Reserved names and colliding labels require deterministic unambiguous encoding.
+- Keep the first valid placement; strip duplicates, unknown and malformed reserved
+  forms. Append unplaced lines once at turn end in beat/call/line order, even if their
+  NPC later moved or died. Unrelated brackets and player input are not instructions.
+- One typed segment envelope contains `step`, `dice` and ordered discriminated
+  narrative/speech `parts`. Speech carries canonical identity, display name, line
+  index and verbatim text. Preserve step-level progressive dice reveal boundaries.
+- `parts` is authoritative; derive one readable attributed `narration` transcript for
+  storage, history, summaries, facts, journal and export. Remove redundant dialogue
+  transport/injection and old segment consumers together across both stacks.
+- No raw reserved syntax reaches public output or memory. No old-turn adapter: the
+  owner permits resetting only the intended development DB after preserving evidence.
+  Do not alter frozen Alembic history or adoption fingerprints.
+- Markers guarantee exact, single insertion, **not** absence of invented/paraphrased
+  speech in free prose. #102 is the direct fix; #52/#53/#51 need their own evidence.
+
+### 9.4 Delivery and acceptance
+
+One playable cross-stack sprint on `adr/0017-s1-dialogue-pipeline`, merged locally
+with `--no-ff` into `adr/0017-npc-dialogue-turns`; one final PR. Six logical units:
+S0, actor contract, beat/context/effects, composition, cross-stack transcript switch,
+evaluation. Producer/consumer changes must remain coherent at sprint completion.
+
+TDD uses migrated PostgreSQL, followed by full checks of both stacks and owner
+playtest. Baseline live evidence is already captured and is not rerun. The owner
+authorized final live evaluation across two days: at most **32 actual requests**
+remaining today (18 already spent), with tomorrow's available quota confirmed at
+resume. Record all attempts, including failures, reserve concurrent calls up front,
+disable retries and retain checkpoints. Judge the suite only after completion;
+never call an incomplete sample an acceptance result. Evaluation does not change
+personal model settings, use paid fallback or include `scratch` in SAGA commits.
