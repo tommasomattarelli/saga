@@ -22,6 +22,7 @@ from app.migrations.adopt import adopt_unversioned_database
 from app.migrations.catalog import SchemaSnapshot
 from app.migrations.introspect import introspect_connection
 from app.migrations.lock import LOCK_KEY
+from app.migrations.profiles import load_profile, require_profile_match
 from app.migrations.runner import upgrade_database
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -192,6 +193,19 @@ class DisposableDatabase:
     async def snapshot(self) -> SchemaSnapshot:
         async with self._engine().begin() as conn:
             return await conn.run_sync(introspect_connection)
+
+    async def require_head_schema(self) -> None:
+        snapshot = await self.snapshot()
+        language = snapshot["tables"]["public.campaigns"]["columns"].pop("language")
+        assert language == {
+            "type": "character varying(2)",
+            "nullable": False,
+            "default": "'en'::character varying",
+            "identity": "",
+            "generated": "",
+            "collation": 'pg_catalog."default"',
+        }
+        require_profile_match(load_profile("current_post_pr1"), snapshot)
 
     async def execute(self, sql: str, params: dict[str, object] | None = None) -> None:
         async with self._engine().begin() as conn:

@@ -12,6 +12,7 @@ import structlog
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.prompts.loader import template
 from app.ai.router import get_gameplay_config, get_generation
 from app.memory.compressor import summary_from
 from app.models.campaign import Campaign
@@ -19,29 +20,8 @@ from app.models.turn import Turn
 
 logger = structlog.get_logger()
 
-INITIAL_PROMPT = """Write a compact rolling summary of this RPG campaign so far.
-Focus on: key story beats, major decisions, relationships, unresolved threads, world state changes.
-Write in flowing prose, 4-6 sentences. No meta-commentary, no lists.
-
-Recent turns:
-{turns_text}
-
-Output ONLY valid JSON:
-{{"summary": "the summary prose"}}"""
-
-UPDATE_PROMPT = """You maintain a rolling summary of an RPG campaign. Extend the existing summary with the new turns below.
-Keep the total length under 10 sentences — drop stale details to make room for new beats.
-Focus on: key story beats, major decisions, relationships, unresolved threads, world state changes.
-Write in flowing prose. No meta-commentary, no lists.
-
-Existing summary:
-{existing}
-
-New turns:
-{turns_text}
-
-Output ONLY valid JSON:
-{{"summary": "the updated summary prose"}}"""
+INITIAL_PROMPT = template("global_summary", "initial")
+UPDATE_PROMPT = template("global_summary", "update")
 
 
 def _format_turns(turns: list[Turn]) -> str:
@@ -60,7 +40,7 @@ async def _generate_summary(prompt: str) -> str | None:
         raw = await logged_generate(
             provider,
             caller="global_summary",
-            system_prompt="You maintain a compact rolling summary for an ongoing RPG campaign.",
+            system_prompt=template("global_summary", "system"),
             messages=[{"role": "user", "content": prompt}],
             model=model_config.model,
             max_tokens=model_config.max_tokens,

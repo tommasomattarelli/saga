@@ -16,6 +16,9 @@ from app.models.quest import QuestRegistry, QuestStatus
 
 @register
 class MoveTo(DmTool):
+    obligation = "move_to"
+    terminal_safe = False
+
     location: str = Field(description="Name of the destination (place name or slug)")
 
     @classmethod
@@ -105,6 +108,9 @@ class MoveTo(DmTool):
 
 @register
 class UpdateQuest(DmTool):
+    obligation = "update_quest"
+    terminal_safe = False
+
     quest_id: str = Field(
         description=(
             "Stable quest id tag, e.g. 'dragon_hunt'. The only lookup key; "
@@ -174,6 +180,9 @@ class UpdateQuest(DmTool):
 
 @register
 class ChangeNpcPsychology(DmTool):
+    obligation = "change_npc_psychology"
+    terminal_safe = False
+
     npc: str = Field(description="NPC name")
     changes: dict[str, int] = Field(
         description='Per-axis integer deltas, e.g. {"trust": -5, "fear": 8}. '
@@ -240,6 +249,9 @@ class ChangeNpcPsychology(DmTool):
 
 @register
 class LogEvent(DmTool):
+    obligation = "log_event"
+    terminal_safe = True
+
     description: str = Field(
         description="A short, factual description of the event to record in the world history"
     )
@@ -268,6 +280,9 @@ class LogEvent(DmTool):
 
 @register
 class SetSceneMood(DmTool):
+    obligation = "set_scene_mood"
+    terminal_safe = True
+
     mood: str = Field(
         description=(
             "Scene mood. One of: calm_exploration, tense_anticipation, combat_fury, "
@@ -302,11 +317,14 @@ class SetSceneMood(DmTool):
 
 @register
 class AdvanceTime(DmTool):
+    obligation = "advance_time"
+    terminal_safe = True
+
     minutes: int = Field(
         description=(
             "Minutes of in-game time to advance. "
-            "Guide: dialogue 1-5, room exploration 10-30, local travel 30-60, "
-            "long travel 120-480, short rest 60, long rest 480."
+            "Guide: dialogue 1-5, room exploration 10-30, short rest 60, long rest 480. "
+            "move_to already pays elapsed travel time; do not add that duration again."
         )
     )
 
@@ -322,9 +340,8 @@ class AdvanceTime(DmTool):
         from app.memory.world_state import advance_game_clock
 
         new_state = advance_game_clock(copy.deepcopy(world_state), self.minutes)
-        meta = new_state.get("meta", {})
-        clock = meta.get("clock", {})
-        time_str = f"Day {clock.get('current_day', 1)}, {clock.get('time_of_day', 'morning')}"
+        clock = new_state["clock"]
+        time_str = f"Day {clock['current_day']}, {clock['time_of_day']}"
         return ToolResult(
             description=f"Time advanced {self.minutes}m → {time_str}",
             world_state=new_state,

@@ -106,6 +106,7 @@ class TestInvokeNPCsParallel:
             dm_narration,
             psychology=None,
             fill_empty_traits=False,
+            language="en",
         ):
             nonlocal call_count
             call_count += 1

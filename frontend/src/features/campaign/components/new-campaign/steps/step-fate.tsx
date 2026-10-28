@@ -2,10 +2,12 @@ import { motion } from "framer-motion";
 import * as RadioGroup from "@radix-ui/react-radio-group";
 import { useTranslation } from "react-i18next";
 import { DIFFICULTIES } from "../../../data/class-presets";
+import LanguageSelect from "../../language-select";
 
 interface FateForm {
   heroName: string;
   campaignName: string;
+  language: string;
   difficulty: string;
   background: string;
 }
@@ -57,6 +59,8 @@ export default function StepFate({ form, onChange, onBack, onSubmit, isPending, 
             }}
           />
         </div>
+
+        <LanguageSelect value={form.language} onChange={(language) => onChange({ language })} />
 
         {/* Background */}
         <div>

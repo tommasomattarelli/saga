@@ -31,6 +31,7 @@ describe("CampaignSelect Component", () => {
     {
       id: "1",
       world_slug: "w1",
+      language: "en",
       name: "The Dragon Raid",
       status: "active",
       difficulty: "hard",

@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 import structlog
 
 from app.ai.generation_context import generation_context
+from app.ai.prompts.loader import template
 from app.ai.prompts.npc import build_npc_prompt
 from app.ai.providers.base import logged_generate
 from app.ai.router import get_gameplay_config, get_generation
@@ -47,14 +48,15 @@ async def invoke_single_npc(
     dm_narration: str,
     psychology: PsychologyDef | None = None,
     fill_empty_traits: bool = False,
+    language: str = "en",
 ) -> NPCDialogue:
-    """Call a budget LLM for a single NPC's response."""
     prompt = build_npc_prompt(
         npc_profile,
         player_action=player_action,
         dm_narration=dm_narration,
         psychology=psychology,
         fill_empty_traits=fill_empty_traits,
+        language=language,
     )
 
     provider, model_config = await get_generation()
@@ -63,7 +65,7 @@ async def invoke_single_npc(
         raw = await logged_generate(
             provider,
             caller=f"npc_director:{npc_name}",
-            system_prompt=f"You are {npc_name}, an NPC in a tabletop RPG.",
+            system_prompt=template("npc", "system").format(name=npc_name),
             messages=[{"role": "user", "content": prompt}],
             model=model_config.model,
             max_tokens=model_config.max_tokens,
@@ -110,6 +112,8 @@ async def invoke_npcs_parallel(
     psychology = resolve_psychology(baseline.get("taxonomy"))
     # D2: at rich detail the NPC is told to invent its missing traits in character.
     fill_empty = config.npc_auto_create_detail == "rich"
+    language = getattr(campaign, "language", None)
+    language = language if isinstance(language, str) else "en"
 
     tasks = []
     for name in names:
@@ -132,6 +136,7 @@ async def invoke_npcs_parallel(
                 dm_narration=dm_narration,
                 psychology=psychology,
                 fill_empty_traits=fill_empty,
+                language=language,
             )
         )
 

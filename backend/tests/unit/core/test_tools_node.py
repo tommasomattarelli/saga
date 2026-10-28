@@ -61,7 +61,7 @@ class TestToolsNodeRequestDice:
         tc = {
             "id": "tc1",
             "name": "request_dice",
-            "args": {"difficulty": "hard", "stat": "STR"},
+            "args": {"difficulty": "hard", "stat": "STR", "check": "Athletics"},
             "type": "tool_call",
         }
         ai_msg = AIMessage(content="", tool_calls=[tc])
@@ -80,8 +80,8 @@ class TestToolsNodeRegularTool:
 
         tc = {
             "id": "tc1",
-            "name": "update_world",
-            "args": {"key": "weather", "value": "rainy"},
+            "name": "set_scene_mood",
+            "args": {"mood": "dread_horror"},
             "type": "tool_call",
         }
         ai_msg = AIMessage(content="", tool_calls=[tc])
@@ -145,30 +145,21 @@ class TestToolsNodeRegularTool:
         tc = {"id": "tc1", "name": "advance_time", "args": {"minutes": 30}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
-        mock_tool_result = MagicMock()
-        mock_tool_result.world_state = {}
-        mock_tool_result.char_data = {}
-        mock_tool_result.description = "Time advanced."
-        mock_tool_result.extra = {}
-
-        mock_tool_cls = MagicMock()
-        mock_tool_cls.visible.return_value = False
-
-        state = _make_state(messages=[ai_msg], time_passed_minutes=10)
-
-        with (
-            patch("app.core.dm.dm_tools_executor.execute_tool", return_value=mock_tool_result),
-            patch("app.core.dm.dm_tools_executor.get_tool", return_value=mock_tool_cls),
-        ):
-            result = await tools_node(state)
+        state = _make_state(
+            messages=[ai_msg],
+            time_passed_minutes=10,
+            world_state={"clock": {"total_minutes": 490}},
+        )
+        result = await tools_node(state)
 
         assert result["time_passed_minutes"] == 40
+        assert result["world_state"]["clock"]["total_minutes"] == 520
 
     @pytest.mark.asyncio
     async def test_visible_tool_added_to_tool_events(self):
         from app.core.dm.dm_tools_executor import tools_node
 
-        tc = {"id": "tc1", "name": "give_item", "args": {"item": "sword"}, "type": "tool_call"}
+        tc = {"id": "tc1", "name": "add_item", "args": {"name": "sword"}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
         mock_tool_result = MagicMock()
@@ -189,7 +180,7 @@ class TestToolsNodeRegularTool:
             result = await tools_node(state)
 
         assert len(result["tool_events"]) == 1
-        assert result["tool_events"][0]["tool"] == "give_item"
+        assert result["tool_events"][0]["tool"] == "add_item"
 
 
 class TestToolsNodeInvokeNpc:
@@ -200,7 +191,11 @@ class TestToolsNodeInvokeNpc:
         tc = {"id": "tc1", "name": "invoke_npc", "args": {"name": "Aria"}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
-        state = _make_state(messages=[ai_msg], called_npcs=["Aria"])
+        state = _make_state(
+            messages=[ai_msg],
+            called_npcs=["Aria"],
+            world_state={"npcs": {"aria": {"name": "Aria"}}},
+        )
         result = await tools_node(state)
 
         messages = result["messages"]
@@ -235,7 +230,7 @@ class TestToolsNodeInvokeNpc:
         mock_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_ctx.__aexit__ = AsyncMock(return_value=False)
 
-        state = _make_state(messages=[ai_msg])
+        state = _make_state(messages=[ai_msg], world_state={"npcs": {"guard": {"name": "Guard"}}})
 
         with patch(
             "app.core.dm.dm_tools_executor.invoke_npcs_parallel", new_callable=AsyncMock

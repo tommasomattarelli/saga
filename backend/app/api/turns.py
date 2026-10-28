@@ -11,10 +11,12 @@ from sqlalchemy import delete, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.generation_context import generation_context
+from app.ai.prompts.dm import DMPromptContext
 from app.ai.router import get_gameplay_config, validate_user_generation
 from app.api.rate_limit import limiter, turns_limit
 from app.core.dm.dm_graph import dm_graph
 from app.core.dm.game_state import GameState
+from app.core.dm.loop_policy import recursion_limit
 from app.dependencies import get_db, get_db_context
 from app.exceptions import AIProviderError, ValidationError
 from app.memory.compressor import compress_turn_to_summary, ensure_compression
@@ -33,8 +35,6 @@ from app.security.auth import get_current_user
 
 logger = structlog.get_logger()
 router = APIRouter()
-
-_MAX_RECURSION = 30  # LangGraph recursion limit (covers up to 5 DM steps × 2 nodes + buffer)
 
 
 @router.post("/{campaign_id}/action", response_model=TurnResponse)
@@ -94,6 +94,7 @@ async def _submit_action(
         await db.commit()
 
     # Build initial GameState (no session held).
+    max_steps = get_gameplay_config().max_agent_steps
     initial_state: GameState = {
         "player_action": body.action,
         "campaign_id": str(campaign_id),
@@ -115,16 +116,22 @@ async def _submit_action(
         "model_used": "",
         "importance_score": 5,
         "step_count": 0,
+        "max_agent_steps": max_steps,
         "consecutive_empty_steps": 0,
+        "progress_fingerprints": [],
+        "allowed_tools": [],
+        "closing_step": False,
+        "followup_required": False,
         "death_event": None,
         "system_prompt": "",
+        "prompt_context": DMPromptContext(),
         "model_config": {},
     }
 
     try:
         final_state = await dm_graph.ainvoke(
             initial_state,
-            config={"recursion_limit": _MAX_RECURSION},
+            config={"recursion_limit": recursion_limit(max_steps)},
         )
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=exc.message) from exc

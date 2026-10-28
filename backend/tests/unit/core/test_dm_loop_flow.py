@@ -36,8 +36,7 @@ def _make_state(**overrides) -> dict:
 
 
 class TestConsecutiveEmptySteps:
-    def test_loop_exits_after_consecutive_empty_steps_max(self):
-        """route_after_tools exits when counter >= configured max (default 2)."""
+    def test_stalls_force_a_closing_call_instead_of_cutting_off_results(self):
         from app.core.dm.dm_graph import route_after_tools
 
         tc = {"id": "1", "name": "move_to", "args": {"location": "forest"}, "type": "tool_call"}
@@ -48,7 +47,10 @@ class TestConsecutiveEmptySteps:
             narration="",
             consecutive_empty_steps=2,
         )
-        assert route_after_tools(state) == "post_process_node"
+        from app.core.dm.loop_policy import closing_step
+
+        assert route_after_tools(state) == "dm_node"
+        assert closing_step(state)
 
     def test_loop_continues_before_reaching_max(self):
         """route_after_tools keeps looping when counter is still below max."""
@@ -92,8 +94,7 @@ class TestConsecutiveEmptySteps:
 
         assert result["consecutive_empty_steps"] == 1
 
-    async def test_tools_node_resets_counter_when_narration_present(self):
-        """tools_node resets consecutive_empty_steps when narration has been produced."""
+    async def test_prose_cannot_hide_no_progress_tools(self):
         from unittest.mock import MagicMock, patch
 
         from app.core.dm.dm_tools_executor import tools_node
@@ -122,29 +123,27 @@ class TestConsecutiveEmptySteps:
         ):
             result = await tools_node(state)
 
-        assert result["consecutive_empty_steps"] == 0
+        assert result["consecutive_empty_steps"] == 3
 
 
-# ── I8 — _MEANINGFUL_TOOLS includes start_combat + end_combat ────────────────
+# ── Every non-terminal-safe tool gets result narration ─────────────────────
 
 
 class TestMeaningfulTools:
-    def test_start_combat_triggers_loop_back(self):
-        """start_combat is treated as meaningful → loop back to dm_node."""
+    def test_move_to_triggers_loop_back(self):
         from app.core.dm.dm_graph import route_after_tools
 
-        tc = {"id": "1", "name": "start_combat", "args": {}, "type": "tool_call"}
+        tc = {"id": "1", "name": "move_to", "args": {}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
         state = _make_state(
             messages=[ai_msg], step_count=1, narration="", consecutive_empty_steps=0
         )
         assert route_after_tools(state) == "dm_node"
 
-    def test_end_combat_triggers_loop_back(self):
-        """end_combat is treated as meaningful → loop back to dm_node."""
+    def test_update_quest_triggers_loop_back(self):
         from app.core.dm.dm_graph import route_after_tools
 
-        tc = {"id": "1", "name": "end_combat", "args": {}, "type": "tool_call"}
+        tc = {"id": "1", "name": "update_quest", "args": {}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
         state = _make_state(
             messages=[ai_msg], step_count=1, narration="", consecutive_empty_steps=0

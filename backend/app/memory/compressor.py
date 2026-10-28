@@ -9,6 +9,7 @@ import structlog
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.prompts.loader import template
 from app.ai.router import (
     get_gameplay_config,
     get_generation,
@@ -19,16 +20,7 @@ from app.models.turn import Turn
 
 logger = structlog.get_logger()
 
-COMPRESSION_PROMPT = """Summarize this batch of RPG game turns in 2-3 sentences of flowing prose.
-Focus on: key player decisions, consequences, NPC interactions, world changes.
-Do NOT include meta-commentary — write as a narrative summary.
-Do NOT include verbatim NPC dialogue or quoted speech — paraphrase what was said and its effect.
-
-Turns:
-{turns_text}
-
-Output ONLY valid JSON:
-{{"summary": "the summary prose"}}"""
+COMPRESSION_PROMPT = template("compressor", "base")
 
 
 def _first_sentence(text: str) -> str:
@@ -86,7 +78,7 @@ async def compress_turns_batch_llm(turns: list[Turn]) -> str | None:
         raw = await logged_generate(
             provider,
             caller="compressor",
-            system_prompt="You are a concise narrative summarizer for an RPG game.",
+            system_prompt=template("compressor", "system"),
             messages=[
                 {"role": "user", "content": COMPRESSION_PROMPT.format(turns_text=turns_text)}
             ],

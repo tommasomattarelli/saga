@@ -27,6 +27,7 @@ describe("CharacterSheet Component", () => {
     id: "c1",
     name: "Test",
     world_slug: "w1",
+    language: "en",
     status: "active",
     difficulty: "medium",
     turn_number: 1,

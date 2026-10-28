@@ -17,6 +17,9 @@ from app.models.npc_class import DamageClass
 
 @register
 class Attack(DmTool):
+    obligation = "attack"
+    terminal_safe = False
+
     attacker: str = Field(description="Who strikes — the player, or any NPC in the scene")
     target: str = Field(description="Who is struck — the player, or any NPC in the scene")
     weapon_class: DamageClass | None = Field(
@@ -102,6 +105,9 @@ class Attack(DmTool):
 
 @register
 class Heal(DmTool):
+    obligation = "heal"
+    terminal_safe = False
+
     healer: str = Field(
         description="Who performs the healing — an NPC in the scene, or the player"
     )

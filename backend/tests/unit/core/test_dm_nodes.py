@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage
 
+from app.ai.context import GameContext
 from app.ai.router import ModelConfig
 
 
@@ -101,17 +102,16 @@ class TestPostProcessNode:
         assert len(segments) == 1
         assert segments[0]["text"] == full_text
 
-    def test_advances_clock_when_time_passed(self):
+    def test_reported_time_does_not_advance_clock_again(self):
         from app.core.dm.dm_nodes import post_process_node
 
         state = _make_state(
             time_passed_minutes=30,
-            world_state={"time": {"hour": 10, "minute": 0}},
+            world_state={"clock": {"total_minutes": 630}},
             char_data={"hp": {"current": 10, "max": 10}},
         )
         result = post_process_node(state)
-        # Should have advanced the time — world state should be updated
-        assert result["world_state"] is not None
+        assert result["world_state"]["clock"]["total_minutes"] == 630
 
     def test_no_clock_advance_when_zero_time(self):
         from app.core.dm.dm_nodes import post_process_node
@@ -148,7 +148,7 @@ class TestContextNode:
         async def fake_ctx():
             yield mock_db
 
-        game_ctx = MagicMock(messages=[], importance_score=5, system_prompt="sys")
+        game_ctx = GameContext(messages=[], importance_score=5, system_prompt="sys")
         model_cfg = MagicMock(provider="openai", model="gpt-4o", max_tokens=100)
 
         state = _make_state(player_action="I attack the guard", campaign_id="cid")
@@ -191,7 +191,7 @@ class TestDmNodeUnit:
                 "app.core.dm.dm_nodes.get_user_generation",
                 new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
             ),
-            patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
+            patch("app.core.dm.loop_policy.resolve_active_tools_from_state", return_value=set()),
             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
         ):
             result = await dm_node(state, config={})
@@ -216,7 +216,7 @@ class TestDmNodeUnit:
                 "app.core.dm.dm_nodes.get_user_generation",
                 new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
             ),
-            patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
+            patch("app.core.dm.loop_policy.resolve_active_tools_from_state", return_value=set()),
             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
         ):
             result = await dm_node(state, config={})
@@ -238,7 +238,7 @@ class TestDmNodeUnit:
                 "app.core.dm.dm_nodes.get_user_generation",
                 new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
             ),
-            patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
+            patch("app.core.dm.loop_policy.resolve_active_tools_from_state", return_value=set()),
             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
         ):
             result = await dm_node(state, config={})
@@ -269,7 +269,7 @@ class TestDmNodeUnit:
                 "app.core.dm.dm_nodes.get_user_generation",
                 new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
             ),
-            patch("app.core.dm.dm_nodes.resolve_active_tools_from_state", return_value=set()),
+            patch("app.core.dm.loop_policy.resolve_active_tools_from_state", return_value=set()),
             patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
         ):
             result = await dm_node(state, config={})

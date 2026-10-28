@@ -219,6 +219,7 @@ async def test_manual_save_restore_replaces_the_registry_and_the_next_prompt(
                     description="This appeared after the save.",
                 ),
             ),
+            _reply("The consequences settle."),
             _reply("The trail is cold."),
         ],
     )
@@ -232,7 +233,7 @@ async def test_manual_save_restore_replaces_the_registry_and_the_next_prompt(
 
     await _take_turn(auth_client, campaign_id, "I retrace my steps")
 
-    prompt = captured[1]["system_prompt"]
+    prompt = captured[2]["system_prompt"]
     assert '<quest id="who_am_i">' in prompt
     assert "later_quest" not in prompt
 
@@ -256,6 +257,7 @@ async def test_autosave_restore_removes_later_registry_changes(
                     description="First version.",
                 ),
             ),
+            _reply("The consequences settle."),
             _reply("You remember the first account."),
         ],
     )
@@ -282,7 +284,7 @@ async def test_autosave_restore_removes_later_registry_changes(
 
     await _take_turn(auth_client, campaign_id)
 
-    prompt = captured[1]["system_prompt"]
+    prompt = captured[2]["system_prompt"]
     assert "First version." in prompt
     assert "Second version." not in prompt
 

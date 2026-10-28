@@ -32,31 +32,41 @@ class Probe:
 PROBES: list[Probe] = [
     Probe(
         name="npc_speaks",
-        why="dm.yaml:31 — a present NPC answering MUST go through invoke_npc (#52)",
+        why="invoke_npc obligation — a present NPC answering MUST go through the actor (#52)",
         must_call=frozenset({"invoke_npc"}),
     ),
     Probe(
         name="npc_followup",
-        why="dm.yaml:42 — after an invoke_npc result, do not restate the line (#53)",
+        why="after an actor result, do not restate the line (#53)",
         must_not_call=frozenset({"invoke_npc"}),
         forbid_quoted_dialogue=True,
         needs_injected_npc=True,
     ),
     Probe(
         name="item_pickup",
-        why="dm.yaml:30 — acquiring an object MUST call add_item",
+        why="add_item obligation — acquiring an object MUST call add_item",
         must_call=frozenset({"add_item"}),
     ),
     Probe(
         name="passive_turn",
-        why="dm.yaml:20/35 — a passive turn still advances the clock",
+        why="passive-turn guidance — a passive turn still advances the clock",
         must_call=frozenset({"advance_time"}),
     ),
     Probe(
         name="narration_without_tool",
-        why="dm.yaml:37 BACKSTOP — a narrated state change with no tool call desyncs the world",
+        why="BACKSTOP — a narrated state change with no tool call desyncs the world",
         must_call=frozenset({"remove_item"}),
         flag_silent_narration=True,
+    ),
+    Probe(
+        name="travel_move",
+        why="move_to obligation — narrating an arrival the engine never computed (#101)",
+        must_call=frozenset({"move_to"}),
+        flag_silent_narration=True,
+    ),
+    Probe(
+        name="language_conflict",
+        why="campaign target language — input/world language must not override it (#51)",
     ),
 ]
 

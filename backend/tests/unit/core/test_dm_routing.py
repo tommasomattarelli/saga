@@ -7,7 +7,8 @@ from unittest.mock import patch
 
 from langchain_core.messages import AIMessage, HumanMessage
 
-from app.core.dm.dm_graph import MAX_STEPS, route_after_dm, route_after_tools
+from app.core.dm.dm_graph import route_after_dm, route_after_tools
+from app.core.dm.loop_policy import closing_step
 
 
 def _make_state(**overrides) -> dict:
@@ -19,6 +20,7 @@ def _make_state(**overrides) -> dict:
         "campaign_id": "test-campaign",
         "narration": "",
         "step_count": 1,
+        "max_agent_steps": 8,
         "tool_events": [],
         "dice_results": [],
         "npc_dialogues": [],
@@ -63,7 +65,7 @@ class TestRouteAfterDm:
 class TestRouteAfterTools:
     def test_routes_to_post_process_when_max_steps_reached(self):
         ai_msg = AIMessage(content="", tool_calls=[])
-        state = _make_state(messages=[ai_msg], step_count=MAX_STEPS, narration="some narration")
+        state = _make_state(messages=[ai_msg], step_count=8, narration="some narration")
         assert route_after_tools(state) == "post_process_node"
 
     def test_routes_to_post_process_when_no_ai_message(self):
@@ -83,27 +85,25 @@ class TestRouteAfterTools:
         assert route_after_tools(state) == "dm_node"
 
     def test_routes_to_post_process_when_has_narration_and_silent_tools(self):
-        tc = {"id": "1", "name": "update_world", "args": {}, "type": "tool_call"}
+        tc = {"id": "1", "name": "set_scene_mood", "args": {}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
         state = _make_state(messages=[ai_msg], step_count=1, narration="The hero steps forward.")
         assert route_after_tools(state) == "post_process_node"
 
     def test_routes_to_dm_node_when_no_narration_and_silent_tools(self):
-        tc = {"id": "1", "name": "update_world", "args": {}, "type": "tool_call"}
+        tc = {"id": "1", "name": "set_scene_mood", "args": {}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
         state = _make_state(messages=[ai_msg], step_count=1, narration="")
         assert route_after_tools(state) == "dm_node"
 
     def test_routes_to_dm_node_when_narration_is_whitespace(self):
         # whitespace-only narration → strip() → empty → has_narration=False → dm_node
-        tc = {"id": "1", "name": "update_world", "args": {}, "type": "tool_call"}
+        tc = {"id": "1", "name": "set_scene_mood", "args": {}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
         state = _make_state(messages=[ai_msg], step_count=1, narration="   ")
         assert route_after_tools(state) == "dm_node"
 
-    def test_routes_to_post_process_when_empty_steps_cap_reached(self):
-        # B-M11: a meaningful tool would normally loop back to dm_node, but the
-        # consecutive_empty_steps cap takes precedence and ends the turn.
+    def test_stall_threshold_reserves_a_restricted_closing_opportunity(self):
         tc = {"id": "1", "name": "invoke_npc", "args": {}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
         state = _make_state(
@@ -111,7 +111,8 @@ class TestRouteAfterTools:
         )
         cfg = SimpleNamespace(consecutive_empty_steps_max=2)
         with patch("app.ai.router.get_gameplay_config", return_value=cfg):
-            assert route_after_tools(state) == "post_process_node"
+            assert route_after_tools(state) == "dm_node"
+            assert closing_step(state)
 
     def test_loops_when_empty_steps_below_cap(self):
         # Same meaningful-tool state, but one empty step below the cap → still loops.

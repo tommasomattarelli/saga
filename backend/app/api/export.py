@@ -46,6 +46,7 @@ async def export_campaign(
     return {
         "campaign": {
             "name": campaign.name,
+            "language": campaign.language,
             "world_slug": campaign.world_slug,
             "world_version": campaign.world_version,
             "difficulty": campaign.difficulty,

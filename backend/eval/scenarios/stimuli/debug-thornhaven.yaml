@@ -1,0 +1,30 @@
+# Authored stimuli for the `debug-thornhaven` fixture (eval/capture_scenario.py).
+# Same captured campaign as `debug-shrine`, moved to Thornhaven so a present, living
+# NPC exists: Aldric and Marta are the alive records in this world state.
+probes:
+  npc_speaks:
+    player: "Aldric, do you know who I am? Have you seen me before?"
+  npc_followup:
+    player: "Aldric, do you know who I am? Have you seen me before?"
+    npc_name: "Aldric"
+    npc_dialogue: "I know every face in this village. Yours is not one of them."
+    npc_action: "He plants his walking stick and studies you."
+    npc_context: "the player asks whether the elder recognises them"
+  travel_move:
+    player: "I walk north along the road to the old mines."
+  language_conflict:
+    player: "Chiedo ad Aldric se sa chi sono."
+  item_pickup:
+    player: "I pick up the abandoned cart wheel by the road."
+  passive_turn:
+    player: "I wait."
+  narration_without_tool:
+    player: "I toss my old knife into the ditch."
+recall:
+  npc_speaks:
+    - "Aldric is the village elder of Thornhaven; his son went to the old mines and never returned."
+    - "Thornhaven's people are wary of strangers but not unkind."
+  npc_followup:
+    - "Aldric is the village elder of Thornhaven; his son went to the old mines and never returned."
+  travel_move:
+    - "The old mines lie north of Thornhaven, and dark rumours speak of something stirring there."
