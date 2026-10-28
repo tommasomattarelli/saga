@@ -420,6 +420,14 @@ promoted pre-pass remains owned by 0014, with no dormant automation here.
 
 ### 9.4 Delivery and acceptance
 
+**S1 note (2026-10-28, memory integration).** Batch compression and rolling
+summary each truncated every narration to its first 300 characters before the
+model call (#106). That would drop later spliced/fallback speech, so both now
+receive the complete transcript. Fact extraction no longer injects a second
+dialogue section. A migrated-DB regression verifies actual API/storage/journal/
+export/history and all three memory prompts, with speech beyond character 300.
+This does not regenerate old summaries or change memory scheduling.
+
 **S1 note (2026-10-28, implementation).** The executor now prepares all actors
 after ordinary mechanics, without reloading a detached campaign. Explicit per-step
 text deltas replace cumulative-text slicing; narrative observers are captured before
