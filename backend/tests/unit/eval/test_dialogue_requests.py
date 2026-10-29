@@ -1,4 +1,6 @@
 import asyncio
+import hashlib
+import json
 from unittest.mock import AsyncMock
 
 import pytest
@@ -125,3 +127,31 @@ async def test_checkpoint_and_budget_reservation_failure(tmp_path):
     provider.generate.return_value = "ok"
     await allowed.generate("s", [], "m")
     assert allowed.ledger.results()[0].checkpoint == "candidate-v2"
+
+
+async def test_request_hash_covers_the_effective_prompt_tools_and_parameters(tmp_path):
+    provider = AsyncMock()
+    provider.generate.return_value = "ok"
+    ledger = RequestLedger(tmp_path / "calls.jsonl", budget=1)
+    trace = SuiteProvider(
+        provider,
+        ledger,
+        key="trial",
+        case="case",
+        model="m:free",
+        run=0,
+        commit="commit",
+        ceiling=1,
+    )
+    await trace.generate(
+        "system",
+        [{"role": "user", "content": "actual context"}],
+        "m:free",
+        max_tokens=321,
+        json_mode=True,
+    )
+    row = ledger.results()[0]
+    assert (
+        row.request_hash
+        == hashlib.sha256(json.dumps(row.request, sort_keys=True).encode()).hexdigest()
+    )

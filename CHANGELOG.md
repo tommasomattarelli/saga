@@ -28,6 +28,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Prepare a selectable v2 dialogue evaluation with natural two-turn cases, explicit paid-model consent, request identity, separate outcome metrics and resumable usage reports (ADR 0017).
 - Capture per-request evaluation usage, cache/reasoning details and actor/step correlation, with offline CSV/Markdown summaries and explicit missing values (ADR 0017).
 - Completed ADR 0017's 36-trial baseline and recorded the owner-approved S2 quality pass; further live evaluation awaits renewed authorization.
 - Added typed narration parts and frozen NPC line handles with deterministic placement, malformed-marker cleanup and dice-safe end-of-turn fallback (ADR 0017).

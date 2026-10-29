@@ -232,43 +232,76 @@ suites separately verify effects, final-step execution limits, time and persiste
 ## ADR 0017 final suite — prepared, live execution requires owner approval
 
 `eval/dialogue_suite.py` reuses the captured/reconstructed PR 1 baseline, rather than
-spending requests on another baseline. Six cases × two approved NVIDIA models × three
-repetitions = **36 trials**, nominally **66 generation requests**, bounded at **72**:
+spending requests on another baseline. The v2 default includes six unchanged comparison
+cases plus four separately identified review cases: ten cases × two default models ×
+three repetitions = **60 trials**, nominally **186 generation requests**, bounded at **210**.
+The original six-case v1 evidence remains immutable; v2 records the cap-6→4 runtime change
+in its manifest through the effective gameplay configuration.
 
 - saturated-context NPC invocation and injected-result placement/follow-up;
 - real actor output in English and Italian against conflicting input language;
 - an actor with an authored vow of silence;
 - two independent actors followed by a dependent second beat, through real DM/tool/
   composition code in an isolated overlay, without persistence or background calls.
+- an exact short quoted follow-up for the narrow echo guard, a scene-context actor parity
+  case, a natural two-NPC exchange and a bounded two-turn continuation carrying the real
+  prior transcript and state, with semantic relevance explicitly left for review.
+
+`npc_followup_short`, `actor_scene`, `two_npc_natural` and `two_npc_conversation` are new fixtures with no v1
+comparison. Their exact stimuli still require owner approval before any live run. The
+natural exchange is not forced to produce a fixed number of actor turns; its expected
+relevance is reported for prose review. Language checks are heuristic and always carry a
+manual-review flag; ambiguous/mixed output is not a universal pass.
+The natural cases do not require a fixed initial cast or second reply. Narrator and
+actor language metrics are separate; exact-text echo counts are lexical signals, not
+proof of a paraphrase or of who spoke. The conversation case carries two actual turns
+without background memory calls, not a simulation of retrieval or compression.
 
 The pipeline case has three DM opportunities and a seven-request foreground cap; a
 normally shaped two-beat scene uses six. A cap hit is recorded as an incomplete bounded
 evaluation, not silently treated as a gameplay failure or retried. The ordinary-NPC
 verbosity policy remains unchanged. Mira is produced by the real scaffold with a fixed
 fixture identity and seeded statblock; original captures remain untouched.
+The two-turn conversation allows at most fourteen requests across two three-DM-call
+turns. Selecting only the original six cases remains 36 trials with a ceiling of 72.
 
 ```text
 # Offline: no profile lookup, provider request or public-catalog request.
 uv run python eval/dialogue_suite.py --dry-run
 
+# Select an offline subset; these flags do not resolve a profile or call the catalog.
+uv run python eval/dialogue_suite.py --dry-run --suite candidate-a \
+  --models nvidia/nemotron-3-ultra-550b-a55b:free --cases npc_speaks actor_scene --runs 1
+
 # Only after explicit owner authorization; paths below are relative to backend/.
 uv run python eval/dialogue_suite.py --user OWNER_UUID \
-  --budget 32 --ledger ../scratch/adr-0004-0017-eval/outputs/pr2-final/2026-10-28-ledger.jsonl \
-  --results ../scratch/adr-0004-0017-eval/outputs/pr2-final/trials.jsonl
+  --cases npc_speaks npc_followup actor_en actor_it actor_silent two_npc_two_beat \
+  --budget AUTHORIZED_REQUESTS --ledger ../scratch/adr-0004-0017-eval/outputs/pr2-quality-v2/day-1.jsonl \
+  --results ../scratch/adr-0004-0017-eval/outputs/pr2-quality-v2/trials.jsonl
+
+# Future paid comparison requires both selecting and explicitly allowlisting the exact ID.
+# This option is not authorization to run; owner approval and request budget remain required.
+uv run python eval/dialogue_suite.py --dry-run --models vendor/model-id \
+  --allow-paid-model vendor/model-id --cases npc_speaks --runs 1
 
 # Next owner-started day, after confirming the available quota; reuse trials, new daily ledger.
 uv run python eval/dialogue_suite.py --user OWNER_UUID --resume \
-  --budget 50 --ledger ../scratch/adr-0004-0017-eval/outputs/pr2-final/2026-10-29-ledger.jsonl \
-  --results ../scratch/adr-0004-0017-eval/outputs/pr2-final/trials.jsonl
+  --cases npc_speaks npc_followup actor_en actor_it actor_silent two_npc_two_beat \
+  --budget AUTHORIZED_REQUESTS --ledger ../scratch/adr-0004-0017-eval/outputs/pr2-quality-v2/day-2.jsonl \
+  --results ../scratch/adr-0004-0017-eval/outputs/pr2-quality-v2/trials.jsonl
 ```
 
-Each day's budget is the remaining allowance, not a quota reset inferred by the script.
+On a fresh ledger, the budget is the authorized remaining allowance, not an inferred
+quota reset. On that same ledger's resume, it remains the total cap including earlier
+attempts; do not mistake it for another fresh allocation.
 Trial scheduling checks its entire request ceiling before starting, and every actual DM/
 actor attempt is reserved and captured separately before network I/O. SDK retries are
 disabled on a copied personal client; settings/credentials are not changed. Rate limits
 stop the day without polling or paid fallback. A provider failure marks only that trial
 retryable: `--resume` on a later day repeats those specific trials and skips completed
-ones, never rerunning the suite. Interrupted trials require owner review. Completed
+ones, never rerunning the suite. A failed-trial retry requires a fresh ledger; historical
+attempts and their costs remain in the combined usage report. An unstarted budget stop
+can resume normally; a trial cut off after requests needs owner review. Interrupted trials require owner review. Completed
 misses and provider failures remain visible as evidence.
 
 The shared manifest freezes code, scenarios, models, effective gameplay configuration
@@ -278,6 +311,11 @@ remain local under ignored `scratch/.../outputs/`. Summaries report inventory on
 **evaluate acceptance after the complete suite**, including manual review of semantic
 paraphrases that regex checks cannot certify. Engine insertion is not a guarantee against
 invented dialogue in free prose. No travel baseline or contaminated `gold` derivation is run.
+Per-attempt request hashes bind effective prompts, tools and parameters. `.usage.csv`
+and `.usage.md` are generated offline beside the result file from all referenced ledgers,
+including superseded retries. Missing provider usage/currency/cost stays unknown; cache
+and reasoning are details of the totals, not additions. There is no local monetary
+reservation: any external spending block is the owner's responsibility.
 
 ## Deliberately out of scope
 

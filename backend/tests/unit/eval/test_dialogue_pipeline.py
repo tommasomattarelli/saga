@@ -2,6 +2,7 @@ import json
 import uuid
 from unittest.mock import AsyncMock
 
+import pytest
 from dialogue_cases import scenario_for
 from dialogue_pipeline import run_pipeline
 from dialogue_requests import SuiteProvider
@@ -11,7 +12,13 @@ from app.ai.providers.schemas import AgentResponse, ToolCall
 from app.ai.router import ModelConfig
 
 
-async def test_real_two_beat_path_counts_dm_and_actors_without_db_or_background(tmp_path):
+@pytest.mark.parametrize(
+    ("case_name", "semantic_review"),
+    [("two_npc_two_beat", False), ("two_npc_natural", True)],
+)
+async def test_real_two_beat_path_counts_dm_and_actors_without_db_or_background(
+    tmp_path, case_name, semantic_review
+):
     provider = AsyncMock()
     provider.generate_with_tools.side_effect = [
         AgentResponse(
@@ -44,14 +51,14 @@ async def test_real_two_beat_path_counts_dm_and_actors_without_db_or_background(
         provider,
         ledger,
         key="trial",
-        case="two_npc_two_beat",
+        case=case_name,
         model="m:free",
         run=0,
         commit="commit",
         ceiling=7,
     )
     data, failed = await run_pipeline(
-        scenario_for("two_npc_two_beat"),
+        scenario_for(case_name),
         trace,
         ModelConfig("openrouter", "m:free", 60000),
         uuid.uuid4(),
@@ -65,3 +72,23 @@ async def test_real_two_beat_path_counts_dm_and_actors_without_db_or_background(
     assert data["narration"].count("Una prima risposta.") == 2
     assert data["narration"].count("Una seconda risposta.") == 1
     assert "not-batched" not in failed and "missing-dependent-beat" not in failed
+    assert data["metrics"]["invocations"] == {
+        "requested": 3,
+        "selected": 3,
+        "executed": 3,
+        "succeeded": 3,
+        "speaking": 3,
+        "silent": 0,
+        "failed": 0,
+    }
+    assert data["metrics"]["second_beat"]["successful"] is True
+    assert data["metrics"]["second_beat"]["requested"] is True
+    assert data["metrics"]["language_status"] == (
+        "likely-it" if not semantic_review else "needs-review"
+    )
+    assert data["metrics"]["language_review_required"] is True
+    assert data["metrics"]["semantic_review_required"] is semantic_review
+    assert data["metrics"]["raw_marker_count"] == 3
+    assert data["metrics"]["accepted_marker_count"] == 3
+    assert data["metrics"]["fallback_speech_parts"] == 0
+    assert data["metrics"]["final_marker_count"] == 0

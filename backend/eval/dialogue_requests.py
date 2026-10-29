@@ -1,3 +1,5 @@
+import hashlib
+import json
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import asdict, replace
@@ -53,6 +55,7 @@ class SuiteProvider(AIProvider):
             model=self.model,
             commit=self.commit,
             request=request,
+            request_hash=hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest(),
             correlation=asdict(replace(current_correlation(), role=kind)),
         )
         try:

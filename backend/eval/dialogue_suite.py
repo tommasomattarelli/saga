@@ -2,7 +2,6 @@
 
 import argparse
 import asyncio
-import hashlib
 import json
 import subprocess
 import sys
@@ -13,88 +12,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from dialogue_cases import CASES, scenario_for  # noqa: E402
+from dialogue_plan import MODELS, manifest, trial_key  # noqa: E402
 from dialogue_requests import SuiteProvider  # noqa: E402
 from dialogue_trial import run_case  # noqa: E402
 from ledger import RequestLedger  # noqa: E402
-from live_calls import resolve_eval_generation, validate_free_models  # noqa: E402
-
-from app.ai.router import get_gameplay_config, get_instance_default  # noqa: E402
+from live_calls import resolve_eval_generation, validate_eval_models  # noqa: E402
+from usage_report import usage_csv, usage_markdown  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-MODELS = ("nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3.5-super-vl:free")
 
 
 def json_default(value: object) -> object:
     if isinstance(value, frozenset | set):
         return sorted(value)
     raise TypeError("Evaluation evidence contains a non-JSON value.")
-
-
-def digest(value: object) -> str:
-    return hashlib.sha256(
-        json.dumps(value, sort_keys=True, default=json_default).encode()
-    ).hexdigest()
-
-
-def source_hash() -> str:
-    names = (
-        subprocess.check_output(
-            [
-                "git",
-                "ls-files",
-                "-z",
-                "backend/app",
-                "backend/eval",
-                "frontend/src",
-                "saga.config.yaml",
-            ],
-            cwd=ROOT,
-        )
-        .decode()
-        .split("\0")
-    )
-    checksum = hashlib.sha256()
-    for name in sorted(filter(None, names)):
-        path = ROOT / name
-        checksum.update(name.encode() + b"\0")
-        checksum.update(path.read_bytes() if path.exists() else b"<deleted>")
-    return checksum.hexdigest()
-
-
-def manifest() -> dict:
-    scenarios = {case.name: scenario_for(case.name) for case in CASES}
-    return {
-        "suite": "adr-0017-final-v1",
-        "source_hash": source_hash(),
-        "models": list(MODELS),
-        "runs_per_model_case": 3,
-        "trials": len(CASES) * len(MODELS) * 3,
-        "nominal_requests": 66,
-        "request_ceiling": sum(c.ceiling for c in CASES) * len(MODELS) * 3,
-        "pipeline_dm_cap": 3,
-        "max_output_tokens": get_instance_default().max_tokens,
-        "gameplay": asdict(get_gameplay_config()),
-        "cases": {
-            name: {
-                "ceiling": next(c.ceiling for c in CASES if c.name == name),
-                "scenario_hash": digest(
-                    {
-                        "campaign": vars(sc.campaign),
-                        "history": sc.history,
-                        "summary": sc.summary_context,
-                        "global": sc.global_summary,
-                        "recall": sc.recall,
-                        "stimuli": {key: asdict(value) for key, value in sc.stimuli.items()},
-                    }
-                ),
-            }
-            for name, sc in scenarios.items()
-        },
-    }
-
-
-def trial_key(plan: dict, case: str, model: str, run: int) -> str:
-    return digest([plan, case, model, run])
 
 
 def read_evidence(path: Path) -> tuple[dict[str, dict], set[str]]:
@@ -120,10 +51,13 @@ def write_inventory(
 ) -> None:
     pending = [
         {"case": case.name, "model": model, "run": run}
-        for run in range(3)
-        for case in CASES
-        for model in MODELS
+        for run in range(plan["runs_per_model_case"])
+        for case in (next(c for c in CASES if c.name == name) for name in plan["cases"])
+        for model in plan["models"]
         if trial_key(plan, case.name, model, run) not in completed
+        or completed[trial_key(plan, case.name, model, run)].get("retryable")
+        or completed[trial_key(plan, case.name, model, run)].get("trial_status")
+        in {"request_budget_stopped", "provider_paused"}
     ]
     result = {
         "suite": plan["suite"],
@@ -142,6 +76,23 @@ def write_inventory(
         ],
     }
     path.with_suffix(".summary.json").write_text(json.dumps(result, indent=2))
+    ledger_paths = {ledger.path.resolve()}
+    ledger_paths.update(
+        Path(row["ledger"]).resolve() for row in completed.values() if row.get("ledger")
+    )
+    if path.exists():
+        for text in path.read_text().splitlines():
+            row = json.loads(text)
+            if row.get("ledger"):
+                ledger_paths.add(Path(row["ledger"]).resolve())
+    rows = [
+        {**asdict(attempt), "ledger": str(ledger_path)}
+        for ledger_path in sorted(ledger_paths)
+        if ledger_path.exists()
+        for attempt in RequestLedger(ledger_path).results()
+    ]
+    path.with_suffix(".usage.csv").write_text(usage_csv(rows), encoding="utf-8")
+    path.with_suffix(".usage.md").write_text(usage_markdown(rows), encoding="utf-8")
     print(
         f"Recorded {len(completed)}/{plan['trials']} trials; daily requests {ledger.spent}/{ledger.budget}."
     )
@@ -152,6 +103,11 @@ def write_inventory(
 async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--suite", default="adr-0017-final-v2")
+    parser.add_argument("--models", nargs="+", default=list(MODELS))
+    parser.add_argument("--cases", nargs="+", default=[case.name for case in CASES])
+    parser.add_argument("--runs", type=int, default=3)
+    parser.add_argument("--allow-paid-model", action="append", default=[], metavar="MODEL_ID")
     parser.add_argument("--user")
     parser.add_argument("--ledger", type=Path)
     parser.add_argument("--results", type=Path)
@@ -160,7 +116,10 @@ async def main() -> None:
     )
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
-    plan = manifest()
+    try:
+        plan = manifest(args.models, args.cases, args.runs, args.suite, set(args.allow_paid_model))
+    except ValueError as exc:
+        parser.error(str(exc))
     if args.dry_run:
         print(json.dumps(plan, indent=2))
         return
@@ -194,20 +153,49 @@ async def main() -> None:
         parser.error("Code/scenario/model/config identity changed; keep prior evidence immutable.")
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(plan, indent=2))
-    await validate_free_models(list(MODELS))
+    await validate_eval_models(plan["models"], set(args.allow_paid_model))
     owner = uuid.UUID(args.user)
-    generations = {model: await resolve_eval_generation(owner, model) for model in MODELS}
+    paid_models = set(args.allow_paid_model)
+    generations = {
+        model: await resolve_eval_generation(owner, model, allow_paid=model in paid_models)
+        for model in plan["models"]
+    }
     try:
-        for run in range(3):
-            for case in CASES:
-                for model in MODELS:
+        for run in range(plan["runs_per_model_case"]):
+            for case in (next(c for c in CASES if c.name == name) for name in plan["cases"]):
+                for model in plan["models"]:
                     key = trial_key(plan, case.name, model, run)
                     recorded = completed.get(key)
                     retry = args.resume and recorded is not None and recorded.get("retryable")
-                    if (recorded is not None and not retry) or (
-                        ledger.remaining is not None and ledger.remaining < case.ceiling
-                    ):
+                    unstarted = (
+                        recorded is not None
+                        and recorded.get("requests") == 0
+                        and recorded.get("trial_status") == "request_budget_stopped"
+                    )
+                    if recorded is not None and not retry and not unstarted:
                         continue
+                    if retry and any(
+                        attempt.key.startswith(f"{key}|request-") for attempt in ledger.results()
+                    ):
+                        parser.error(
+                            "Retrying a failed trial requires a fresh ledger; prior attempts remain immutable."
+                        )
+                    if ledger.remaining is not None and ledger.remaining < case.ceiling:
+                        stopped = {
+                            "event": "result",
+                            "key": key,
+                            "case": case.name,
+                            "model": model,
+                            "run": run,
+                            "requests": 0,
+                            "data": {},
+                            "trial_status": "request_budget_stopped",
+                            "observed_checks": [],
+                            "retryable": False,
+                        }
+                        append_evidence(args.results, stopped)
+                        completed[key] = stopped
+                        return
                     provider, config = generations[model]
                     row = {
                         "event": "started",
@@ -217,7 +205,7 @@ async def main() -> None:
                         "run": run,
                         "commit": commit,
                         "source_hash": plan["source_hash"],
-                        "ledger": str(args.ledger),
+                        "ledger": str(ledger.path.resolve()),
                     }
                     append_evidence(args.results, row)
                     trace = SuiteProvider(
@@ -229,6 +217,7 @@ async def main() -> None:
                         run=run,
                         commit=commit,
                         ceiling=case.ceiling,
+                        checkpoint=plan["suite"],
                     )
                     try:
                         data, failed = await run_case(
@@ -244,7 +233,20 @@ async def main() -> None:
                         event="result",
                         requests=trace.count,
                         data=data,
-                        observed_checks=sorted(set(failed)),
+                        observed_checks=(
+                            [] if trace.exhausted or trace.paused else sorted(set(failed))
+                        ),
+                        trial_status=(
+                            "request_budget_stopped"
+                            if trace.exhausted
+                            else "provider_paused"
+                            if trace.paused
+                            else "provider_error"
+                            if trace.errors
+                            else "evaluation_error"
+                            if "foreground-run-incomplete" in failed
+                            else "model_result"
+                        ),
                         provider_error=trace.errors,
                         request_cap_reached=trace.exhausted,
                         retryable=bool(
