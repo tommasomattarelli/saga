@@ -15,6 +15,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Highlights
 
+- [World & DM] Remove narrowly recognized quoted speech echoes before subsequent NPC beats, preserving original provider messages and adding language, placement and beat-progress reminders (ADR 0017).
 - [World & DM] Separate NPC instructions from character data, share filtered player input with actors and default to four spoken lines per actor call (ADR 0017).
 - [World & DM] Distinguish NPC speech, intentional silence and failed generation, rejecting unusable responses without fake dialogue or conversation effects (#102).
 - [World & DM] Dispatch independent NPCs in observable parallel beats, preserve per-turn interaction history and compose verbatim speech through one ordered transcript (ADR 0017).

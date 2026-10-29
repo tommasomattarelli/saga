@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any, TypedDict
+from typing import Annotated, Any, NotRequired, TypedDict
 
 from langgraph.graph.message import add_messages
 
@@ -37,6 +37,7 @@ class GameState(TypedDict):
     narrative_observations: list[NarrativeObservation]
     npc_beats: list[NPCBeat]
     npc_lines: list[NPCLine]
+    dialogue_echo_removals: NotRequired[int]
     scene_mood: str
     tool_events: list[dict[str, Any]]
     dice_results: list[dict[str, Any]]  # pre-rolled, sent to frontend as-is
