@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 
 from app.ai.providers.base import AIProvider
 from app.ai.providers.schemas import AgentResponse
+from app.ai.providers.usage import UsageMetadata, usage_scope
 
 
 class ProviderTrace(AIProvider):
@@ -10,6 +11,7 @@ class ProviderTrace(AIProvider):
         self.request: dict = {}
         self.response: dict = {}
         self.error: Exception | None = None
+        self.usage: list[UsageMetadata] = []
 
     def _begin(self, request: dict) -> None:
         if self.request:
@@ -34,7 +36,11 @@ class ProviderTrace(AIProvider):
             }
         )
         try:
-            raw = await self.provider.generate(**self.request)
+            with usage_scope(role="actor") as collector:
+                try:
+                    raw = await self.provider.generate(**self.request)
+                finally:
+                    self.usage = collector.items
             self.response = {"text": raw}
             return raw
         except Exception as exc:
@@ -59,7 +65,11 @@ class ProviderTrace(AIProvider):
             }
         )
         try:
-            result = await self.provider.generate_with_tools(**self.request)
+            with usage_scope(role="dm") as collector:
+                try:
+                    result = await self.provider.generate_with_tools(**self.request)
+                finally:
+                    self.usage = collector.items
             self.response = {
                 "text": result.text,
                 "tool_calls": [

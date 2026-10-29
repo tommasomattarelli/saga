@@ -13,6 +13,7 @@ from app.ai.generation_context import generation_context
 from app.ai.npc_outcomes import NPCFailure, NPCInteraction, NPCResult, parse_actor_result
 from app.ai.prompts.npc import build_npc_prompt, build_npc_system_prompt
 from app.ai.providers.base import logged_generate
+from app.ai.providers.usage import usage_scope
 from app.ai.router import get_gameplay_config, get_generation
 from app.ai.sanitizer import strip_code_fences
 from app.models.psychology import PsychologyDef
@@ -32,6 +33,9 @@ class NPCInput:
     psychology: PsychologyDef | None = None
     fill_empty_traits: bool = False
     language: str = "en"
+    npc_id: str | None = None
+    step: int | None = None
+    beat: int | None = None
 
 
 async def invoke_single_npc(
@@ -60,15 +64,16 @@ async def invoke_single_npc(
 
     try:
         provider, model_config = await get_generation()
-        raw = await logged_generate(
-            provider,
-            caller=f"npc_director:{npc_name}",
-            system_prompt=build_npc_system_prompt(psychology, language),
-            messages=[{"role": "user", "content": prompt}],
-            model=model_config.model,
-            max_tokens=model_config.max_tokens,
-            json_mode=True,
-        )
+        with usage_scope(role="actor", npc_name=npc_name):
+            raw = await logged_generate(
+                provider,
+                caller=f"npc_director:{npc_name}",
+                system_prompt=build_npc_system_prompt(psychology, language),
+                messages=[{"role": "user", "content": prompt}],
+                model=model_config.model,
+                max_tokens=model_config.max_tokens,
+                json_mode=True,
+            )
 
         cleaned = strip_code_fences(raw)
         try:
@@ -85,14 +90,15 @@ async def invoke_single_npc(
         return NPCFailure(npc_name)
 
 
-async def invoke_npcs_parallel(
-    actors: list[NPCInput],
-    user_id: uuid.UUID,
-) -> list[NPCResult]:
-    if not actors:
-        return []
-    tasks = [
-        invoke_single_npc(
+async def _invoke_actor(actor: NPCInput) -> NPCResult:
+    with usage_scope(
+        role="actor",
+        step=actor.step,
+        beat=actor.beat,
+        npc_id=actor.npc_id,
+        npc_name=actor.npc_name,
+    ):
+        return await invoke_single_npc(
             npc_name=actor.npc_name,
             npc_profile=actor.npc_profile,
             player_action=actor.player_action,
@@ -104,8 +110,15 @@ async def invoke_npcs_parallel(
             fill_empty_traits=actor.fill_empty_traits,
             language=actor.language,
         )
-        for actor in actors
-    ]
+
+
+async def invoke_npcs_parallel(
+    actors: list[NPCInput],
+    user_id: uuid.UUID,
+) -> list[NPCResult]:
+    if not actors:
+        return []
+    tasks = [_invoke_actor(actor) for actor in actors]
     with generation_context(user_id):
         results = await asyncio.gather(*tasks, return_exceptions=True)
 

@@ -516,3 +516,11 @@ remain intact. It accepts only complete adjacent quoted copies with a safe bound
 inline attributions, external punctuation, enclosing quotes and unquoted echoes remain
 untouched. The transcript-once database test includes a removed echo across API,
 storage, history, journal/export and all three memory inputs.
+
+**S2 note (2026-10-29, usage).** OpenRouter-compatible non-streaming responses
+are observed immediately after SDK completion and before truncation/filter checks.
+Task-local scopes carry explicit DM step and actor identity/beat through parallel
+generation without changing provider results or public turn schemas. Evaluation
+persists correlation even without usage and preserves billed metadata on rejected
+responses. CSV/Markdown report provider fields, not estimates; absent cost/currency
+and cache/reasoning subsets are never treated as free calls or added twice.

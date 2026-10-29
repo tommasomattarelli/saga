@@ -38,6 +38,8 @@ class Attempt:
     dirty: bool = False
     request: dict = field(default_factory=dict)
     response: dict = field(default_factory=dict)
+    usage: list[dict] = field(default_factory=list)
+    correlation: dict = field(default_factory=dict)
 
 
 class RequestLedger:
