@@ -26,7 +26,7 @@ UPDATE_PROMPT = template("global_summary", "update")
 
 def _format_turns(turns: list[Turn]) -> str:
     return "\n".join(
-        f"Turn {t.turn_number}: Player: {(t.player_action or '')[:200]} → DM: {(t.narration or '')[:300]}"
+        f"Turn {t.turn_number}: Player: {(t.player_action or '')[:200]} → DM: {t.narration or ''}"
         for t in turns
     )
 

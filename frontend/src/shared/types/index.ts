@@ -157,17 +157,20 @@ export interface DiceRollResult {
   hazard_damage?: number;
 }
 
-export interface NPCDialogue {
+export interface NPCSpeechPart {
+  type: "npc_speech";
+  npc_id: string;
   npc_name: string;
+  line_index: number;
   dialogue: string;
-  action?: string | null;
 }
+
+export type NarrationPart = { type: "text"; text: string } | NPCSpeechPart;
 
 export interface NarrationSegment {
   step: number;
-  text: string;
+  parts: NarrationPart[];
   dice: Record<string, DiceRollResult> | null;
-  npc_dialogues: NPCDialogue[];
 }
 
 export interface DiceResult {
@@ -183,7 +186,6 @@ export interface TurnResponse {
   dice_results?: DiceResult[] | null;
   /** @deprecated use dice_results — journal endpoint backward-compat */
   dice_rolls?: Record<string, DiceRollResult> | null;
-  npc_dialogues?: NPCDialogue[] | null;
   world_state?: Record<string, unknown>;
   character_data?: Record<string, unknown>;
   quests?: QuestRegistry;

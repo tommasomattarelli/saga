@@ -10,18 +10,13 @@ import structlog
 from langchain_core.messages import ToolMessage
 from pydantic import ValidationError
 
-from app.ai.npc_director import invoke_npcs_parallel
-from app.ai.router import get_gameplay_config
 from app.ai.tools.dm_tools import execute_tool, get_tool
 from app.core.dm.dice_results import _handle_dice
-from app.core.dm.dm_helpers import get_or_create_segment, sync_narration_to_segment
+from app.core.dm.dm_helpers import get_or_create_segment
 from app.core.dm.game_state import GameState
 from app.core.dm.loop_policy import dm_call_limit, needs_followup, step_tools
-from app.core.dm.npc_prehook import validate_or_create_npc
-from app.core.dm.npc_results import _handle_npc_results
+from app.core.dm.npc_beat import execute_npc_beat
 from app.core.dm.progress import StepProgress
-from app.core.npc_fields import resolve_npc_fields
-from app.core.psychology import resolve_psychology
 from app.models.quest import QuestRegistry
 
 
@@ -46,17 +41,17 @@ logger = structlog.get_logger()
 
 async def tools_node(state: GameState) -> dict[str, Any]:
     """Execute all tool calls from the last AI message."""
-    from sqlalchemy import select
-
     from app.core.dm.dm_helpers import last_ai_message, tool_calls_from_ai_message
-    from app.dependencies import get_db_context
-    from app.models.campaign import Campaign
 
     ai_msg = last_ai_message(state["messages"])
     if not ai_msg:
         return {}
 
-    tool_calls = _sort_tool_calls(tool_calls_from_ai_message(ai_msg))
+    original_calls = [
+        {**call, "_position": index}
+        for index, call in enumerate(tool_calls_from_ai_message(ai_msg))
+    ]
+    tool_calls = _sort_tool_calls(original_calls)
     if not tool_calls:
         return {}
 
@@ -68,15 +63,16 @@ async def tools_node(state: GameState) -> dict[str, Any]:
     allowed = set(state.get("allowed_tools", step_tools(world_state, closing=closing)))
     tool_events = list(state["tool_events"])
     dice_results = list(state["dice_results"])
-    npc_dialogues = list(state["npc_dialogues"])
-    called_npcs = list(state["called_npcs"])
+    npc_beats = list(state.get("npc_beats", []))
+    npc_lines = list(state.get("npc_lines", []))
+    npc_calls: list[dict] = []
     scene_mood = state["scene_mood"]
     time_passed = state["time_passed_minutes"]
     initial_clock = world_state.get("clock", {}).get("total_minutes", 480)
     narration_segments = list(state["narration_segments"])
     step = state["step_count"] - 1  # step_count already incremented by dm_node
 
-    tool_messages: list[ToolMessage] = []
+    tool_messages: dict[int, ToolMessage] = {}
 
     get_or_create_segment(narration_segments, step)
 
@@ -84,6 +80,7 @@ async def tools_node(state: GameState) -> dict[str, Any]:
         name = tc["name"]
         args = tc.get("args", {})
         tc_id = tc.get("id", name)
+        position = tc["_position"]
 
         if name not in allowed:
             note = (
@@ -91,21 +88,23 @@ async def tools_node(state: GameState) -> dict[str, Any]:
                 if get_tool(name) is None
                 else "This tool is unavailable in this step."
             )
-            tool_messages.append(ToolMessage(content=note, tool_call_id=tc_id, name=name))
+            tool_messages[position] = ToolMessage(content=note, tool_call_id=tc_id, name=name)
             continue
 
-        if name in {"request_dice", "invoke_npc"}:
+        if name == "invoke_npc":
+            npc_calls.append(tc)
+            continue
+
+        if name == "request_dice":
             tool = get_tool(name)
             assert tool is not None
             try:
                 args = tool(**args).model_dump(mode="json")
             except ValidationError:
-                tool_messages.append(
-                    ToolMessage(
-                        content="Invalid tool arguments. Check the tool's required fields.",
-                        tool_call_id=tc_id,
-                        name=name,
-                    )
+                tool_messages[position] = ToolMessage(
+                    content="Invalid tool arguments. Check the tool's required fields.",
+                    tool_call_id=tc_id,
+                    name=name,
                 )
                 continue
 
@@ -115,67 +114,9 @@ async def tools_node(state: GameState) -> dict[str, Any]:
             )
             dice_results.append({"step": step, "rolls": roll_data})
             progress.record(name, args, roll_data, playable=True)
-            tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
-            continue
-
-        if name == "invoke_npc":
-            npc_name = args.get("name", "")
-            if npc_name in called_npcs:
-                result_str = f"{npc_name} has already spoken this turn."
-                tool_messages.append(
-                    ToolMessage(content=result_str, tool_call_id=tc_id, name=name)
-                )
-                continue
-
-            npc_config = get_gameplay_config()
-            taxonomy = (state.get("world_baseline") or {}).get("taxonomy")
-            ok, error_msg = validate_or_create_npc(
-                npc_name,
-                world_state,
-                npc_config,
-                psychology=resolve_psychology(taxonomy),
-                npc_fields=resolve_npc_fields(taxonomy),
+            tool_messages[position] = ToolMessage(
+                content=result_str, tool_call_id=tc_id, name=name
             )
-            if not ok:
-                tool_messages.append(ToolMessage(content=error_msg, tool_call_id=tc_id, name=name))
-                continue
-
-            called_npcs.append(npc_name)
-
-            async with get_db_context() as db:
-                result = await db.execute(
-                    select(Campaign).where(Campaign.id == state["campaign_id"])
-                )
-                campaign = result.scalar_one()
-
-            npc_results = await invoke_npcs_parallel(
-                npc_names=[npc_name],
-                campaign=campaign,
-                player_action=args.get("context", ""),
-                dm_narration=state["narration"][-500:] if state["narration"] else "",
-            )
-
-            result_str, world_state, char_data = _handle_npc_results(
-                npc_name,
-                npc_results,
-                npc_dialogues,
-                narration_segments,
-                step,
-                world_state,
-                char_data,
-                baseline=state.get("world_baseline"),
-            )
-            public = [
-                {"npc_name": npc.npc_name, "dialogue": npc.dialogue, "action": npc.action}
-                for npc in npc_results
-            ]
-            usable = any(
-                isinstance(entry["dialogue"], str)
-                and entry["dialogue"].strip() not in {"", "...", "…"}
-                for entry in public
-            )
-            progress.record(name, args, public, playable=usable)
-            tool_messages.append(ToolMessage(content=result_str, tool_call_id=tc_id, name=name))
             continue
 
         # Regular tools
@@ -207,11 +148,22 @@ async def tools_node(state: GameState) -> dict[str, Any]:
                 }
             )
 
-        tool_messages.append(
-            ToolMessage(content=tool_result.description, tool_call_id=tc_id, name=name)
+        tool_messages[position] = ToolMessage(
+            content=tool_result.description, tool_call_id=tc_id, name=name
         )
 
-    sync_narration_to_segment(narration_segments, step, state["narration"])
+    if npc_calls:
+        world_state, char_data, npc_messages = await execute_npc_beat(
+            state,
+            npc_calls,
+            world_state,
+            char_data,
+            npc_beats,
+            npc_lines,
+            progress,
+        )
+        for call, message in zip(npc_calls, npc_messages, strict=True):
+            tool_messages[call["_position"]] = message
 
     prev_empty = state.get("consecutive_empty_steps", 0)
     consecutive_empty_steps = (
@@ -219,14 +171,14 @@ async def tools_node(state: GameState) -> dict[str, Any]:
     )
 
     return {
-        "messages": tool_messages,
+        "messages": [tool_messages[index] for index in sorted(tool_messages)],
         "world_state": world_state,
         "char_data": char_data,
         "quests": quests,
         "tool_events": tool_events,
         "dice_results": dice_results,
-        "npc_dialogues": npc_dialogues,
-        "called_npcs": called_npcs,
+        "npc_beats": npc_beats,
+        "npc_lines": npc_lines,
         "scene_mood": scene_mood,
         "time_passed_minutes": time_passed
         + world_state.get("clock", {}).get("total_minutes", initial_clock)

@@ -32,20 +32,11 @@ def _is_storable(fact: object) -> bool:
 async def extract_facts(
     player_action: str,
     narration: str,
-    npc_dialogues: list[str] | None = None,
 ) -> list[dict]:
     """Extract atomic facts from one turn. Persistence-free so the eval derive pass
     can reuse the real extractor without a database."""
-    npc_section = ""
-    if npc_dialogues:
-        npc_section = template("fact_extractor", "npc_section").format(
-            dialogues="\n".join(f"- {d}" for d in npc_dialogues)
-        )
-
-    prompt_text = (
-        FACT_EXTRACTION_PROMPT.replace("{player_action}", player_action)
-        .replace("{narration}", narration)
-        .replace("{npc_section}", npc_section)
+    prompt_text = FACT_EXTRACTION_PROMPT.replace("{player_action}", player_action).replace(
+        "{narration}", narration
     )
 
     provider, model_config = await get_generation()
@@ -92,7 +83,6 @@ async def extract_and_store_facts(
     turn_number: int,
     player_action: str,
     narration: str,
-    npc_dialogues: list[str] | None = None,
 ) -> None:
     """Fire-and-forget: extract atomic facts via budget model, store in memory_facts.
 
@@ -104,7 +94,7 @@ async def extract_and_store_facts(
         return
 
     try:
-        facts = await extract_facts(player_action, narration, npc_dialogues)
+        facts = await extract_facts(player_action, narration)
         if not facts:
             return
 

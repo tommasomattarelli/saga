@@ -229,6 +229,56 @@ and prose compliance. A tool request is not evidence of successful travel or per
 The real actor path measures prompt/parser output; the migration-backed integration
 suites separately verify effects, final-step execution limits, time and persistence.
 
+## ADR 0017 final suite — prepared, live execution requires owner approval
+
+`eval/dialogue_suite.py` reuses the captured/reconstructed PR 1 baseline, rather than
+spending requests on another baseline. Six cases × two approved NVIDIA models × three
+repetitions = **36 trials**, nominally **66 generation requests**, bounded at **72**:
+
+- saturated-context NPC invocation and injected-result placement/follow-up;
+- real actor output in English and Italian against conflicting input language;
+- an actor with an authored vow of silence;
+- two independent actors followed by a dependent second beat, through real DM/tool/
+  composition code in an isolated overlay, without persistence or background calls.
+
+The pipeline case has three DM opportunities and a seven-request foreground cap; a
+normally shaped two-beat scene uses six. A cap hit is recorded as an incomplete bounded
+evaluation, not silently treated as a gameplay failure or retried. The ordinary-NPC
+verbosity policy remains unchanged. Mira is produced by the real scaffold with a fixed
+fixture identity and seeded statblock; original captures remain untouched.
+
+```text
+# Offline: no profile lookup, provider request or public-catalog request.
+uv run python eval/dialogue_suite.py --dry-run
+
+# Only after explicit owner authorization; paths below are relative to backend/.
+uv run python eval/dialogue_suite.py --user OWNER_UUID \
+  --budget 32 --ledger ../scratch/adr-0004-0017-eval/outputs/pr2-final/2026-10-28-ledger.jsonl \
+  --results ../scratch/adr-0004-0017-eval/outputs/pr2-final/trials.jsonl
+
+# Next owner-started day, after confirming the available quota; reuse trials, new daily ledger.
+uv run python eval/dialogue_suite.py --user OWNER_UUID --resume \
+  --budget 50 --ledger ../scratch/adr-0004-0017-eval/outputs/pr2-final/2026-10-29-ledger.jsonl \
+  --results ../scratch/adr-0004-0017-eval/outputs/pr2-final/trials.jsonl
+```
+
+Each day's budget is the remaining allowance, not a quota reset inferred by the script.
+Trial scheduling checks its entire request ceiling before starting, and every actual DM/
+actor attempt is reserved and captured separately before network I/O. SDK retries are
+disabled on a copied personal client; settings/credentials are not changed. Rate limits
+stop the day without polling or paid fallback. A provider failure marks only that trial
+retryable: `--resume` on a later day repeats those specific trials and skips completed
+ones, never rerunning the suite. Interrupted trials require owner review. Completed
+misses and provider failures remain visible as evidence.
+
+The shared manifest freezes code, scenarios, models, effective gameplay configuration
+and output cap. Resume skips completed matching trials, including across daily ledgers;
+changed identities are rejected. Raw requests/results and complete public parts/transcript
+remain local under ignored `scratch/.../outputs/`. Summaries report inventory only:
+**evaluate acceptance after the complete suite**, including manual review of semantic
+paraphrases that regex checks cannot certify. Engine insertion is not a guarantee against
+invented dialogue in free prose. No travel baseline or contaminated `gold` derivation is run.
+
 ## Deliberately out of scope
 
 **No combat in gold.** ADR 0003 removes `start_combat` / `end_combat` / `combat_state` and

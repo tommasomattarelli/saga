@@ -184,7 +184,8 @@ async def _extract_with_retry(turn: dict, dialogues: list[str] | None) -> list[d
 
     for attempt in range(max(1, cfg.max_retries)):
         try:
-            return await extract_facts(turn["player"], turn["dm"], dialogues)
+            narration = "\n".join([turn["dm"], *(dialogues or [])])
+            return await extract_facts(turn["player"], narration)
         except Exception as exc:  # noqa: BLE001 — the reason is reported, not swallowed
             last = str(exc)[:200]
             if attempt < max(1, cfg.max_retries) - 1:

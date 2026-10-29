@@ -9,7 +9,6 @@ from app.core.dm.dm_helpers import (
     last_ai_message,
     messages_to_raw,
     raw_history_to_lc,
-    sync_narration_to_segment,
     tool_calls_from_ai_message,
 )
 
@@ -135,7 +134,6 @@ class TestGetOrCreateSegment:
         assert seg["step"] == 0
         assert seg["text"] == ""
         assert seg["dice"] is None
-        assert seg["npc_dialogues"] == []
         assert len(segments) == 1
 
     def test_returns_existing_segment(self):
@@ -149,20 +147,3 @@ class TestGetOrCreateSegment:
         seg = get_or_create_segment(segments, step=1)
         assert seg["step"] == 1
         assert len(segments) == 2
-
-
-class TestSyncNarrationToSegment:
-    def test_sets_text_when_empty(self):
-        segments: list[dict] = []
-        sync_narration_to_segment(segments, step=0, full_narration="The dragon roars.")
-        assert segments[0]["text"] == "The dragon roars."
-
-    def test_skips_when_text_already_set(self):
-        segments = [{"step": 0, "text": "already set", "dice": None, "npc_dialogues": []}]
-        sync_narration_to_segment(segments, step=0, full_narration="new narration")
-        assert segments[0]["text"] == "already set"
-
-    def test_skips_when_narration_empty(self):
-        segments: list[dict] = []
-        sync_narration_to_segment(segments, step=0, full_narration="")
-        assert segments[0]["text"] == ""

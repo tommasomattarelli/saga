@@ -8,7 +8,6 @@ base: |-
 
   Player action: {player_action}
   DM narration: {narration}
-  {npc_section}
 
   Output ONLY valid JSON:
   {{"facts": [{{"entity_name": "ExactName", "entity_type": "npc|location|quest|item|event|secret", "content": "Atomic fact in natural language"}}]}}
@@ -19,4 +18,3 @@ base: |-
   - Include the turn context (what happened, not just who exists)
   - Prefer facts about relationships, state changes, and decisions
   - If nothing notable happened, return {{"facts": []}}
-npc_section: "NPC dialogues:\n{dialogues}"

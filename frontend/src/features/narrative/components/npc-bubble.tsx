@@ -1,4 +1,4 @@
-import type { NPCDialogue } from "../../../shared/types";
+import type { NPCSpeechPart } from "../../../shared/types";
 
 /* Desaturated speaker hues — ink pigments, not neon; deterministic per name */
 const NPC_HUES = ["#c9a8a4", "#b8ab8d", "#a9bda5", "#a3aec6"];
@@ -10,7 +10,10 @@ function npcHue(name: string): string {
 }
 
 /* NPC dialogue — flow-integrated, no box; the colored name is the only marker */
-export default function NPCBubble({ npc_name, dialogue, action }: NPCDialogue) {
+export default function NPCBubble({
+  npc_name,
+  dialogue,
+}: Pick<NPCSpeechPart, "npc_name" | "dialogue">) {
   return (
     <div className="my-4 ml-6">
       <div className="font-display text-xs font-semibold mb-1" style={{ color: npcHue(npc_name) }}>
@@ -19,11 +22,6 @@ export default function NPCBubble({ npc_name, dialogue, action }: NPCDialogue) {
       <p className="font-body italic text-lg" style={{ color: "var(--ink-primary)" }}>
         &ldquo;{dialogue}&rdquo;
       </p>
-      {action && (
-        <p className="mt-0.5 font-body text-sm italic" style={{ color: "var(--ink-faded)" }}>
-          {action}
-        </p>
-      )}
     </div>
   );
 }

@@ -38,8 +38,9 @@ async def test_valid_travel_and_actor_progress_do_not_lose_result_narration(
     result = await _take_turn(
         auth_client, campaign["id"], "I go to Thornhaven and ask Aldric for help."
     )
-    assert result["npc_dialogues"]
-    assert result["narration"] == "The elder's reply hangs in the village air."
+    assert any(p["type"] == "npc_speech" for s in result["narration_segments"] for p in s["parts"])
+    assert "The elder's reply hangs in the village air." in result["narration"]
+    assert result["narration"].count("Welcome!") == 1
     assert len(captured) == 3
     assert (
         "Thornhaven"
@@ -206,7 +207,10 @@ async def test_terminal_step_cannot_invoke_an_actor_or_roll_or_hidden_tool(
     )
     result = await _take_turn(auth_client, campaign["id"])
     assert len(captured) == 1
-    assert not result["npc_dialogues"] and not result["dice_results"]
+    assert not [
+        p for s in result["narration_segments"] for p in s["parts"] if p["type"] == "npc_speech"
+    ]
+    assert not result["dice_results"]
     provider.generate.assert_not_called()
 
 

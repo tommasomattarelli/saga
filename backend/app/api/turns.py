@@ -110,8 +110,9 @@ async def _submit_action(
         "scene_mood": "neutral",
         "tool_events": [],
         "dice_results": [],
-        "npc_dialogues": [],
-        "called_npcs": [],
+        "npc_beats": [],
+        "npc_lines": [],
+        "narrative_observations": [],
         "time_passed_minutes": 0,
         "model_used": "",
         "importance_score": 5,
@@ -245,11 +246,6 @@ async def _submit_action(
             turn_number=turn_number,
             player_action=body.action,
             narration=narration,
-            npc_dialogues=[
-                f"{d['npc_name']}: {d['dialogue']}"
-                for d in (final_state.get("npc_dialogues") or [])
-            ]
-            or None,
         )
     )
     asyncio.create_task(_background_compression(campaign_id, turn_number))
@@ -269,7 +265,6 @@ async def _submit_action(
         narration_segments=narration_segments,
         dice_results=dice_results,
         dice_rolls=dice_rolls_flat or None,
-        npc_dialogues=final_state.get("npc_dialogues") or None,
         world_state=new_world_state or {},
         character_data=new_char_data or {},
         quests=new_quests,
