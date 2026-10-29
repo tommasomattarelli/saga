@@ -460,4 +460,51 @@ remaining today (18 already spent), with tomorrow's available quota confirmed at
 resume. Record all attempts, including failures, reserve concurrent calls up front,
 disable retries and retain checkpoints. Judge the suite only after completion;
 never call an incomplete sample an acceptance result. Evaluation does not change
-personal model settings, use paid fallback or include `scratch` in SAGA commits.
+   personal model settings, use paid fallback or include `scratch` in SAGA commits.
+
+## 10. S2 quality pass (2026-10-29, owner decisions)
+
+S1's complete evaluation recorded 36 trials and 67 requests, including one HTTP 502
+and a manually authorized trial retry. Frozen baseline: `9dadc2c`, local annotated
+tag `baseline/pr2-2026-10-29`; integration merge `aec190b`. No new baseline check is
+required on identical code. S2 uses `adr/0017-s2-dialogue-quality`, then one final PR
+from the integration branch. Logical commits follow responsibilities, not a fixed count.
+
+### 10.1 Prompt, actor contract and continuity
+
+- Separate static actor instructions/output examples in system from escaped,
+  delimited profile and observed-scene data in user. Private traits remain available
+  only to their actor, never the DM or peers.
+- Keep JSON mode, strict validation and typed failure. No structured-output schema,
+  envelope normalization, repair retry or separate actor model in this pass.
+- Supersede §9.1's six-line default with **four per actor call**, normally one to
+  three short spoken lines. Keep gestures in action; no new turn-wide line budget.
+- Put NPC-specific positive/negative placement examples and a short two-beat exchange
+  in YAML. Do not expand unrelated tool obligations or move schema descriptions.
+- Preserve canonical map destinations and identities while permitting compatible
+  ambient invention; new persistent actors use existing tools. Rumors are not
+  confirmed facts; knowing a secret does not imply choosing to reveal it publicly.
+- Reuse the existing player-input filtering policy for both DM and actor generation.
+  Preserve the original action in turn storage; this is parity, not a claim that
+  prompt injection is solved.
+
+### 10.2 Approved scope for the following units
+
+- Remove only an exact, whole, quoted copy immediately after its first valid speech
+  marker. Preserve ambiguous text, unquoted echoes, other voices and ordinary words
+  such as “perhaps”; no global replacement or semantic validator.
+- Clean the public narrative projection before recording actor observations, not
+  merely at final composition. Preserve original provider messages and signatures.
+- Derive a language, pending-handle and completed-beat reminder from current state.
+  No forced actor agenda; closing cannot request unavailable follow-up calls.
+- Capture optional provider usage per request, including concurrent actors and billed
+  unusable output, then report CSV/Markdown locally. Missing usage is not zero.
+- Prepare a separate v2 evaluation: reduced iterations, full final regression core,
+  separately labeled natural cases and free/low-cost comparisons. Request/token
+  limits remain explicit; costs are post-hoc, with external spend control owned by
+  the operator. No monetary reservation engine.
+
+No OpenRouter contact is authorized yet, including catalog/auth/usage queries. Model
+IDs, limits, new evaluation fixtures and qualitative acceptance need owner confirmation
+before live execution. #102/#106 remain the intended closures; #51/#52/#53 are not
+closed merely by these changes. Owner review/playtest still gates Accepted status.

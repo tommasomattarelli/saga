@@ -11,8 +11,7 @@ import structlog
 
 from app.ai.generation_context import generation_context
 from app.ai.npc_outcomes import NPCFailure, NPCInteraction, NPCResult, parse_actor_result
-from app.ai.prompts.loader import template
-from app.ai.prompts.npc import build_npc_prompt
+from app.ai.prompts.npc import build_npc_prompt, build_npc_system_prompt
 from app.ai.providers.base import logged_generate
 from app.ai.router import get_gameplay_config, get_generation
 from app.ai.sanitizer import strip_code_fences
@@ -64,7 +63,7 @@ async def invoke_single_npc(
         raw = await logged_generate(
             provider,
             caller=f"npc_director:{npc_name}",
-            system_prompt=template("npc", "system").format(name=npc_name),
+            system_prompt=build_npc_system_prompt(psychology, language),
             messages=[{"role": "user", "content": prompt}],
             model=model_config.model,
             max_tokens=model_config.max_tokens,

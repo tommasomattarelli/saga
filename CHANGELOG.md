@@ -15,6 +15,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Highlights
 
+- [World & DM] Separate NPC instructions from character data, share filtered player input with actors and default to four spoken lines per actor call (ADR 0017).
 - [World & DM] Distinguish NPC speech, intentional silence and failed generation, rejecting unusable responses without fake dialogue or conversation effects (#102).
 - [World & DM] Dispatch independent NPCs in observable parallel beats, preserve per-turn interaction history and compose verbatim speech through one ordered transcript (ADR 0017).
 - [UI] Interleave NPC speech with narration through ordered parts, without repeating actions below bubbles or bypassing progressive dice reveal.
@@ -26,7 +27,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
-- Prepared ADR 0017's retry-free, resumable two-day foreground evaluation with captured baselines, real parallel actors and offline quota/identity checks; live execution awaits owner approval.
+- Completed ADR 0017's 36-trial baseline and recorded the owner-approved S2 quality pass; further live evaluation awaits renewed authorization.
 - Added typed narration parts and frozen NPC line handles with deterministic placement, malformed-marker cleanup and dice-safe end-of-turn fallback (ADR 0017).
 - Grounded ADR 0017 S0 on merged PR 1, recording ordinary-NPC beat, failure, visibility and transcript contracts with quota-bounded two-day final evaluation.
 - Live probes requested `move_to` for every valid response in short and ten-turn coherent travel; recovery of already-conflicting history remains unreliable (#101).

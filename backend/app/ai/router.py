@@ -177,7 +177,7 @@ class GameplayConfig:
     npc_auto_create_detail: str = "standard"
     consecutive_empty_steps_max: int = 2
     npc_last_interactions_kept: int = 3
-    npc_max_lines: int = 6
+    npc_max_lines: int = 4
     npc_narrative_max_chars: int = 1000
     global_summary_max_input_chars: int = 4000
     npc_condition_max_chars: int = 80
@@ -262,7 +262,7 @@ def get_gameplay_config() -> GameplayConfig:
                 gp.get("npc_last_interactions_kept", 3),
             )
         ),
-        npc_max_lines=int(os.getenv("SAGA_GAMEPLAY_NPC_MAX_LINES", gp.get("npc_max_lines", 6))),
+        npc_max_lines=int(os.getenv("SAGA_GAMEPLAY_NPC_MAX_LINES", gp.get("npc_max_lines", 4))),
         npc_narrative_max_chars=int(
             os.getenv(
                 "SAGA_GAMEPLAY_NPC_NARRATIVE_MAX_CHARS", gp.get("npc_narrative_max_chars", 1000)
