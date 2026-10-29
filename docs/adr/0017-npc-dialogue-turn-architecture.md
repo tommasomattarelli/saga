@@ -508,3 +508,11 @@ No OpenRouter contact is authorized yet, including catalog/auth/usage queries. M
 IDs, limits, new evaluation fixtures and qualitative acceptance need owner confirmation
 before live execution. #102/#106 remain the intended closures; #51/#52/#53 are not
 closed merely by these changes. Owner review/playtest still gates Accepted status.
+
+**S2 note (2026-10-29, composition).** Placement, pending-handle detection and the
+quoted-echo guard share one parser. The guard updates the public narrative projection
+before observations reach the next beat, while original provider messages/signatures
+remain intact. It accepts only complete adjacent quoted copies with a safe boundary;
+inline attributions, external punctuation, enclosing quotes and unquoted echoes remain
+untouched. The transcript-once database test includes a removed echo across API,
+storage, history, journal/export and all three memory inputs.

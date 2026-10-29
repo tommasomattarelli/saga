@@ -43,7 +43,10 @@ async def test_complete_transcript_is_the_single_persisted_and_memory_source(
                     arguments={"name": "Lyra"},
                 ),
             ),
-            _reply("A pause. [[npc:Lyra:1]] Then silence. [[npc:Lyra:1]] [[npc:Unknown:9]]"),
+            _reply(
+                'A pause. [[npc:Lyra:1]] "A sealed promise."\n\n'
+                "Then silence. [[npc:Lyra:1]] [[npc:Unknown:9]]"
+            ),
             _reply("Morning comes."),
         ],
     )
