@@ -3,10 +3,14 @@ import uuid
 from dataclasses import asdict
 from unittest.mock import AsyncMock, patch
 
+from dialogue_cases import case_for_scenario_name
+from dialogue_metrics import ActorDispatch, pipeline_metrics
 from dialogue_requests import SuiteProvider
 from probes import PROBES_BY_NAME, grade
 from scenario import Scenario
 
+from app.ai.npc_director import NPCInput, invoke_npcs_parallel
+from app.ai.npc_outcomes import NPCResult
 from app.ai.prompts.dm import campaign_prompt_context
 from app.ai.router import ModelConfig
 from app.core.dialogue_markers import strip_markers
@@ -80,10 +84,28 @@ async def run_pipeline(
     user_id: uuid.UUID,
 ) -> tuple[dict, list[str]]:
     state = initial_state(sc, user_id)
+    case = case_for_scenario_name(sc.name)
     before = copy.deepcopy(state["world_state"])
     responses = []
+    dispatches: list[ActorDispatch] = []
+    previous_attempts = {attempt.key for attempt in trace.ledger.results()}
+
+    async def observe_actors(actors: list[NPCInput], owner: uuid.UUID) -> list[NPCResult]:
+        selected = [
+            ActorDispatch(
+                actor.npc_id, actor.npc_name, actor.step, actor.beat, actor.observed_beats
+            )
+            for actor in actors
+        ]
+        dispatches.extend(selected)
+        results = await invoke_npcs_parallel(actors, owner)
+        for item, result in zip(selected, results, strict=True):
+            item.status = result.status
+        return results
+
     failed: list[str] = []
     with (
+        patch("app.core.dm.npc_beat.invoke_npcs_parallel", observe_actors),
         patch("app.core.dm.dm_nodes.get_user_generation", AsyncMock(return_value=(trace, config))),
         patch(
             "app.ai.generation_context.get_user_generation",
@@ -97,7 +119,13 @@ async def run_pipeline(
                 apply_update(state, await dm_node(state, {}))
                 message = last_ai_message(state["messages"])
                 assert message is not None
-                responses.append({"text": str(message.content), "tool_calls": message.tool_calls})
+                responses.append(
+                    {
+                        "step": state["step_count"] - 1,
+                        "text": str(message.content),
+                        "tool_calls": message.tool_calls,
+                    }
+                )
                 if not message.tool_calls:
                     break
                 apply_update(state, await tools_node(state))
@@ -107,15 +135,28 @@ async def run_pipeline(
                 failed.append("foreground-run-incomplete")
                 break
     apply_update(state, post_process_node(state))
-    first = responses[0]["tool_calls"] if responses else []
+    first = next(
+        (
+            response["tool_calls"]
+            for response in responses
+            if any(call["name"] == "invoke_npc" for call in response["tool_calls"])
+        ),
+        [],
+    )
     names = {
         call["args"].get("name", "").casefold() for call in first if call["name"] == "invoke_npc"
     }
-    if not {"aldric", "mira"} <= names:
+    if not case.expected_initial_npcs <= names:
         failed.append("not-batched")
-    if not any(
-        any(r.npc_name == "Aldric" for r in beat.results) for beat in state["npc_beats"][1:]
-    ):
+    has_second_beat = any(
+        any(
+            r.npc_name.casefold() == (case.expected_second_npc or "").casefold()
+            for r in beat.results
+        )
+        for beat in state["npc_beats"][1:]
+    )
+    expect_second_beat = case.expected_second_npc is not None
+    if expect_second_beat and not has_second_beat:
         failed.append("missing-dependent-beat")
     for response in responses:
         failed.extend(
@@ -123,10 +164,16 @@ async def run_pipeline(
                 PROBES_BY_NAME["npc_followup"], strip_markers(response["text"]), set(), sc.language
             )
         )
+    actor_attempts = [
+        attempt
+        for attempt in trace.ledger.results()
+        if attempt.key not in previous_attempts and attempt.probe.endswith(":actor")
+    ]
     return {
         "before": before,
         "after": state["world_state"],
         "character_after": state["char_data"],
+        "quests_after": state["quests"].model_dump(mode="json"),
         "dm_steps": state["step_count"],
         "max_dm_calls": 3,
         "request_cap": trace.ceiling,
@@ -148,4 +195,7 @@ async def run_pipeline(
             for message in state["messages"]
             if hasattr(message, "tool_call_id")
         ],
+        "metrics": pipeline_metrics(
+            state, responses, dispatches, actor_attempts, case, sc.language
+        ),
     }, sorted(set(failed))

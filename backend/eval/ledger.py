@@ -37,6 +37,7 @@ class Attempt:
     commit: str = ""
     dirty: bool = False
     request: dict = field(default_factory=dict)
+    request_hash: str = ""
     response: dict = field(default_factory=dict)
     usage: list[dict] = field(default_factory=list)
     correlation: dict = field(default_factory=dict)

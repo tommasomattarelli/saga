@@ -24,6 +24,7 @@ def usage_csv(rows: Iterable[dict]) -> str:
     output = io.StringIO()
     columns = (
         "key",
+        "ledger",
         "model",
         "scenario",
         "probe",

@@ -524,3 +524,13 @@ generation without changing provider results or public turn schemas. Evaluation
 persists correlation even without usage and preserves billed metadata on rejected
 responses. CSV/Markdown report provider fields, not estimates; absent cost/currency
 and cache/reasoning subsets are never treated as free calls or added twice.
+
+**S2 note (2026-10-29, evaluation).** V2 preserves six comparison cases and adds
+separate short-line, production-scene, natural-reaction and two-turn cases. Natural
+cases leave actor choice to the DM rather than requiring a fixed response count.
+An eval-only observer records selected actors, outcomes and the public inputs actually
+received, separating a missing dependent call from a failed actor. Language checks
+separate narrator and actor output; lexical echo counts still require prose review.
+Request hashes bind actual provider-call inputs, and usage inventory includes historical
+retry ledgers without deduplicating separately billed requests. Offline preparation
+does not authorize live execution or decide the remaining issue closures.

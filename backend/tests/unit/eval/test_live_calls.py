@@ -6,6 +6,77 @@ import scenario
 from ledger import RequestLedger
 
 
+async def test_paid_eval_needs_explicit_permission_before_profile_resolution(monkeypatch):
+    from live_calls import resolve_eval_generation
+
+    from app.ai.router import ModelConfig
+
+    resolve = AsyncMock(return_value=(AsyncMock(), ModelConfig("openrouter", "personal", 60000)))
+    monkeypatch.setattr("live_calls.get_user_generation", resolve)
+    with pytest.raises(ValueError, match="explicit"):
+        await resolve_eval_generation(uuid.UUID(int=1), "vendor/paid-model")
+    resolve.assert_not_called()
+    _, config = await resolve_eval_generation(
+        uuid.UUID(int=1), "vendor/paid-model", allow_paid=True
+    )
+    assert config.model == "vendor/paid-model"
+    assert config.max_tokens == 60000
+
+
+async def test_unlisted_paid_model_is_rejected_without_contacting_catalog(monkeypatch):
+    from live_calls import validate_eval_models
+
+    catalog = AsyncMock(side_effect=AssertionError("No network allowed"))
+    monkeypatch.setattr("live_calls.httpx.AsyncClient", catalog)
+    with pytest.raises(ValueError, match="explicit"):
+        await validate_eval_models(["vendor/unlisted"], {"vendor/allowed"})
+    catalog.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "model,price,tools,valid",
+    [
+        ("vendor/free:free", "0", ["tools"], True),
+        ("vendor/paid", "0.000001", ["tools"], True),
+        ("vendor/free:free", "0.000001", ["tools"], False),
+        ("vendor/paid", "nan", ["tools"], False),
+        ("vendor/paid", "0.000001", [], False),
+    ],
+)
+async def test_catalog_preflight_checks_prices_and_tools_without_generating(
+    monkeypatch,
+    model,
+    price,
+    tools,
+    valid,
+):
+    import httpx
+    from live_calls import validate_eval_models
+
+    client = AsyncMock()
+    client.__aenter__.return_value = client
+    client.get.return_value = httpx.Response(
+        200,
+        request=httpx.Request("GET", "https://catalog.test"),
+        json={
+            "data": [
+                {
+                    "id": model,
+                    "supported_parameters": tools,
+                    "pricing": {"prompt": price, "completion": price},
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr("live_calls.httpx.AsyncClient", lambda **kwargs: client)
+    if valid:
+        await validate_eval_models([model], {"vendor/paid"})
+    else:
+        with pytest.raises(ValueError, match="unavailable"):
+            await validate_eval_models([model], {"vendor/paid"})
+    client.get.assert_awaited_once()
+
+
 async def test_eval_resolves_personal_configuration_without_mutating_it(monkeypatch):
     from live_calls import resolve_eval_generation
 
