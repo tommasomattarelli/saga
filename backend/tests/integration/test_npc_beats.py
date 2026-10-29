@@ -43,7 +43,7 @@ async def test_a_beat_is_parallel_live_and_applied_in_call_order(
         if len(inputs) == 2:
             both_started.set()
         await asyncio.wait_for(both_started.wait(), timeout=2)
-        if "You are Lyra," in kwargs["system_prompt"]:
+        if "- Name: Lyra\n" in kwargs["messages"][0]["content"]:
             await asyncio.sleep(0)
             return speaking("Lyra first.", "Lyra second.", axis_changes={"trust": 2})
         return "{}" if one_fails else speaking("Aldric first.")
@@ -69,7 +69,7 @@ async def test_a_beat_is_parallel_live_and_applied_in_call_order(
     result = await _take_turn(auth_client, created["id"], "THE REAL PLAYER ACTION")
     assert len(inputs) == 2
     assert all("THE REAL PLAYER ACTION" in request["messages"][0]["content"] for request in inputs)
-    aldric = next(r for r in inputs if "You are Aldric," in r["system_prompt"])
+    aldric = next(r for r in inputs if "- Name: Aldric\n" in r["messages"][0]["content"])
     assert "recently arrived" in aldric["messages"][0]["content"]
     assert "ASK ALDRIC" in aldric["messages"][0]["content"]
     assert "Lyra first." not in aldric["messages"][0]["content"]
@@ -182,9 +182,7 @@ async def test_later_beats_observe_all_and_only_their_public_events(
         prompt = kwargs["messages"][0]["content"]
         inputs.append(prompt)
         return speaking(
-            "UNSEEN VILLAGE WORDS"
-            if "You are Aldric," in kwargs["system_prompt"]
-            else "SHRINE FIRST WORDS",
+            "UNSEEN VILLAGE WORDS" if "- Name: Aldric\n" in prompt else "SHRINE FIRST WORDS",
             axis_changes={"trust": 1},
         )
 

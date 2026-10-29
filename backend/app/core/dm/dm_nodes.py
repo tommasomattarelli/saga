@@ -73,6 +73,7 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
     lc_messages.append(HumanMessage(content=player_action))
 
     return {
+        "player_action": player_action,
         "messages": lc_messages,
         "world_state": migrate_world_state(campaign.world_state or {}),
         "char_data": campaign.character_data or {},

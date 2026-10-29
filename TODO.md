@@ -11,7 +11,7 @@
 
 Ordine di ripresa concordato (2026-10-20), prima di nuove funzionalita':
 
-[ ] **PR 2 — ADR 0017**: S0 riallineato a PR 1 mergiata (#105); implementare pipeline NPC ordinari e transcript unico, poi suite live su due giorni senza ripetere la baseline.
+[ ] **PR 2 — ADR 0017**: S1 implementata e suite live completa (36 trial); baseline congelata `9dadc2c`, S2 qualità dialoghi approvato, poi nuova valutazione free/low-cost e playtest owner prima dell'unica PR; niente OpenRouter senza nuova autorizzazione.
 
 GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimangono i dettagli del backlog esistente.
 
