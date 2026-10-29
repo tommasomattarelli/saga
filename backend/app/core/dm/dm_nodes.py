@@ -15,6 +15,7 @@ from app.ai.context import build_context
 from app.ai.exceptions import PROVIDER_SDK_ERRORS, ContentPolicyError, provider_failure_message
 from app.ai.prompts.dm import DMPromptContext, DMPromptState, render_dm_prompt
 from app.ai.providers.schemas import TEXT_SIGNATURE_KEY, TOOL_CALL_SIGNATURES_KEY
+from app.ai.providers.usage import usage_scope
 from app.ai.router import get_user_generation
 from app.ai.sanitizer import detect_injection, sanitize_player_input
 from app.ai.tools.dm_tools import get_tool_schemas
@@ -126,13 +127,14 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
     )
 
     try:
-        response = await provider.generate_with_tools(
-            system_prompt=system_prompt,
-            messages=messages_raw,
-            tools=tool_schemas,
-            model=model_cfg.model,
-            max_tokens=model_cfg.max_tokens,
-        )
+        with usage_scope(role="dm", step=state["step_count"]):
+            response = await provider.generate_with_tools(
+                system_prompt=system_prompt,
+                messages=messages_raw,
+                tools=tool_schemas,
+                model=model_cfg.model,
+                max_tokens=model_cfg.max_tokens,
+            )
     except PROVIDER_SDK_ERRORS as exc:
         raise AIProviderError(model_cfg.provider, provider_failure_message(exc)) from exc
     except ContentPolicyError:

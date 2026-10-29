@@ -1,11 +1,13 @@
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import asdict, replace
 
 from ledger import Attempt, BudgetExhaustedError, RequestLedger
 from provider_trace import ProviderTrace
 
 from app.ai.providers.base import AIProvider
 from app.ai.providers.schemas import AgentResponse
+from app.ai.providers.usage import current_correlation
 
 
 class SuiteProvider(AIProvider):
@@ -20,6 +22,7 @@ class SuiteProvider(AIProvider):
         run: int,
         commit: str,
         ceiling: int,
+        checkpoint: str = "pr2-final",
     ) -> None:
         self.provider = provider
         self.ledger = ledger
@@ -29,6 +32,7 @@ class SuiteProvider(AIProvider):
         self.run = run
         self.commit = commit
         self.ceiling = ceiling
+        self.checkpoint = checkpoint
         self.count = 0
         self.paused = False
         self.exhausted = False
@@ -45,12 +49,17 @@ class SuiteProvider(AIProvider):
             scenario=self.case,
             probe=f"{self.case}:{kind}",
             run=self.run,
-            checkpoint="pr2-final",
+            checkpoint=self.checkpoint,
             model=self.model,
             commit=self.commit,
             request=request,
+            correlation=asdict(replace(current_correlation(), role=kind)),
         )
-        self.ledger.reserve(attempt)
+        try:
+            self.ledger.reserve(attempt)
+        except BudgetExhaustedError:
+            self.exhausted = True
+            raise
         self.count += 1
         trace = ProviderTrace(self.provider)
         started = time.monotonic()
@@ -69,6 +78,7 @@ class SuiteProvider(AIProvider):
         finally:
             attempt.request = trace.request or request
             attempt.response = trace.response
+            attempt.usage = [asdict(item) for item in trace.usage]
             attempt.seconds = time.monotonic() - started
             self.ledger.record(attempt)
 

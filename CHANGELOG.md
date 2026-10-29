@@ -28,6 +28,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Capture per-request evaluation usage, cache/reasoning details and actor/step correlation, with offline CSV/Markdown summaries and explicit missing values (ADR 0017).
 - Completed ADR 0017's 36-trial baseline and recorded the owner-approved S2 quality pass; further live evaluation awaits renewed authorization.
 - Added typed narration parts and frozen NPC line handles with deterministic placement, malformed-marker cleanup and dice-safe end-of-turn fallback (ADR 0017).
 - Grounded ADR 0017 S0 on merged PR 1, recording ordinary-NPC beat, failure, visibility and transcript contracts with quota-bounded two-day final evaluation.
