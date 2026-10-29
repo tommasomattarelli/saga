@@ -17,8 +17,8 @@ def _make_state(**overrides) -> dict:
         "consecutive_empty_steps": 0,
         "tool_events": [],
         "dice_results": [],
-        "npc_dialogues": [],
-        "called_npcs": [],
+        "npc_beats": [],
+        "npc_lines": [],
         "scene_mood": "neutral",
         "time_passed_minutes": 0,
         "narration_segments": [],
@@ -155,121 +155,100 @@ class TestMeaningfulTools:
 
 
 class TestNpcPrehook:
-    def test_invoke_npc_absent_auto_creates_with_standard_detail(self):
-        """Missing NPC is auto-created and added to world_state.npcs."""
+    def test_prepares_created_npc_and_seeds_baseline_taxonomy(self):
         from app.ai.router import GameplayConfig
-        from app.core.dm.npc_prehook import validate_or_create_npc
+        from app.core.dm.npc_prehook import prepare_npc_calls
 
-        world_state: dict = {"npcs": {}}
-        config = GameplayConfig(auto_create_npcs=True, npc_auto_create_detail="standard")
-
-        ok, error = validate_or_create_npc("Aria", world_state, config)
-
-        assert ok is True
-        assert error == ""
-        # ADR 0009 F1: auto-created NPCs are uuid-keyed; descriptives in traits.
-        aria = next(n for n in world_state["npcs"].values() if n["name"] == "Aria")
-        assert aria["traits"]["role"] == "Commoner"
-        assert aria["lifecycle"] == "alive"
-        # ADR 0005: auto-created NPCs start at axis defaults, first impression armed
-        assert aria["psychology"] == {"trust": 0, "respect": 0, "affection": 0, "fear": 0}
-        assert aria["met_player"] is False
-
-    def test_auto_create_seeds_world_defined_axes(self):
-        from app.ai.router import GameplayConfig
-        from app.core.dm.npc_prehook import validate_or_create_npc
-        from app.models.psychology import PsychologyDef
-
-        pdef = PsychologyDef(
-            axes={
-                "honor": {
-                    "range": [-50, 50],
-                    "default": 10,
-                    "bands": [{"min": -50, "label": "shamed"}, {"min": 0, "label": "honored"}],
+        world_state = {"meta": {"current_location": "square"}, "npcs": {}}
+        baseline = {
+            "taxonomy": {
+                "psychology": {
+                    "axes": {
+                        "honor": {
+                            "range": [-50, 50],
+                            "default": 10,
+                            "bands": [
+                                {"min": -50, "label": "shamed"},
+                                {"min": 0, "label": "honored"},
+                            ],
+                        }
+                    }
                 }
             }
+        }
+        prepared, notes = prepare_npc_calls(
+            [{"id": "one", "args": {"name": "Kira", "context": "nearby"}}],
+            world_state,
+            GameplayConfig(auto_create_npcs=True, npc_auto_create_detail="standard"),
+            baseline,
         )
-        world_state: dict = {"npcs": {}}
-        config = GameplayConfig(auto_create_npcs=True, npc_auto_create_detail="minimal")
-
-        ok, _ = validate_or_create_npc("Kira", world_state, config, psychology=pdef)
-
-        assert ok is True
-        kira = next(n for n in world_state["npcs"].values() if n["name"] == "Kira")
+        assert not notes
+        assert len(prepared) == 1
+        kira = world_state["npcs"][prepared[0].npc_id]
+        assert prepared[0].name == "Kira"
         assert kira["psychology"] == {"honor": 10}
+        assert kira["location"] == "square"
 
-    def test_invoke_npc_absent_minimal_detail(self):
-        """Auto-created minimal NPC has only base fields."""
+    def test_rejects_missing_disabled_and_wrong_location_npcs(self):
         from app.ai.router import GameplayConfig
-        from app.core.dm.npc_prehook import validate_or_create_npc
-
-        world_state: dict = {"npcs": {}}
-        config = GameplayConfig(auto_create_npcs=True, npc_auto_create_detail="minimal")
-
-        ok, _ = validate_or_create_npc("Bob", world_state, config)
-
-        assert ok is True
-        bob = next(n for n in world_state["npcs"].values() if n["name"] == "Bob")
-        assert bob["traits"] == {}
-
-    def test_invoke_npc_absent_auto_create_disabled_returns_error(self):
-        """When auto_create_npcs=False, missing NPC returns (False, error)."""
-        from app.ai.router import GameplayConfig
-        from app.core.dm.npc_prehook import validate_or_create_npc
-
-        world_state: dict = {"npcs": {}}
-        config = GameplayConfig(auto_create_npcs=False, npc_auto_create_detail="standard")
-
-        ok, error = validate_or_create_npc("Ghost", world_state, config)
-
-        assert ok is False
-        assert "Ghost" in error
-        assert "Ghost" not in world_state["npcs"]
-
-    def test_invoke_npc_wrong_location_skips(self):
-        """NPC at different location returns (False, error) mentioning location."""
-        from app.ai.router import GameplayConfig
-        from app.core.dm.npc_prehook import validate_or_create_npc
+        from app.core.dm.npc_prehook import prepare_npc_calls
 
         world_state = {
-            "npcs": {"Guard": {"name": "Guard", "location": "Castle"}},
             "meta": {"current_location": "Tavern"},
+            "npcs": {
+                "guard-id": {"name": "Guard", "location": "Castle"},
+            },
         }
-        config = GameplayConfig(auto_create_npcs=True, npc_auto_create_detail="standard")
+        prepared, notes = prepare_npc_calls(
+            [
+                {"id": "missing", "args": {"name": "Ghost"}},
+                {"id": "away", "args": {"name": "Guard"}},
+            ],
+            world_state,
+            GameplayConfig(auto_create_npcs=False),
+            {},
+        )
+        assert prepared == []
+        assert "Ghost" in notes[0]
+        assert "not present" in notes[1]
 
-        ok, error = validate_or_create_npc("Guard", world_state, config)
-
-        assert ok is False
-        assert "not present" in error
-
-    def test_invoke_npc_no_location_field_passes(self):
-        """NPC without location field is not blocked (location unknown = not blocking)."""
+    def test_cap_is_applied_before_creating_unselected_npc(self):
         from app.ai.router import GameplayConfig
-        from app.core.dm.npc_prehook import validate_or_create_npc
+        from app.core.dm.npc_prehook import prepare_npc_calls
+
+        world_state = {"npcs": {}}
+        prepared, notes = prepare_npc_calls(
+            [
+                {"id": "first", "args": {"name": "A"}},
+                {"id": "second", "args": {"name": "B"}},
+                {"id": "third", "args": {"name": "C"}},
+            ],
+            world_state,
+            GameplayConfig(auto_create_npcs=True, npc_verbosity="low"),
+            {},
+        )
+        assert [item.name for item in prepared] == ["A", "B"]
+        assert "limit" in notes[2]
+        assert {npc["name"] for npc in world_state["npcs"].values()} == {"A", "B"}
+
+    def test_aliases_resolve_to_same_identity_and_presence_is_strict(self):
+        from app.ai.router import GameplayConfig
+        from app.core.dm.npc_prehook import prepare_npc_calls
 
         world_state = {
-            "npcs": {"Innkeeper": {"name": "Innkeeper", "role": "merchant"}},
             "meta": {"current_location": "Tavern"},
+            "npcs": {
+                "guard-id": {"name": "The Guard", "slug": "guard", "location": "Tavern"},
+            },
         }
-        config = GameplayConfig(auto_create_npcs=True, npc_auto_create_detail="standard")
-
-        ok, error = validate_or_create_npc("Innkeeper", world_state, config)
-
-        assert ok is True
-        assert error == ""
-
-    def test_invoke_npc_dead_returns_error(self):
-        """Dead NPC returns (False, error)."""
-        from app.ai.router import GameplayConfig
-        from app.core.dm.npc_prehook import validate_or_create_npc
-
-        world_state = {"npcs": {"Elder": {"name": "Elder", "lifecycle": "dead"}}}
-        config = GameplayConfig(auto_create_npcs=True, npc_auto_create_detail="standard")
-
-        ok, error = validate_or_create_npc("Elder", world_state, config)
-
-        assert ok is False
-        assert "dead" in error.lower()
+        prepared, notes = prepare_npc_calls(
+            [{"id": "a", "args": {"name": "The Guard"}}, {"id": "b", "args": {"name": "guard"}}],
+            world_state,
+            GameplayConfig(auto_create_npcs=False),
+            {},
+        )
+        assert [item.npc_id for item in prepared] == ["guard-id"]
+        assert "already selected" in notes[1]
 
 
 # ── I9 — tool call sort order ────────────────────────────────────────────────

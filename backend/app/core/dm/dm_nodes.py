@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 from typing import Any
@@ -18,10 +19,14 @@ from app.ai.router import get_user_generation
 from app.ai.sanitizer import detect_injection, sanitize_player_input
 from app.ai.tools.dm_tools import get_tool_schemas
 from app.core.death import check_player_death
+from app.core.dm.dialogue_composition import compose_segments, transcript
 from app.core.dm.dm_helpers import get_or_create_segment, messages_to_raw, raw_history_to_lc
 from app.core.dm.game_state import GameState
 from app.core.dm.loop_policy import closing_step, dm_call_limit, step_tools
+from app.core.dm.npc_context import NarrativeObservation
+from app.core.dm.npc_results import flush_interaction_history
 from app.core.engine import CONTENT_POLICY_NARRATION
+from app.core.npc_resolver import npcs_at_current_location
 from app.exceptions import AIProviderError
 from app.memory.world_state import migrate_world_state
 from app.models.quest import QuestRegistry
@@ -143,6 +148,7 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
             "messages": [ai_msg],
             "narration": state["narration"] + response_text,
             "step_count": state["step_count"] + 1,
+            **_record_narration(state, response_text),
         }
 
     text = response.text or ""
@@ -178,23 +184,31 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
         "allowed_tools": sorted(allowed_tools),
         "closing_step": closing,
         "system_prompt": system_prompt,
+        **_record_narration(state, text),
+    }
+
+
+def _record_narration(state: GameState, text: str) -> dict:
+    segments = copy.deepcopy(state["narration_segments"])
+    step = state["step_count"]
+    get_or_create_segment(segments, step)["text"] = text
+    observation = NarrativeObservation(
+        step,
+        text,
+        frozenset(npcs_at_current_location(state["world_state"])),
+        state["world_state"].get("meta", {}).get("current_location", ""),
+    )
+    return {
+        "narration_segments": segments,
+        "narrative_observations": [*state.get("narrative_observations", []), observation],
     }
 
 
 def post_process_node(state: GameState) -> dict[str, Any]:
-    world_state = dict(state["world_state"])
+    world_state = copy.deepcopy(state["world_state"])
     char_data = dict(state["char_data"])
-    narration_segments = list(state["narration_segments"])
-
-    # Sync any narration from the final dm_node that skipped tools_node
-    full_narration = state["narration"]
-    if full_narration:
-        covered = sum(len(seg.get("text", "")) for seg in narration_segments)
-        if covered < len(full_narration):
-            last_step = max(state["step_count"] - 1, 0)
-            seg = get_or_create_segment(narration_segments, last_step)
-            if not seg["text"]:
-                seg["text"] = full_narration[covered:]
+    segments = compose_segments(state["narration_segments"], state.get("npc_lines", []))
+    flush_interaction_history(world_state, state.get("npc_beats", []))
 
     # The difficulty rides the state from context_node. It used to be read off
     # char_data, a key nothing ever wrote, so every campaign silently resolved as
@@ -215,5 +229,6 @@ def post_process_node(state: GameState) -> dict[str, Any]:
     return {
         "world_state": world_state,
         "death_event": death_event,
-        "narration_segments": narration_segments,
+        "narration": transcript(segments),
+        "narration_segments": [segment.model_dump(mode="json") for segment in segments],
     }

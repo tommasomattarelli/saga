@@ -1,6 +1,7 @@
 """NPC prompt — the NPC playing itself sees its full traits (ADR 0009 G3)."""
 
 from app.ai.prompts.loader import template
+from app.ai.router import get_gameplay_config
 from app.core.campaign_language import LANGUAGES, validate_language
 from app.core.psychology import DEFAULT_PSYCHOLOGY, band_label
 from app.models.psychology import PsychologyDef
@@ -38,6 +39,9 @@ def build_npc_prompt(
     psychology: PsychologyDef | None = None,
     fill_empty_traits: bool = False,
     language: str = "en",
+    invocation_context: str = "",
+    observed_beats: str = "",
+    scene_context: str = "",
 ) -> str:
     pdef = psychology or DEFAULT_PSYCHOLOGY
     traits_block, empty = _render_traits(npc_data.get("traits", {}))
@@ -63,7 +67,11 @@ def build_npc_prompt(
         axes_block=_render_axes(npc_data, pdef),
         axis_names=", ".join(pdef.axes),
         max_delta=pdef.max_delta_per_turn,
-        player_action=player_action[:300],
-        dm_narration=dm_narration[:500],
+        player_action=player_action,
+        invocation_context=invocation_context,
+        observed_beats=observed_beats,
+        scene_context=scene_context,
+        dm_narration=dm_narration[-get_gameplay_config().npc_narrative_max_chars :],
+        max_lines=get_gameplay_config().npc_max_lines,
         recent_history=recent_history,
     )

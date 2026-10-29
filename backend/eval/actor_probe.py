@@ -4,6 +4,7 @@ from probes import language
 from scenario import Scenario
 
 from app.ai.npc_director import invoke_single_npc
+from app.ai.npc_outcomes import NPCSpeaking
 from app.ai.prompts.loader import template
 from app.ai.prompts.npc import build_npc_prompt
 from app.ai.router import ModelConfig
@@ -21,6 +22,7 @@ def actor_arguments(scenario: Scenario) -> dict:
         "npc_name": str(profile.get("name") or npc_id),
         "npc_profile": profile,
         "player_action": scenario.stimuli["npc_speaks"].player,
+        "invocation_context": scenario.stimuli["npc_speaks"].npc_context,
         "dm_narration": scenario.history[-1]["content"] if scenario.history else "",
         "psychology": resolve_psychology(baseline.get("taxonomy")),
         "language": scenario.language,
@@ -43,8 +45,8 @@ def actor_request(scenario: Scenario, config: ModelConfig) -> dict:
 async def run_actor(scenario: Scenario) -> tuple[dict, list[str]]:
     result = await invoke_single_npc(**actor_arguments(scenario))
     failed: list[str] = []
-    if not isinstance(result.dialogue, str) or result.dialogue.strip() in {"", "...", "…"}:
-        failed.append("placeholder")
-    elif (detected := language(result.dialogue)) not in {"?", scenario.language}:
+    if not isinstance(result, NPCSpeaking):
+        failed.append("not-speaking")
+    elif (detected := language(" ".join(result.lines))) not in {"?", scenario.language}:
         failed.append(f"language:{detected}")
     return asdict(result), failed

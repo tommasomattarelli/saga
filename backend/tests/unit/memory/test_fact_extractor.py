@@ -96,7 +96,7 @@ class TestExtractAndStoreFacts:
                 mock_default.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_includes_npc_dialogues_in_prompt(self):
+    async def test_complete_transcript_includes_npc_speech_once(self):
         from app.memory.fact_extractor import extract_and_store_facts
 
         with patch("app.memory.fact_extractor.get_gameplay_config") as mock_cfg:
@@ -116,13 +116,13 @@ class TestExtractAndStoreFacts:
                     campaign_id=uuid.uuid4(),
                     turn_number=1,
                     player_action="talk to innkeeper",
-                    narration="The innkeeper greets you.",
-                    npc_dialogues=["Innkeeper: Welcome!"],
+                    narration='The innkeeper greets you.\nInnkeeper: "Welcome!"',
                 )
                 call_kwargs = mock_gen.call_args
                 messages = call_kwargs[1]["messages"] if call_kwargs[1] else call_kwargs[0][3]
                 content = messages[0]["content"]
-                assert "NPC dialogues" in content
+                assert content.count("Welcome!") == 1
+                assert "NPC dialogues:" not in content
 
     @pytest.mark.asyncio
     async def test_returns_when_empty_facts(self):

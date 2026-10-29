@@ -177,6 +177,8 @@ class GameplayConfig:
     npc_auto_create_detail: str = "standard"
     consecutive_empty_steps_max: int = 2
     npc_last_interactions_kept: int = 3
+    npc_max_lines: int = 6
+    npc_narrative_max_chars: int = 1000
     global_summary_max_input_chars: int = 4000
     npc_condition_max_chars: int = 80
     npc_name_match_threshold: float = 0.85
@@ -184,6 +186,8 @@ class GameplayConfig:
     def __post_init__(self) -> None:
         if self.max_agent_steps < 1 or self.consecutive_empty_steps_max < 1:
             raise ValueError("DM call and stall limits must be positive integers.")
+        if self.npc_max_lines < 1 or self.npc_narrative_max_chars < 1:
+            raise ValueError("NPC line and narrative limits must be positive integers.")
 
     @property
     def max_npc_calls(self) -> int:
@@ -256,6 +260,12 @@ def get_gameplay_config() -> GameplayConfig:
             os.getenv(
                 "SAGA_GAMEPLAY_NPC_LAST_INTERACTIONS_KEPT",
                 gp.get("npc_last_interactions_kept", 3),
+            )
+        ),
+        npc_max_lines=int(os.getenv("SAGA_GAMEPLAY_NPC_MAX_LINES", gp.get("npc_max_lines", 6))),
+        npc_narrative_max_chars=int(
+            os.getenv(
+                "SAGA_GAMEPLAY_NPC_NARRATIVE_MAX_CHARS", gp.get("npc_narrative_max_chars", 1000)
             )
         ),
         global_summary_max_input_chars=int(
