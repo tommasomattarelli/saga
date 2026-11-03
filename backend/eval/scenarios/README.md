@@ -317,6 +317,80 @@ including superseded retries. Missing provider usage/currency/cost stays unknown
 and reasoning are details of the totals, not additions. There is no local monetary
 reservation: any external spending block is the owner's responsibility.
 
+### Parallel execution and timing
+
+The runner creates one independent sequential lane per selected model: four selected
+models create four lanes, six create six. A lane starts its next trial as soon as its
+previous trial finishes; there is no cross-model barrier. DM steps, dependent actor
+beats and the two turns of a conversation retain their internal order. Actor fan-out
+can therefore produce more simultaneous HTTP requests than there are model lanes.
+
+All generation requests whose model ID ends in `:free` automatically share a limit
+of **20 starts per rolling 60 seconds**, including DM and actor requests. There is
+no `--free` opt-in to forget. Paid requests bypass this limiter, not request budgets.
+The limiter covers this process only: do not run another free eval/UI client on the
+same account concurrently, and leave 60 seconds between separate invocations.
+
+Before starting a trial, the scheduler holds its full request ceiling from the shared
+remaining allowance. Unused capacity is released when it finishes; only actual
+reserved provider attempts are written to the request ledger or counted as spent.
+HTTP 429 stops new requests across lanes without retrying; already-sent requests can
+finish. Cancelling a queued rate wait consumes no request; cancelling a sent request
+leaves interrupted evidence that requires owner review before resume.
+
+Per-request `seconds` measures the provider call, excluding throttling;
+`rate_limit_wait_seconds` records throttling separately in the ledger and usage reports.
+Trial `seconds` includes its rate waits. Summary `timing.wall_seconds` and
+`timing.model_wall_seconds` measure this invocation's execution/lane wall times,
+including budget waits but excluding catalog/profile setup; they are not cumulative
+timings across resumed invocations. Request-latency sums are not suite wall time.
+
+### Owner-approved acceptance rubric (2026-11-03)
+
+Evaluate each obligation separately, per model and case. With three repetitions,
+**3/3** means respected in this sample, **2/3** unstable, **0–1/3** unreliable; none
+establishes a general reliability guarantee. The one-repetition diagnostic round is
+exploratory, not an acceptance result. Paid success does not substitute for free-model
+validation, and no aggregate score may conceal a failing obligation.
+
+| Area | Review criterion |
+|---|---|
+| Engine | No pipeline-introduced loss/duplication of actor lines; coherent ordering, transcript and state. |
+| Actor envelope | Valid JSON/typed outcome; a safely handled malformed response remains an actor failure. |
+| Silence | Intentional silence is distinct from missing invocation or generation failure. |
+| Placement/echo | Separate accepted markers/fallback, quoted copies, unquoted copies and paraphrases; lexical checks are not semantic review. |
+| Language | Review narrator and actors separately, including mixed-language output. |
+| Dependent beat | Separate missing call, failed actor and an answer that actually uses the previous public intervention. |
+| Prose | Relevant, continuous, canon-compatible geography/identities, no automatic secret disclosure where applicable, at most four spoken lines per actor call. |
+| Natural cases | Judge whether the choice of speakers is sensible; no mandatory cast or response count. |
+
+The courier seal is seeded through the real inventory tool only in
+`two_npc_natural` and `two_npc_conversation`; captured fixtures and all six comparison
+case overlays remain unchanged. The shared output cap remains **60,000 tokens**.
+
+### Prepared four-model diagnostic — not live authorization
+
+The owner selected exactly these four IDs; do not add alternatives or silently fall
+back. The first diagnostic selects `npc_followup`, `actor_en` and
+`two_npc_two_beat`, one repetition per model: **12 trials**, nominally **32 requests**,
+ceiling **36**. Its evidence/manifest stays separate from the final regression suite.
+
+```bash
+cd backend
+uv run python eval/dialogue_suite.py --dry-run \
+  --suite adr-0017-quality-diagnostic-v2 \
+  --models deepseek/deepseek-v4.1-flash-1017 z-ai/glm-5.3-flash \
+    nvidia/nemotron-3-ultra-550b-a55b:free nvidia/nemotron-3.5-super-vl:free \
+  --allow-paid-model deepseek/deepseek-v4.1-flash-1017 \
+  --allow-paid-model z-ai/glm-5.3-flash \
+  --cases npc_followup actor_en two_npc_two_beat --runs 1
+```
+
+This command is offline. Do not replace `--dry-run` with live arguments until the
+owner authorizes provider/catalog contact and the request allocation. The full final
+four-model, ten-case, three-repetition suite remains **120 trials**, ceiling **420**,
+excluding this diagnostic, authorized retries and separately accounted UI playtests.
+
 ## Deliberately out of scope
 
 **No combat in gold.** ADR 0003 removes `start_combat` / `end_combat` / `combat_state` and

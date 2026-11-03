@@ -9,6 +9,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from dialogue_cases import CASES, scenario_for
+from dialogue_limits import FREE_REQUESTS_PER_MINUTE
 
 from app.ai.router import get_gameplay_config, get_instance_default
 
@@ -91,6 +92,11 @@ def manifest(
         "source_hash": source_hash(),
         "identity_contract": "Tracked source/config and scenario identity; effective provider-call request hashes are stored per ledger attempt.",
         "models": selected_models,
+        "execution": {
+            "workers": "one-per-selected-model",
+            "free_requests_per_minute": FREE_REQUESTS_PER_MINUTE,
+            "free_model_suffix": ":free",
+        },
         "paid_allowlist": sorted(allowed_paid),
         "runs_per_model_case": runs,
         "trials": len(selected_cases) * len(selected_models) * runs,
