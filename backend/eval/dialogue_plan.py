@@ -66,6 +66,7 @@ def manifest(
     runs: int = 3,
     suite: str = "adr-0017-final-v2",
     paid_allowlist: set[str] | None = None,
+    session_affinity: bool = False,
 ) -> dict:
     selected_models = list(MODELS if models is None else models)
     selected_names = [case.name for case in CASES] if case_names is None else case_names
@@ -90,12 +91,13 @@ def manifest(
     return {
         "suite": suite,
         "source_hash": source_hash(),
-        "identity_contract": "Tracked source/config and scenario identity; effective provider-call request hashes are stored per ledger attempt.",
+        "identity_contract": "Tracked source/config and scenario identity; request hashes bind provider-call inputs and explicit sanitized routing headers when enabled.",
         "models": selected_models,
         "execution": {
             "workers": "one-per-selected-model",
             "free_requests_per_minute": FREE_REQUESTS_PER_MINUTE,
             "free_model_suffix": ":free",
+            "session_affinity": "per-trial" if session_affinity else "implicit",
         },
         "paid_allowlist": sorted(allowed_paid),
         "runs_per_model_case": runs,

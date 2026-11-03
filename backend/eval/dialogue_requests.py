@@ -5,6 +5,7 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import asdict, replace
 
+from dialogue_affinity import provider_with_session
 from dialogue_limits import FreeRequestLimiter
 from ledger import Attempt, BudgetExhaustedError, RequestLedger
 from live_calls import EvaluationPausedError
@@ -30,8 +31,10 @@ class SuiteProvider(AIProvider):
         checkpoint: str = "pr2-final",
         limiter: FreeRequestLimiter | None = None,
         stop: asyncio.Event | None = None,
+        session_id: str | None = None,
     ) -> None:
-        self.provider = provider
+        self.provider = provider_with_session(provider, session_id)
+        self.request_headers = {"x-session-id": session_id} if session_id is not None else {}
         self.ledger = ledger
         self.key = key
         self.case = case
@@ -60,6 +63,9 @@ class SuiteProvider(AIProvider):
         if self.count >= self.ceiling:
             self.exhausted = True
             raise BudgetExhaustedError("The foreground trial request cap was reached.")
+        fingerprint = (
+            {"body": request, "headers": self.request_headers} if self.request_headers else request
+        )
         attempt = Attempt(
             key=f"{self.key}|request-{self.count}",
             scenario=self.case,
@@ -69,7 +75,10 @@ class SuiteProvider(AIProvider):
             model=self.model,
             commit=self.commit,
             request=request,
-            request_hash=hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest(),
+            request_headers=dict(self.request_headers),
+            request_hash=hashlib.sha256(
+                json.dumps(fingerprint, sort_keys=True).encode()
+            ).hexdigest(),
             correlation=asdict(replace(current_correlation(), role=kind)),
             rate_limit_wait_seconds=wait_seconds,
         )

@@ -29,6 +29,11 @@ async def main() -> None:
     parser.add_argument("--cases", nargs="+", default=[case.name for case in CASES])
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--allow-paid-model", action="append", default=[], metavar="MODEL_ID")
+    parser.add_argument(
+        "--session-affinity",
+        action="store_true",
+        help="send one stable x-session-id per trial, shared by its DM and actor calls",
+    )
     parser.add_argument("--user")
     parser.add_argument("--ledger", type=Path)
     parser.add_argument("--results", type=Path)
@@ -40,7 +45,14 @@ async def main() -> None:
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     try:
-        plan = manifest(args.models, args.cases, args.runs, args.suite, set(args.allow_paid_model))
+        plan = manifest(
+            args.models,
+            args.cases,
+            args.runs,
+            args.suite,
+            set(args.allow_paid_model),
+            args.session_affinity,
+        )
     except ValueError as exc:
         parser.error(str(exc))
     if args.dry_run:
