@@ -550,3 +550,19 @@ two free and two paid model IDs, recorded with the acceptance rubric in
 0–1/3 unreliable, not a general reliability guarantee. The first diagnostic is
 12 trials with a 36-request ceiling; all provider/catalog contact still awaits
 explicit owner authorization after offline verification.
+
+**S2 note (2026-11-03, DM example experiment).** The owner-authorized diagnostic
+completed 12 trials and 30 generation requests; one repetition per case/model is
+exploratory, not acceptance. The next owner-approved offline experiment moves
+composition guidance from the conditional actor-tool obligation into the permanent
+DM core, retaining the actor invocation and dependent-beat example in its tool block.
+Paired behavioral examples contrast quoted/unquoted copying, paraphrase, an omitted
+line and additional narrator-written NPC speech, including an Italian complete beat
+and a closing response. The examples remain present when actor tools are unavailable,
+without exposing unavailable tools or changing actors, composition, fallback or the
+quoted guard. Tests inspect the actual final provider-bound prompt and tool schemas;
+they do not establish improved model compliance. A fresh candidate/manifest will
+compare the three diagnostic cases plus `npc_followup_short` across the same four
+models: 16 trials, ceiling 40 generation requests, after renewed live consent. Cache
+analysis is a separate owner backlog item before final timing/cost evaluation; this
+experiment does not change routing, session affinity, retries, limits or credentials.

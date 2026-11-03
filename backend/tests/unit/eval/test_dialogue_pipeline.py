@@ -94,3 +94,12 @@ async def test_real_two_beat_path_counts_dm_and_actors_without_db_or_background(
     assert data["metrics"]["accepted_marker_count"] == 3
     assert data["metrics"]["fallback_speech_parts"] == 0
     assert data["metrics"]["final_marker_count"] == 0
+    requests = [call.kwargs for call in provider.generate_with_tools.await_args_list]
+    for request in requests:
+        assert request["system_prompt"].count("DIALOGUE COMPOSITION:") == 1
+        assert "GOOD DM:" in request["system_prompt"]
+        assert "BAD DM:" in request["system_prompt"]
+    closing_request = requests[-1]
+    assert "CLOSING STEP:" in closing_request["system_prompt"]
+    assert 'tool="invoke_npc"' not in closing_request["system_prompt"]
+    assert "invoke_npc" not in {tool["function"]["name"] for tool in closing_request["tools"]}

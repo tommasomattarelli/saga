@@ -391,6 +391,38 @@ owner authorizes provider/catalog contact and the request allocation. The full f
 four-model, ten-case, three-repetition suite remains **120 trials**, ceiling **420**,
 excluding this diagnostic, authorized retries and separately accounted UI playtests.
 
+### Prepared DM-example comparison — renewed live consent required
+
+The first diagnostic completed 12 trials and 30 generation requests on candidate
+`3dc8695`; the owner reports $0.02 in the OpenRouter dashboard. Its evidence remains
+immutable in `scratch/adr-0004-0017-eval/outputs/pr2-quality-v2/diagnostic-20261103-3dc8695/`.
+The next candidate changes only DM prompt text: permanent composition examples remain
+present in opening and closing calls, while actor-call policy remains tool-dependent.
+Actor prompts, engine/guard, fixtures, output limits, models and routing are unchanged.
+
+Compare `npc_followup`, `actor_en` and `two_npc_two_beat` with the prior diagnostic;
+label `npc_followup_short` separately because it has no live result from that round.
+One run on the same four models is **16 trials**, nominally **36 generation requests**,
+ceiling **40**. Use a new checkpoint and evidence directory; never resume the earlier
+manifest or overwrite its outputs. Keep cache/routing behavior unchanged for this
+prompt comparison; the owner's caching investigation is separate from this candidate.
+
+```bash
+cd backend
+uv run python eval/dialogue_suite.py --dry-run \
+  --suite adr-0017-dm-examples-v1 \
+  --models deepseek/deepseek-v4.1-flash-1017 z-ai/glm-5.3-flash \
+    nvidia/nemotron-3-ultra-550b-a55b:free nvidia/nemotron-3.5-super-vl:free \
+  --allow-paid-model deepseek/deepseek-v4.1-flash-1017 \
+  --allow-paid-model z-ai/glm-5.3-flash \
+  --cases npc_followup actor_en two_npc_two_beat npc_followup_short --runs 1
+```
+
+This is still offline preparation, not permission to contact the catalog or run paid
+or free inference. Prose review stays with the owner-requested Luna agent; the parent
+must not reread raw outputs unless the owner changes that instruction. The full final
+suite and UI playtest still require separate authorization and evidence.
+
 ## Deliberately out of scope
 
 **No combat in gold.** ADR 0003 removes `start_combat` / `end_combat` / `combat_state` and
