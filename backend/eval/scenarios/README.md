@@ -423,6 +423,59 @@ or free inference. Prose review stays with the owner-requested Luna agent; the p
 must not reread raw outputs unless the owner changes that instruction. The full final
 suite and UI playtest still require separate authorization and evidence.
 
+### Approved direct comparison with eval-only session affinity
+
+The owner subsequently approved adding affinity before the same 16-trial, 40-request
+maximum run rather than spending six requests on a separate cache probe. This is a
+new cohort: **DM examples plus explicit affinity**, not an isolated prompt A/B against
+`3dc8695` or a causal cache-benefit measurement. The prepared prompt-only candidate
+`63f8305` has not been evaluated live. The four selected models/cases, 60k cap,
+free-model limiter and no-retry policy stay unchanged.
+
+`--session-affinity` is off by default and affects only the eval. When enabled, each
+trial gets a UUIDv5 derived from its already opaque, model/case/run-specific trial
+key. It is shared by that trial's DM and NPC calls, remains stable through its turns
+and resume, and differs for independent trials; it is not a global hardcoded value
+or a UUID regenerated per request. The constant UUID namespace is not a session ID.
+An isolated copy of the SDK client sends `x-session-id`, preserving existing headers,
+credentials and zero retries without mutating the personal or another trial's client.
+
+Only this explicit, non-secret header is stored in `request_headers` and CSV
+`session_id`; the request hash covers `{body, headers}` when enabled and keeps its
+legacy body-input hash when disabled. The manifest records `per-trial` versus
+`implicit` affinity, so resume cannot mix regimes. Production requests, settings,
+prompt layout and provider/fallback policy are not changed by this flag.
+
+According to the owner-requested documentation research, OpenRouter accepts the
+[session header](https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion)
+as a sticky-routing key, not a unique cache slot. A different NPC prefix does not
+automatically overwrite a DM prefix. [Caching](https://openrouter.ai/docs/guides/best-practices/prompt-caching)
+still depends on the actual prefix, endpoint and best-effort retention; affinity is
+not provider pinning and can be affected by tool routing. DeepSeek/Z.AI automatic
+cache support does not establish support on the selected Nemotron free endpoints.
+
+Observe `cached_input_tokens > 0`, reported cost and request latency separately by
+model/role/step; missing usage stays unknown. Existing reports do not capture the
+actual upstream provider or cache-write tokens, so ID presence and latency alone
+cannot prove a cache hit or that the provider stayed fixed. No extra generation,
+warming, authenticated metadata lookup or provider pinning is added. Any production
+adoption belongs in the owner's separate PR after the eval evidence is reviewed.
+
+```bash
+cd backend
+uv run python eval/dialogue_suite.py --dry-run \
+  --suite adr-0017-dm-examples-affinity-v1 --session-affinity \
+  --models deepseek/deepseek-v4.1-flash-1017 z-ai/glm-5.3-flash \
+    nvidia/nemotron-3-ultra-550b-a55b:free nvidia/nemotron-3.5-super-vl:free \
+  --allow-paid-model deepseek/deepseek-v4.1-flash-1017 \
+  --allow-paid-model z-ai/glm-5.3-flash \
+  --cases npc_followup actor_en two_npc_two_beat npc_followup_short --runs 1
+```
+
+The command above is offline; the approved live invocation uses a fresh ledger and
+results directory with `--budget 40`, no baseline rerun, no added models and no
+automatic progression to the 420-request final regression suite.
+
 ## Deliberately out of scope
 
 **No combat in gold.** ADR 0003 removes `start_combat` / `end_combat` / `combat_state` and

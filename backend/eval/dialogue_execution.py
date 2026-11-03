@@ -4,6 +4,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
+from dialogue_affinity import session_id_for_trial
 from dialogue_cases import CASES, scenario_for
 from dialogue_evidence import append_evidence
 from dialogue_limits import FreeRequestLimiter, TrialBudget
@@ -94,6 +95,11 @@ async def run_models(
                         checkpoint=plan["suite"],
                         limiter=limiter,
                         stop=stop,
+                        session_id=(
+                            session_id_for_trial(key)
+                            if plan.get("execution", {}).get("session_affinity") == "per-trial"
+                            else None
+                        ),
                     )
                     async with budget.hold(
                         case.ceiling, lambda trace=trace: trace.count
@@ -109,6 +115,7 @@ async def run_models(
                             "commit": commit,
                             "source_hash": plan["source_hash"],
                             "ledger": str(ledger.path.resolve()),
+                            "session_id": trace.request_headers.get("x-session-id"),
                         }
                         if not admitted:
                             row.update(

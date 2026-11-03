@@ -38,6 +38,7 @@ class Attempt:
     commit: str = ""
     dirty: bool = False
     request: dict = field(default_factory=dict)
+    request_headers: dict[str, str] = field(default_factory=dict)
     request_hash: str = ""
     response: dict = field(default_factory=dict)
     usage: list[dict] = field(default_factory=list)

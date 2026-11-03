@@ -11,7 +11,7 @@
 
 Ordine di ripresa concordato (2026-10-20), prima di nuove funzionalita':
 
-[ ] **PR 2 — ADR 0017**: baseline S1 congelata `9dadc2c`; diagnostico quattro modelli completo (12 trial/30 richieste, circa $0.02 da dashboard owner), difetti DM residui; esperimento esempi DM preparato offline, poi nuovo consenso live (16 trial/40 richieste massime), analisi cache prima della suite finale e playtest prima dell'unica PR.
+[ ] **PR 2 — ADR 0017**: baseline S1 congelata `9dadc2c`; diagnostico quattro modelli completo (12 trial/30 richieste, circa $0.02 da dashboard owner); approvato confronto diretto nuovi esempi DM + affinità eval per trial (16 trial/40 richieste massime), poi valutazione cache, suite finale e playtest prima dell'unica PR; produzione cache in PR separata.
 
 [ ] **analisi su cache openroyter**!! implementare session id, vedere docs di openrouter, sia nelle eval che nel gioco. ora come ora routa tra i provider e non cacha, aumentando molto il costo
 

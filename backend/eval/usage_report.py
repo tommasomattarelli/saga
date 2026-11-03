@@ -25,6 +25,7 @@ def usage_csv(rows: Iterable[dict]) -> str:
     columns = (
         "key",
         "ledger",
+        "session_id",
         "model",
         "scenario",
         "probe",
@@ -48,7 +49,13 @@ def usage_csv(rows: Iterable[dict]) -> str:
     writer.writeheader()
     for row in rows:
         for item in _items(row):
-            writer.writerow({**row, **item})
+            writer.writerow(
+                {
+                    **row,
+                    **item,
+                    "session_id": (row.get("request_headers") or {}).get("x-session-id"),
+                }
+            )
     return output.getvalue()
 
 

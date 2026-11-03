@@ -566,3 +566,20 @@ compare the three diagnostic cases plus `npc_followup_short` across the same fou
 models: 16 trials, ceiling 40 generation requests, after renewed live consent. Cache
 analysis is a separate owner backlog item before final timing/cost evaluation; this
 experiment does not change routing, session affinity, retries, limits or credentials.
+
+**S2 note (2026-11-04, eval affinity).** After Luna's documentation/code audit, the
+owner approved adding session affinity to the direct 16-trial/40-request comparison
+instead of a separate six-request probe and delegated the ID policy. The eval-only
+opt-in `--session-affinity` gives each independent trial a deterministic opaque UUID
+derived from its existing hashed trial key, shared by its DM/NPC calls and stable
+across its steps/turns and resume. A copied SDK client sends `x-session-id`, retaining
+zero retries and leaving personal/shared clients untouched. Explicit sanitized routing
+headers are recorded and bound to the request hash; no authorization headers are saved.
+The default remains implicit affinity, and production routing is unchanged. Sticky
+routing is not a cache slot or guaranteed endpoint pin: different prefixes can coexist,
+and cached-token usage, not ID presence, establishes an observed hit. The current
+report does not capture upstream provider or cache-write metadata; absent usage remains
+unknown. This cohort changes both DM examples and affinity relative to `3dc8695`, so
+it is exploratory quality/cache observation, not a causal prompt or affinity A/B.
+There is no warming, prefix rewrite, provider pinning, new fallback or extra generation;
+production adoption remains a separately reviewed PR after evidence and owner approval.
