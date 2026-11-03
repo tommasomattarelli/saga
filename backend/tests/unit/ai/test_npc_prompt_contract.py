@@ -49,13 +49,14 @@ def test_default_line_cap_is_four_in_yaml_dataclass_and_missing_config(monkeypat
 
 
 @pytest.mark.parametrize("quoted", [True, False])
-def test_npc_protocol_shows_marker_echo_mistakes_and_a_dependent_beat(quoted):
-    text = template("tool_obligations", "invoke_npc")
-    assert "CORRECT" in text and "INCORRECT" in text
+def test_npc_protocol_shows_marker_echo_mistakes_and_a_dependent_beat(quoted: bool) -> None:
+    text = template("dm", "base_dm_prompt")
+    assert "GOOD DM:" in text and "BAD DM:" in text
     assert "[[npc:Lysa:1]]" in text
     assert (
         '[[npc:Lysa:1]] "I do not have the key."'
         if quoted
         else "[[npc:Lysa:1]] I do not have the key."
     ) in text
-    assert "Beat 2" in text and "Neri" in text
+    obligation = template("tool_obligations", "invoke_npc")
+    assert "Beat 2" in obligation and "Neri" in obligation

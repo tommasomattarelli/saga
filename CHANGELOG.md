@@ -28,6 +28,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Prepare a DM-only prompt experiment with persistent composition examples contrasting copied speech, omitted handles and invented dialogue, including terminal-safe closing requests (ADR 0017).
 - Run dialogue evaluations in independent model lanes with automatic free-model throttling, isolated trial contexts, concurrency-safe request budgets and coherent new courier-seal fixtures (ADR 0017).
 - Prepare a selectable v2 dialogue evaluation with natural two-turn cases, explicit paid-model consent, request identity, separate outcome metrics and resumable usage reports (ADR 0017).
 - Capture per-request evaluation usage, cache/reasoning details and actor/step correlation, with offline CSV/Markdown summaries and explicit missing values (ADR 0017).

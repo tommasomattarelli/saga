@@ -142,12 +142,12 @@ class TestEmptyInputHandler:
 
 
 class TestMultiNpcGuidance:
-    def test_actor_obligation_batches_independent_reactions_and_places_handles(self):
+    def test_actor_obligation_batches_independent_reactions_and_schedules_later_beats(self):
         from app.ai.prompts.obligations import compose_obligations
 
         lower = compose_obligations({"invoke_npc"}).lower()
         assert "together in one response" in lower and "parallel beat" in lower
-        assert "subsequent beat" in lower and "[[npc:lyra:1]]" in lower
+        assert "subsequent beat" in lower
 
 
 # ── I5 — update_quest status enum ────────────────────────────────────────────

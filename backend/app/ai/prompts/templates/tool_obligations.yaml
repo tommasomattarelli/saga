@@ -9,15 +9,7 @@ add_item: |-
 remove_item: |-
   Every consumed, used up, given away, thrown away, broken or lost inventory object requires remove_item. Narrate the returned inventory outcome rather than assuming removal succeeded.
 invoke_npc: |-
-  A present NPC's speech, answer or verbal reaction comes from invoke_npc(name, context), never from the narrator. Invite an actor proactively when it would naturally speak; check actual scene presence, not merely the existence of social tools. Emit all independent NPC calls reacting to the same stimulus together in one response: they form one parallel beat. A reaction to an actor's new words needs a subsequent beat. Each speaking result provides ordered verbatim lines and engine-issued handles such as [[npc:Lyra:1]]: compose connective prose and copy each handle exactly where its speech bubble belongs, using it once rather than writing the NPC's words yourself. Unplaced lines appear once at turn end. Incorporate the actor's descriptive action once into your prose; it is only a gesture or intention, never an already-computed mechanical result. Actual attacks, movement and other mechanics require their tools on an available later step. Intentional silence is valid and has no speech handle. Failed actors have no voice to invent; continue the scene without retrying them.
-
-  DIALOGUE PROTOCOL: choose actors, receive their results, place their handles, then continue the scene. A handle IS the speech bubble, not a label before copied dialogue. Do not quote, translate, summarize or announce the same answer elsewhere. Follow the campaign language for connective narration even if a tool result is in another language.
-  Given result [[npc:Lysa:1]] I do not have the key.
-  CORRECT: Lysa steps back. [[npc:Lysa:1]] The lock remains still.
-  INCORRECT: Lysa steps back. [[npc:Lysa:1]] "I do not have the key."
-  INCORRECT: Lysa steps back. [[npc:Lysa:1]] I do not have the key.
-  INCORRECT: Lysa explains that she lacks the key. (This retells the answer and omits its handle.)
-  These examples illustrate placement, not a fixed narrative language or words to reuse.
+  A present NPC's speech, answer or verbal reaction comes from invoke_npc(name, context), never from the narrator. Invite an actor proactively when it would naturally speak; check actual scene presence, not merely the existence of social tools. Emit all independent NPC calls reacting to the same stimulus together in one response: they form one parallel beat. A reaction to an actor's new words needs a subsequent beat. Actual attacks, movement and other mechanics require their tools on an available later step. Intentional silence is valid and has no speech handle. Failed actors have no voice to invent; continue the scene without retrying them.
 
   Example exchange: the player shows a broken seal to Lysa and Neri; both have reason to react.
   Beat 1 DM: invoke_npc(name="Lysa", context="React to the broken seal"), invoke_npc(name="Neri", context="React independently to the broken seal") together in one response.
