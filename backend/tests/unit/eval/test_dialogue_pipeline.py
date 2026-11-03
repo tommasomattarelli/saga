@@ -6,6 +6,7 @@ import pytest
 from dialogue_cases import scenario_for
 from dialogue_pipeline import run_pipeline
 from dialogue_requests import SuiteProvider
+from dialogue_runtime import evaluation_dispatch
 from ledger import RequestLedger
 
 from app.ai.providers.schemas import AgentResponse, ToolCall
@@ -57,12 +58,13 @@ async def test_real_two_beat_path_counts_dm_and_actors_without_db_or_background(
         commit="commit",
         ceiling=7,
     )
-    data, failed = await run_pipeline(
-        scenario_for(case_name),
-        trace,
-        ModelConfig("openrouter", "m:free", 60000),
-        uuid.uuid4(),
-    )
+    with evaluation_dispatch():
+        data, failed = await run_pipeline(
+            scenario_for(case_name),
+            trace,
+            ModelConfig("openrouter", "m:free", 60000),
+            uuid.uuid4(),
+        )
     assert trace.count == 6 and ledger.spent == 6
     assert data["dm_steps"] == 3 and len(data["beats"]) == 2
     assert "Una prima risposta." not in actor_inputs[0]

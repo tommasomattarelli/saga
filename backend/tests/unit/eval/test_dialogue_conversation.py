@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock
 
 from dialogue_cases import scenario_for
 from dialogue_requests import SuiteProvider
+from dialogue_runtime import evaluation_dispatch
 from dialogue_trial import run_case
 from ledger import RequestLedger
 
@@ -37,13 +38,14 @@ async def test_two_turn_case_reuses_the_actual_transcript_and_world_state(tmp_pa
         commit="commit",
         ceiling=14,
     )
-    data, _ = await run_case(
-        "two_npc_conversation",
-        scenario_for("two_npc_conversation"),
-        trace,
-        ModelConfig("openrouter", "m:free", 60000),
-        uuid.uuid4(),
-    )
+    with evaluation_dispatch():
+        data, _ = await run_case(
+            "two_npc_conversation",
+            scenario_for("two_npc_conversation"),
+            trace,
+            ModelConfig("openrouter", "m:free", 60000),
+            uuid.uuid4(),
+        )
     assert len(data["turns"]) == 2
     assert any(
         "The seal was broken yesterday." in str(message["content"])

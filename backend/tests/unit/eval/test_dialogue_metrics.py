@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock
 from dialogue_cases import scenario_for
 from dialogue_pipeline import run_pipeline
 from dialogue_requests import SuiteProvider
+from dialogue_runtime import evaluation_dispatch
 from ledger import RequestLedger
 
 from app.ai.providers.schemas import AgentResponse, ToolCall
@@ -38,12 +39,13 @@ async def test_second_beat_metrics_match_the_required_actor_and_separate_languag
         commit="commit",
         ceiling=7,
     )
-    data, _ = await run_pipeline(
-        scenario_for("two_npc_two_beat"),
-        trace,
-        ModelConfig("openrouter", "m:free", 60000),
-        uuid.uuid4(),
-    )
+    with evaluation_dispatch():
+        data, _ = await run_pipeline(
+            scenario_for("two_npc_two_beat"),
+            trace,
+            ModelConfig("openrouter", "m:free", 60000),
+            uuid.uuid4(),
+        )
     metrics = data["metrics"]
     assert metrics["second_beat"]["requested"] is False
     assert metrics["second_beat"]["executed"] is False
@@ -87,12 +89,13 @@ async def test_requested_second_actor_failure_is_not_a_missing_invocation(tmp_pa
         commit="commit",
         ceiling=7,
     )
-    data, _ = await run_pipeline(
-        scenario_for("two_npc_two_beat"),
-        trace,
-        ModelConfig("openrouter", "m:free", 60000),
-        uuid.uuid4(),
-    )
+    with evaluation_dispatch():
+        data, _ = await run_pipeline(
+            scenario_for("two_npc_two_beat"),
+            trace,
+            ModelConfig("openrouter", "m:free", 60000),
+            uuid.uuid4(),
+        )
     metrics = data["metrics"]
     assert metrics["second_beat"]["requested"] is True
     assert metrics["second_beat"]["executed"] is True

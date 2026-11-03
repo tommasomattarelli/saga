@@ -120,3 +120,13 @@ def test_two_beat_overlay_has_exactly_two_present_npcs_and_uses_update_tool_shap
 def test_unknown_case_is_rejected():
     with pytest.raises(ValueError, match="unknown dialogue case"):
         scenario_for("not-a-case")
+
+
+@pytest.mark.parametrize("name", ["two_npc_natural", "two_npc_conversation"])
+def test_courier_seal_exists_only_in_the_new_natural_fixture_inventory(name):
+    natural = scenario_for(name)
+    inventory = natural.campaign.character_data["inventory"]
+    assert any(item["name"] == "Broken courier seal" for item in inventory)
+    assert "north road" in inventory[-1]["description"]
+    assert scenario_for("two_npc_two_beat").campaign.character_data["inventory"] == []
+    assert scenario.load("debug-thornhaven").campaign.character_data["inventory"] == []

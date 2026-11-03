@@ -11,7 +11,7 @@
 
 Ordine di ripresa concordato (2026-10-20), prima di nuove funzionalita':
 
-[ ] **PR 2 — ADR 0017**: baseline S1 congelata `9dadc2c` (36 trial); S2 qualità dialoghi e harness v2 implementati offline, da confermare nuove fixture/ID/cap prima della valutazione free/low-cost e del playtest owner; niente OpenRouter senza nuova autorizzazione, una sola PR finale.
+[ ] **PR 2 — ADR 0017**: baseline S1 congelata `9dadc2c` (36 trial); owner approva quattro modelli, criteri e binari indipendenti con limite free automatico 20/min, sigillo solo nelle nuove fixture e cap 60k invariato; preparazione offline, poi consenso live al diagnostico 12 trial/36 richieste massime e playtest prima dell'unica PR.
 
 GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimangono i dettagli del backlog esistente.
 

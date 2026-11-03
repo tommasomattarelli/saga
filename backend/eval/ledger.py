@@ -30,6 +30,7 @@ class Attempt:
     status: str = "reserved"  # reserved | ok | error
     failed: list[str] = field(default_factory=list)
     seconds: float = 0.0
+    rate_limit_wait_seconds: float = 0.0
     error: str = ""
     at: str = ""
     checkpoint: str = ""

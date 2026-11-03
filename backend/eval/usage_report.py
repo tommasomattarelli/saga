@@ -42,6 +42,7 @@ def usage_csv(rows: Iterable[dict]) -> str:
         "cost",
         "currency",
         "seconds",
+        "rate_limit_wait_seconds",
     )
     writer = csv.DictWriter(output, fieldnames=columns, extrasaction="ignore")
     writer.writeheader()
@@ -93,6 +94,7 @@ def usage_markdown(rows: Iterable[dict]) -> str:
         "Cached",
         "Reasoning",
         "Latency s",
+        "Rate wait s",
         "Cost",
     )
     output = ["| " + " | ".join(columns) + " |", "|" + "|".join(["---"] * len(columns)) + "|"]
@@ -126,6 +128,7 @@ def usage_markdown(rows: Iterable[dict]) -> str:
             _sum(items, "cached_input_tokens"),
             _sum(items, "reasoning_output_tokens"),
             _sum([row for row, _ in entries], "seconds"),
+            _sum([row for row, _ in entries], "rate_limit_wait_seconds"),
             cost_text,
         ]
         output.append("| " + " | ".join(values) + " |")

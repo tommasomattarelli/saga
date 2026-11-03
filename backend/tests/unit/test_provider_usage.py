@@ -116,7 +116,9 @@ def test_usage_reports_group_missing_and_true_zero() -> None:
     csv = usage_csv(rows)
     markdown = usage_markdown(rows)
     assert "cached_input_tokens" in csv and "reasoning_output_tokens" in csv
-    assert "| m | case | 2 | actor | n1 | 2 | 0 | 5 | 5 | 1 | 1 | 1 | 2 | 1 | — | — |" in markdown
+    assert (
+        "| m | case | 2 | actor | n1 | 2 | 0 | 5 | 5 | 1 | 1 | 1 | 2 | 1 | — | — | — |" in markdown
+    )
     assert "| m | case | 2 | actor | n1 |" in markdown
     assert "response_id" in csv and "npc_name" in csv and "seconds" in csv
 
@@ -130,6 +132,7 @@ def test_report_preserves_step_zero_and_does_not_add_different_currencies() -> N
                 "model": "m",
                 "scenario": "case",
                 "seconds": 1.5,
+                "rate_limit_wait_seconds": 3.0,
                 "usage": [
                     {
                         "step": 0,
@@ -145,6 +148,7 @@ def test_report_preserves_step_zero_and_does_not_add_different_currencies() -> N
                 "model": "m",
                 "scenario": "case",
                 "seconds": 2,
+                "rate_limit_wait_seconds": 7.0,
                 "usage": [
                     {
                         "step": 0,
@@ -159,7 +163,7 @@ def test_report_preserves_step_zero_and_does_not_add_different_currencies() -> N
         ]
     )
     assert (
-        "| m | case | 0 | actor |  | 2 | 1 | — | — | 1 | 2 | 2 | — | — | 3.5 | EUR 3, USD 0.2 |"
+        "| m | case | 0 | actor |  | 2 | 1 | — | — | 1 | 2 | 2 | — | — | 3.5 | 10.0 | EUR 3, USD 0.2 |"
         in markdown
     )
 

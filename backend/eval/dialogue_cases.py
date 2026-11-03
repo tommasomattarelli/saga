@@ -10,6 +10,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from scenario import Scenario, load
 
+from app.ai.tools.tools_inventory import AddItem
 from app.ai.tools.tools_npc import UpdateNpc
 
 
@@ -99,6 +100,12 @@ def scenario_for(case_name: str) -> Scenario:
     elif case_name in {"two_npc_two_beat", "two_npc_natural", "two_npc_conversation"}:
         _configure_two_npc_case(sc)
         if case_name in {"two_npc_natural", "two_npc_conversation"}:
+            result = AddItem(
+                name="Broken courier seal",
+                description="A broken wax courier seal found on the north road.",
+            ).execute(sc.campaign.world_state, sc.campaign.character_data)
+            sc.campaign.world_state = result.world_state
+            sc.campaign.character_data = result.char_data
             sc.stimuli["npc_speaks"].player = (
                 "I show the broken courier seal to Aldric and Mira. "
                 "'I found this on the north road. Something is wrong with this delivery.' "

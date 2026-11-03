@@ -1,11 +1,11 @@
 import copy
 import uuid
 from dataclasses import asdict
-from unittest.mock import AsyncMock, patch
 
 from dialogue_cases import case_for_scenario_name
 from dialogue_metrics import ActorDispatch, pipeline_metrics
 from dialogue_requests import SuiteProvider
+from dialogue_runtime import pipeline_context
 from probes import PROBES_BY_NAME, grade
 from scenario import Scenario
 
@@ -104,14 +104,7 @@ async def run_pipeline(
         return results
 
     failed: list[str] = []
-    with (
-        patch("app.core.dm.npc_beat.invoke_npcs_parallel", observe_actors),
-        patch("app.core.dm.dm_nodes.get_user_generation", AsyncMock(return_value=(trace, config))),
-        patch(
-            "app.ai.generation_context.get_user_generation",
-            AsyncMock(return_value=(trace, config)),
-        ),
-    ):
+    with pipeline_context((trace, config), observe_actors):
         while state["step_count"] < state["max_agent_steps"]:
             if trace.paused or trace.exhausted:
                 break
@@ -167,7 +160,9 @@ async def run_pipeline(
     actor_attempts = [
         attempt
         for attempt in trace.ledger.results()
-        if attempt.key not in previous_attempts and attempt.probe.endswith(":actor")
+        if attempt.key.startswith(f"{trace.key}|request-")
+        and attempt.key not in previous_attempts
+        and attempt.probe.endswith(":actor")
     ]
     return {
         "before": before,

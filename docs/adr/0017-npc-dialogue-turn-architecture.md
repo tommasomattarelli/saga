@@ -534,3 +534,19 @@ separate narrator and actor output; lexical echo counts still require prose revi
 Request hashes bind actual provider-call inputs, and usage inventory includes historical
 retry ledgers without deduplicating separately billed requests. Offline preparation
 does not authorize live execution or decide the remaining issue closures.
+
+**S2 note (2026-11-03, evaluation preparation).** The owner approved one independent
+sequential lane per selected model, with no cross-model barrier and an automatic
+shared 20-request rolling-minute limiter for `:free` generation calls only. Paid
+calls bypass throttling, not the shared request budget. Suite-scoped eval proxies
+route generation and actor observation through task-local context rather than
+overlapping global patches; production behavior is unchanged. In-flight trials hold
+their request ceilings, releasing unused capacity without fabricating provider
+attempts. Rate waits and request/lane/trial wall times are reported separately.
+The broken seal is seeded only in the new natural fixtures; all baseline fixtures
+and core overlays remain intact. The owner retained the 60k output cap and selected
+two free and two paid model IDs, recorded with the acceptance rubric in
+`backend/eval/scenarios/README.md`. Per-obligation 3/3 is sample success, 2/3 unstable,
+0–1/3 unreliable, not a general reliability guarantee. The first diagnostic is
+12 trials with a 36-request ceiling; all provider/catalog contact still awaits
+explicit owner authorization after offline verification.
