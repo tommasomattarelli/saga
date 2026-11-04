@@ -28,6 +28,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Record the 16-trial dialogue comparison and observed cache reuse, deferring production caching decisions and requiring cache-hit checks in the final suite (ADR 0017).
 - Add opt-in, trial-scoped OpenRouter session affinity to dialogue evaluation, preserving shared clients and binding sanitized routing headers to request evidence (ADR 0017).
 - Prepare a DM-only prompt experiment with persistent composition examples contrasting copied speech, omitted handles and invented dialogue, including terminal-safe closing requests (ADR 0017).
 - Run dialogue evaluations in independent model lanes with automatic free-model throttling, isolated trial contexts, concurrency-safe request budgets and coherent new courier-seal fixtures (ADR 0017).

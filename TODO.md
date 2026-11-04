@@ -11,9 +11,9 @@
 
 Ordine di ripresa concordato (2026-10-20), prima di nuove funzionalita':
 
-[ ] **PR 2 — ADR 0017**: baseline S1 congelata `9dadc2c`; diagnostico quattro modelli completo (12 trial/30 richieste, circa $0.02 da dashboard owner); approvato confronto diretto nuovi esempi DM + affinità eval per trial (16 trial/40 richieste massime), poi valutazione cache, suite finale e playtest prima dell'unica PR; produzione cache in PR separata.
+[ ] **cache OpenRouter — PR dedicata eval/produzione**: coorte `84ce368`, 32 richieste con affinità per trial; un solo hit (Super, `npc_followup_short`: 8.672/8.823 token input), DeepSeek/GLM/Ultra cached 0, nessun dato cache mancante; beneficio dell'ID non dimostrato, cambia anche il prompt; ricontrollare cache hit nella suite completa e approfondire routing/prefissi prima dell'adozione in produzione.
 
-[ ] **analisi su cache openroyter**!! implementare session id, vedere docs di openrouter, sia nelle eval che nel gioco. ora come ora routa tra i provider e non cacha, aumentando molto il costo
+[ ] **PR 2 — ADR 0017**: baseline S1 congelata `9dadc2c`; diagnostico quattro modelli completo (12 trial/30 richieste, circa $0.02 da dashboard owner); confronto esempi DM + affinità e review Luna completi (16 trial/32 richieste), difetti DM ancora presenti senza miglioramento uniforme; restano decisione owner, suite finale e playtest prima dell'unica PR, produzione cache in PR separata.
 
 GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimangono i dettagli del backlog esistente.
 
