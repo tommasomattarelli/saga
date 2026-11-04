@@ -1,11 +1,11 @@
 # ADR 0017 — NPC dialogue: batched beats and engine-spliced verbatim lines
 
-- **Status**: Proposed (structural forks closed by the owner interview 2026-08-02;
-  the implementation pass in §9 settles values, markers and segment shape for ordinary
-  NPCs. Flips to Accepted only after owner review and playtest. Supersedes *in place* the
+- **Status**: Accepted (2026-11-04, owner review and frontend playtest; structural
+  forks closed by the owner interview 2026-08-02; the implementation pass in §9
+  settles values, markers and segment shape for ordinary NPCs). Supersedes *in place* the
   2026-07-26 WIP stub of this same ADR, which recorded the problem and six open forks and
-  decided none of them.)
-- **Date**: 2026-07-26 (stub); design interview 2026-08-02.
+  decided none of them.
+- **Date**: 2026-07-26 (stub); design interview 2026-08-02; accepted 2026-11-04.
 - **Context items**: playtest on `v0.2.0-beta.1` (issues #52, #53); owner interview
   2026-08-02, grounded live in `ai/prompts/dm.yaml`, `ai/npc_director.py`,
   `core/dm/dm_nodes.py`, `core/dm/dm_graph.py`, `core/dm/dm_tools_executor.py`,
@@ -648,3 +648,55 @@ changes. Before any provider/catalog/auth/usage contact, stop for explicit owner
 authorization and the request allocation; the offline calculation is not permission.
 Output review remains delegated, with reviewer selection pending. Owner review,
 playtest, acceptance and residual-issue disposition are still separate gates.
+
+**S2 note (2026-11-04, complete-suite evidence).** After explicit owner approval,
+the frozen candidate completed all **120 trials** using **267/420 generation
+requests**, with no pending/retryable trials, provider errors or interrupted calls.
+Evidence is retained under
+`scratch/adr-0004-0017-eval/outputs/pr2-quality-v2/full-suite-20261104-0f5478f/`.
+Two independent `openai/gpt-6-luna#max` reviewers read all **267 request results**
+and **120 trial transcripts**, split by complete models; their reports were chat-only.
+The parent inspected metadata and usage only. All **134 executed actor calls** had
+valid typed outcomes; this does not imply the expected choice of speaking/silence,
+correct narration or calls that were never made.
+
+| Obligation, per three trials | DeepSeek | GLM | Ultra | Super |
+|---|---|---|---|---|
+| `npc_speaks` actor request | 3/3 | 3/3 | 3/3 | 3/3 |
+| `npc_followup` immediate placement | 1/3 | 3/3 | 3/3 | 3/3 |
+| `npc_followup_short` immediate placement | 2/3 | 2/3 | 2/3 | 3/3 |
+| Expected speaking in `actor_it` | 3/3 | 2/3 | 3/3 | 3/3 |
+| Expected silence in `actor_silent` | 3/3 | 2/3 | 3/3 | 3/3 |
+| Forced initial independent batch | 3/3 | 2/3 | 3/3 | 3/3 |
+| Forced dependent beat | 1/3 | 0/3 | 3/3 | 3/3 |
+
+These obligations must not be collapsed into a model-wide pass. Reviewers found
+narrator-added speech and unquoted echoes outside the approved guard, an anomalous
+GLM forced response with meta residue, and Italian forced-scene narration in English
+for Ultra (3/3) and Super (2/3), despite Italian actor output. Natural cases also
+showed missing reactions, orphan markers and NPC absences contrary to their actual
+input; completion of two bounded turns is not sufficient semantic acceptance.
+Fallback preservation remains distinct from immediate placement and narrative order.
+
+The reported usage contains **79 cache-hit requests** and **359,208 cached input
+tokens out of 1,245,313** (28.84%), with positive hits on all four selected models.
+No token/cache/cost fields are missing; currency is absent throughout. The reported
+cost sum is **0.09012307366**, for the eval only, not reviewer costs. Affinity is
+not causally isolated and upstream routing is not recorded, so neither savings from
+the ID nor a fixed provider is established. Production caching stays separate.
+No remaining allowance is spent automatically. No additional tuning, baseline rerun,
+issue closure, merge or Accepted status follows from these results; owner playtest
+and explicit disposition of residual defects remain pending.
+
+**Owner acceptance (2026-11-04).** The owner reports that the frontend playtest
+passed and explicitly accepts the architecture for delivery. This accepts the engine,
+actor-outcome and presentation contracts, not universal model compliance; the complete
+evaluation and its model-specific limitations above remain unchanged. Delivery closes
+#102 and #106 on PR merge, while #51, #52 and #53 remain open with focused evidence.
+False NPC absence is a separate bug follow-up. Richer contextual NPC-to-NPC exchanges
+are a P3 feature request, not a requirement that the player prescribe a second beat:
+ordinary-NPC speaker choice remains the DM's discretion, within the existing bounds.
+The forced two-beat case remains a diagnostic, not a mandatory gameplay cadence.
+Production caching and shared-affinity eval experiments remain separate future work.
+The owner also authorizes including the updated `scratch` gitlink in this delivery;
+raw evaluation outputs remain ignored and are not published by that pointer update.

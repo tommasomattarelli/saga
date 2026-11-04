@@ -11,9 +11,9 @@
 
 Ordine di ripresa concordato (2026-10-20), prima di nuove funzionalita':
 
-[ ] **cache OpenRouter — PR dedicata eval/produzione**: coorte `84ce368`, 32 richieste con affinità per trial; un solo hit (Super, `npc_followup_short`: 8.672/8.823 token input), DeepSeek/GLM/Ultra cached 0, nessun dato cache mancante; beneficio dell'ID non dimostrato, cambia anche il prompt; ricontrollare cache hit nella suite completa e approfondire routing/prefissi prima dell'adozione in produzione.
+[ ] **cache OpenRouter — PR dedicata eval/produzione**: suite completa `0f5478f`, 267 richieste con affinità per trial; hit DeepSeek 41/70, GLM 5/68, Ultra 13/69, Super 20/60, 359.208 token cached (28,8% input), nessun campo cache mancante; beneficio causale dell'ID non dimostrato, approfondire routing/prefissi prima dell'adozione in produzione.
 
-[ ] **PR 2 — ADR 0017**: baseline `9dadc2c` intatta; diagnostici e review Luna completi, difetti DM senza miglioramento uniforme; audit offline dei probe e freeze funzionale `84ce368` completati (§10.3 ADR); proposta suite completa 10 casi × 4 modelli × 3 run, inclusi i casi già provati ma senza ripetere vecchi prompt/baseline (120 trial, tetto 420 richieste), solo dopo nuova autorizzazione; restano reviewer, playtest e decisione owner sui difetti residui prima dell'unica PR.
+[ ] **cache eval — ipotesi ID condiviso**: confrontare l'attuale ID per trial (120 ID/267 chiamate) con un ID per suite, eventualmente per coppia suite/modello, per ridurre frammentazione del routing; owner osserva frequenti cambi upstream per GLM e route NVIDIA per i free; verificare endpoint/prefissi e costi separando cache, prezzi e output/reasoning, senza garantire pinning/hit; esperimento futuro con nuovo consenso/budget, nessuna modifica alla coorte congelata.
 
 GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimangono i dettagli del backlog esistente.
 

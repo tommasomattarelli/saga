@@ -28,6 +28,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Accept ADR 0017 after owner frontend playtest and complete evaluation, retaining model-quality defects and richer NPC exchanges as explicit follow-ups.
+- Run the frozen four-model dialogue suite: 120 trials and 267 generation requests, recording cache reuse across all selected models (ADR 0017).
 - Clarify single-call versus bounded-turn dialogue evaluation and freeze the tested candidate without changing runtime or historical evidence (ADR 0017).
 - Record the 16-trial dialogue comparison and observed cache reuse, deferring production caching decisions and requiring cache-hit checks in the final suite (ADR 0017).
 - Add opt-in, trial-scoped OpenRouter session affinity to dialogue evaluation, preserving shared clients and binding sanitized routing headers to request evidence (ADR 0017).
