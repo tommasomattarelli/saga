@@ -15,6 +15,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Highlights
 
+- [World & DM] Remove narrowly recognized quoted speech echoes before subsequent NPC beats, preserving original provider messages and adding language, placement and beat-progress reminders (ADR 0017).
+- [World & DM] Separate NPC instructions from character data, share filtered player input with actors and default to four spoken lines per actor call (ADR 0017).
 - [World & DM] Distinguish NPC speech, intentional silence and failed generation, rejecting unusable responses without fake dialogue or conversation effects (#102).
 - [World & DM] Dispatch independent NPCs in observable parallel beats, preserve per-turn interaction history and compose verbatim speech through one ordered transcript (ADR 0017).
 - [UI] Interleave NPC speech with narration through ordered parts, without repeating actions below bubbles or bypassing progressive dice reveal.
@@ -26,7 +28,16 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
-- Prepared ADR 0017's retry-free, resumable two-day foreground evaluation with captured baselines, real parallel actors and offline quota/identity checks; live execution awaits owner approval.
+- Accept ADR 0017 after owner frontend playtest and complete evaluation, retaining model-quality defects and richer NPC exchanges as explicit follow-ups.
+- Run the frozen four-model dialogue suite: 120 trials and 267 generation requests, recording cache reuse across all selected models (ADR 0017).
+- Clarify single-call versus bounded-turn dialogue evaluation and freeze the tested candidate without changing runtime or historical evidence (ADR 0017).
+- Record the 16-trial dialogue comparison and observed cache reuse, deferring production caching decisions and requiring cache-hit checks in the final suite (ADR 0017).
+- Add opt-in, trial-scoped OpenRouter session affinity to dialogue evaluation, preserving shared clients and binding sanitized routing headers to request evidence (ADR 0017).
+- Prepare a DM-only prompt experiment with persistent composition examples contrasting copied speech, omitted handles and invented dialogue, including terminal-safe closing requests (ADR 0017).
+- Run dialogue evaluations in independent model lanes with automatic free-model throttling, isolated trial contexts, concurrency-safe request budgets and coherent new courier-seal fixtures (ADR 0017).
+- Prepare a selectable v2 dialogue evaluation with natural two-turn cases, explicit paid-model consent, request identity, separate outcome metrics and resumable usage reports (ADR 0017).
+- Capture per-request evaluation usage, cache/reasoning details and actor/step correlation, with offline CSV/Markdown summaries and explicit missing values (ADR 0017).
+- Completed ADR 0017's 36-trial baseline and recorded the owner-approved S2 quality pass; further live evaluation awaits renewed authorization.
 - Added typed narration parts and frozen NPC line handles with deterministic placement, malformed-marker cleanup and dice-safe end-of-turn fallback (ADR 0017).
 - Grounded ADR 0017 S0 on merged PR 1, recording ordinary-NPC beat, failure, visibility and transcript contracts with quota-bounded two-day final evaluation.
 - Live probes requested `move_to` for every valid response in short and ten-turn coherent travel; recovery of already-conflicting history remains unreliable (#101).

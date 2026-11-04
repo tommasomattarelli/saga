@@ -1,6 +1,7 @@
 import copy
 import hashlib
 import json
+import math
 import subprocess
 import time
 import uuid
@@ -29,6 +30,13 @@ class EvaluationPausedError(RuntimeError):
 
 
 async def validate_free_models(models: list[str]) -> None:
+    await validate_eval_models(models)
+
+
+async def validate_eval_models(models: list[str], paid_models: set[str] | None = None) -> None:
+    permitted = paid_models or set()
+    if any(not model.endswith(":free") and model not in permitted for model in models):
+        raise ValueError("Paid models require an explicit evaluation allowlist.")
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.get("https://openrouter.ai/api/v1/models")
         response.raise_for_status()
@@ -37,22 +45,28 @@ async def validate_free_models(models: list[str]) -> None:
         model = catalog.get(model_id)
         if (
             not model
-            or not model_id.endswith(":free")
             or "tools" not in model.get("supported_parameters", [])
             or any(
-                float(model.get("pricing", {}).get(key, -1)) != 0
+                not math.isfinite(float(model.get("pricing", {}).get(key, -1)))
+                or float(model.get("pricing", {}).get(key, -1)) < 0
+                or (
+                    model_id.endswith(":free")
+                    and float(model.get("pricing", {}).get(key, -1)) != 0
+                )
                 for key in ("prompt", "completion")
             )
         ):
-            raise ValueError(f"Selected free tool-capable model is unavailable: {model_id}")
+            raise ValueError(f"Selected tool-capable model is unavailable: {model_id}")
 
 
-async def resolve_eval_generation(user_id: uuid.UUID, model: str) -> Generation:
+async def resolve_eval_generation(
+    user_id: uuid.UUID, model: str, *, allow_paid: bool = False
+) -> Generation:
+    if not model.endswith(":free") and not allow_paid:
+        raise ValueError("Paid models require explicit evaluation permission.")
     provider, config = await get_user_generation(user_id)
-    if config.provider != "openrouter" or not model.endswith(":free"):
-        raise ValueError(
-            "Live evaluation requires the owner's OpenRouter profile and a selected free model."
-        )
+    if config.provider != "openrouter":
+        raise ValueError("Live evaluation requires the owner's OpenRouter profile.")
     if isinstance(provider, LocalProvider):
         provider = copy.copy(provider)
         # The shared personal client stays untouched; SDK retries must not hide requests.

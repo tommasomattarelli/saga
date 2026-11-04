@@ -10,6 +10,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from scenario import Scenario, load
 
+from app.ai.tools.tools_inventory import AddItem
 from app.ai.tools.tools_npc import UpdateNpc
 
 
@@ -17,6 +18,11 @@ from app.ai.tools.tools_npc import UpdateNpc
 class Case:
     name: str
     ceiling: int
+    expected_relevance: bool = False
+    nominal: int | None = None
+    expected_initial_npcs: frozenset[str] = frozenset()
+    expected_second_npc: str | None = None
+    followup_actions: tuple[str, ...] = ()
 
 
 CASES = (
@@ -25,7 +31,30 @@ CASES = (
     Case("actor_en", 1),
     Case("actor_it", 1),
     Case("actor_silent", 1),
-    Case("two_npc_two_beat", 7),
+    Case(
+        "two_npc_two_beat",
+        7,
+        nominal=6,
+        expected_initial_npcs=frozenset({"aldric", "mira"}),
+        expected_second_npc="aldric",
+    ),
+    Case("npc_followup_short", 1),
+    Case("actor_scene", 1),
+    Case(
+        "two_npc_natural",
+        7,
+        expected_relevance=True,
+        nominal=6,
+    ),
+    Case(
+        "two_npc_conversation",
+        14,
+        expected_relevance=True,
+        nominal=12,
+        followup_actions=(
+            "I lower my voice and ask whether that changes what we should do next, without leaving the square.",
+        ),
+    ),
 )
 
 _BY_NAME = {case.name: case for case in CASES}
@@ -47,8 +76,13 @@ def scenario_for(case_name: str) -> Scenario:
     sc.name = f"pr2-case-{case_name}"
     sc.notes = f"controlled overlay on reconstructed debug-thornhaven capture; case={case_name}."
 
-    if case_name in {"npc_speaks", "npc_followup"}:
+    if case_name in {"npc_speaks", "npc_followup", "actor_scene"}:
         sc.stimuli["npc_speaks"].player = "Aldric, do you know who I am? Have you seen me before?"
+    elif case_name in {"npc_followup_short"}:
+        sc.stimuli["npc_speaks"].player = "Aldric, is the north gate open?"
+        sc.stimuli["npc_followup"] = deepcopy(sc.stimuli["npc_followup"])
+        sc.stimuli["npc_followup"].player = sc.stimuli["npc_speaks"].player
+        sc.stimuli["npc_followup"].npc_dialogue = "No."
     elif case_name == "actor_en":
         sc.language = sc.campaign.language = "en"
         sc.stimuli["npc_speaks"].player = "Aldric, sai chi sono? Mi hai già visto prima?"
@@ -63,10 +97,32 @@ def scenario_for(case_name: str) -> Scenario:
             "a quiet warning makes clear this vow is deliberate."
         )
         sc.stimuli["npc_speaks"].player = "Aldric, do you know who I am? Have you seen me before?"
-    else:
+    elif case_name in {"two_npc_two_beat", "two_npc_natural", "two_npc_conversation"}:
         _configure_two_npc_case(sc)
+        if case_name in {"two_npc_natural", "two_npc_conversation"}:
+            result = AddItem(
+                name="Broken courier seal",
+                description="A broken wax courier seal found on the north road.",
+            ).execute(sc.campaign.world_state, sc.campaign.character_data)
+            sc.campaign.world_state = result.world_state
+            sc.campaign.character_data = result.char_data
+            sc.stimuli["npc_speaks"].player = (
+                "I show the broken courier seal to Aldric and Mira. "
+                "'I found this on the north road. Something is wrong with this delivery.' "
+                "I watch their reactions."
+            )
+            sc.language = sc.campaign.language = "en"
 
     return sc
+
+
+def case_for_scenario_name(name: str) -> Case:
+    prefix = "pr2-case-"
+    case_name = name.removeprefix(prefix) if name.startswith(prefix) else name
+    try:
+        return _BY_NAME[case_name]
+    except KeyError as exc:
+        raise ValueError(f"unknown dialogue case: {case_name}") from exc
 
 
 def _present_npcs(sc: Scenario) -> dict:
@@ -108,4 +164,4 @@ def _configure_two_npc_case(sc: Scenario) -> None:
     )
 
 
-__all__ = ["CASES", "Case", "scenario_for"]
+__all__ = ["CASES", "Case", "case_for_scenario_name", "scenario_for"]

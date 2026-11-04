@@ -30,6 +30,7 @@ class Attempt:
     status: str = "reserved"  # reserved | ok | error
     failed: list[str] = field(default_factory=list)
     seconds: float = 0.0
+    rate_limit_wait_seconds: float = 0.0
     error: str = ""
     at: str = ""
     checkpoint: str = ""
@@ -37,7 +38,11 @@ class Attempt:
     commit: str = ""
     dirty: bool = False
     request: dict = field(default_factory=dict)
+    request_headers: dict[str, str] = field(default_factory=dict)
+    request_hash: str = ""
     response: dict = field(default_factory=dict)
+    usage: list[dict] = field(default_factory=list)
+    correlation: dict = field(default_factory=dict)
 
 
 class RequestLedger:

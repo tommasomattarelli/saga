@@ -1,4 +1,4 @@
-from app.ai.prompts.npc import build_npc_prompt
+from app.ai.prompts.npc import build_npc_prompt, build_npc_system_prompt
 from app.models.psychology import PsychologyDef
 
 AXIS = {
@@ -36,9 +36,10 @@ def test_build_npc_prompt_renders_all_traits():
     # ADR 0005 D1: number + band label, full axis list, contract + cap taught
     assert "trust: -50 (betrayed-wary)" in prompt
     assert "respect: 0 (neutral)" in prompt
-    assert "axis_changes" in prompt
-    assert "trust, respect, affection, fear" in prompt
-    assert "±10" in prompt
+    system = build_npc_system_prompt()
+    assert "axis_changes" in system
+    assert "trust, respect, affection, fear" in system
+    assert "±10" in system
 
 
 def test_empty_traits_hidden_without_fill_guidance():
@@ -69,4 +70,4 @@ def test_npc_prompt_world_defined_axes():
     prompt = build_npc_prompt({"name": "Kira", "psychology": {"honor": 20}}, psychology=pdef)
     assert "honor: 20 (honored)" in prompt
     assert "trust" not in prompt
-    assert "±5" in prompt
+    assert "±5" in build_npc_system_prompt(psychology=pdef)

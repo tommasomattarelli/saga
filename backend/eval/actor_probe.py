@@ -5,8 +5,7 @@ from scenario import Scenario
 
 from app.ai.npc_director import invoke_single_npc
 from app.ai.npc_outcomes import NPCSpeaking
-from app.ai.prompts.loader import template
-from app.ai.prompts.npc import build_npc_prompt
+from app.ai.prompts.npc import build_npc_prompt, build_npc_system_prompt
 from app.ai.router import ModelConfig
 from app.core.npc_resolver import npcs_at_current_location
 from app.core.psychology import resolve_psychology
@@ -31,10 +30,10 @@ def actor_arguments(scenario: Scenario) -> dict:
 
 def actor_request(scenario: Scenario, config: ModelConfig) -> dict:
     args = actor_arguments(scenario)
-    name = args.pop("npc_name")
+    args.pop("npc_name")
     profile = args.pop("npc_profile")
     return {
-        "system_prompt": template("npc", "system").format(name=name),
+        "system_prompt": build_npc_system_prompt(args["psychology"], args["language"]),
         "messages": [{"role": "user", "content": build_npc_prompt(profile, **args)}],
         "model": config.model,
         "max_tokens": config.max_tokens,
