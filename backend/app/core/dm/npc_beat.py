@@ -32,6 +32,7 @@ async def execute_npc_beat(
     selected, notes = prepare_npc_calls(calls, world_state, config, baseline)
     location = world_state.get("meta", {}).get("current_location", "")
     observers = frozenset(npcs_at_current_location(world_state))
+    step = state["step_count"] - 1
     actors = []
     for candidate in selected:
         profile = copy.deepcopy(world_state["npcs"][candidate.npc_id])
@@ -45,6 +46,9 @@ async def execute_npc_beat(
         actors.append(
             NPCInput(
                 npc_name=candidate.name,
+                npc_id=candidate.npc_id,
+                step=step,
+                beat=len(beats),
                 npc_profile=profile,
                 player_action=state["player_action"],
                 invocation_context=candidate.context,
@@ -68,7 +72,6 @@ async def execute_npc_beat(
         )
     results = await invoke_npcs_parallel(actors, uuid.UUID(state["user_id"])) if actors else []
     public = []
-    step = state["step_count"] - 1
     counts = Counter(
         str(n.get("name", "")).casefold() for n in world_state.get("npcs", {}).values()
     )

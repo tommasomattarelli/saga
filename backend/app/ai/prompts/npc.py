@@ -1,5 +1,7 @@
 """NPC prompt — the NPC playing itself sees its full traits (ADR 0009 G3)."""
 
+from xml.sax.saxutils import escape
+
 from app.ai.prompts.loader import template
 from app.ai.router import get_gameplay_config
 from app.core.campaign_language import LANGUAGES, validate_language
@@ -7,6 +9,16 @@ from app.core.psychology import DEFAULT_PSYCHOLOGY, band_label
 from app.models.psychology import PsychologyDef
 
 NPC_BASE_PROMPT = template("npc", "base")
+
+
+def build_npc_system_prompt(psychology: PsychologyDef | None = None, language: str = "en") -> str:
+    pdef = psychology or DEFAULT_PSYCHOLOGY
+    return template("npc", "system").format(
+        campaign_language=f"{LANGUAGES[validate_language(language)]} ({language})",
+        max_lines=get_gameplay_config().npc_max_lines,
+        axis_names=", ".join(pdef.axes),
+        max_delta=pdef.max_delta_per_turn,
+    )
 
 
 def _render_axes(npc_data: dict, pdef: PsychologyDef) -> str:
@@ -60,18 +72,15 @@ def build_npc_prompt(
 
     return NPC_BASE_PROMPT.format(
         campaign_language=f"{LANGUAGES[validate_language(language)]} ({language})",
-        name=npc_data.get("name", "Unknown"),
-        location=npc_data.get("location_name") or "Unknown",
-        traits_block=traits_block,
-        fill_guidance=fill_guidance,
-        axes_block=_render_axes(npc_data, pdef),
-        axis_names=", ".join(pdef.axes),
-        max_delta=pdef.max_delta_per_turn,
-        player_action=player_action,
-        invocation_context=invocation_context,
-        observed_beats=observed_beats,
-        scene_context=scene_context,
-        dm_narration=dm_narration[-get_gameplay_config().npc_narrative_max_chars :],
-        max_lines=get_gameplay_config().npc_max_lines,
-        recent_history=recent_history,
+        name=escape(str(npc_data.get("name", "Unknown"))),
+        location=escape(npc_data.get("location_name") or "Unknown"),
+        traits_block=escape(traits_block),
+        fill_guidance=escape(fill_guidance),
+        axes_block=escape(_render_axes(npc_data, pdef)),
+        player_action=escape(player_action),
+        invocation_context=escape(invocation_context),
+        observed_beats=escape(observed_beats),
+        scene_context=escape(scene_context),
+        dm_narration=escape(dm_narration[-get_gameplay_config().npc_narrative_max_chars :]),
+        recent_history=escape(recent_history),
     )

@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import pytest
 import scenario
-from dialogue_cases import CASES, scenario_for
+from dialogue_cases import CASES, case_for_scenario_name, scenario_for
 
 
 def test_two_npc_fixture_has_repeatable_identity_and_statblock():
@@ -19,12 +19,40 @@ def test_cases_have_five_single_calls_and_bounded_two_beat_case():
         ("actor_it", 1),
         ("actor_silent", 1),
         ("two_npc_two_beat", 7),
+        ("npc_followup_short", 1),
+        ("actor_scene", 1),
+        ("two_npc_natural", 7),
+        ("two_npc_conversation", 14),
     ]
+
+
+def test_realistic_cases_are_separate_from_unchanged_core():
+    core = scenario_for("two_npc_two_beat")
+    natural = scenario_for("two_npc_natural")
+    assert core.stimuli["npc_speaks"].player == (
+        "Aldric and Mira, tell me independently what you each know about the old mines. "
+        "Then Aldric, respond specifically to what Mira said."
+    )
+    assert natural.stimuli["npc_speaks"].player != core.stimuli["npc_speaks"].player
+    assert case_for_scenario_name(natural.name).expected_relevance is True
+    assert scenario_for("actor_scene").name == "pr2-case-actor_scene"
+    assert scenario_for("npc_followup_short").stimuli["npc_followup"].npc_dialogue == "No."
 
 
 @pytest.mark.parametrize(
     "name",
-    ["npc_speaks", "npc_followup", "actor_en", "actor_it", "actor_silent", "two_npc_two_beat"],
+    [
+        "npc_speaks",
+        "npc_followup",
+        "actor_en",
+        "actor_it",
+        "actor_silent",
+        "two_npc_two_beat",
+        "npc_followup_short",
+        "actor_scene",
+        "two_npc_natural",
+        "two_npc_conversation",
+    ],
 )
 def test_scenarios_preserve_capture_and_are_isolated(name):
     original = scenario.load("debug-thornhaven")
@@ -92,3 +120,13 @@ def test_two_beat_overlay_has_exactly_two_present_npcs_and_uses_update_tool_shap
 def test_unknown_case_is_rejected():
     with pytest.raises(ValueError, match="unknown dialogue case"):
         scenario_for("not-a-case")
+
+
+@pytest.mark.parametrize("name", ["two_npc_natural", "two_npc_conversation"])
+def test_courier_seal_exists_only_in_the_new_natural_fixture_inventory(name):
+    natural = scenario_for(name)
+    inventory = natural.campaign.character_data["inventory"]
+    assert any(item["name"] == "Broken courier seal" for item in inventory)
+    assert "north road" in inventory[-1]["description"]
+    assert scenario_for("two_npc_two_beat").campaign.character_data["inventory"] == []
+    assert scenario.load("debug-thornhaven").campaign.character_data["inventory"] == []

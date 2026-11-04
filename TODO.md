@@ -11,7 +11,9 @@
 
 Ordine di ripresa concordato (2026-10-20), prima di nuove funzionalita':
 
-[ ] **PR 2 — ADR 0017**: S0 riallineato a PR 1 mergiata (#105); implementare pipeline NPC ordinari e transcript unico, poi suite live su due giorni senza ripetere la baseline.
+[ ] **cache OpenRouter — PR dedicata eval/produzione**: suite completa `0f5478f`, 267 richieste con affinità per trial; hit DeepSeek 41/70, GLM 5/68, Ultra 13/69, Super 20/60, 359.208 token cached (28,8% input), nessun campo cache mancante; beneficio causale dell'ID non dimostrato, approfondire routing/prefissi prima dell'adozione in produzione.
+
+[ ] **cache eval — ipotesi ID condiviso**: confrontare l'attuale ID per trial (120 ID/267 chiamate) con un ID per suite, eventualmente per coppia suite/modello, per ridurre frammentazione del routing; owner osserva frequenti cambi upstream per GLM e route NVIDIA per i free; verificare endpoint/prefissi e costi separando cache, prezzi e output/reasoning, senza garantire pinning/hit; esperimento futuro con nuovo consenso/budget, nessuna modifica alla coorte congelata.
 
 GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimangono i dettagli del backlog esistente.
 
@@ -20,7 +22,6 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
     [ ] **ri-derivare `gold`** (34 chiamate, `uv run python eval/derive.py gold`): la prima derivazione e' CONTAMINATA — girata prima del fix di #77, il `global_summary` e' il ragionamento del modello troncato a meta' parola, e il fixture e' stato rimesso a `derived: false` finche' non si rifa'. Da rifare dopo **#78**, non prima: #77 toglie il troncamento ma il ragionamento puo' ancora finire dentro la risposta.
     [ ] **`derive.py` — persistere tutto e riemettere senza chiamate**: oggi cancella il checkpoint a fine run, quindi i riassunti dei batch che il lettore non raggiunge (vedi #79) sono persi. Salvare batch summary + corpus completo e poter riscrivere il fixture dallo stato salvato: quando ADR 0017 cambiera' le probe, il fixture si aggiorna a costo zero invece che a 34 chiamate.
     [ ] **probe canarino di memoria**: pianta un fatto nei `recalled_memories` che il modello non puo' inventare e verifica che lo usi. I tre canary sono gia' nel trascritto e il recall e' gia' autorato per probe; manca solo il check in `probes.py`. NB: il harness inietta il recall direttamente, quindi si puo' testare anche con #55 aperto.
-    [ ] **probe due NPC presenti**: ADR 0017-A4 batcha le chiamate in una sola risposta del DM — il probe misura se il modello lo fa davvero invece di chiamarli in sequenza.
     [ ] varianti entropia in piu' (`rename`, `death`, `abandoned`, `language`): NON farle finche' `bloat`/`contradiction` non dicono qualcosa. `language` sarebbe la traduzione degli stessi 25 turni — l'unico modo controllato di mettere un numero su #51.
     NB: non aggiungere probe sulla disciplina combat, ADR 0003 ha rimosso `start_combat`.
     **Ripreso in PR 1 (2026-10-27)**: scenari catturati/ricostruiti separati dal `gold` contaminato, ledger giornaliero e checkpoint before/after; `npc_followup` resta necessario anche con 0017, perche' i marker non impediscono parafrasi nella prosa libera.
