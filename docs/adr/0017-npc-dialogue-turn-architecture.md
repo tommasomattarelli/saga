@@ -1,11 +1,11 @@
 # ADR 0017 — NPC dialogue: batched beats and engine-spliced verbatim lines
 
-- **Status**: Proposed (every structural fork closed by the owner interview 2026-08-02;
-  numeric values, the exact marker token and the frontend segment split remain explicit
-  TODOs. Flips to Accepted after implementation + playtest. Supersedes *in place* the
+- **Status**: Accepted (2026-11-04, owner review and frontend playtest; structural
+  forks closed by the owner interview 2026-08-02; the implementation pass in §9
+  settles values, markers and segment shape for ordinary NPCs). Supersedes *in place* the
   2026-07-26 WIP stub of this same ADR, which recorded the problem and six open forks and
-  decided none of them.)
-- **Date**: 2026-07-26 (stub); design interview 2026-08-02.
+  decided none of them.
+- **Date**: 2026-07-26 (stub); design interview 2026-08-02; accepted 2026-11-04.
 - **Context items**: playtest on `v0.2.0-beta.1` (issues #52, #53); owner interview
   2026-08-02, grounded live in `ai/prompts/dm.yaml`, `ai/npc_director.py`,
   `core/dm/dm_nodes.py`, `core/dm/dm_graph.py`, `core/dm/dm_tools_executor.py`,
@@ -354,3 +354,349 @@ S0 re-grounds the rest against the merged code.
 PR 2's S0 re-grounds every remaining claim in §1 and §3 against the merged code and
 records the outcome as dated implementation notes. Where a sprint's real constraint
 contradicts a line above, the note wins; the decision itself is not silently rewritten.
+
+## 9. S0 implementation pass (2026-10-28)
+
+PR 1 merged as #105 (`ed3a5fd`), closing #99 and #101's prevention scope. Fresh
+full baseline: 1327 backend / 271 frontend, all gates green
+(`check-20261028-173215-full.log`). PR 2 implements ordinary NPCs only; A2's
+promoted pre-pass remains owned by 0014, with no dormant automation here.
+
+### 9.1 Actor outcomes and budgets (owner decisions)
+
+- A typed speaking result carries ordered usable lines, optional descriptive action
+  and psychology deltas; explicit silence is successful without a speech bubble.
+  Failure is distinct, with no fake line, psychology, met-player or interaction effect.
+  Missing content is never inferred to be intentional silence; repair must still
+  satisfy the result contract. No actor retry or semantic validator is introduced.
+- `gameplay.npc_max_lines` defaults to **6**; truncate before assigning handles.
+  Reject reserved marker-shaped content in actor public fields before any effects.
+- D3's separate token cap stays retired: every call uses 0018's shared generation
+  cap and personal credential resolution. PR 1's configurable **8** DM calls and
+  terminal-safe final step remain unchanged; actors count separately for API usage.
+- Actions can express mechanical intentions, not mechanical outcomes. Existing tools
+  alone realize damage/movement; an intention arriving before the final DM call can
+  remain unresolved, without an extra call or automatic deferred-action queue.
+
+### 9.2 Beats, effects and observability (owner decisions)
+
+- All `invoke_npc` calls in one DM response form one concurrent beat, after ordinary
+  mechanics. Resolve canonical identity, deduplicate aliases and validate before the
+  existing verbosity-derived cap (medium/3); over-cap candidates create no records.
+  Create only selected identities, freeze live in-turn inputs, dispatch concurrently
+  and apply results in original-call order. Every emitted call gets its own tool result.
+- A selected auto-created NPC keeps its minimal identity if generation fails, but
+  receives no conversation effects. A subsequent beat may invoke it again.
+- Apply psychology/met-player once per successful beat. Accumulate all successful
+  beats into one `last_interactions` entry per NPC at turn finalization.
+- Pass the actual player action and invocation context separately. Actors see all
+  completed public beats they observed, never same-beat peers or private actor data.
+  Record observers and location at event time, not at the next invocation.
+- `gameplay.npc_narrative_max_chars` defaults to **1000** for visible narrative only;
+  remove the accidental 300-character action and duplicate 500-character truncations.
+  The narrative channel follows the same visibility boundary as structured beats and
+  strips unresolved placement syntax. This is not a semantic secrecy classifier.
+
+### 9.3 Composition and transcript (owner decisions)
+
+- Engine-issued `[[npc:Lyra:1]]` handles use monotonic per-NPC indices over the whole
+  turn and freeze identity, display name, beat and verbatim speech. Placement resolves
+  only exact labels, case and exterior-whitespace tolerant; never fuzzy resolution.
+  Reserved names and colliding labels require deterministic unambiguous encoding.
+- Keep the first valid placement; strip duplicates, unknown and malformed reserved
+  forms. Append unplaced lines once at turn end in beat/call/line order, even if their
+  NPC later moved or died. Unrelated brackets and player input are not instructions.
+- One typed segment envelope contains `step`, `dice` and ordered discriminated
+  narrative/speech `parts`. Speech carries canonical identity, display name, line
+  index and verbatim text. Preserve step-level progressive dice reveal boundaries.
+- `parts` is authoritative; derive one readable attributed `narration` transcript for
+  storage, history, summaries, facts, journal and export. Remove redundant dialogue
+  transport/injection and old segment consumers together across both stacks.
+- No raw reserved syntax reaches public output or memory. No old-turn adapter: the
+  owner permits resetting only the intended development DB after preserving evidence.
+  Do not alter frozen Alembic history or adoption fingerprints.
+- Markers guarantee exact, single insertion, **not** absence of invented/paraphrased
+  speech in free prose. #102 is the direct fix; #52/#53/#51 need their own evidence.
+
+### 9.4 Delivery and acceptance
+
+**S1 note (2026-10-28, delivery).** The code is split into seven logical commits:
+S0, actor outcomes, pure composition contracts, beat execution/backend transport,
+frontend rendering, the separately tracked memory-input fix (#106), and evaluation.
+The final suite is prepared offline: 36 trials, nominal 66 requests, maximum 72
+under its explicit foreground caps. Captured PR 1 evidence is reused, not rerun.
+Owner subsequently requested an explicit stop before any OpenRouter contact,
+including catalog metadata. No PR 2 live request has been made; acceptance and
+issue closures remain pending the completed two-day suite and owner review.
+
+**S1 note (2026-10-28, memory integration).** Batch compression and rolling
+summary each truncated every narration to its first 300 characters before the
+model call (#106). That would drop later spliced/fallback speech, so both now
+receive the complete transcript. Fact extraction no longer injects a second
+dialogue section. A migrated-DB regression verifies actual API/storage/journal/
+export/history and all three memory prompts, with speech beyond character 300.
+This does not regenerate old summaries or change memory scheduling.
+
+**S1 note (2026-10-28, implementation).** The executor now prepares all actors
+after ordinary mechanics, without reloading a detached campaign. Explicit per-step
+text deltas replace cumulative-text slicing; narrative observers are captured before
+that response's mechanics, beat observers after them. This prevents a journey from
+retroactively exposing the departure scene to an NPC met at the destination. Actor
+snapshots contain only their own profile and public scene/player data; public beat
+records exclude psychology deltas and private profiles. Psychology applies at beat
+time and history flushes once at finalization. Frozen handles are independent of
+later lifecycle/location changes. The final no-dice fallback segment comes after
+every original step, preserving progressive reveal without a new dice part type.
+
+One playable cross-stack sprint on `adr/0017-s1-dialogue-pipeline`, merged locally
+with `--no-ff` into `adr/0017-npc-dialogue-turns`; one final PR. Six logical units:
+S0, actor contract, beat/context/effects, composition, cross-stack transcript switch,
+evaluation. Producer/consumer changes must remain coherent at sprint completion.
+
+TDD uses migrated PostgreSQL, followed by full checks of both stacks and owner
+playtest. Baseline live evidence is already captured and is not rerun. The owner
+authorized final live evaluation across two days: at most **32 actual requests**
+remaining today (18 already spent), with tomorrow's available quota confirmed at
+resume. Record all attempts, including failures, reserve concurrent calls up front,
+disable retries and retain checkpoints. Judge the suite only after completion;
+never call an incomplete sample an acceptance result. Evaluation does not change
+   personal model settings, use paid fallback or include `scratch` in SAGA commits.
+
+## 10. S2 quality pass (2026-10-29, owner decisions)
+
+S1's complete evaluation recorded 36 trials and 67 requests, including one HTTP 502
+and a manually authorized trial retry. Frozen baseline: `9dadc2c`, local annotated
+tag `baseline/pr2-2026-10-29`; integration merge `aec190b`. No new baseline check is
+required on identical code. S2 uses `adr/0017-s2-dialogue-quality`, then one final PR
+from the integration branch. Logical commits follow responsibilities, not a fixed count.
+
+### 10.1 Prompt, actor contract and continuity
+
+- Separate static actor instructions/output examples in system from escaped,
+  delimited profile and observed-scene data in user. Private traits remain available
+  only to their actor, never the DM or peers.
+- Keep JSON mode, strict validation and typed failure. No structured-output schema,
+  envelope normalization, repair retry or separate actor model in this pass.
+- Supersede §9.1's six-line default with **four per actor call**, normally one to
+  three short spoken lines. Keep gestures in action; no new turn-wide line budget.
+- Put NPC-specific positive/negative placement examples and a short two-beat exchange
+  in YAML. Do not expand unrelated tool obligations or move schema descriptions.
+- Preserve canonical map destinations and identities while permitting compatible
+  ambient invention; new persistent actors use existing tools. Rumors are not
+  confirmed facts; knowing a secret does not imply choosing to reveal it publicly.
+- Reuse the existing player-input filtering policy for both DM and actor generation.
+  Preserve the original action in turn storage; this is parity, not a claim that
+  prompt injection is solved.
+
+### 10.2 Approved scope for the following units
+
+- Remove only an exact, whole, quoted copy immediately after its first valid speech
+  marker. Preserve ambiguous text, unquoted echoes, other voices and ordinary words
+  such as “perhaps”; no global replacement or semantic validator.
+- Clean the public narrative projection before recording actor observations, not
+  merely at final composition. Preserve original provider messages and signatures.
+- Derive a language, pending-handle and completed-beat reminder from current state.
+  No forced actor agenda; closing cannot request unavailable follow-up calls.
+- Capture optional provider usage per request, including concurrent actors and billed
+  unusable output, then report CSV/Markdown locally. Missing usage is not zero.
+- Prepare a separate v2 evaluation: reduced iterations, full final regression core,
+  separately labeled natural cases and free/low-cost comparisons. Request/token
+  limits remain explicit; costs are post-hoc, with external spend control owned by
+  the operator. No monetary reservation engine.
+
+No OpenRouter contact is authorized yet, including catalog/auth/usage queries. Model
+IDs, limits, new evaluation fixtures and qualitative acceptance need owner confirmation
+before live execution. #102/#106 remain the intended closures; #51/#52/#53 are not
+closed merely by these changes. Owner review/playtest still gates Accepted status.
+
+**S2 note (2026-10-29, composition).** Placement, pending-handle detection and the
+quoted-echo guard share one parser. The guard updates the public narrative projection
+before observations reach the next beat, while original provider messages/signatures
+remain intact. It accepts only complete adjacent quoted copies with a safe boundary;
+inline attributions, external punctuation, enclosing quotes and unquoted echoes remain
+untouched. The transcript-once database test includes a removed echo across API,
+storage, history, journal/export and all three memory inputs.
+
+**S2 note (2026-10-29, usage).** OpenRouter-compatible non-streaming responses
+are observed immediately after SDK completion and before truncation/filter checks.
+Task-local scopes carry explicit DM step and actor identity/beat through parallel
+generation without changing provider results or public turn schemas. Evaluation
+persists correlation even without usage and preserves billed metadata on rejected
+responses. CSV/Markdown report provider fields, not estimates; absent cost/currency
+and cache/reasoning subsets are never treated as free calls or added twice.
+
+**S2 note (2026-10-29, evaluation).** V2 preserves six comparison cases and adds
+separate short-line, production-scene, natural-reaction and two-turn cases. Natural
+cases leave actor choice to the DM rather than requiring a fixed response count.
+An eval-only observer records selected actors, outcomes and the public inputs actually
+received, separating a missing dependent call from a failed actor. Language checks
+separate narrator and actor output; lexical echo counts still require prose review.
+Request hashes bind actual provider-call inputs, and usage inventory includes historical
+retry ledgers without deduplicating separately billed requests. Offline preparation
+does not authorize live execution or decide the remaining issue closures.
+
+**S2 note (2026-11-03, evaluation preparation).** The owner approved one independent
+sequential lane per selected model, with no cross-model barrier and an automatic
+shared 20-request rolling-minute limiter for `:free` generation calls only. Paid
+calls bypass throttling, not the shared request budget. Suite-scoped eval proxies
+route generation and actor observation through task-local context rather than
+overlapping global patches; production behavior is unchanged. In-flight trials hold
+their request ceilings, releasing unused capacity without fabricating provider
+attempts. Rate waits and request/lane/trial wall times are reported separately.
+The broken seal is seeded only in the new natural fixtures; all baseline fixtures
+and core overlays remain intact. The owner retained the 60k output cap and selected
+two free and two paid model IDs, recorded with the acceptance rubric in
+`backend/eval/scenarios/README.md`. Per-obligation 3/3 is sample success, 2/3 unstable,
+0–1/3 unreliable, not a general reliability guarantee. The first diagnostic is
+12 trials with a 36-request ceiling; all provider/catalog contact still awaits
+explicit owner authorization after offline verification.
+
+**S2 note (2026-11-03, DM example experiment).** The owner-authorized diagnostic
+completed 12 trials and 30 generation requests; one repetition per case/model is
+exploratory, not acceptance. The next owner-approved offline experiment moves
+composition guidance from the conditional actor-tool obligation into the permanent
+DM core, retaining the actor invocation and dependent-beat example in its tool block.
+Paired behavioral examples contrast quoted/unquoted copying, paraphrase, an omitted
+line and additional narrator-written NPC speech, including an Italian complete beat
+and a closing response. The examples remain present when actor tools are unavailable,
+without exposing unavailable tools or changing actors, composition, fallback or the
+quoted guard. Tests inspect the actual final provider-bound prompt and tool schemas;
+they do not establish improved model compliance. A fresh candidate/manifest will
+compare the three diagnostic cases plus `npc_followup_short` across the same four
+models: 16 trials, ceiling 40 generation requests, after renewed live consent. Cache
+analysis is a separate owner backlog item before final timing/cost evaluation; this
+experiment does not change routing, session affinity, retries, limits or credentials.
+
+**S2 note (2026-11-04, eval affinity).** After Luna's documentation/code audit, the
+owner approved adding session affinity to the direct 16-trial/40-request comparison
+instead of a separate six-request probe and delegated the ID policy. The eval-only
+opt-in `--session-affinity` gives each independent trial a deterministic opaque UUID
+derived from its existing hashed trial key, shared by its DM/NPC calls and stable
+across its steps/turns and resume. A copied SDK client sends `x-session-id`, retaining
+zero retries and leaving personal/shared clients untouched. Explicit sanitized routing
+headers are recorded and bound to the request hash; no authorization headers are saved.
+The default remains implicit affinity, and production routing is unchanged. Sticky
+routing is not a cache slot or guaranteed endpoint pin: different prefixes can coexist,
+and cached-token usage, not ID presence, establishes an observed hit. The current
+report does not capture upstream provider or cache-write metadata; absent usage remains
+unknown. This cohort changes both DM examples and affinity relative to `3dc8695`, so
+it is exploratory quality/cache observation, not a causal prompt or affinity A/B.
+There is no warming, prefix rewrite, provider pinning, new fallback or extra generation;
+production adoption remains a separately reviewed PR after evidence and owner approval.
+
+### 10.3 Offline interpretation and candidate freeze (2026-11-04)
+
+**S2 note (2026-11-04, implementation/evaluation audit).** The owner approved an
+offline scope audit and a freeze, not further prompt tuning or live execution.
+`backend/eval/dialogue_trial.py`, `dialogue_pipeline.py` and
+`dialogue_conversation.py` measure different boundaries:
+
+| Cases | Measured boundary | Not established |
+|---|---|---|
+| `npc_speaks` | One DM response; whether it requests the actor | Actor execution, effects or a completed turn |
+| `npc_followup`, `npc_followup_short` | One DM response after an injected actor result, followed by composition of that response | Requested tool execution or the result of subsequent DM calls |
+| `actor_en`, `actor_it`, `actor_silent`, `actor_scene` | One real actor invocation and its parsed outcome | DM orchestration or final turn composition |
+| `two_npc_two_beat`, `two_npc_natural` | Real DM/tool/actor/composition nodes over an isolated state, with at most three DM calls | The production eight-call budget, context loading, API/UI persistence or background memory |
+| `two_npc_conversation` | Two bounded pipeline turns, carrying actual transcript, world/character state and quests forward | A full production conversation, retrieval or compression |
+
+The single-call cases never execute the tools they request. Follow-up composition
+appends any unplaced injected speech once at that artificial boundary. Therefore a
+blank response with `advance_time` and no marker is an immediate-placement miss with
+fallback, **not** proof of an empty completed production turn or a successful later
+recovery. Its existing `line-used-end-fallback` flag remains intact. The isolated
+follow-up probe's prohibition on `invoke_npc` is not a global ban on later beats.
+
+The actual routing in `backend/app/core/dm/dm_graph.py` distinguishes:
+
+- No tool calls: post-process, even if the response text is empty.
+- After tools, closing or exhausted DM budget: post-process.
+- Otherwise, required result follow-up: another DM call.
+- Otherwise, accumulated narration present: post-process; accumulated narration
+  absent: another DM call. This is cumulative text, not only the latest response.
+
+The third eval DM call is terminal-safe and cannot request an actor; the intended
+independent batch, dependent beat and final composition fit in three calls. An early
+missing dependent call remains an observed orchestration miss; neither the reduced
+cap nor hypothetical production recovery explains it without evidence. The natural
+cases require relevant speaker choices, not a fixed cast or mandatory second reply.
+
+Review separates accepted placements from omitted/malformed handles and fallback
+ordering; engine preservation from narrator-added speech; and missing calls from
+selected/executed actors, failed generation, intentional silence and speaking results.
+Receiving prior public lines or returning `speaking` does not establish a relevant
+reaction. Echo counts and language heuristics remain signals requiring semantic
+review, not acceptance scores. Existing evidence and automatic flags are not rewritten.
+
+The offline check used a synthetic tool-only response and six routing checks with
+socket/DNS access blocked. The latest diagnostic manifest reconstructed identically,
+including effective config and its four scenario identities. No historical raw
+model output was reread. The frozen functional candidate is `84ce368`; this audit
+started from documentation HEAD `53c309b`, with no changes in the hashed scopes
+(`backend/app`, `backend/eval`, `frontend/src`, `saga.config.yaml`). Its source hash
+remains `d3b0b913bd7545399de0a5f5ac649336cf9157322453baeb2771c6897436ca84`.
+Because that hash includes eval README files, clarification lives outside those
+scopes. Prompts, schemas, guard, limits, fixtures, routing and retries stay unchanged;
+the existing full-check result is retained, not rerun or relabeled as a new check.
+
+The proposed complete suite uses the same four selected models and per-trial
+affinity: ten cases, three fresh repetitions per model/case, **120 trials**, nominal
+**372** requests and ceiling **420**. Previously diagnosed cases are included, but
+their exploratory runs do not count toward these repetitions. Historical prompt
+variants and baseline `9dadc2c` are not rerun; fresh final evidence remains separate
+from both diagnostics. Cache-hit monitoring repeats without extra probes or production
+changes. Before any provider/catalog/auth/usage contact, stop for explicit owner
+authorization and the request allocation; the offline calculation is not permission.
+Output review remains delegated, with reviewer selection pending. Owner review,
+playtest, acceptance and residual-issue disposition are still separate gates.
+
+**S2 note (2026-11-04, complete-suite evidence).** After explicit owner approval,
+the frozen candidate completed all **120 trials** using **267/420 generation
+requests**, with no pending/retryable trials, provider errors or interrupted calls.
+Evidence is retained under
+`scratch/adr-0004-0017-eval/outputs/pr2-quality-v2/full-suite-20261104-0f5478f/`.
+Two independent `openai/gpt-6-luna#max` reviewers read all **267 request results**
+and **120 trial transcripts**, split by complete models; their reports were chat-only.
+The parent inspected metadata and usage only. All **134 executed actor calls** had
+valid typed outcomes; this does not imply the expected choice of speaking/silence,
+correct narration or calls that were never made.
+
+| Obligation, per three trials | DeepSeek | GLM | Ultra | Super |
+|---|---|---|---|---|
+| `npc_speaks` actor request | 3/3 | 3/3 | 3/3 | 3/3 |
+| `npc_followup` immediate placement | 1/3 | 3/3 | 3/3 | 3/3 |
+| `npc_followup_short` immediate placement | 2/3 | 2/3 | 2/3 | 3/3 |
+| Expected speaking in `actor_it` | 3/3 | 2/3 | 3/3 | 3/3 |
+| Expected silence in `actor_silent` | 3/3 | 2/3 | 3/3 | 3/3 |
+| Forced initial independent batch | 3/3 | 2/3 | 3/3 | 3/3 |
+| Forced dependent beat | 1/3 | 0/3 | 3/3 | 3/3 |
+
+These obligations must not be collapsed into a model-wide pass. Reviewers found
+narrator-added speech and unquoted echoes outside the approved guard, an anomalous
+GLM forced response with meta residue, and Italian forced-scene narration in English
+for Ultra (3/3) and Super (2/3), despite Italian actor output. Natural cases also
+showed missing reactions, orphan markers and NPC absences contrary to their actual
+input; completion of two bounded turns is not sufficient semantic acceptance.
+Fallback preservation remains distinct from immediate placement and narrative order.
+
+The reported usage contains **79 cache-hit requests** and **359,208 cached input
+tokens out of 1,245,313** (28.84%), with positive hits on all four selected models.
+No token/cache/cost fields are missing; currency is absent throughout. The reported
+cost sum is **0.09012307366**, for the eval only, not reviewer costs. Affinity is
+not causally isolated and upstream routing is not recorded, so neither savings from
+the ID nor a fixed provider is established. Production caching stays separate.
+No remaining allowance is spent automatically. No additional tuning, baseline rerun,
+issue closure, merge or Accepted status follows from these results; owner playtest
+and explicit disposition of residual defects remain pending.
+
+**Owner acceptance (2026-11-04).** The owner reports that the frontend playtest
+passed and explicitly accepts the architecture for delivery. This accepts the engine,
+actor-outcome and presentation contracts, not universal model compliance; the complete
+evaluation and its model-specific limitations above remain unchanged. Delivery closes
+#102 and #106 on PR merge, while #51, #52 and #53 remain open with focused evidence.
+False NPC absence is a separate bug follow-up. Richer contextual NPC-to-NPC exchanges
+are a P3 feature request, not a requirement that the player prescribe a second beat:
+ordinary-NPC speaker choice remains the DM's discretion, within the existing bounds.
+The forced two-beat case remains a diagnostic, not a mandatory gameplay cadence.
+Production caching and shared-affinity eval experiments remain separate future work.
+The owner also authorizes including the updated `scratch` gitlink in this delivery;
+raw evaluation outputs remain ignored and are not published by that pointer update.

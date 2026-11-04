@@ -6,7 +6,7 @@ must render names, not uuids.
 """
 
 from app.ai.router import GameplayConfig
-from app.core.dm.npc_prehook import validate_or_create_npc
+from app.core.dm.npc_prehook import prepare_npc_calls
 from app.core.npc_resolver import npcs_at_current_location
 from app.memory.updater import apply_typed_updates
 
@@ -40,21 +40,27 @@ def config(**overrides) -> GameplayConfig:
 class TestPrehookOnRekeyedSave:
     def test_known_npc_resolves_without_minting_a_key(self):
         state = rekeyed_state()
-        ok, error = validate_or_create_npc("Lyra", state, config())
-        assert ok and error == ""
+        prepared, notes = prepare_npc_calls(
+            [{"id": "lyra", "args": {"name": "Lyra"}}], state, config(), {}
+        )
+        assert not notes and prepared[0].npc_id == LYRA_ID
         assert set(state["npcs"]) == {LYRA_ID}
 
     def test_dead_npc_gated_by_lifecycle_only(self):
         state = rekeyed_state()
         state["npcs"][LYRA_ID]["lifecycle"] = "dead"
-        ok, error = validate_or_create_npc("Lyra", state, config())
-        assert not ok
-        assert "dead" in error
+        prepared, notes = prepare_npc_calls(
+            [{"id": "lyra", "args": {"name": "Lyra"}}], state, config(), {}
+        )
+        assert not prepared
+        assert "dead" in notes[0]
 
     def test_auto_create_mints_uuid_key(self):
         state = rekeyed_state()
-        ok, _ = validate_or_create_npc("Stranger", state, config())
-        assert ok
+        prepared, notes = prepare_npc_calls(
+            [{"id": "new", "args": {"name": "Stranger"}}], state, config(), {}
+        )
+        assert not notes and prepared[0].name == "Stranger"
         new_keys = set(state["npcs"]) - {LYRA_ID}
         assert len(new_keys) == 1
         new_npc = state["npcs"][new_keys.pop()]

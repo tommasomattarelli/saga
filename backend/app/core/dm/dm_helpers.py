@@ -77,15 +77,6 @@ def get_or_create_segment(segments: list[dict], step: int) -> dict:
     for seg in segments:
         if seg.get("step") == step:
             return seg
-    seg = {"step": step, "text": "", "dice": None, "npc_dialogues": []}
+    seg = {"step": step, "text": "", "dice": None}
     segments.append(seg)
     return seg
-
-
-def sync_narration_to_segment(segments: list[dict], step: int, full_narration: str) -> None:
-    seg = get_or_create_segment(segments, step)
-    if not seg["text"] and full_narration:
-        covered = sum(len(s.get("text", "")) for s in segments if s is not seg)
-        delta = full_narration[covered:]
-        if delta:
-            seg["text"] = delta

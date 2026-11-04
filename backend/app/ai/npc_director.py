@@ -4,41 +4,38 @@ from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import dataclass, field
+import uuid
+from dataclasses import dataclass
 
 import structlog
 
 from app.ai.generation_context import generation_context
-from app.ai.prompts.loader import template
-from app.ai.prompts.npc import build_npc_prompt
+from app.ai.npc_outcomes import NPCFailure, NPCInteraction, NPCResult, parse_actor_result
+from app.ai.prompts.npc import build_npc_prompt, build_npc_system_prompt
 from app.ai.providers.base import logged_generate
+from app.ai.providers.usage import usage_scope
 from app.ai.router import get_gameplay_config, get_generation
 from app.ai.sanitizer import strip_code_fences
-from app.core.npc_resolver import resolve_npc
-from app.core.psychology import resolve_psychology
-from app.models.campaign import Campaign
 from app.models.psychology import PsychologyDef
 
 logger = structlog.get_logger()
 
 
-@dataclass
-class NPCDialogue:
+@dataclass(frozen=True)
+class NPCInput:
     npc_name: str
-    dialogue: str
-    action: str | None = None
-    axis_changes: dict[str, int] = field(default_factory=dict)
-    reveals_secret: bool = False
-
-
-def _parse_axis_changes(raw: object) -> dict[str, int]:
-    if not isinstance(raw, dict):
-        return {}
-    return {
-        str(axis): int(delta)
-        for axis, delta in raw.items()
-        if isinstance(delta, int | float) and not isinstance(delta, bool)
-    }
+    npc_profile: dict
+    player_action: str
+    invocation_context: str = ""
+    dm_narration: str = ""
+    observed_beats: str = ""
+    scene_context: str = ""
+    psychology: PsychologyDef | None = None
+    fill_empty_traits: bool = False
+    language: str = "en"
+    npc_id: str | None = None
+    step: int | None = None
+    beat: int | None = None
 
 
 async def invoke_single_npc(
@@ -49,7 +46,10 @@ async def invoke_single_npc(
     psychology: PsychologyDef | None = None,
     fill_empty_traits: bool = False,
     language: str = "en",
-) -> NPCDialogue:
+    invocation_context: str = "",
+    observed_beats: str = "",
+    scene_context: str = "",
+) -> NPCResult:
     prompt = build_npc_prompt(
         npc_profile,
         player_action=player_action,
@@ -57,20 +57,23 @@ async def invoke_single_npc(
         psychology=psychology,
         fill_empty_traits=fill_empty_traits,
         language=language,
+        invocation_context=invocation_context,
+        observed_beats=observed_beats,
+        scene_context=scene_context,
     )
 
-    provider, model_config = await get_generation()
-
     try:
-        raw = await logged_generate(
-            provider,
-            caller=f"npc_director:{npc_name}",
-            system_prompt=template("npc", "system").format(name=npc_name),
-            messages=[{"role": "user", "content": prompt}],
-            model=model_config.model,
-            max_tokens=model_config.max_tokens,
-            json_mode=True,
-        )
+        provider, model_config = await get_generation()
+        with usage_scope(role="actor", npc_name=npc_name):
+            raw = await logged_generate(
+                provider,
+                caller=f"npc_director:{npc_name}",
+                system_prompt=build_npc_system_prompt(psychology, language),
+                messages=[{"role": "user", "content": prompt}],
+                model=model_config.model,
+                max_tokens=model_config.max_tokens,
+                json_mode=True,
+            )
 
         cleaned = strip_code_fences(raw)
         try:
@@ -80,75 +83,51 @@ async def invoke_single_npc(
 
             data = json.loads(repair_json(cleaned))
 
-        return NPCDialogue(
-            npc_name=npc_name,
-            dialogue=data.get("dialogue", "..."),
-            action=data.get("action"),
-            axis_changes=_parse_axis_changes(data.get("axis_changes")),
-            reveals_secret=bool(data.get("reveals_secret", False)),
-        )
+        return parse_actor_result(npc_name, data, get_gameplay_config().npc_max_lines)
 
     except Exception:
         logger.warning("npc_invoke_failed", npc_name=npc_name, exc_info=True)
-        return NPCDialogue(npc_name=npc_name, dialogue="...")
+        return NPCFailure(npc_name)
+
+
+async def _invoke_actor(actor: NPCInput) -> NPCResult:
+    with usage_scope(
+        role="actor",
+        step=actor.step,
+        beat=actor.beat,
+        npc_id=actor.npc_id,
+        npc_name=actor.npc_name,
+    ):
+        return await invoke_single_npc(
+            npc_name=actor.npc_name,
+            npc_profile=actor.npc_profile,
+            player_action=actor.player_action,
+            invocation_context=actor.invocation_context,
+            dm_narration=actor.dm_narration,
+            observed_beats=actor.observed_beats,
+            scene_context=actor.scene_context,
+            psychology=actor.psychology,
+            fill_empty_traits=actor.fill_empty_traits,
+            language=actor.language,
+        )
 
 
 async def invoke_npcs_parallel(
-    npc_names: list[str],
-    campaign: Campaign,
-    player_action: str,
-    dm_narration: str,
-) -> list[NPCDialogue]:
-    """Invoke NPC dialogue calls in parallel, respecting the configured cap."""
-    config = get_gameplay_config()
-    max_npcs = config.max_npc_calls
-
-    if max_npcs <= 0 or not npc_names:
+    actors: list[NPCInput],
+    user_id: uuid.UUID,
+) -> list[NPCResult]:
+    if not actors:
         return []
-
-    names = npc_names[:max_npcs]
-    npcs_data = campaign.world_state.get("npcs", {}) if campaign.world_state else {}
-    baseline = campaign.world_baseline or {}
-    psychology = resolve_psychology(baseline.get("taxonomy"))
-    # D2: at rich detail the NPC is told to invent its missing traits in character.
-    fill_empty = config.npc_auto_create_detail == "rich"
-    language = getattr(campaign, "language", None)
-    language = language if isinstance(language, str) else "en"
-
-    tasks = []
-    for name in names:
-        # Resolve the profile by name/slug (F2 — records are uuid-keyed).
-        resolution = resolve_npc(name, {"npcs": npcs_data})
-        profile = (
-            npcs_data.get(resolution.npc_id, {"name": name})
-            if resolution.npc_id
-            else {"name": name}
-        )
-        # Location is a node uuid (J3) — resolve the display name for the prompt.
-        node = baseline.get("nodes", {}).get(profile.get("location") or "")
-        profile = {**profile, "location_name": (node or {}).get("name")}
-
-        tasks.append(
-            invoke_single_npc(
-                npc_name=name,
-                npc_profile=profile,
-                player_action=player_action,
-                dm_narration=dm_narration,
-                psychology=psychology,
-                fill_empty_traits=fill_empty,
-                language=language,
-            )
-        )
-
-    with generation_context(campaign.user_id):
+    tasks = [_invoke_actor(actor) for actor in actors]
+    with generation_context(user_id):
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
     dialogues = []
-    for r in results:
-        if isinstance(r, NPCDialogue):
+    for actor, r in zip(actors, results, strict=True):
+        if isinstance(r, NPCInteraction | NPCFailure):
             dialogues.append(r)
         else:
-            logger.warning("npc_gather_exception", error=str(r))
+            dialogues.append(NPCFailure(actor.npc_name))
 
     logger.info("npcs_invoked", count=len(dialogues), names=[d.npc_name for d in dialogues])
     return dialogues

@@ -1,14 +1,17 @@
 """Tests for the NPC Actor-Director system."""
 
+import asyncio
+import uuid
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from app.ai.npc_director import (
-    NPCDialogue,
+    NPCInput,
     invoke_npcs_parallel,
     invoke_single_npc,
 )
+from app.ai.npc_outcomes import NPCSpeaking
 from app.ai.router import ModelConfig
 
 
@@ -17,7 +20,7 @@ class TestInvokeSingleNPC:
     async def test_invoke_returns_dialogue(self):
         mock_provider = AsyncMock()
         mock_provider.generate.return_value = (
-            '{"dialogue": "Well met!", "action": null,'
+            '{"status":"speaking","lines": ["Well met!"], "action": null,'
             ' "axis_changes": {"trust": 5, "fear": -2}, "reveals_secret": false}'
         )
 
@@ -39,15 +42,13 @@ class TestInvokeSingleNPC:
             )
 
             assert result.npc_name == "Grenda"
-            assert result.dialogue == "Well met!"
+            assert result.lines == ("Well met!",)
             assert result.axis_changes == {"trust": 5, "fear": -2}
 
     @pytest.mark.asyncio
     async def test_malformed_axis_changes_dropped(self):
         mock_provider = AsyncMock()
-        mock_provider.generate.return_value = (
-            '{"dialogue": "Hm.", "axis_changes": {"trust": "lots", "fear": 3.7, "respect": true}}'
-        )
+        mock_provider.generate.return_value = '{"status":"speaking","lines": ["Hm."], "axis_changes": {"trust": "lots", "fear": 3.7, "respect": true}}'
 
         with (
             patch(
@@ -91,65 +92,32 @@ class TestInvokeSingleNPC:
             )
 
             assert result.npc_name == "Grenda"
-            assert result.dialogue == "..."
+            assert result.status == "failure"
 
 
 class TestInvokeNPCsParallel:
     @pytest.mark.asyncio
-    async def test_respects_npc_cap(self):
-        call_count = 0
+    async def test_invokes_actors_concurrently_and_isolates_failure(self):
+        entered = 0
+        both_entered = asyncio.Event()
 
-        async def mock_invoke(
-            npc_name,
-            npc_profile,
-            player_action,
-            dm_narration,
-            psychology=None,
-            fill_empty_traits=False,
-            language="en",
-        ):
-            nonlocal call_count
-            call_count += 1
-            return NPCDialogue(npc_name=npc_name, dialogue="Hello.")
+        async def mock_invoke(npc_name: str, **kwargs: object) -> NPCSpeaking:
+            nonlocal entered
+            entered += 1
+            if entered == 2:
+                both_entered.set()
+            await asyncio.wait_for(both_entered.wait(), timeout=1)
+            if npc_name == "B":
+                raise RuntimeError("isolated actor error")
+            return NPCSpeaking(npc_name, ("Hello.",))
 
-        with (
-            patch("app.ai.npc_director.invoke_single_npc", side_effect=mock_invoke),
-            patch("app.ai.npc_director.get_gameplay_config") as mock_config,
-        ):
-            from app.ai.router import GameplayConfig
-
-            mock_config.return_value = GameplayConfig(npc_verbosity="low")  # max 2
-
-            campaign = AsyncMock()
-            campaign.world_state = {"npcs": {}}
-            campaign.world_baseline = {}
-
-            results = await invoke_npcs_parallel(
-                npc_names=["A", "B", "C", "D", "E"],
-                campaign=campaign,
-                player_action="hello",
-                dm_narration="You enter the tavern.",
-            )
-
-            assert call_count == 2
-            assert len(results) == 2
+        actors = [NPCInput(name, {"name": name}, "hello") for name in ("A", "B")]
+        with patch("app.ai.npc_director.invoke_single_npc", side_effect=mock_invoke):
+            results = await invoke_npcs_parallel(actors, uuid.uuid4())
+        assert entered == 2
+        assert results[0] == NPCSpeaking("A", ("Hello.",))
+        assert results[1].status == "failure"
 
     @pytest.mark.asyncio
-    async def test_null_verbosity_returns_empty(self):
-        with patch("app.ai.npc_director.get_gameplay_config") as mock_config:
-            from app.ai.router import GameplayConfig
-
-            mock_config.return_value = GameplayConfig(npc_verbosity="null")  # max 0
-
-            campaign = AsyncMock()
-            campaign.world_state = {"npcs": {}}
-            campaign.world_baseline = {}
-
-            results = await invoke_npcs_parallel(
-                npc_names=["A", "B"],
-                campaign=campaign,
-                player_action="hello",
-                dm_narration="You enter.",
-            )
-
-            assert results == []
+    async def test_empty_actor_list_returns_empty(self):
+        assert await invoke_npcs_parallel([], uuid.uuid4()) == []

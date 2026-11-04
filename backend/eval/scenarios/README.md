@@ -229,6 +229,253 @@ and prose compliance. A tool request is not evidence of successful travel or per
 The real actor path measures prompt/parser output; the migration-backed integration
 suites separately verify effects, final-step execution limits, time and persistence.
 
+## ADR 0017 final suite — prepared, live execution requires owner approval
+
+`eval/dialogue_suite.py` reuses the captured/reconstructed PR 1 baseline, rather than
+spending requests on another baseline. The v2 default includes six unchanged comparison
+cases plus four separately identified review cases: ten cases × two default models ×
+three repetitions = **60 trials**, nominally **186 generation requests**, bounded at **210**.
+The original six-case v1 evidence remains immutable; v2 records the cap-6→4 runtime change
+in its manifest through the effective gameplay configuration.
+
+- saturated-context NPC invocation and injected-result placement/follow-up;
+- real actor output in English and Italian against conflicting input language;
+- an actor with an authored vow of silence;
+- two independent actors followed by a dependent second beat, through real DM/tool/
+  composition code in an isolated overlay, without persistence or background calls.
+- an exact short quoted follow-up for the narrow echo guard, a scene-context actor parity
+  case, a natural two-NPC exchange and a bounded two-turn continuation carrying the real
+  prior transcript and state, with semantic relevance explicitly left for review.
+
+`npc_followup_short`, `actor_scene`, `two_npc_natural` and `two_npc_conversation` are new fixtures with no v1
+comparison. Their exact stimuli still require owner approval before any live run. The
+natural exchange is not forced to produce a fixed number of actor turns; its expected
+relevance is reported for prose review. Language checks are heuristic and always carry a
+manual-review flag; ambiguous/mixed output is not a universal pass.
+The natural cases do not require a fixed initial cast or second reply. Narrator and
+actor language metrics are separate; exact-text echo counts are lexical signals, not
+proof of a paraphrase or of who spoke. The conversation case carries two actual turns
+without background memory calls, not a simulation of retrieval or compression.
+
+The pipeline case has three DM opportunities and a seven-request foreground cap; a
+normally shaped two-beat scene uses six. A cap hit is recorded as an incomplete bounded
+evaluation, not silently treated as a gameplay failure or retried. The ordinary-NPC
+verbosity policy remains unchanged. Mira is produced by the real scaffold with a fixed
+fixture identity and seeded statblock; original captures remain untouched.
+The two-turn conversation allows at most fourteen requests across two three-DM-call
+turns. Selecting only the original six cases remains 36 trials with a ceiling of 72.
+
+```text
+# Offline: no profile lookup, provider request or public-catalog request.
+uv run python eval/dialogue_suite.py --dry-run
+
+# Select an offline subset; these flags do not resolve a profile or call the catalog.
+uv run python eval/dialogue_suite.py --dry-run --suite candidate-a \
+  --models nvidia/nemotron-3-ultra-550b-a55b:free --cases npc_speaks actor_scene --runs 1
+
+# Only after explicit owner authorization; paths below are relative to backend/.
+uv run python eval/dialogue_suite.py --user OWNER_UUID \
+  --cases npc_speaks npc_followup actor_en actor_it actor_silent two_npc_two_beat \
+  --budget AUTHORIZED_REQUESTS --ledger ../scratch/adr-0004-0017-eval/outputs/pr2-quality-v2/day-1.jsonl \
+  --results ../scratch/adr-0004-0017-eval/outputs/pr2-quality-v2/trials.jsonl
+
+# Future paid comparison requires both selecting and explicitly allowlisting the exact ID.
+# This option is not authorization to run; owner approval and request budget remain required.
+uv run python eval/dialogue_suite.py --dry-run --models vendor/model-id \
+  --allow-paid-model vendor/model-id --cases npc_speaks --runs 1
+
+# Next owner-started day, after confirming the available quota; reuse trials, new daily ledger.
+uv run python eval/dialogue_suite.py --user OWNER_UUID --resume \
+  --cases npc_speaks npc_followup actor_en actor_it actor_silent two_npc_two_beat \
+  --budget AUTHORIZED_REQUESTS --ledger ../scratch/adr-0004-0017-eval/outputs/pr2-quality-v2/day-2.jsonl \
+  --results ../scratch/adr-0004-0017-eval/outputs/pr2-quality-v2/trials.jsonl
+```
+
+On a fresh ledger, the budget is the authorized remaining allowance, not an inferred
+quota reset. On that same ledger's resume, it remains the total cap including earlier
+attempts; do not mistake it for another fresh allocation.
+Trial scheduling checks its entire request ceiling before starting, and every actual DM/
+actor attempt is reserved and captured separately before network I/O. SDK retries are
+disabled on a copied personal client; settings/credentials are not changed. Rate limits
+stop the day without polling or paid fallback. A provider failure marks only that trial
+retryable: `--resume` on a later day repeats those specific trials and skips completed
+ones, never rerunning the suite. A failed-trial retry requires a fresh ledger; historical
+attempts and their costs remain in the combined usage report. An unstarted budget stop
+can resume normally; a trial cut off after requests needs owner review. Interrupted trials require owner review. Completed
+misses and provider failures remain visible as evidence.
+
+The shared manifest freezes code, scenarios, models, effective gameplay configuration
+and output cap. Resume skips completed matching trials, including across daily ledgers;
+changed identities are rejected. Raw requests/results and complete public parts/transcript
+remain local under ignored `scratch/.../outputs/`. Summaries report inventory only:
+**evaluate acceptance after the complete suite**, including manual review of semantic
+paraphrases that regex checks cannot certify. Engine insertion is not a guarantee against
+invented dialogue in free prose. No travel baseline or contaminated `gold` derivation is run.
+Per-attempt request hashes bind effective prompts, tools and parameters. `.usage.csv`
+and `.usage.md` are generated offline beside the result file from all referenced ledgers,
+including superseded retries. Missing provider usage/currency/cost stays unknown; cache
+and reasoning are details of the totals, not additions. There is no local monetary
+reservation: any external spending block is the owner's responsibility.
+
+### Parallel execution and timing
+
+The runner creates one independent sequential lane per selected model: four selected
+models create four lanes, six create six. A lane starts its next trial as soon as its
+previous trial finishes; there is no cross-model barrier. DM steps, dependent actor
+beats and the two turns of a conversation retain their internal order. Actor fan-out
+can therefore produce more simultaneous HTTP requests than there are model lanes.
+
+All generation requests whose model ID ends in `:free` automatically share a limit
+of **20 starts per rolling 60 seconds**, including DM and actor requests. There is
+no `--free` opt-in to forget. Paid requests bypass this limiter, not request budgets.
+The limiter covers this process only: do not run another free eval/UI client on the
+same account concurrently, and leave 60 seconds between separate invocations.
+
+Before starting a trial, the scheduler holds its full request ceiling from the shared
+remaining allowance. Unused capacity is released when it finishes; only actual
+reserved provider attempts are written to the request ledger or counted as spent.
+HTTP 429 stops new requests across lanes without retrying; already-sent requests can
+finish. Cancelling a queued rate wait consumes no request; cancelling a sent request
+leaves interrupted evidence that requires owner review before resume.
+
+Per-request `seconds` measures the provider call, excluding throttling;
+`rate_limit_wait_seconds` records throttling separately in the ledger and usage reports.
+Trial `seconds` includes its rate waits. Summary `timing.wall_seconds` and
+`timing.model_wall_seconds` measure this invocation's execution/lane wall times,
+including budget waits but excluding catalog/profile setup; they are not cumulative
+timings across resumed invocations. Request-latency sums are not suite wall time.
+
+### Owner-approved acceptance rubric (2026-11-03)
+
+Evaluate each obligation separately, per model and case. With three repetitions,
+**3/3** means respected in this sample, **2/3** unstable, **0–1/3** unreliable; none
+establishes a general reliability guarantee. The one-repetition diagnostic round is
+exploratory, not an acceptance result. Paid success does not substitute for free-model
+validation, and no aggregate score may conceal a failing obligation.
+
+| Area | Review criterion |
+|---|---|
+| Engine | No pipeline-introduced loss/duplication of actor lines; coherent ordering, transcript and state. |
+| Actor envelope | Valid JSON/typed outcome; a safely handled malformed response remains an actor failure. |
+| Silence | Intentional silence is distinct from missing invocation or generation failure. |
+| Placement/echo | Separate accepted markers/fallback, quoted copies, unquoted copies and paraphrases; lexical checks are not semantic review. |
+| Language | Review narrator and actors separately, including mixed-language output. |
+| Dependent beat | Separate missing call, failed actor and an answer that actually uses the previous public intervention. |
+| Prose | Relevant, continuous, canon-compatible geography/identities, no automatic secret disclosure where applicable, at most four spoken lines per actor call. |
+| Natural cases | Judge whether the choice of speakers is sensible; no mandatory cast or response count. |
+
+The courier seal is seeded through the real inventory tool only in
+`two_npc_natural` and `two_npc_conversation`; captured fixtures and all six comparison
+case overlays remain unchanged. The shared output cap remains **60,000 tokens**.
+
+### Prepared four-model diagnostic — not live authorization
+
+The owner selected exactly these four IDs; do not add alternatives or silently fall
+back. The first diagnostic selects `npc_followup`, `actor_en` and
+`two_npc_two_beat`, one repetition per model: **12 trials**, nominally **32 requests**,
+ceiling **36**. Its evidence/manifest stays separate from the final regression suite.
+
+```bash
+cd backend
+uv run python eval/dialogue_suite.py --dry-run \
+  --suite adr-0017-quality-diagnostic-v2 \
+  --models deepseek/deepseek-v4.1-flash-1017 z-ai/glm-5.3-flash \
+    nvidia/nemotron-3-ultra-550b-a55b:free nvidia/nemotron-3.5-super-vl:free \
+  --allow-paid-model deepseek/deepseek-v4.1-flash-1017 \
+  --allow-paid-model z-ai/glm-5.3-flash \
+  --cases npc_followup actor_en two_npc_two_beat --runs 1
+```
+
+This command is offline. Do not replace `--dry-run` with live arguments until the
+owner authorizes provider/catalog contact and the request allocation. The full final
+four-model, ten-case, three-repetition suite remains **120 trials**, ceiling **420**,
+excluding this diagnostic, authorized retries and separately accounted UI playtests.
+
+### Prepared DM-example comparison — renewed live consent required
+
+The first diagnostic completed 12 trials and 30 generation requests on candidate
+`3dc8695`; the owner reports $0.02 in the OpenRouter dashboard. Its evidence remains
+immutable in `scratch/adr-0004-0017-eval/outputs/pr2-quality-v2/diagnostic-20261103-3dc8695/`.
+The next candidate changes only DM prompt text: permanent composition examples remain
+present in opening and closing calls, while actor-call policy remains tool-dependent.
+Actor prompts, engine/guard, fixtures, output limits, models and routing are unchanged.
+
+Compare `npc_followup`, `actor_en` and `two_npc_two_beat` with the prior diagnostic;
+label `npc_followup_short` separately because it has no live result from that round.
+One run on the same four models is **16 trials**, nominally **36 generation requests**,
+ceiling **40**. Use a new checkpoint and evidence directory; never resume the earlier
+manifest or overwrite its outputs. Keep cache/routing behavior unchanged for this
+prompt comparison; the owner's caching investigation is separate from this candidate.
+
+```bash
+cd backend
+uv run python eval/dialogue_suite.py --dry-run \
+  --suite adr-0017-dm-examples-v1 \
+  --models deepseek/deepseek-v4.1-flash-1017 z-ai/glm-5.3-flash \
+    nvidia/nemotron-3-ultra-550b-a55b:free nvidia/nemotron-3.5-super-vl:free \
+  --allow-paid-model deepseek/deepseek-v4.1-flash-1017 \
+  --allow-paid-model z-ai/glm-5.3-flash \
+  --cases npc_followup actor_en two_npc_two_beat npc_followup_short --runs 1
+```
+
+This is still offline preparation, not permission to contact the catalog or run paid
+or free inference. Prose review stays with the owner-requested Luna agent; the parent
+must not reread raw outputs unless the owner changes that instruction. The full final
+suite and UI playtest still require separate authorization and evidence.
+
+### Approved direct comparison with eval-only session affinity
+
+The owner subsequently approved adding affinity before the same 16-trial, 40-request
+maximum run rather than spending six requests on a separate cache probe. This is a
+new cohort: **DM examples plus explicit affinity**, not an isolated prompt A/B against
+`3dc8695` or a causal cache-benefit measurement. The prepared prompt-only candidate
+`63f8305` has not been evaluated live. The four selected models/cases, 60k cap,
+free-model limiter and no-retry policy stay unchanged.
+
+`--session-affinity` is off by default and affects only the eval. When enabled, each
+trial gets a UUIDv5 derived from its already opaque, model/case/run-specific trial
+key. It is shared by that trial's DM and NPC calls, remains stable through its turns
+and resume, and differs for independent trials; it is not a global hardcoded value
+or a UUID regenerated per request. The constant UUID namespace is not a session ID.
+An isolated copy of the SDK client sends `x-session-id`, preserving existing headers,
+credentials and zero retries without mutating the personal or another trial's client.
+
+Only this explicit, non-secret header is stored in `request_headers` and CSV
+`session_id`; the request hash covers `{body, headers}` when enabled and keeps its
+legacy body-input hash when disabled. The manifest records `per-trial` versus
+`implicit` affinity, so resume cannot mix regimes. Production requests, settings,
+prompt layout and provider/fallback policy are not changed by this flag.
+
+According to the owner-requested documentation research, OpenRouter accepts the
+[session header](https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion)
+as a sticky-routing key, not a unique cache slot. A different NPC prefix does not
+automatically overwrite a DM prefix. [Caching](https://openrouter.ai/docs/guides/best-practices/prompt-caching)
+still depends on the actual prefix, endpoint and best-effort retention; affinity is
+not provider pinning and can be affected by tool routing. DeepSeek/Z.AI automatic
+cache support does not establish support on the selected Nemotron free endpoints.
+
+Observe `cached_input_tokens > 0`, reported cost and request latency separately by
+model/role/step; missing usage stays unknown. Existing reports do not capture the
+actual upstream provider or cache-write tokens, so ID presence and latency alone
+cannot prove a cache hit or that the provider stayed fixed. No extra generation,
+warming, authenticated metadata lookup or provider pinning is added. Any production
+adoption belongs in the owner's separate PR after the eval evidence is reviewed.
+
+```bash
+cd backend
+uv run python eval/dialogue_suite.py --dry-run \
+  --suite adr-0017-dm-examples-affinity-v1 --session-affinity \
+  --models deepseek/deepseek-v4.1-flash-1017 z-ai/glm-5.3-flash \
+    nvidia/nemotron-3-ultra-550b-a55b:free nvidia/nemotron-3.5-super-vl:free \
+  --allow-paid-model deepseek/deepseek-v4.1-flash-1017 \
+  --allow-paid-model z-ai/glm-5.3-flash \
+  --cases npc_followup actor_en two_npc_two_beat npc_followup_short --runs 1
+```
+
+The command above is offline; the approved live invocation uses a fresh ledger and
+results directory with `--budget 40`, no baseline rerun, no added models and no
+automatic progression to the 420-request final regression suite.
+
 ## Deliberately out of scope
 
 **No combat in gold.** ADR 0003 removes `start_combat` / `end_combat` / `combat_state` and

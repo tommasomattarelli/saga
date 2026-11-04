@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.ai.npc_director import invoke_npcs_parallel
+from app.ai.npc_director import NPCInput, invoke_npcs_parallel
 from app.ai.prompts.dm import build_dm_system_prompt
 from app.ai.router import ModelConfig
 from app.models.campaign import Campaign, Difficulty
@@ -37,12 +37,19 @@ async def test_campaign_target_is_explicit_in_dm_and_real_actor_call(
     assert f"{name} ({code})" in prompt
     assert "same language the player uses" not in prompt
     provider = AsyncMock()
-    provider.generate.return_value = '{"dialogue": "Test.", "axis_changes": {}}'
+    provider.generate.return_value = '{"status":"speaking","lines": ["Test."], "axis_changes": {}}'
     monkeypatch.setattr(
         "app.ai.npc_director.get_generation",
         AsyncMock(return_value=(provider, ModelConfig("local", "test", 60000))),
     )
-    await invoke_npcs_parallel(["Lyra"], campaign, "Ciao / hello", "You see an old shrine.")
+    actor = NPCInput(
+        npc_name="Lyra",
+        npc_profile=dict(campaign.world_state["npcs"]["npc-1"]),
+        player_action="Ciao / hello",
+        dm_narration="You see an old shrine.",
+        language=code,
+    )
+    await invoke_npcs_parallel([actor], campaign.user_id)
     actor_prompt = provider.generate.call_args.kwargs["messages"][0]["content"]
     assert f"{name} ({code})" in actor_prompt
     assert "English authored ranger" in actor_prompt

@@ -19,8 +19,9 @@ def _make_state(**overrides) -> dict:
         "step_count": 1,
         "tool_events": [],
         "dice_results": [],
-        "npc_dialogues": [],
-        "called_npcs": [],
+        "npc_beats": [],
+        "npc_lines": [],
+        "user_id": "11111111-1111-1111-1111-111111111111",
         "scene_mood": "neutral",
         "time_passed_minutes": 0,
         "narration_segments": [],
@@ -185,24 +186,7 @@ class TestToolsNodeRegularTool:
 
 class TestToolsNodeInvokeNpc:
     @pytest.mark.asyncio
-    async def test_already_called_npc_returns_early_message(self):
-        from app.core.dm.dm_tools_executor import tools_node
-
-        tc = {"id": "tc1", "name": "invoke_npc", "args": {"name": "Aria"}, "type": "tool_call"}
-        ai_msg = AIMessage(content="", tool_calls=[tc])
-
-        state = _make_state(
-            messages=[ai_msg],
-            called_npcs=["Aria"],
-            world_state={"npcs": {"aria": {"name": "Aria"}}},
-        )
-        result = await tools_node(state)
-
-        messages = result["messages"]
-        assert any("already spoken" in m.content for m in messages)
-
-    @pytest.mark.asyncio
-    async def test_invoke_npc_calls_npc_director(self):
+    async def test_invoke_npc_adds_public_beat_and_lines(self):
         from app.core.dm.dm_tools_executor import tools_node
 
         tc = {
@@ -213,31 +197,21 @@ class TestToolsNodeInvokeNpc:
         }
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
-        mock_npc_result = MagicMock()
-        mock_npc_result.npc_name = "Guard"
-        mock_npc_result.dialogue = "Stop right there!"
-        mock_npc_result.action = None
-        mock_npc_result.disposition_change = 0
+        from app.ai.npc_outcomes import NPCSpeaking
 
-        mock_campaign = MagicMock()
-
-        mock_db = AsyncMock()
-        mock_db_result = MagicMock()
-        mock_db_result.scalar_one.return_value = mock_campaign
-        mock_db.execute.return_value = mock_db_result
-
-        mock_ctx = MagicMock()
-        mock_ctx.__aenter__ = AsyncMock(return_value=mock_db)
-        mock_ctx.__aexit__ = AsyncMock(return_value=False)
-
-        state = _make_state(messages=[ai_msg], world_state={"npcs": {"guard": {"name": "Guard"}}})
-
+        state = _make_state(
+            messages=[ai_msg],
+            world_state={
+                "meta": {"current_location": "gate"},
+                "npcs": {"guard-id": {"name": "Guard", "location": "gate", "psychology": {}}},
+            },
+        )
         with patch(
-            "app.core.dm.dm_tools_executor.invoke_npcs_parallel", new_callable=AsyncMock
-        ) as mock_npc:
-            mock_npc.return_value = [mock_npc_result]
-            with patch("app.dependencies.get_db_context", return_value=mock_ctx):
-                result = await tools_node(state)
-
-        assert "Guard" in result["called_npcs"]
-        assert len(result["npc_dialogues"]) == 1
+            "app.core.dm.npc_beat.invoke_npcs_parallel",
+            new_callable=AsyncMock,
+            return_value=[NPCSpeaking("Guard", ("Stop right there!",))],
+        ):
+            result = await tools_node(state)
+        assert result["npc_beats"][0].results[0].npc_name == "Guard"
+        assert result["npc_beats"][0].results[0].lines == ("Stop right there!",)
+        assert result["npc_lines"][0].part.dialogue == "Stop right there!"
