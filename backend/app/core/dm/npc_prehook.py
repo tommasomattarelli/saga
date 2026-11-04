@@ -1,50 +1,82 @@
-"""NPC pre-hook — validates invoke_npc calls before dispatching to npc_director."""
-
-from __future__ import annotations
-
+from dataclasses import dataclass
 from uuid import uuid4
 
+from pydantic import ValidationError
+
 from app.ai.router import GameplayConfig
+from app.ai.tools.tools_special import InvokeNpc
+from app.core.npc_fields import resolve_npc_fields
 from app.core.npc_resolver import resolve_npc
 from app.core.npc_scaffold import create_npc_record
-from app.models.npc_fields import NpcFieldDef
-from app.models.psychology import PsychologyDef
+from app.core.psychology import resolve_psychology
 
 
-def validate_or_create_npc(
-    name: str,
+@dataclass(frozen=True)
+class PreparedNPC:
+    call_index: int
+    call_id: str
+    npc_id: str
+    name: str
+    context: str
+
+
+def prepare_npc_calls(
+    calls: list[dict],
     world_state: dict,
     config: GameplayConfig,
-    psychology: PsychologyDef | None = None,
-    npc_fields: list[NpcFieldDef] | None = None,
-) -> tuple[bool, str]:
-    """Return (should_proceed, error_for_llm).
+    baseline: dict,
+) -> tuple[list[PreparedNPC], dict[int, str]]:
+    selected: list[tuple[int, str, str | None, str, str]] = []
+    seen: set[str] = set()
+    notes: dict[int, str] = {}
+    location = world_state.get("meta", {}).get("current_location")
+    for index, call in enumerate(calls):
+        call_id = call.get("id", "invoke_npc")
+        try:
+            args = InvokeNpc(**call.get("args", {}))
+        except ValidationError:
+            notes[index] = "Invalid tool arguments. Check the tool's required fields."
+            continue
+        name = args.name.strip()
+        if not name:
+            notes[index] = "An NPC name is required."
+            continue
+        resolution = resolve_npc(name, world_state)
+        npc_id = resolution.npc_id
+        if npc_id is None:
+            if resolution.candidates or resolution.error != f"{name} is not a known NPC.":
+                notes[index] = resolution.error
+                continue
+            if not config.auto_create_npcs:
+                notes[index] = resolution.error
+                continue
+        elif location and world_state["npcs"][npc_id].get("location") != location:
+            notes[index] = f"{name} is elsewhere and is not present here."
+            continue
+        identity = npc_id or f"new:{name.casefold()}"
+        if identity in seen:
+            notes[index] = f"{name} is already selected in this beat."
+            continue
+        seen.add(identity)
+        if len(selected) >= config.max_npc_calls:
+            notes[index] = "The NPC call limit for this beat has been reached."
+            continue
+        selected.append((index, call_id, npc_id, name, args.context))
 
-    Resolves by name (F2), gates on lifecycle only (A2), checks location match.
-    Auto-creates if missing and configured.
-    """
-    resolution = resolve_npc(name, world_state)
-
-    if resolution.npc_id is not None:
-        npc = world_state["npcs"][resolution.npc_id]
-        current_loc = world_state.get("meta", {}).get("current_location")
-        npc_loc = npc.get("location")
-        if current_loc and npc_loc and current_loc != npc_loc:
-            # Locations are node UUIDs (ADR 0008 J3) — no place name available here.
-            return False, f"{name} is elsewhere and is not present here."
-        return True, ""
-
-    if resolution.candidates or "not a known NPC" not in resolution.error:
-        # Ambiguous, or matched only dead/removed NPCs — never auto-create over it.
-        return False, resolution.error
-
-    if not config.auto_create_npcs:
-        return False, f"{name} is not a known NPC."
-
-    world_state.setdefault("npcs", {})[str(uuid4())] = create_npc_record(
-        name,
-        detail=config.npc_auto_create_detail,
-        psychology=psychology,
-        npc_fields=npc_fields,
-    )
-    return True, ""
+    prepared = []
+    taxonomy = baseline.get("taxonomy")
+    for index, call_id, npc_id, name, context in selected:
+        if npc_id is None:
+            npc_id = str(uuid4())
+            world_state.setdefault("npcs", {})[npc_id] = create_npc_record(
+                name,
+                detail=config.npc_auto_create_detail,
+                psychology=resolve_psychology(taxonomy),
+                npc_fields=resolve_npc_fields(taxonomy),
+                location=location,
+                auto_created=True,
+            )
+        prepared.append(
+            PreparedNPC(index, call_id, npc_id, world_state["npcs"][npc_id]["name"], context)
+        )
+    return prepared, notes

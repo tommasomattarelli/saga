@@ -83,8 +83,10 @@ class InvokeNpc(DmTool):
     @classmethod
     def tool_description(cls) -> str:
         return (
-            "Make an NPC speak or act. The NPC will generate dialogue in character. "
-            "You will receive the dialogue and can react to it in your next narration."
+            "Invite an NPC's spoken lines, intentional silence or descriptive action/intention. "
+            "Emit all independent NPC calls together in one response (one beat). Dependent "
+            "reactions belong to a later beat. Copy the returned placement handles into "
+            "your next narration; actions do not themselves execute mechanics."
         )
 
     @classmethod

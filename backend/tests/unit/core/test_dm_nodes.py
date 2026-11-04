@@ -25,8 +25,9 @@ def _make_state(**overrides) -> dict:
         "step_count": 1,
         "tool_events": [],
         "dice_results": [],
-        "npc_dialogues": [],
-        "called_npcs": [],
+        "npc_beats": [],
+        "npc_lines": [],
+        "narrative_observations": [],
         "scene_mood": "neutral",
         "time_passed_minutes": 0,
         "narration_segments": [],
@@ -72,19 +73,19 @@ class TestPostProcessNode:
         # Just verify function completes
         assert "death_event" in result
 
-    def test_syncs_narration_to_segment_when_uncovered(self):
-        from app.core.dm.dm_nodes import post_process_node
+    def test_finalizes_the_explicit_step_delta(self):
+        from app.core.dm.dm_nodes import _record_narration, post_process_node
 
         state = _make_state(
-            narration="The hero enters the dungeon.",
             narration_segments=[],
             step_count=1,
             char_data={"hp": {"current": 10, "max": 10}},
         )
+        state.update(_record_narration(state, "The hero enters the dungeon."))
         result = post_process_node(state)
         segments = result["narration_segments"]
         assert len(segments) > 0
-        assert segments[0]["text"] == "The hero enters the dungeon."
+        assert segments[0]["parts"] == [{"type": "text", "text": "The hero enters the dungeon."}]
 
     def test_does_not_duplicate_covered_narration(self):
         from app.core.dm.dm_nodes import post_process_node
@@ -100,7 +101,7 @@ class TestPostProcessNode:
         segments = result["narration_segments"]
         # Should not add a new segment since narration is fully covered
         assert len(segments) == 1
-        assert segments[0]["text"] == full_text
+        assert segments[0]["parts"] == [{"type": "text", "text": full_text}]
 
     def test_reported_time_does_not_advance_clock_again(self):
         from app.core.dm.dm_nodes import post_process_node

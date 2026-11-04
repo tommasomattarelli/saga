@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 from typing import Any
@@ -14,14 +15,20 @@ from app.ai.context import build_context
 from app.ai.exceptions import PROVIDER_SDK_ERRORS, ContentPolicyError, provider_failure_message
 from app.ai.prompts.dm import DMPromptContext, DMPromptState, render_dm_prompt
 from app.ai.providers.schemas import TEXT_SIGNATURE_KEY, TOOL_CALL_SIGNATURES_KEY
+from app.ai.providers.usage import usage_scope
 from app.ai.router import get_user_generation
 from app.ai.sanitizer import detect_injection, sanitize_player_input
 from app.ai.tools.dm_tools import get_tool_schemas
 from app.core.death import check_player_death
+from app.core.dm.dialogue_composition import clean_narration, compose_segments, transcript
+from app.core.dm.dialogue_reminder import dialogue_reminder
 from app.core.dm.dm_helpers import get_or_create_segment, messages_to_raw, raw_history_to_lc
 from app.core.dm.game_state import GameState
 from app.core.dm.loop_policy import closing_step, dm_call_limit, step_tools
+from app.core.dm.npc_context import NarrativeObservation
+from app.core.dm.npc_results import flush_interaction_history
 from app.core.engine import CONTENT_POLICY_NARRATION
+from app.core.npc_resolver import npcs_at_current_location
 from app.exceptions import AIProviderError
 from app.memory.world_state import migrate_world_state
 from app.models.quest import QuestRegistry
@@ -68,6 +75,7 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
     lc_messages.append(HumanMessage(content=player_action))
 
     return {
+        "player_action": player_action,
         "messages": lc_messages,
         "world_state": migrate_world_state(campaign.world_state or {}),
         "char_data": campaign.character_data or {},
@@ -92,15 +100,7 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
     provider, model_cfg = await get_user_generation(state["user_id"])
     closing = closing_step(state)
     allowed_tools = step_tools(state["world_state"], closing=closing)
-    scene = DMPromptState(
-        state["world_state"],
-        state["char_data"],
-        state.get("world_baseline") or {},
-        state.get("quests") or QuestRegistry(),
-    )
-    system_prompt = render_dm_prompt(
-        scene, state.get("prompt_context") or DMPromptContext(), allowed_tools, closing=closing
-    )
+    system_prompt = step_system_prompt(state, allowed_tools, closing)
     tool_schemas = get_tool_schemas(allowed=allowed_tools)
 
     logger.info(
@@ -127,13 +127,14 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
     )
 
     try:
-        response = await provider.generate_with_tools(
-            system_prompt=system_prompt,
-            messages=messages_raw,
-            tools=tool_schemas,
-            model=model_cfg.model,
-            max_tokens=model_cfg.max_tokens,
-        )
+        with usage_scope(role="dm", step=state["step_count"]):
+            response = await provider.generate_with_tools(
+                system_prompt=system_prompt,
+                messages=messages_raw,
+                tools=tool_schemas,
+                model=model_cfg.model,
+                max_tokens=model_cfg.max_tokens,
+            )
     except PROVIDER_SDK_ERRORS as exc:
         raise AIProviderError(model_cfg.provider, provider_failure_message(exc)) from exc
     except ContentPolicyError:
@@ -143,6 +144,7 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
             "messages": [ai_msg],
             "narration": state["narration"] + response_text,
             "step_count": state["step_count"] + 1,
+            **_record_narration(state, response_text),
         }
 
     text = response.text or ""
@@ -171,30 +173,62 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
     if response.text_signature is not None:
         ai_msg.additional_kwargs[TEXT_SIGNATURE_KEY] = response.text_signature
 
+    public_text, removed = clean_narration(
+        text, state["step_count"], state["narration_segments"], state.get("npc_lines", [])
+    )
+
     return {
         "messages": [ai_msg],
-        "narration": state["narration"] + text,
+        "narration": state["narration"] + public_text,
+        "dialogue_echo_removals": state.get("dialogue_echo_removals", 0) + removed,
         "step_count": state["step_count"] + 1,
         "allowed_tools": sorted(allowed_tools),
         "closing_step": closing,
         "system_prompt": system_prompt,
+        **_record_narration(state, public_text),
+    }
+
+
+def step_system_prompt(state: GameState, allowed_tools: set[str], closing: bool) -> str:
+    context = state.get("prompt_context") or DMPromptContext()
+    scene = DMPromptState(
+        state["world_state"],
+        state["char_data"],
+        state.get("world_baseline") or {},
+        state.get("quests") or QuestRegistry(),
+    )
+    prompt = render_dm_prompt(scene, context, allowed_tools, closing=closing)
+    reminder = dialogue_reminder(
+        state.get("npc_lines", []),
+        state.get("npc_beats", []),
+        state["narration_segments"],
+        context.language,
+        closing or "invoke_npc" not in allowed_tools,
+    )
+    return f"{prompt}\n\n{reminder}"
+
+
+def _record_narration(state: GameState, text: str) -> dict:
+    segments = copy.deepcopy(state["narration_segments"])
+    step = state["step_count"]
+    get_or_create_segment(segments, step)["text"] = text
+    observation = NarrativeObservation(
+        step,
+        text,
+        frozenset(npcs_at_current_location(state["world_state"])),
+        state["world_state"].get("meta", {}).get("current_location", ""),
+    )
+    return {
+        "narration_segments": segments,
+        "narrative_observations": [*state.get("narrative_observations", []), observation],
     }
 
 
 def post_process_node(state: GameState) -> dict[str, Any]:
-    world_state = dict(state["world_state"])
+    world_state = copy.deepcopy(state["world_state"])
     char_data = dict(state["char_data"])
-    narration_segments = list(state["narration_segments"])
-
-    # Sync any narration from the final dm_node that skipped tools_node
-    full_narration = state["narration"]
-    if full_narration:
-        covered = sum(len(seg.get("text", "")) for seg in narration_segments)
-        if covered < len(full_narration):
-            last_step = max(state["step_count"] - 1, 0)
-            seg = get_or_create_segment(narration_segments, last_step)
-            if not seg["text"]:
-                seg["text"] = full_narration[covered:]
+    segments = compose_segments(state["narration_segments"], state.get("npc_lines", []))
+    flush_interaction_history(world_state, state.get("npc_beats", []))
 
     # The difficulty rides the state from context_node. It used to be read off
     # char_data, a key nothing ever wrote, so every campaign silently resolved as
@@ -215,5 +249,6 @@ def post_process_node(state: GameState) -> dict[str, Any]:
     return {
         "world_state": world_state,
         "death_event": death_event,
-        "narration_segments": narration_segments,
+        "narration": transcript(segments),
+        "narration_segments": [segment.model_dump(mode="json") for segment in segments],
     }

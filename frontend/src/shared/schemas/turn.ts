@@ -31,17 +31,21 @@ const DiceRollResultSchema = z.object({
   hazard_damage: z.number().optional(),
 });
 
-const NPCDialogueSchema = z.object({
-  npc_name: z.string(),
-  dialogue: z.string(),
-  action: z.string().nullable().optional(),
-});
+const NarrationPartSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("text"), text: z.string() }),
+  z.object({
+    type: z.literal("npc_speech"),
+    npc_id: z.string(),
+    npc_name: z.string(),
+    line_index: z.number(),
+    dialogue: z.string(),
+  }),
+]);
 
 const NarrationSegmentSchema = z.object({
   step: z.number(),
-  text: z.string(),
+  parts: z.array(NarrationPartSchema),
   dice: z.record(z.string(), DiceRollResultSchema).nullable(),
-  npc_dialogues: z.array(NPCDialogueSchema),
 });
 
 const DiceResultSchema = z.object({
@@ -70,7 +74,6 @@ export const TurnResponseSchema = z.object({
   narration_segments: z.array(NarrationSegmentSchema).nullable().optional(),
   dice_results: z.array(DiceResultSchema).nullable().optional(),
   dice_rolls: z.record(z.string(), DiceRollResultSchema).nullable().optional(),
-  npc_dialogues: z.array(NPCDialogueSchema).nullable().optional(),
   world_state: z.record(z.string(), z.unknown()).optional(),
   character_data: z.record(z.string(), z.unknown()).optional(),
   quests: QuestRegistrySchema.optional(),

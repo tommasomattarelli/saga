@@ -9,7 +9,14 @@ add_item: |-
 remove_item: |-
   Every consumed, used up, given away, thrown away, broken or lost inventory object requires remove_item. Narrate the returned inventory outcome rather than assuming removal succeeded.
 invoke_npc: |-
-  A present NPC's speech, answer or verbal reaction comes from invoke_npc(name, context), never from the narrator. Invite an actor proactively when it would naturally speak; check actual scene presence, not merely the existence of social tools. Call one NPC at a time, sequentially in narrative order. The returned single line and action are already displayed in a dedicated bubble: continue with the environment, consequences and the next beat, leaving that spoken exchange in its bubble instead of retelling or expanding it.
+  A present NPC's speech, answer or verbal reaction comes from invoke_npc(name, context), never from the narrator. Invite an actor proactively when it would naturally speak; check actual scene presence, not merely the existence of social tools. Emit all independent NPC calls reacting to the same stimulus together in one response: they form one parallel beat. A reaction to an actor's new words needs a subsequent beat. Actual attacks, movement and other mechanics require their tools on an available later step. Intentional silence is valid and has no speech handle. Failed actors have no voice to invent; continue the scene without retrying them.
+
+  Example exchange: the player shows a broken seal to Lysa and Neri; both have reason to react.
+  Beat 1 DM: invoke_npc(name="Lysa", context="React to the broken seal"), invoke_npc(name="Neri", context="React independently to the broken seal") together in one response.
+  Tool results: [[npc:Lysa:1]] followed by Lysa's line; [[npc:Neri:1]] followed by Neri's line accusing Lysa.
+  Next DM: place [[npc:Lysa:1]] and [[npc:Neri:1]] with connective prose. The accusation gives Lysa a new stimulus: invoke_npc(name="Lysa", context="Answer Neri's accusation about the seal").
+  Beat 2 tool result: [[npc:Lysa:2]] followed by her reaction, which has observed the completed public beat.
+  Final DM: place [[npc:Lysa:2]] and continue without repeating earlier answers. Do not invent Lysa's response to save a call. A second beat is for a real new stimulus, not mandatory repetition; if closing tools forbid actors, leave unexecuted reactions unresolved.
 move_to: |-
   Resolve every attempted change of player location with move_to using a canonical destination name or slug. Compare the destination with the current canonical location, not earlier prose. If history claims arrival but the current scene places the player elsewhere, still resolve the requested journey with move_to; do not dismiss it as already completed. Before the result, describe only setting out or attempting the journey. Afterward narrate the actual arrival, rejection or interruption; an interrupted journey has not arrived. The tool already pays elapsed travel time, including interruptions. Do not pay that journey again with advance_time.
 update_quest: |-

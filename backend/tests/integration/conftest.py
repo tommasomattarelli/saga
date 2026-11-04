@@ -50,7 +50,7 @@ def generation_clients(
     async def generate(*args: object, **kwargs: object) -> str:
         assert_no_db_held()
         return (
-            '{"summary":"The inn is closed.","dialogue":"Welcome!",'
+            '{"summary":"The inn is closed.","status":"speaking","lines":["Welcome!"],'
             '"facts":[{"entity_name":"Inn","content":"The inn is closed."}]}'
         )
 
