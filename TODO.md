@@ -13,7 +13,7 @@ Ordine di ripresa concordato (2026-10-20), prima di nuove funzionalita':
 
 [ ] **cache OpenRouter — PR dedicata eval/produzione**: coorte `84ce368`, 32 richieste con affinità per trial; un solo hit (Super, `npc_followup_short`: 8.672/8.823 token input), DeepSeek/GLM/Ultra cached 0, nessun dato cache mancante; beneficio dell'ID non dimostrato, cambia anche il prompt; ricontrollare cache hit nella suite completa e approfondire routing/prefissi prima dell'adozione in produzione.
 
-[ ] **PR 2 — ADR 0017**: baseline S1 congelata `9dadc2c`; diagnostico quattro modelli completo (12 trial/30 richieste, circa $0.02 da dashboard owner); confronto esempi DM + affinità e review Luna completi (16 trial/32 richieste), difetti DM ancora presenti senza miglioramento uniforme; restano decisione owner, suite finale e playtest prima dell'unica PR, produzione cache in PR separata.
+[ ] **PR 2 — ADR 0017**: baseline `9dadc2c` intatta; diagnostici e review Luna completi, difetti DM senza miglioramento uniforme; audit offline dei probe e freeze funzionale `84ce368` completati (§10.3 ADR); proposta suite completa 10 casi × 4 modelli × 3 run, inclusi i casi già provati ma senza ripetere vecchi prompt/baseline (120 trial, tetto 420 richieste), solo dopo nuova autorizzazione; restano reviewer, playtest e decisione owner sui difetti residui prima dell'unica PR.
 
 GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimangono i dettagli del backlog esistente.
 
