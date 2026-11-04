@@ -583,3 +583,68 @@ unknown. This cohort changes both DM examples and affinity relative to `3dc8695`
 it is exploratory quality/cache observation, not a causal prompt or affinity A/B.
 There is no warming, prefix rewrite, provider pinning, new fallback or extra generation;
 production adoption remains a separately reviewed PR after evidence and owner approval.
+
+### 10.3 Offline interpretation and candidate freeze (2026-11-04)
+
+**S2 note (2026-11-04, implementation/evaluation audit).** The owner approved an
+offline scope audit and a freeze, not further prompt tuning or live execution.
+`backend/eval/dialogue_trial.py`, `dialogue_pipeline.py` and
+`dialogue_conversation.py` measure different boundaries:
+
+| Cases | Measured boundary | Not established |
+|---|---|---|
+| `npc_speaks` | One DM response; whether it requests the actor | Actor execution, effects or a completed turn |
+| `npc_followup`, `npc_followup_short` | One DM response after an injected actor result, followed by composition of that response | Requested tool execution or the result of subsequent DM calls |
+| `actor_en`, `actor_it`, `actor_silent`, `actor_scene` | One real actor invocation and its parsed outcome | DM orchestration or final turn composition |
+| `two_npc_two_beat`, `two_npc_natural` | Real DM/tool/actor/composition nodes over an isolated state, with at most three DM calls | The production eight-call budget, context loading, API/UI persistence or background memory |
+| `two_npc_conversation` | Two bounded pipeline turns, carrying actual transcript, world/character state and quests forward | A full production conversation, retrieval or compression |
+
+The single-call cases never execute the tools they request. Follow-up composition
+appends any unplaced injected speech once at that artificial boundary. Therefore a
+blank response with `advance_time` and no marker is an immediate-placement miss with
+fallback, **not** proof of an empty completed production turn or a successful later
+recovery. Its existing `line-used-end-fallback` flag remains intact. The isolated
+follow-up probe's prohibition on `invoke_npc` is not a global ban on later beats.
+
+The actual routing in `backend/app/core/dm/dm_graph.py` distinguishes:
+
+- No tool calls: post-process, even if the response text is empty.
+- After tools, closing or exhausted DM budget: post-process.
+- Otherwise, required result follow-up: another DM call.
+- Otherwise, accumulated narration present: post-process; accumulated narration
+  absent: another DM call. This is cumulative text, not only the latest response.
+
+The third eval DM call is terminal-safe and cannot request an actor; the intended
+independent batch, dependent beat and final composition fit in three calls. An early
+missing dependent call remains an observed orchestration miss; neither the reduced
+cap nor hypothetical production recovery explains it without evidence. The natural
+cases require relevant speaker choices, not a fixed cast or mandatory second reply.
+
+Review separates accepted placements from omitted/malformed handles and fallback
+ordering; engine preservation from narrator-added speech; and missing calls from
+selected/executed actors, failed generation, intentional silence and speaking results.
+Receiving prior public lines or returning `speaking` does not establish a relevant
+reaction. Echo counts and language heuristics remain signals requiring semantic
+review, not acceptance scores. Existing evidence and automatic flags are not rewritten.
+
+The offline check used a synthetic tool-only response and six routing checks with
+socket/DNS access blocked. The latest diagnostic manifest reconstructed identically,
+including effective config and its four scenario identities. No historical raw
+model output was reread. The frozen functional candidate is `84ce368`; this audit
+started from documentation HEAD `53c309b`, with no changes in the hashed scopes
+(`backend/app`, `backend/eval`, `frontend/src`, `saga.config.yaml`). Its source hash
+remains `d3b0b913bd7545399de0a5f5ac649336cf9157322453baeb2771c6897436ca84`.
+Because that hash includes eval README files, clarification lives outside those
+scopes. Prompts, schemas, guard, limits, fixtures, routing and retries stay unchanged;
+the existing full-check result is retained, not rerun or relabeled as a new check.
+
+The proposed complete suite uses the same four selected models and per-trial
+affinity: ten cases, three fresh repetitions per model/case, **120 trials**, nominal
+**372** requests and ceiling **420**. Previously diagnosed cases are included, but
+their exploratory runs do not count toward these repetitions. Historical prompt
+variants and baseline `9dadc2c` are not rerun; fresh final evidence remains separate
+from both diagnostics. Cache-hit monitoring repeats without extra probes or production
+changes. Before any provider/catalog/auth/usage contact, stop for explicit owner
+authorization and the request allocation; the offline calculation is not permission.
+Output review remains delegated, with reviewer selection pending. Owner review,
+playtest, acceptance and residual-issue disposition are still separate gates.
