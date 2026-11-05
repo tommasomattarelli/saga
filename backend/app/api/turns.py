@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.generation_context import generation_context
 from app.ai.prompts.dm import DMPromptContext
 from app.ai.router import get_gameplay_config, validate_user_generation
+from app.ai.session_affinity import campaign_session
 from app.api.rate_limit import limiter, turns_limit
 from app.core.dm.dm_graph import dm_graph
 from app.core.dm.game_state import GameState
@@ -47,7 +48,7 @@ async def submit_action(
     auth_db: AsyncSession = Depends(get_db),
 ) -> TurnResponse:
     await auth_db.close()
-    with generation_context(user.id):
+    with generation_context(user.id), campaign_session(campaign_id):
         return await _submit_action(request, campaign_id, body, user)
 
 

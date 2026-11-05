@@ -13,6 +13,29 @@ positive finite number.
 
 ---
 
+## OpenRouter session affinity
+
+```yaml
+generation:
+  openrouter_session_affinity: true
+```
+
+Enabled by default. Generation requests made during a campaign action send that
+campaign's UUID as `x-session-id` **only when the resolved provider is OpenRouter**.
+DM steps, NPCs and memory jobs spawned by the action share the ID across turns;
+background tasks retain their originating campaign after the request completes.
+Requests outside a campaign scope have no added session header. Embedding
+requests and other providers are unchanged.
+
+The header is applied on an isolated provider/client copy, never on the cached
+shared client. Existing headers, retry policy, credentials, model selection and
+fallback consent remain unchanged. Set this boolean to `false` to disable it.
+
+Affinity favors routing continuity, not guaranteed cache hits or fixed provider
+selection. Prompt content, state refresh, summaries and tool availability are not
+changed to improve cache reuse. Evaluation has its own suite/model affinity;
+see [`backend/eval/scenarios/README.md`](../backend/eval/scenarios/README.md#current-session-affinity-2026-11-06).
+
 ## Model Routing
 
 SAGA routes AI calls across multiple call types. Each type can be configured independently with provider, model, temperature, and max_tokens.

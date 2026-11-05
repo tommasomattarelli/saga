@@ -95,6 +95,8 @@ def validate_generation_config() -> None:
             problems.append("generation.default.local_endpoint must name a configured endpoint")
         if cap <= 0:
             problems.append("generation.max_output_tokens must be a positive integer")
+        if not isinstance(generation.get("openrouter_session_affinity", True), bool):
+            problems.append("generation.openrouter_session_affinity must be a boolean")
     for name, base_url in get_local_endpoints().items():
         if not base_url.startswith(("http://", "https://")):
             problems.append(f"providers.local_endpoints.{name}.base_url must be an http(s) URL")
@@ -141,6 +143,12 @@ async def get_user_generation(user_id: uuid.UUID | str) -> tuple[AIProvider, Mod
             raise ValidationError("The user's AI settings are unavailable.")
         config, key, base_url = resolve_generation(user)
     provider = get_provider(config.provider, api_key=key, base_url=base_url)
+    if config.provider == "openrouter" and _load_config().get("generation", {}).get(
+        "openrouter_session_affinity", True
+    ):
+        from app.ai.session_affinity import campaign_provider
+
+        provider = campaign_provider(provider)
     return provider, config
 
 
