@@ -11,9 +11,7 @@
 
 Ordine di ripresa concordato (2026-10-20), prima di nuove funzionalita':
 
-[ ] **cache OpenRouter — PR dedicata eval/produzione**: suite completa `0f5478f`, 267 richieste con affinità per trial; hit DeepSeek 41/70, GLM 5/68, Ultra 13/69, Super 20/60, 359.208 token cached (28,8% input), nessun campo cache mancante; beneficio causale dell'ID non dimostrato, approfondire routing/prefissi prima dell'adozione in produzione.
-
-[ ] **cache eval — ipotesi ID condiviso**: confrontare l'attuale ID per trial (120 ID/267 chiamate) con un ID per suite, eventualmente per coppia suite/modello, per ridurre frammentazione del routing; owner osserva frequenti cambi upstream per GLM e route NVIDIA per i free; verificare endpoint/prefissi e costi separando cache, prezzi e output/reasoning, senza garantire pinning/hit; esperimento futuro con nuovo consenso/budget, nessuna modifica alla coorte congelata.
+[ ] **analisi prompt e cache — blocchi fissi/variabili**: mappare istruzioni, tool, stato, summary globale, summary precedenti, recall, dialogo e conversazione per massimizzare il prefisso riutilizzabile; valutare ordine dei blocchi e sliding window/compattazione senza congelare il mondo o rendere obsoleti i dati; misurare costi e qualità prima di modificare la produzione.
 
 GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimangono i dettagli del backlog esistente.
 
