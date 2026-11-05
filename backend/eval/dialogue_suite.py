@@ -31,8 +31,9 @@ async def main() -> None:
     parser.add_argument("--allow-paid-model", action="append", default=[], metavar="MODEL_ID")
     parser.add_argument(
         "--session-affinity",
-        action="store_true",
-        help="send one stable x-session-id per trial, shared by its DM and actor calls",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="share one stable x-session-id per suite/model across DM, actors and repetitions (default: enabled)",
     )
     parser.add_argument("--user")
     parser.add_argument("--ledger", type=Path)

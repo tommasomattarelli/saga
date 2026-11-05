@@ -13,7 +13,13 @@ from app.ai.router import ModelConfig
 
 
 def prepare_run(monkeypatch, tmp_path, models, cases, budget, runs=1):
-    plan = manifest(models=models, case_names=cases, runs=runs, paid_allowlist=set(models))
+    plan = manifest(
+        models=models,
+        case_names=cases,
+        runs=runs,
+        paid_allowlist=set(models),
+        session_affinity=False,
+    )
     monkeypatch.setattr(dialogue_suite, "manifest", lambda *_: plan)
     monkeypatch.setattr(
         dialogue_suite.subprocess,
@@ -131,7 +137,7 @@ async def test_parallel_dry_run_remains_offline_and_declares_free_request_limit(
         "workers": "one-per-selected-model",
         "free_requests_per_minute": 20,
         "free_model_suffix": ":free",
-        "session_affinity": "implicit",
+        "session_affinity": "per-model",
     }
 
 
