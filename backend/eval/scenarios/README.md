@@ -176,13 +176,6 @@ It exists because those move through tool executors, not through `apply_typed_up
      off recorded tool calls. Every direct write here is a place the fixture can encode a
      state the engine would not produce. -->
 
-<!-- TODO(#55): `recalled_memories` is frozen per scenario (strategy "a"). In production
-     recall is a pgvector similarity against the *current player action*, so the real set
-     differs per probe. Strategy "b" — store the fact corpus and run real retrieval per
-     probe — is impossible while embeddings are hardcoded to OpenAI and silently return
-     None. The corpus IS stored in built/*.yaml under `fact_corpus` so the switch needs no
-     format change. Until #55 is closed, do not read these recalls as faithful. -->
-
 ## Live runs: ledger, resume, budget
 
 Every provider call is a request, and the free tier does not forgive an overshoot. Pass

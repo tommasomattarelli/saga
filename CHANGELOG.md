@@ -12,3 +12,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 `[Unreleased]` is reset; this root file keeps only `[Unreleased]`.
 
 ## [Unreleased]
+
+### Internal
+
+- Add a bounded OpenRouter cache probe comparing trial and shared affinity on frozen DM requests, with simulated NPC replay and per-request routing evidence.
