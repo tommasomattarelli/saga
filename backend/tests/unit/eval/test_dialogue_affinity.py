@@ -73,8 +73,9 @@ async def provider() -> AsyncIterator[tuple[LocalProvider, list[httpx.Request]]]
         await local.client.close()
 
 
-def test_session_identity_is_stable_opaque_and_distinct_for_independent_trials() -> None:
-    from dialogue_affinity import session_id_for_trial
+def test_session_identity_is_stable_per_suite_and_model_not_trial() -> None:
+    from dialogue_affinity import session_id_for_model
+    from dialogue_plan import digest
 
     plan = manifest(
         models=["vendor/a:free", "vendor/b:free"],
@@ -82,26 +83,30 @@ def test_session_identity_is_stable_opaque_and_distinct_for_independent_trials()
         runs=2,
         session_affinity=True,
     )
-    keys = [
-        trial_key(plan, case, model, run)
-        for case in plan["cases"]
-        for model in plan["models"]
-        for run in range(2)
-    ]
-    identifiers = [session_id_for_trial(key) for key in keys]
-    assert len(set(identifiers)) == len(keys)
-    for key, identifier in zip(keys, identifiers, strict=True):
-        assert identifier == session_id_for_trial(key)
+    identifiers = [session_id_for_model(digest(plan), model) for model in plan["models"]]
+    assert len(set(identifiers)) == 2
+    for model, identifier in zip(plan["models"], identifiers, strict=True):
+        assert identifier == session_id_for_model(
+            digest(
+                manifest(
+                    models=plan["models"],
+                    case_names=list(plan["cases"]),
+                    runs=2,
+                )
+            ),
+            model,
+        )
         assert str(uuid.UUID(identifier)) == identifier
         assert len(identifier) <= 256
         assert "vendor" not in identifier
+        assert identifier != session_id_for_model("another-checkpoint", model)
 
 
 async def test_parallel_trial_clients_keep_one_header_for_dm_and_actors_without_mutation(
     provider: tuple[LocalProvider, list[httpx.Request]],
     tmp_path,
 ) -> None:
-    from dialogue_affinity import session_id_for_trial
+    from dialogue_affinity import session_id_for_model
 
     original, requests = provider
     ledger = RequestLedger(tmp_path / "requests.jsonl", budget=3)
@@ -115,7 +120,7 @@ async def test_parallel_trial_clients_keep_one_header_for_dm_and_actors_without_
             run=0,
             commit="commit",
             ceiling=2,
-            session_id=session_id_for_trial(key),
+            session_id=session_id_for_model(key, "vendor/a:free"),
         )
         for key in ("trial-a", "trial-b")
     ]
@@ -127,7 +132,7 @@ async def test_parallel_trial_clients_keep_one_header_for_dm_and_actors_without_
     for request in requests:
         system = json.loads(request.content)["messages"][0]["content"]
         key = "trial-b" if system.endswith("B") else "trial-a"
-        assert request.headers["x-session-id"] == session_id_for_trial(key)
+        assert request.headers["x-session-id"] == session_id_for_model(key, "vendor/a:free")
         assert request.headers["x-eval-app"] == "preserved"
     assert "x-session-id" not in original.client.default_headers
     assert original.client.max_retries == 0
@@ -149,8 +154,8 @@ async def test_parallel_trial_clients_keep_one_header_for_dm_and_actors_without_
     ]
     rows = list(csv.DictReader(io.StringIO(usage_csv([vars(row) for row in replay.results()]))))
     assert {row["session_id"] for row in rows} == {
-        session_id_for_trial("trial-a"),
-        session_id_for_trial("trial-b"),
+        session_id_for_model("trial-a", "vendor/a:free"),
+        session_id_for_model("trial-b", "vendor/a:free"),
     }
 
 
@@ -181,19 +186,19 @@ async def test_affinity_is_opt_in_and_default_transport_and_hash_are_unchanged(
     )
 
 
-async def test_runner_reuses_one_session_through_two_turns_and_separates_other_cases(
+async def test_runner_shares_session_across_cases_repetitions_and_resume(
     provider: tuple[LocalProvider, list[httpx.Request]],
     tmp_path,
 ) -> None:
-    from dialogue_affinity import session_id_for_trial
+    from dialogue_affinity import session_id_for_model
+    from dialogue_plan import digest
 
     original, requests = provider
     model = "vendor/a:free"
     plan = manifest(
         models=[model],
         case_names=["npc_followup", "actor_en", "two_npc_conversation"],
-        runs=1,
-        session_affinity=True,
+        runs=2,
     )
     completed: dict[str, dict] = {}
     output = tmp_path / "trials.jsonl"
@@ -210,17 +215,30 @@ async def test_runner_reuses_one_session_through_two_turns_and_separates_other_c
         {},
     )
     evidence, interrupted = read_evidence(output)
-    assert not interrupted and len(evidence) == 3
+    assert not interrupted and len(evidence) == 6
     conversation_key = trial_key(plan, "two_npc_conversation", model, 0)
-    for key, row in evidence.items():
-        assert row["session_id"] == session_id_for_trial(key)
+    for row in evidence.values():
+        assert row["session_id"] == session_id_for_model(digest(plan), model)
     conversation = [row for row in ledger.results() if row.key.startswith(conversation_key)]
     assert len(conversation) == 2
     assert all(
-        row.request_headers["x-session-id"] == session_id_for_trial(conversation_key)
+        row.request_headers["x-session-id"] == session_id_for_model(digest(plan), model)
         for row in conversation
     )
-    assert len({request.headers["x-session-id"] for request in requests}) == 3
+    assert len({request.headers["x-session-id"] for request in requests}) == 1
+    before = len(requests)
+    await run_models(
+        plan,
+        evidence,
+        ledger,
+        output,
+        {model: (original, ModelConfig("openrouter", model, 60000))},
+        uuid.uuid4(),
+        "commit",
+        run_case,
+        {},
+    )
+    assert len(requests) == before
 
 
 async def test_session_affinity_dry_run_is_offline_and_part_of_manifest_identity(
@@ -234,14 +252,14 @@ async def test_session_affinity_dry_run_is_offline_and_part_of_manifest_identity
     monkeypatch.setattr("sys.argv", ["suite", "--dry-run", "--session-affinity"])
     await dialogue_suite.main()
     enabled = json.loads(capsys.readouterr().out)
-    disabled = manifest()
-    assert enabled["execution"]["session_affinity"] == "per-trial"
+    disabled = manifest(session_affinity=False)
+    assert enabled["execution"]["session_affinity"] == "per-model"
     assert disabled["execution"]["session_affinity"] == "implicit"
     assert enabled != disabled
 
 
 async def test_session_transport_failure_keeps_header_evidence_without_sdk_retry(tmp_path) -> None:
-    from dialogue_affinity import session_id_for_trial
+    from dialogue_affinity import session_id_for_model
 
     requests: list[httpx.Request] = []
 
@@ -258,7 +276,7 @@ async def test_session_transport_failure_keeps_header_evidence_without_sdk_retry
         max_retries=2,
     )
     ledger = RequestLedger(tmp_path / "requests.jsonl", budget=1)
-    identifier = session_id_for_trial("trial")
+    identifier = session_id_for_model("trial", "vendor/a:free")
     trace = SuiteProvider(
         provider,
         ledger,

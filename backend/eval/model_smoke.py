@@ -17,6 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from dialogue_affinity import session_id_for_model  # noqa: E402
 from ledger import Attempt, BudgetExhaustedError, RequestLedger  # noqa: E402
 from live_calls import (  # noqa: E402
     EvaluationPausedError,
@@ -139,6 +140,13 @@ async def main() -> None:
     ledger = RequestLedger(args.ledger, budget=args.budget)
     if ledger.spent and not args.resume:
         parser.error("Ledger already contains calls; use --resume")
+    for row in ledger.results():
+        if row.checkpoint == args.checkpoint and row.model in args.models:
+            expected = {"x-session-id": session_id_for_model(args.checkpoint, row.model)}
+            if row.request_headers != expected:
+                parser.error(
+                    "Session affinity changed; use a fresh checkpoint instead of resuming historical calls."
+                )
     await validate_free_models(args.models)
     try:
         for model in args.models:
@@ -149,7 +157,13 @@ async def main() -> None:
                         continue
                     for run in range(args.runs):
                         result = await run_trial(
-                            generation, sc, probe, run, ledger, checkpoint=args.checkpoint
+                            generation,
+                            sc,
+                            probe,
+                            run,
+                            ledger,
+                            checkpoint=args.checkpoint,
+                            session_id=session_id_for_model(args.checkpoint, model),
                         )
                         if result:
                             print(

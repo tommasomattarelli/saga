@@ -13,7 +13,7 @@ async def test_explicit_resume_runs_a_trial_that_previously_stopped_before_any_r
     monkeypatch,
     tmp_path,
 ):
-    plan = manifest(models=["m:free"], case_names=["npc_speaks"], runs=1)
+    plan = manifest(models=["m:free"], case_names=["npc_speaks"], runs=1, session_affinity=False)
     key = trial_key(plan, "npc_speaks", "m:free", 0)
     output = tmp_path / "results.jsonl"
     dialogue_suite.append_evidence(
