@@ -176,13 +176,6 @@ It exists because those move through tool executors, not through `apply_typed_up
      off recorded tool calls. Every direct write here is a place the fixture can encode a
      state the engine would not produce. -->
 
-<!-- TODO(#55): `recalled_memories` is frozen per scenario (strategy "a"). In production
-     recall is a pgvector similarity against the *current player action*, so the real set
-     differs per probe. Strategy "b" — store the fact corpus and run real retrieval per
-     probe — is impossible while embeddings are hardcoded to OpenAI and silently return
-     None. The corpus IS stored in built/*.yaml under `fact_corpus` so the switch needs no
-     format change. Until #55 is closed, do not read these recalls as faithful. -->
-
 ## Live runs: ledger, resume, budget
 
 Every provider call is a request, and the free tier does not forgive an overshoot. Pass
@@ -475,6 +468,28 @@ uv run python eval/dialogue_suite.py --dry-run \
 The command above is offline; the approved live invocation uses a fresh ledger and
 results directory with `--budget 40`, no baseline rerun, no added models and no
 automatic progression to the 420-request final regression suite.
+
+## Current session affinity (2026-11-06)
+
+The per-trial behavior above describes the frozen ADR 0017 cohort, not today's
+runner default. `dialogue_suite.py` now enables **one ID per suite manifest and
+model**, shared across cases, repetitions, DM calls and actors. The ID is opaque
+and repeatable on resume; another model or manifest gets another ID.
+`--session-affinity` remains accepted, while `--no-session-affinity` explicitly
+selects implicit routing. The manifest records `per-model` versus `implicit`;
+historical manifests/results are not rewritten or resumed under a new regime.
+
+`model_smoke.py` likewise shares an ID per checkpoint/model across scenarios,
+probes, actors and repetitions. Its ledger records the header and fingerprints
+both request body and header, keeping old header-free samples distinguishable.
+Resume rejects a checkpoint with different recorded session headers before any
+catalog/profile access. Use a fresh checkpoint/evidence directory for a new comparison.
+
+Shared IDs favor routing continuity; they do not isolate caches or guarantee a
+hit. Exact repeated prefixes may be reused across trials, but later pipeline
+requests still vary with generated outputs. Cache discounts apply to eligible
+input, not output/reasoning. Budgets, paid-model approval, no-retry behavior and
+offline dry-runs are unchanged. This does not authorize additional live calls.
 
 ## Deliberately out of scope
 

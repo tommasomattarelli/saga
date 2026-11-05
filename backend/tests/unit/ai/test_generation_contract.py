@@ -33,3 +33,19 @@ def test_leftover_legacy_dotenv_variables_are_ignored(tmp_path: Path) -> None:
     )
     config = Settings(_env_file=env_file)
     assert not hasattr(config, "saga_global_provider")
+
+
+@pytest.mark.parametrize("invalid", ["false", 1, None])
+def test_openrouter_affinity_config_rejects_non_boolean_values(
+    monkeypatch: pytest.MonkeyPatch,
+    invalid: object,
+) -> None:
+    from copy import deepcopy
+
+    from app.ai import router
+
+    config = deepcopy(router._load_config())
+    config["generation"]["openrouter_session_affinity"] = invalid
+    monkeypatch.setattr(router, "_load_config", lambda: config)
+    with pytest.raises(ValueError, match="openrouter_session_affinity must be a boolean"):
+        router.validate_generation_config()

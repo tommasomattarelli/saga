@@ -10,6 +10,7 @@ from dataclasses import replace
 import httpx
 import openai
 from actor_probe import actor_request, run_actor
+from dialogue_affinity import provider_with_session
 from ledger import Attempt, RequestLedger
 from probes import PROBES_BY_NAME, grade
 from provider_trace import ProviderTrace
@@ -107,6 +108,7 @@ async def run_trial(
     ledger: RequestLedger,
     *,
     checkpoint: str,
+    session_id: str | None = None,
 ) -> Attempt | None:
     provider, config = generation
     actor = probe == "actor_language"
@@ -116,7 +118,9 @@ async def run_trial(
         return None
     request = actor_request(sc, config) if actor else dm_request(sc, probe, config)
     commit, dirty = source_identity()
-    digest = hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest()
+    headers = {"x-session-id": session_id} if session_id is not None else {}
+    fingerprint = {"body": request, "headers": headers} if headers else request
+    digest = hashlib.sha256(json.dumps(fingerprint, sort_keys=True).encode()).hexdigest()
     key = f"{checkpoint}|{config.model}|{sc.name}|{probe}|{run}|{commit}|{digest}"
     if ledger.completed(key):
         return None
@@ -130,9 +134,11 @@ async def run_trial(
         commit=commit,
         dirty=dirty,
         request=request,
+        request_headers=headers,
+        request_hash=digest,
     )
     ledger.reserve(attempt)
-    trace = ProviderTrace(provider)
+    trace = ProviderTrace(provider_with_session(provider, session_id))
     started = time.monotonic()
     try:
         if actor:

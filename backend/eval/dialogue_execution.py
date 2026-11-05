@@ -4,11 +4,11 @@ import uuid
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
-from dialogue_affinity import session_id_for_trial
+from dialogue_affinity import session_id_for_model
 from dialogue_cases import CASES, scenario_for
 from dialogue_evidence import append_evidence
 from dialogue_limits import FreeRequestLimiter, TrialBudget
-from dialogue_plan import trial_key
+from dialogue_plan import digest, trial_key
 from dialogue_requests import SuiteProvider
 from dialogue_runtime import evaluation_dispatch
 from ledger import RequestLedger
@@ -96,8 +96,8 @@ async def run_models(
                         limiter=limiter,
                         stop=stop,
                         session_id=(
-                            session_id_for_trial(key)
-                            if plan.get("execution", {}).get("session_affinity") == "per-trial"
+                            session_id_for_model(digest(plan), model)
+                            if plan.get("execution", {}).get("session_affinity") == "per-model"
                             else None
                         ),
                     )

@@ -19,6 +19,7 @@ generation:
     provider: google
     model: gemini-3.5-flash
   max_output_tokens: 60000
+  openrouter_session_affinity: true # stable campaign ID for generation routing; cache hits remain best-effort
 
 # ---------------------------------------------------------------------------
 # Providers — instance policy (ADR 0018 A3/A4/A5/A7)

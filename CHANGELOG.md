@@ -12,3 +12,13 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 `[Unreleased]` is reset; this root file keeps only `[Unreleased]`.
 
 ## [Unreleased]
+
+### Highlights
+
+- [Memory & AI] Share OpenRouter routing affinity across each campaign's DM, NPC and background generation calls, preserving current prompts and state updates without guaranteeing cache hits.
+
+### Internal
+
+- Share evaluation affinity per suite/checkpoint and model across cases, repetitions and resume, retaining explicit header evidence and rejecting incompatible historical manifests.
+- Observe cache reuse in 24 bounded DeepSeek/GLM probe requests, retaining provider-specific limitations without attributing savings solely to shared affinity.
+- Add a bounded OpenRouter cache probe comparing trial and shared affinity on frozen DM requests, with simulated NPC replay and per-request routing evidence.
