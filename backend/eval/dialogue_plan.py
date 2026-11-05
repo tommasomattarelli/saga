@@ -66,7 +66,7 @@ def manifest(
     runs: int = 3,
     suite: str = "adr-0017-final-v2",
     paid_allowlist: set[str] | None = None,
-    session_affinity: bool = False,
+    session_affinity: bool = True,
 ) -> dict:
     selected_models = list(MODELS if models is None else models)
     selected_names = [case.name for case in CASES] if case_names is None else case_names
@@ -97,7 +97,7 @@ def manifest(
             "workers": "one-per-selected-model",
             "free_requests_per_minute": FREE_REQUESTS_PER_MINUTE,
             "free_model_suffix": ":free",
-            "session_affinity": "per-trial" if session_affinity else "implicit",
+            "session_affinity": "per-model" if session_affinity else "implicit",
         },
         "paid_allowlist": sorted(allowed_paid),
         "runs_per_model_case": runs,

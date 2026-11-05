@@ -15,4 +15,5 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Share evaluation affinity per suite/checkpoint and model across cases, repetitions and resume, retaining explicit header evidence and rejecting incompatible historical manifests.
 - Add a bounded OpenRouter cache probe comparing trial and shared affinity on frozen DM requests, with simulated NPC replay and per-request routing evidence.
