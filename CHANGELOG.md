@@ -20,6 +20,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Patch ESLint's minimatch subtree with a scoped override, verified by bounded attack and matching-compatibility regressions.
 - Verify world filesystem guards and document 14 CodeQL path-injection false positives with per-alert evidence.
 - Share evaluation affinity per suite/checkpoint and model across cases, repetitions and resume, retaining explicit header evidence and rejecting incompatible historical manifests.
 - Observe cache reuse in 24 bounded DeepSeek/GLM probe requests, retaining provider-specific limitations without attributing savings solely to shared affinity.
