@@ -1,125 +1,112 @@
 # Dependency security
 
-Reviewed **2026-10-16**, against the reproducible-runtime baseline at `a77ac06`
-(PR #90). Code checkpoint: `fb76468`, on `chore/dependency-security`.
-These are point-in-time results, not a guarantee against future advisories.
+Reviewed **2026-11-06**, against `main` at `dae95e9`, on
+`fix/security-alert-triage`. Results are point-in-time observations, not a
+guarantee against future advisories. The [October review](archive/DEPENDENCY_SECURITY_2026_10_16.md)
+is retained separately.
+
+## Seven Dependabot alerts
+
+| Alert | Package | Locked before → after | Exposure in SAGA |
+|---|---|---|---|
+| [197](https://github.com/tommasomattarelli/saga/security/dependabot/197) | certifi | 2026.2.25 → 2026.10.23 | Default HTTPX/Requests TLS trust for outbound AI calls, including local-only installations |
+| [198](https://github.com/tommasomattarelli/saga/security/dependabot/198) | dnspython | 2.8.0 → 2.9.2 | Transitive email validator; Pydantic disables DNS deliverability checks, and no other application use was found |
+| [200](https://github.com/tommasomattarelli/saga/security/dependabot/200) | langgraph | 1.2.3 → 1.2.14 | Vulnerable remote streaming is not used by SAGA's local StateGraph |
+| [196](https://github.com/tommasomattarelli/saga/security/dependabot/196) | langgraph-checkpoint-postgres | 3.1.1 → 3.1.3 | Affected namespace stores are not instantiated; this is not a general PostgreSQL vulnerability |
+| [202](https://github.com/tommasomattarelli/saga/security/dependabot/202) | follow-redirects | 1.16.1 → 1.16.2 | Node transport, not browser Axios; the advisory also excludes the exact Axios 1.20.0 combination |
+| [201](https://github.com/tommasomattarelli/saga/security/dependabot/201) | vite | 6.4.4 → 6.4.5 | Docker publishes the dev server; denied files inside its allowed roots could be disclosed |
+| [199](https://github.com/tommasomattarelli/saga/security/dependabot/199) | postcss-selector-parser | 6.1.4 → 6.1.5 | Build-time parsing of trusted frontend sources, not player-provided CSS |
+
+The LangGraph update also locks `langgraph-sdk` 0.4.6,
+`langgraph-checkpoint` 4.3.0 and the required `langchain-core` 1.4.7.
+Direct LangGraph/Postgres and Vite minimum versions were raised to the patched
+releases. Other dependencies were not broadly refreshed.
+
+The independent Python audit additionally found four advisories in `pyasn1`
+0.6.4, fixed together by the compatible 0.6.5 patch:
+CVE-2026-119194, CVE-2026-119195, CVE-2026-119196 and CVE-2026-119197.
 
 ## Audit outcome
 
-| Audit | Before | After |
-|---|---:|---:|
-| Python packages affected, including development dependencies | 21 | 0 |
-| npm affected packages, full installation | 48 | 7 |
-| npm critical affected packages | 3 | 0 |
-| npm affected packages with `--omit=dev` | 27 | 0 |
+| Check | Result |
+|---|---|
+| Python audit, including development dependencies | No known vulnerabilities |
+| npm audit, production dependencies only | No known vulnerabilities |
+| npm audit, full lockfile | Seven moderate package entries from one remaining minimatch advisory |
+| Original seven Dependabot findings | Patched versions are locked; GitHub resolves default-branch alerts after merge |
 
-The seven remaining npm entries represent **two advisories**, propagated through
-Tailwind 3's dependency tree, not seven independent vulnerabilities. Tools count
-differently; these figures must not be added to the repository's Dependabot alert
-count. GitHub's default-branch alerts update after the integration PR is merged.
+No audit exclusions, incompatible overrides or weakened dependency-review gates
+were introduced. Dependency presence and application reachability are reported
+separately; unreachable vulnerable packages were still patched where compatible.
 
-No audit suppressions, dependency-review allowlists or incompatible dependency
-overrides were added. The existing dependency-review high-severity gate remains.
+### Remaining minimatch advisory
 
-## Remaining development-tool risks
+[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)
+affects minimatch >=7,<11.0.1. TypeScript ESLint's parser installs a 10.x copy;
+npm also reports its six parent packages, yielding seven entries, not seven
+independent vulnerabilities. Even the reviewed upstream typescript-eslint 8.72.1
+still requires minimatch `^10.2.2`; the patched major is outside that range.
 
-### Braces: stack exhaustion
+The advisory requires attacker-controlled glob patterns and
+`optimizationLevel >= 2`. The installed parser's
+`useProgramFromProjectService.js` calls minimatch with `{ dot: true }`, leaving
+the default optimization level at 1; SAGA does not enable its project service.
+Lint configuration is repository-controlled, not supplied by gameplay or world
+imports. No reachable runtime attack was identified through this chain.
 
-[GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
-affects Braces through 3.0.3; no patched release is available at this review.
-Deeply nested brace patterns can exhaust the parser's stack and terminate the
-Node.js process.
+The full audit intentionally remains nonzero. Reassess when upstream supports a
+patched version or if the parser configuration/input trust changes; do not force
+a cross-major override or downgrade the linter merely to clear the report.
 
-The remaining paths are Tailwind 3 → Chokidar → Braces and Tailwind 3 →
-Fast-glob → Micromatch → Braces. npm consequently also flags the parent packages.
+### Earlier Tailwind findings
 
-### PostCSS selector parser: CPU exhaustion
+[Braces GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+was withdrawn on 2026-10-23 as not practically exploitable.
+PostCSS selector parser received a 6.1.5 backport accepted by both Tailwind 3
+and PostCSS Nested 6. Tailwind 4 is therefore not required to remediate these
+findings; no React, Tailwind or Google SDK migration was performed.
 
-[GHSA-rj75-hqrm-r3gf](https://github.com/advisories/GHSA-rj75-hqrm-r3gf)
-affects versions below 7.1.6. Crafted flat CSS selectors can cause quadratic
-parsing time.
+## Regression evidence
 
-The remaining path is Tailwind 3 → PostCSS Nested 6 → PostCSS Selector Parser 6.
-The fixed parser is outside the supported dependency range of this chain;
-forcing a cross-major override was not accepted as a substitute for a migration.
+- The TLS regression failed before the update because the emSign ECC G3 root was
+  trusted and passes with the new CA bundle.
+- The loopback-only Vite test reproduced `.env?raw` disclosure before the patch
+  and now checks the deny rule with plain, raw and import queries.
+- A two-server loopback test reproduced cross-realm custom-header disclosure
+  before the follow-redirects patch and now verifies credential removal while
+  preserving unrelated headers.
+- `npm run test:security` typechecks and runs these real HTTP tests separately
+  from browser-component tests; the CI frontend job runs it as well.
+- Full frontend coverage remains above the original thresholds; no thresholds
+  or exclusions were weakened.
+- Full verification passed 1,218 backend unit tests (three Windows-only skips),
+  301 PostgreSQL integration/playtest tests, 273 frontend tests and the two
+  dependency HTTP regressions, plus Ruff, mypy, Vulture, ESLint, Knip and build.
+- Frontend coverage: statements 92.22%, branches 86.23%, functions 91.36%,
+  lines 93.28%; existing deprecation, generated-coverage lint and bundle warnings
+  were not hidden or used to relax a gate.
 
-### Exposure, mitigation and follow-up
-
-These tools parse frontend source and build configuration. The configured
-Tailwind inputs are `./index.html` and `./src/**/*.{ts,tsx}`; player actions,
-world imports and authored NPC data are not supplied as CSS or glob patterns.
-The accepted risk therefore concerns **untrusted source/build input**, rather
-than a demonstrated attack through SAGA's gameplay API.
-
-The frontend Docker image is still a development image and includes these tools.
-The risk is **not** dismissed merely because npm labels the packages as
-development dependencies.
-
-Keep build inputs and development services restricted to trusted users, and
-reassess this decision before introducing user-controlled CSS/glob compilation.
-The owner accepted these two residual risks for this security pass. A dedicated
-Tailwind 4 migration, followed by fresh audits and UI/build validation, remains
-in `TODO.md`; it must verify removal of the vulnerable chains rather than assume
-that changing the top-level major alone is sufficient.
-
-## Compatibility boundaries
-
-- Python 3.12.14 and Node 24.22.0 remain pinned.
-- React 18, React-i18next 15, Tailwind 3 and Vite 6 remain on their existing major
-  lines; Vitest and its coverage provider were migrated together to 4.1.
-- The legacy icon wrapper was replaced with the same Game Icons collection
-  through React Icons, removing its React 16/Webpack 4 tree.
-- PyJWT replaces Python-jose; the retired ECDSA and RSA distributions and Jose
-  stubs are absent from the lockfile. Pre-upgrade HS256 access/refresh tokens,
-  new-token signatures, registration, login, expiry and token-type rejection
-  are covered by real-PostgreSQL integration tests.
-- The cryptography upgrade preserves the existing AES-256-GCM/HKDF key format;
-  a ciphertext captured before the upgrade remains decryptable.
-- Direct Anthropic integration and its SDK were removed with owner approval.
-  Legacy `.env` keys are accepted but unused, encrypted historical keys are
-  retained, and new Anthropic key updates are rejected before any other key is
-  written. There is no automatic provider or credential fallback.
-- OpenAI, Gemini and OpenRouter remain supported; OpenAI and Gemini SDK versions
-  were not upgraded. Claude models require explicit OpenRouter configuration
-  with an OpenRouter key. No paid AI requests were made.
-
-## Verification
-
-- [Code-checkpoint CI](https://github.com/tommasomattarelli/saga/actions/runs/38937395012):
-  all checks passed, including Ruff, mypy, Vulture, TypeScript, Knip and the
-  frontend coverage gate.
-- Backend: 871 unit tests passed, three skipped; 67 integration/playtest tests
-  passed with real PostgreSQL.
-- Frontend: 220 tests passed across 41 files; lint, formatting and production
-  build passed.
-- Coverage: statements 91.43%, branches 85.06%, functions 90.79%, lines 92.30%.
-  Original thresholds (90/82/78/90) and source exclusions were not weakened.
-- Before the coverage work, Vitest 2 already failed the configured thresholds.
-  Vitest 4 uses the newer AST-based V8 remapping; the added behavioral tests,
-  not a threshold adjustment, made the gate pass.
-- Both Docker images built. The [native installer smoke](https://github.com/tommasomattarelli/saga/actions/runs/38937392346)
-  passed on Windows, Linux and macOS.
-
-The suite still reports the pre-existing unawaited-AsyncMock warning and the
-Starlette TestClient HTTPX deprecation introduced by the framework update;
-neither was suppressed. The frontend bundle-size warning also remains.
+The native installer serves a compiled SPA, not Vite. Docker remains a
+development configuration using `--host` and published ports; network bindings
+were not changed. Updating a checkout's lockfile does not patch already-running
+installations: synchronize dependencies and restart the process, or rebuild and
+recreate container environments that use the old packages. No paid AI calls or
+credential rotation were performed.
 
 ## Recheck
-
-Select the pinned Node before frontend commands. From the repository root:
 
 ```bash
 cd backend
 uv export --locked --format requirements-txt --no-hashes --no-emit-project \
-  > /tmp/saga-requirements.txt
+  --output-file /tmp/opencode/saga-security-requirements.txt
 uvx --python 3.12.14 pip-audit --disable-pip --no-deps \
-  -r /tmp/saga-requirements.txt
+  -r /tmp/opencode/saga-security-requirements.txt
 cd ../frontend
-npm audit --package-lock-only
-npm audit --omit=dev --package-lock-only
-npm run test:coverage -- --run
+bash ../scripts/with_node.sh npm audit --package-lock-only
+bash ../scripts/with_node.sh npm audit --omit=dev --package-lock-only
+bash ../scripts/with_node.sh npm run test:security
 ```
 
-The full npm audit exits nonzero for the documented residuals. Python and
-runtime-only npm audits passed cleanly at the review date. Re-run all audits
-before treating this snapshot as current.
+Use an existing writable temporary directory outside OpenCode; `/tmp/opencode`
+is the session's scratch directory. The full npm audit currently exits nonzero
+for the single minimatch advisory documented above.

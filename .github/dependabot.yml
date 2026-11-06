@@ -5,8 +5,8 @@
 #    past the point of being triaged one at a time, so they were closed; these
 #    come back as a single dedicated dependency pass, not a background trickle.
 #    Restore by removing the limit and putting `interval` back to "weekly".
-#    NB: the React 19 / i18next and google-genai majors are migrations, not
-#    bumps (see TODO.md "dependency updates") — they need their own branch.
+#    NB: React 19 / i18next majors need a dedicated migration branch
+#    (see TODO.md "migrazioni frontend separate"), not a routine bump.
 #  - Security updates: enabled at the repo level (Dependabot alerts + security
 #    updates), unaffected by the limit below. They open as soon as a CVE
 #    affects a dependency and arrive INDIVIDUALLY (not grouped), so a critical

@@ -16,7 +16,7 @@ and decision logs in the same file.
 | [`CONFIG.md`](CONFIG.md) | Reference | Look up a config knob in `saga.config.yaml` |
 | [`MIGRATIONS.md`](MIGRATIONS.md) | Operations | Bootstrap, upgrade or validate adoption of a PostgreSQL database |
 | [`DEBUGGING.md`](DEBUGGING.md) | Guide | Drive a turn through the debugger — setup, launch configs, breakpoints, scenarios, triage |
-| [`DEPENDENCY_SECURITY.md`](DEPENDENCY_SECURITY.md) | Security reference | Review dependency audits, accepted development-tool risks and verification evidence |
+| [`DEPENDENCY_SECURITY.md`](DEPENDENCY_SECURITY.md) | Security reference | Review dependency audits, remaining tooling findings and verification evidence |
 | [`adr/`](adr/) | Decision records | Understand a specific architectural decision and its rationale |
 | [`archive/`](archive/) | Historical | Read past sprint notes, verification reports, and research (frozen) |
 
