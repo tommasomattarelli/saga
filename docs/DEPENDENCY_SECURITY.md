@@ -32,31 +32,16 @@ CVE-2026-119194, CVE-2026-119195, CVE-2026-119196 and CVE-2026-119197.
 |---|---|
 | Python audit, including development dependencies | No known vulnerabilities |
 | npm audit, production dependencies only | No known vulnerabilities |
-| npm audit, full lockfile | Seven moderate package entries from one remaining minimatch advisory |
+| npm audit, full lockfile | No known vulnerabilities |
 | Original seven Dependabot findings | Patched versions are locked; GitHub resolves default-branch alerts after merge |
 
-No audit exclusions, incompatible overrides or weakened dependency-review gates
-were introduced. Dependency presence and application reachability are reported
-separately; unreachable vulnerable packages were still patched where compatible.
+No audit exclusions or weakened gates; the only override is documented below.
 
-### Remaining minimatch advisory
+### Scoped minimatch fix
 
-[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)
-affects minimatch >=7,<11.0.1. TypeScript ESLint's parser installs a 10.x copy;
-npm also reports its six parent packages, yielding seven entries, not seven
-independent vulnerabilities. Even the reviewed upstream typescript-eslint 8.72.1
-still requires minimatch `^10.2.2`; the patched major is outside that range.
-
-The advisory requires attacker-controlled glob patterns and
-`optimizationLevel >= 2`. The installed parser's
-`useProgramFromProjectService.js` calls minimatch with `{ dot: true }`, leaving
-the default optimization level at 1; SAGA does not enable its project service.
-Lint configuration is repository-controlled, not supplied by gameplay or world
-imports. No reachable runtime attack was identified through this chain.
-
-The full audit intentionally remains nonzero. Reassess when upstream supports a
-patched version or if the parser configuration/input trust changes; do not force
-a cross-major override or downgrade the linter merely to clear the report.
+- Only `@typescript-eslint/typescript-estree@8.57.1` overrides `minimatch` to 11.0.5 ([advisory](https://github.com/advisories/GHSA-g3hv-75wg-m249)); upstream still requires 10.x.
+- Other copies are unchanged; tests verify bounded rejection, 13 matching cases and typed ESLint allow/deny behavior.
+- Remove the override once upstream supports a patched version; rerun these tests on parser updates.
 
 ### Earlier Tailwind findings
 
@@ -75,14 +60,14 @@ findings; no React, Tailwind or Google SDK migration was performed.
 - A two-server loopback test reproduced cross-realm custom-header disclosure
   before the follow-redirects patch and now verifies credential removal while
   preserving unrelated headers.
-- `npm run test:security` typechecks and runs these real HTTP tests separately
+- `npm run test:security` typechecks and runs security regressions separately
   from browser-component tests; the CI frontend job runs it as well.
 - Full frontend coverage remains above the original thresholds; no thresholds
   or exclusions were weakened.
 - Full verification passed 1,218 backend unit tests (three Windows-only skips),
-  301 PostgreSQL integration/playtest tests, 273 frontend tests and the two
-  dependency HTTP regressions, plus Ruff, mypy, Vulture, ESLint, Knip and build.
-- Frontend coverage: statements 92.22%, branches 86.23%, functions 91.36%,
+  301 PostgreSQL integration/playtest tests, 273 frontend tests and five
+  security regressions, plus Ruff, mypy, Vulture, ESLint, Knip and build.
+- Frontend coverage: statements 92.28%, branches 86.23%, functions 91.50%,
   lines 93.28%; existing deprecation, generated-coverage lint and bundle warnings
   were not hidden or used to relax a gate.
 
@@ -110,5 +95,4 @@ bash ../scripts/with_node.sh npm run test:security
 ```
 
 Use an existing writable temporary directory outside OpenCode; `/tmp/opencode`
-is the session's scratch directory. The full npm audit currently exits nonzero
-for the single minimatch advisory documented above.
+is the session's scratch directory.
