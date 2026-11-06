@@ -93,6 +93,8 @@ installations: synchronize dependencies and restart the process, or rebuild and
 recreate container environments that use the old packages. No paid AI calls or
 credential rotation were performed.
 
+The separate [CodeQL triage](CODE_SCANNING_TRIAGE.md) covers the 14 path alerts.
+
 ## Recheck
 
 ```bash
