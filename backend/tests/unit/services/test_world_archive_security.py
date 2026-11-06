@@ -76,6 +76,21 @@ def test_import_rejects_symlink_members() -> None:
     assert not (worlds_dir() / "imported-world").exists()
 
 
+@pytest.mark.parametrize("root", ["My World", "v1.0"])
+def test_import_rejects_portable_roots_that_are_not_world_slugs(root: str) -> None:
+    exported = world_service.export_world("the-awakening")
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(exported)) as source, zipfile.ZipFile(buffer, "w") as target:
+        for name in source.namelist():
+            target.writestr(name.replace("the-awakening/", f"{root}/", 1), source.read(name))
+
+    with pytest.raises(HTTPException) as exc:
+        world_service.import_world(buffer.getvalue())
+
+    assert exc.value.status_code == 422
+    assert not (worlds_dir() / root).exists()
+
+
 def test_import_preserves_valid_attachments() -> None:
     data = archive_with("imported-world/Map Assets/Città_01.txt")
     world_service.import_world(data)

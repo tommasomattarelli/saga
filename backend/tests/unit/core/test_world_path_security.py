@@ -146,7 +146,20 @@ def test_world_rejects_native_windows_junction(
     } == original
 
 
-@pytest.mark.parametrize("linked", ["world.yaml", "taxonomy.yaml", "nodes", "npcs", "notes.txt"])
+@pytest.mark.parametrize(
+    "linked",
+    [
+        "world.yaml",
+        "taxonomy.yaml",
+        "nodes",
+        "edges",
+        "encounters",
+        "factions",
+        "npcs",
+        "scenario.yaml",
+        "notes.txt",
+    ],
+)
 def test_loader_rejects_symlinked_world_contents(tmp_path: Path, linked: str) -> None:
     target = tmp_path / "the-awakening"
     shutil.copytree(EXAMPLE_WORLD, target)
