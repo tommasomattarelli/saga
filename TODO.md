@@ -53,8 +53,8 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 [ ] debug con docker
 [ ] nginx: serve davvero?
 [ ] icona custom `saga.ico` per la shortcut desktop (polish; la shortcut funziona anche senza)
-[ ] **migrazioni frontend separate**: React 19 + `react-i18next` 17 (regressioni gia' viste nelle PR #17/18/19); Tailwind 4 per eliminare le catene CSS vulnerabili residue, con audit e verifica UI/build dedicati ([stato sicurezza](docs/DEPENDENCY_SECURITY.md)).
-[ ] **migrazione `google-genai` 1→2**: la CI mocka le chiamate LLM, quindi richiede uno smoke contro l'API reale prima del merge; non e' inclusa nella bonifica di sicurezza.
+[ ] **migrazioni frontend separate**: React 19 + `react-i18next` 17 (regressioni gia' viste nelle PR #17/18/19), con verifica UI/build dedicata; non sono richieste dalla bonifica di sicurezza ([stato sicurezza](docs/DEPENDENCY_SECURITY.md)).
+[ ] **minimatch / ESLint**: seguire una correzione compatibile di GHSA-g3hv-75wg-m249 nella catena TypeScript ESLint; l'audit completo segnala sette pacchetti per un advisory, senza percorso attaccabile individuato nella configurazione attuale ([dettagli](docs/DEPENDENCY_SECURITY.md)).
 [ ] CD: `release.yml` tag-triggered — DA FARE INSIEME a Docker→GHCR, non prima. `release.sh` pubblica gia' la Release e allega gli installer; un'Action solo per quello sarebbe over-engineering — si ripaga quando la CI deve BUILDARE artefatti che non vuoi sul laptop. PREREQUISITO: i Dockerfile attuali sono DEV-image (frontend = vite dev server; backend single-stage + bind-mount + `--reload`) → NON pubblicabili. Servono prima Dockerfile di PRODUZIONE e decidere se **una sola** immagine (FastAPI serve la SPA, ADR 0000) o due. Modello scelto: tag-triggered, cosi' la CI non scrive mai su `main`. Quando si fa → ADR "CD artefatti".
 
 ## world-building / template

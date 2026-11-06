@@ -1,8 +1,25 @@
+import ssl
+
+import certifi
 import pytest
 from starlette.requests import Request
 
 from app.config import settings
 from app.security.encryption import decrypt_api_key
+
+
+def test_tls_bundle_does_not_trust_compromised_emsign_chain() -> None:
+    certificates = ssl.create_default_context(cafile=certifi.where()).get_ca_certs()
+    common_names = {
+        value
+        for certificate in certificates
+        for rdn in certificate["subject"]
+        for name, value in rdn
+        if name == "commonName"
+    }
+
+    assert certificates
+    assert "emSign ECC Root CA - G3" not in common_names
 
 
 @pytest.mark.parametrize(

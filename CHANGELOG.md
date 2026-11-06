@@ -15,6 +15,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Highlights
 
+- [Infra] Patch vulnerable Python and frontend dependencies, including TLS trust and Vite file protection, while preserving existing provider, UI and network configuration.
 - [Memory & AI] Share OpenRouter routing affinity across each campaign's DM, NPC and background generation calls, preserving current prompts and state updates without guaranteeing cache hits.
 
 ### Internal
