@@ -1,19 +1,14 @@
 import argparse
 import asyncio
 import json
-import sys
 from pathlib import Path
 from uuid import UUID
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from live_calls import resolve_eval_generation, validate_eval_models  # noqa: E402
-
-from app.ai.providers.local import LocalProvider  # noqa: E402
-from cache.plan import MODELS, Plan, build_plan, write_plan  # noqa: E402
-from cache.report import write_report  # noqa: E402
-from cache.runner import run_block  # noqa: E402
+from app.ai.providers.local import LocalProvider
+from eval.cache.plan import MODELS, Plan, build_plan, write_plan
+from eval.cache.report import write_report
+from eval.cache.runner import run_block
+from eval.support.live_calls import resolve_eval_generation, validate_eval_models
 
 
 async def main() -> None:

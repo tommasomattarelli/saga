@@ -34,7 +34,7 @@ fallback consent remain unchanged. Set this boolean to `false` to disable it.
 Affinity favors routing continuity, not guaranteed cache hits or fixed provider
 selection. Prompt content, state refresh, summaries and tool availability are not
 changed to improve cache reuse. Evaluation has its own suite/model affinity;
-see [`backend/eval/scenarios/README.md`](../backend/eval/scenarios/README.md#current-session-affinity-2026-11-06).
+see [`backend/eval/README.md`](../backend/eval/README.md#session-affinity).
 
 ## Model Routing
 

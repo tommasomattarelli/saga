@@ -2,7 +2,7 @@ import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
-from provider_trace import ProviderTrace
+from eval.support.provider_trace import ProviderTrace
 
 from app.ai.providers.base import AIProvider
 from app.ai.providers.usage import UsageMetadata, capture_usage, usage_scope
@@ -77,7 +77,7 @@ def test_inner_scope_preserves_outer_correlation() -> None:
 
 
 def test_usage_reports_group_missing_and_true_zero() -> None:
-    from usage_report import usage_csv, usage_markdown
+    from eval.support.usage_report import usage_csv, usage_markdown
 
     rows = [
         {
@@ -124,7 +124,7 @@ def test_usage_reports_group_missing_and_true_zero() -> None:
 
 
 def test_report_preserves_step_zero_and_does_not_add_different_currencies() -> None:
-    from usage_report import usage_markdown
+    from eval.support.usage_report import usage_markdown
 
     markdown = usage_markdown(
         [

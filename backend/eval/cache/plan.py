@@ -5,10 +5,10 @@ from pathlib import Path
 from typing import Literal
 from uuid import NAMESPACE_URL, uuid5
 
-from dialogue_plan import ROOT, source_hash
 from pydantic import BaseModel, ConfigDict, Field
 
-from cache.payloads import Payload, build_payloads
+from eval.cache.payloads import Payload, build_payloads
+from eval.dialogue.plan import ROOT, source_hash
 
 MODELS = ("deepseek/deepseek-v4.1-flash-1017", "z-ai/glm-5.3-flash")
 type Phase = Literal["identical", "replay"]

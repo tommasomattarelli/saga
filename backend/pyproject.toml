@@ -71,7 +71,7 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 # eval/ holds operator tools, never collected as tests (they cost real API
 # calls); this only lets their pure logic be imported by a unit test.
-pythonpath = ["eval"]
+pythonpath = ["."]
 filterwarnings = [
     "ignore::DeprecationWarning:google.genai.*"
 ]

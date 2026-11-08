@@ -2,8 +2,6 @@ from typing import cast
 from unittest.mock import patch
 from uuid import UUID
 
-from dialogue_cases import scenario_for
-from dialogue_pipeline import apply_update, initial_state
 from langchain_core.messages import AIMessage
 from openai.types.chat import ChatCompletionMessageParam, ChatCompletionToolParam
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
@@ -18,6 +16,8 @@ from app.core.dm.dm_nodes import step_system_prompt
 from app.core.dm.dm_tools_executor import tools_node
 from app.core.dm.game_state import GameState
 from app.core.dm.loop_policy import closing_step, step_tools
+from eval.dialogue.cases import scenario_for
+from eval.dialogue.pipeline import apply_update, initial_state
 
 
 class Payload(BaseModel):
