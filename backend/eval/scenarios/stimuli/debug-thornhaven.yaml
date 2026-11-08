@@ -1,4 +1,4 @@
-# Authored stimuli for the `debug-thornhaven` fixture (eval/capture_scenario.py).
+# Authored stimuli for the `debug-thornhaven` fixture (eval/scenario_tools/capture_scenario.py).
 # Same captured campaign as `debug-shrine`, moved to Thornhaven so a present, living
 # NPC exists: Aldric and Marta are the alive records in this world state.
 probes:

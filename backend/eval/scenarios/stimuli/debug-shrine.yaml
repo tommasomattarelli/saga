@@ -1,4 +1,4 @@
-# Authored stimuli for the captured `debug-shrine` fixture (eval/capture_scenario.py).
+# Authored stimuli for the captured `debug-shrine` fixture (eval/scenario_tools/capture_scenario.py).
 # Scene: Shrine of First Light, the state the 2026-10-25/26 debug session left behind.
 # Lyra is dead here, so probes that need a present NPC are deliberately absent:
 # a scenario that cannot ask a probe honestly reports it as n/a instead of inventing a scene.
