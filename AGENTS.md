@@ -54,7 +54,7 @@ Four principles that bias toward caution over speed. For trivial tasks, use judg
 1. **Think before coding.** State assumptions explicitly. If multiple interpretations exist, surface them — don't pick silently. If a simpler approach exists, say so and push back when warranted. When something is genuinely unclear, stop and ask (use the question tool) *before* writing, not after the mistake.
 2. **Simplicity first.** The minimum code that solves the problem, nothing speculative. No features beyond what was asked, no abstractions for single-use code, no unrequested configurability, no error handling for impossible scenarios. If 200 lines could be 50, rewrite. Test: "would a senior engineer call this overcomplicated?"
 3. **Surgical changes.** Every changed line must trace to the request. Don't "improve" adjacent code, comments, or formatting; match existing style even if you'd do it differently. Remove only the orphans *your* change created. If you spot pre-existing dead code, mention it — don't delete it unasked.
-4. **Verify before "done".** Turn the task into a checkable goal (a failing test made green, a passing suite) and loop until verified. Never claim done without running the check. Consult the `advisor` before substantial or architectural work and at checkpoints — but only when a second opinion genuinely changes the outcome, not as a reflex on trivial tasks.
+4. **Verify before "done".** Turn the task into a checkable goal (a failing test made green, a passing suite) and loop until verified. Never claim done without running the check. Consult a second reviewer through the active harness, when available, before substantial or architectural work and at checkpoints — but only when another opinion could materially change the outcome, not as a reflex on trivial tasks.
 
 ## Engineering Standards
 
@@ -84,12 +84,13 @@ Non-negotiable technical constraints. Referenced elsewhere by number — keep th
 
 Every working session follows the same ritual so state is never lost between them.
 
-Repository skills live in `.agents/skills/`; invoke them in Codex with `$skill-name`.
+Repository skills live in `.agents/skills/`. Invoke them through the active harness's skill mechanism; skill names and workflows are harness-independent.
 
-- **Start** (`$catchup`): reconstruct state — skim `CHANGELOG.md` `[Unreleased]` and the `## NOW` items in `TODO.md`. Load the latest ADRs or `docs/AGENTIC_ARCHITECTURE.md` on demand (`$catchup deep`). Confirm the tree is green before changing anything.
-- **During**: work on a **feature branch, never commit directly to `main`** — branch at the first commit of the session (`$catchup` already surfaces the current branch at Start; if it's `main`, branch before changing anything). Land work via PR, as the git history does. Then: one commit per logical change (standard 10); add a `CHANGELOG.md` `[Unreleased]` entry in the same commit; any architectural decision → a new ADR in `docs/adr/` in that same commit (docs-as-code).
-- **Implementing an ADR** (`$adr-implement`): a multi-sprint ADR gets a long-lived **integration branch `adr/NNNN-slug`** off `main`, one **sub-branch per sprint** merged into it with a local `--no-ff` `merge: sprint-N <title> (ADR NNNN)`, and **one PR at the end** — not a PR per sprint. Sprint commits carry `(ADR NNNN Sn)`. This is what 0005, 0008 and 0009 did; the skill has the full loop.
-- **End** (`$wrap-up`): ensure `[Unreleased]` reflects what shipped, **delete** the `TODO.md` items it covers, and leave the suite green. Run the **full check** of both stacks (Essential Commands) before declaring the session done — tests passing while `mypy` or `knip` fails is a red CI, not a green session.
+- **Start** (`catchup` skill): reconstruct state — skim `CHANGELOG.md` `[Unreleased]` and the `## NOW` items in `TODO.md`. Load the latest ADRs or `docs/AGENTIC_ARCHITECTURE.md` when a deeper pass is needed. Confirm the tree is green before changing anything.
+- **During**: work on a **feature branch, never commit directly to `main`** — use the catchup skill to surface the current branch at Start; if it's `main`, branch before changing anything. Land work via PR, as the git history does. Then: one commit per logical change (standard 10); add a `CHANGELOG.md` `[Unreleased]` entry in the same commit; any architectural decision → a new ADR in `docs/adr/` in that same commit (docs-as-code).
+- **Implementing an ADR** (`adr-implement` skill): a multi-sprint ADR gets a long-lived **integration branch `adr/NNNN-slug`** off `main`, one **sub-branch per sprint** merged into it with a local `--no-ff` `merge: sprint-N <title> (ADR NNNN)`, and **one PR at the end** — not a PR per sprint. Sprint commits carry `(ADR NNNN Sn)`. This is what 0005, 0008 and 0009 did; the skill has the full loop.
+- **Evaluation runs**: follow [`backend/eval/README.md`](backend/eval/README.md) for scenario preparation, offline checks and live-run safeguards. Before running any evaluation that can contact an external provider or incur charges/use quota, obtain explicit owner authorization for that run; do not infer approval from a previous run. Use the guide to distinguish offline dry-runs from live invocations.
+- **End** (`wrap-up` skill): ensure `[Unreleased]` reflects what shipped, **delete** the `TODO.md` items it covers, and leave the suite green. Run the **full check** of both stacks (Essential Commands) before declaring the session done — tests passing while `mypy` or `knip` fails is a red CI, not a green session.
 - **Repository layout**: the project lives in `~/Desktop/saga` as a normal checkout of `main` — never leave it bare; agent worktrees are additional checkouts beside it, and `~/Desktop/saga` stays the one VS Code opens.
 
 ## Commit Convention
@@ -143,7 +144,7 @@ Issues carry the **same title grammar as commits**, so issue → branch → comm
   - **Internal bullets**: same cap, usually shorter.
   - The cap is tightest in `[Unreleased]`, where entries accrue fastest and get re-read every session. A bullet that has grown past one line is a bullet nobody reads.
 - **ADRs are append-only**: never edit an accepted decision — write a new one that supersedes it.
-- **An ADR's claims about existing code are predictions until implemented.** It is written before the code exists, so "the engine already does X" is a guess that only the sprint can test. When implementation contradicts a `Proposed` ADR, it takes a **dated implementation note** next to the decision it corrects (`**Sn note (YYYY-MM-DD, implementation).** …`) saying what the code forced and why — never a silent edit, and never a new decision (that is a `$adr` question). ADRs that gate others are the ones that matter here: their contracts get read as fact.
+- **An ADR's claims about existing code are predictions until implemented.** It is written before the code exists, so "the engine already does X" is a guess that only the sprint can test. When implementation contradicts a `Proposed` ADR, it takes a **dated implementation note** next to the decision it corrects (`**Sn note (YYYY-MM-DD, implementation).** …`) saying what the code forced and why — never a silent edit, and never a new decision (that is an `adr` skill question). ADRs that gate others are the ones that matter here: their contracts get read as fact.
 - **ADR index**: [`docs/adr/README.md`](docs/adr/README.md) tabulates every ADR (status, last movement, one-line direction) — read it before opening an ADR or writing a new one. Hand-maintained: writing or evolving an ADR updates its row in the same commit.
 - **Archive, don't delete**: superseded docs move to `docs/archive/`, keeping naming and history.
 - Folder **scratch/** is for file that do not have to be committed, it is a standalone repo-submodule.
@@ -154,3 +155,4 @@ Issues carry the **same title grammar as commits**, so issue → branch → comm
 - **Models**: `backend/app/models/`
 - **REST API**: `backend/app/api/`
 - **Templates**: `templates/` (YAML)
+- **Evaluation tools and scenarios**: `backend/eval/` — workflows and safeguards are in [`backend/eval/README.md`](backend/eval/README.md).
