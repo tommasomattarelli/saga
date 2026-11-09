@@ -20,3 +20,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added immutable, strictly validated memory-production policy contracts without adopting campaign defaults or changing the public creation path (ADR 0020 S1).
 - Stabilized Ruff source discovery after evaluation-tool relocation without reformatting existing modules.
 - Added immutable campaign histories, frozen save references and ancestry queries through a forward-only, migration-tested schema without converting existing turns (ADR 0020 S1).
+- Added ordered memory batches, typed documents, rich fact provenance and coverage cursors with PostgreSQL integrity constraints (ADR 0020 S1).

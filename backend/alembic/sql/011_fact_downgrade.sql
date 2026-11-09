@@ -1,0 +1,18 @@
+ALTER TABLE memory_facts
+    DROP CONSTRAINT fk_memory_facts_batch,
+    DROP CONSTRAINT uq_memory_facts_batch_scope,
+    DROP CONSTRAINT uq_memory_facts_batch_ordinal,
+    DROP CONSTRAINT ck_memory_facts_production_contract,
+    DROP CONSTRAINT ck_memory_facts_category,
+    DROP CONSTRAINT ck_memory_facts_assertion,
+    DROP COLUMN batch_id,
+    DROP COLUMN policy_id,
+    DROP COLUMN ordinal,
+    DROP COLUMN category,
+    DROP COLUMN assertion_type,
+    DROP COLUMN fact_metadata,
+    DROP COLUMN generation_id,
+    DROP COLUMN schema_version,
+    ALTER COLUMN turn_number SET NOT NULL,
+    ALTER COLUMN entity_name SET NOT NULL,
+    ALTER COLUMN entity_type SET NOT NULL;

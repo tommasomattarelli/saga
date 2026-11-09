@@ -52,6 +52,28 @@ class Save(Base, UUIDMixin, TimestampMixin):
             "(memory_policy_id IS NOT NULL AND continuation_id IS NOT NULL)",
             name="ck_saves_history_contract",
         ),
+        ForeignKeyConstraint(
+            ["global_checkpoint_id", "campaign_id", "memory_policy_id"],
+            [
+                "memory_global_checkpoints.id",
+                "memory_global_checkpoints.campaign_id",
+                "memory_global_checkpoints.policy_id",
+            ],
+            name="fk_saves_checkpoint",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        ForeignKeyConstraint(
+            ["last_compacted_batch_id", "campaign_id", "memory_policy_id"],
+            ["memory_batches.id", "memory_batches.campaign_id", "memory_batches.policy_id"],
+            name="fk_saves_batch",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        CheckConstraint(
+            "(global_checkpoint_id IS NULL AND last_compacted_batch_id IS NULL) OR memory_policy_id IS NOT NULL",
+            name="ck_saves_memory_policy",
+        ),
     )
 
     campaign_id: Mapped[uuid.UUID] = mapped_column(
@@ -67,6 +89,10 @@ class Save(Base, UUIDMixin, TimestampMixin):
     continuation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     head_turn_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     memory_policy_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
+    global_checkpoint_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
+    last_compacted_batch_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), index=True
+    )
 
     # Relationships
     campaign: Mapped["Campaign"] = relationship(back_populates="saves")
