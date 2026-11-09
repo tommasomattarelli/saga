@@ -18,3 +18,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Reorganized backend evaluation tools and tests, indexed their guide, and clarified harness-independent skills and owner authorization for external evaluation calls.
 - Recorded ADR 0020 from the owner-interview plan for batched memory, durable production and save-aware histories, with explicit offline and live-evaluation gates.
 - Added immutable, strictly validated memory-production policy contracts without adopting campaign defaults or changing the public creation path (ADR 0020 S1).
+- Stabilized Ruff source discovery after evaluation-tool relocation without reformatting existing modules.
