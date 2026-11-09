@@ -4,8 +4,16 @@ import uuid
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -35,6 +43,38 @@ class Difficulty(StrEnum):
 
 class Campaign(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "campaigns"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["memory_policy_id", "id"],
+            ["memory_policies.id", "memory_policies.campaign_id"],
+            name="fk_campaigns_memory_policy",
+            use_alter=True,
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        ForeignKeyConstraint(
+            ["active_continuation_id", "id"],
+            ["history_continuations.id", "history_continuations.campaign_id"],
+            name="fk_campaigns_active_continuation",
+            use_alter=True,
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        ForeignKeyConstraint(
+            ["active_head_turn_id", "id"],
+            ["turns.id", "turns.campaign_id"],
+            name="fk_campaigns_active_head",
+            use_alter=True,
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        CheckConstraint("context_epoch >= 0", name="ck_campaigns_context_epoch"),
+        CheckConstraint(
+            "(memory_policy_id IS NULL AND active_continuation_id IS NULL AND active_head_turn_id IS NULL)"
+            " OR (memory_policy_id IS NOT NULL AND active_continuation_id IS NOT NULL)",
+            name="ck_campaigns_history_contract",
+        ),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), index=True
@@ -51,6 +91,15 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
     )
     difficulty: Mapped[Difficulty] = mapped_column(SAEnum(Difficulty))
     turn_number: Mapped[int] = mapped_column(Integer, default=0)
+    memory_policy_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
+    active_continuation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), index=True
+    )
+    active_head_turn_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
+    context_epoch: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    fork_on_next_action: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false"
+    )
 
     # Character data (denormalized for fast access)
     character_data: Mapped[dict] = mapped_column(JSONB, default=dict)
@@ -75,7 +124,10 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
     # Relationships
     user: Mapped[User] = relationship(back_populates="campaigns")
     turns: Mapped[list[Turn]] = relationship(
-        back_populates="campaign", lazy="selectin", cascade="all, delete-orphan"
+        back_populates="campaign",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        foreign_keys="Turn.campaign_id",
     )
     saves: Mapped[list[Save]] = relationship(
         back_populates="campaign", lazy="selectin", cascade="all, delete-orphan"

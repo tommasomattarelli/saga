@@ -3,6 +3,7 @@
 from app.models.base import Base
 from app.models.campaign import Campaign
 from app.models.embedding_index import EmbeddingIndex
+from app.models.history import HistoryContinuation, MemoryPolicy
 from app.models.memory_fact import MemoryFact
 from app.models.save import Save
 from app.models.source_embedding import SourceEmbedding
@@ -18,4 +19,6 @@ __all__ = [
     "MemoryFact",
     "EmbeddingIndex",
     "SourceEmbedding",
+    "HistoryContinuation",
+    "MemoryPolicy",
 ]

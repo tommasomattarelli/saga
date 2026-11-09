@@ -1,9 +1,11 @@
 import json
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
 
 from app.migrations import profiles
+from app.migrations.catalog import is_schema_snapshot
 from app.migrations.errors import MigrationConfigurationError
 
 
@@ -31,3 +33,12 @@ def test_load_profile_rejects_unhashable_catalog_values(
 
     with pytest.raises(MigrationConfigurationError, match="profile .* is invalid"):
         profiles.load_profile("current_post_pr1")
+
+
+def test_catalog_accepts_postgres_constraint_trigger_entries() -> None:
+    schema = deepcopy(profiles.load_profile("current_post_pr1")["schema"])
+    schema["tables"]["public.turns"]["constraints"]["history_turn"] = {
+        "kind": "constraint_trigger",
+        "definition": "TRIGGER DEFERRABLE INITIALLY DEFERRED",
+    }
+    assert is_schema_snapshot(schema)
