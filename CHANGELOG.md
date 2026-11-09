@@ -16,3 +16,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ### Internal
 
 - Reorganized backend evaluation tools and tests, indexed their guide, and clarified harness-independent skills and owner authorization for external evaluation calls.
+- Recorded ADR 0020 from the owner-interview plan for batched memory, durable production and save-aware histories, with explicit offline and live-evaluation gates.
