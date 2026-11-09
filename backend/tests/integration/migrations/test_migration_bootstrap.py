@@ -18,7 +18,7 @@ from app.migrations.errors import (
     SchemaMismatchError,
 )
 from app.migrations.lock import LOCK_KEY, migration_transaction
-from tests.integration.migrations.migration_db import DisposableDatabase
+from tests.integration.migrations.migration_db import HEAD_REVISION, DisposableDatabase
 
 CURRENT_COMMIT = "5e9206da28a0be1d8e669dcc72ed0af6a3525eac"
 FROZEN_006_COMMIT = "261ad5fb53003844efbe1d8097d9393469686291"
@@ -94,7 +94,7 @@ async def test_direct_alembic_mutations_share_bounded_lock(command: str, tmp_pat
 
         if command == "upgrade":
             await database.upgrade()
-            assert await database.version() == "009_campaign_language"
+            assert await database.version() == HEAD_REVISION
         elif command == "ensure_version":
             assert not await database.table_exists("alembic_version")
             result = await database.run_alembic("ensure_version")
@@ -116,7 +116,7 @@ async def test_startup_serializes_concurrent_upgrades_and_rechecks_head() -> Non
             database.upgrade_via_app(),
             database.upgrade_via_app(),
         )
-        assert await database.version() == "009_campaign_language"
+        assert await database.version() == HEAD_REVISION
         await database.require_head_schema()
 
 
@@ -126,7 +126,7 @@ async def test_lock_timeout_and_cancellation_do_not_leak_session_locks() -> None
             with pytest.raises(MigrationLockTimeoutError):
                 await database.upgrade_via_app(lock_timeout_seconds=0.15)
         await database.upgrade_via_app()
-        assert await database.version() == "009_campaign_language"
+        assert await database.version() == HEAD_REVISION
 
     async with DisposableDatabase() as database:
         engine = create_async_engine(database.url, poolclass=NullPool)
@@ -195,7 +195,7 @@ async def test_application_lifespan_migrates_before_recovery_and_workers(
         events: list[str] = []
         await _run_lifespan(monkeypatch, database, events)
         assert events == ["migration", "recovery", "worker"]
-        assert await database.version() == "009_campaign_language"
+        assert await database.version() == HEAD_REVISION
 
 
 async def test_current_schema_adoption_preserves_rows_and_converges() -> None:
@@ -210,7 +210,7 @@ async def test_current_schema_adoption_preserves_rows_and_converges() -> None:
             await database.adopt("current_post_pr1")
 
         await database.upgrade_via_app()
-        assert await database.version() == "009_campaign_language"
+        assert await database.version() == HEAD_REVISION
         await database.require_head_schema()
 
 

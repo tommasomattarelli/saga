@@ -7,6 +7,7 @@ from app.models.history import HistoryContinuation, MemoryPolicy
 from app.models.memory_batch import MemoryBatch, MemoryBatchTurn
 from app.models.memory_document import MemoryGlobalCheckpoint, MemoryState, MemorySummary
 from app.models.memory_fact import MemoryFact
+from app.models.memory_job import MemoryJob, MemoryJobAttempt
 from app.models.save import Save
 from app.models.source_embedding import SourceEmbedding
 from app.models.turn import Turn
@@ -28,4 +29,6 @@ __all__ = [
     "MemorySummary",
     "MemoryGlobalCheckpoint",
     "MemoryState",
+    "MemoryJob",
+    "MemoryJobAttempt",
 ]
