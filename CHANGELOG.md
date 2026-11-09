@@ -22,3 +22,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added immutable campaign histories, frozen save references and ancestry queries through a forward-only, migration-tested schema without converting existing turns (ADR 0020 S1).
 - Added ordered memory batches, typed documents, rich fact provenance and coverage cursors with PostgreSQL integrity constraints (ADR 0020 S1).
 - Added typed execution outcomes and per-operation delta contracts, distinguishing rejected inputs, technical errors and unchanged successes (ADR 0020 S2).
+- Added immutable, ordered operation storage and completeness markers, preserving unrecorded historical turns without backfill (ADR 0020 S2).

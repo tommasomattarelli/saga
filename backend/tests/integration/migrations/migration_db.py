@@ -30,7 +30,7 @@ from app.models.base import Base
 
 BACKEND_DIR = Path(__file__).resolve().parents[3]
 REPO_ROOT = BACKEND_DIR.parent
-HEAD_REVISION = "012_memory_jobs"
+HEAD_REVISION = "013_turn_operations"
 _HEAD_SCHEMA_SNAPSHOT: SchemaSnapshot | None = None
 TEST_DATABASE_URL = make_url(
     os.getenv(

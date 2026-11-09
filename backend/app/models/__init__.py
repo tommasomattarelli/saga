@@ -12,6 +12,7 @@ from app.models.memory_job import MemoryJob, MemoryJobAttempt
 from app.models.save import Save
 from app.models.source_embedding import SourceEmbedding
 from app.models.turn import Turn
+from app.models.turn_operation import TurnOperation
 from app.models.turn_request import TurnRequest
 from app.models.user import User
 
@@ -20,6 +21,7 @@ __all__ = [
     "User",
     "Campaign",
     "Turn",
+    "TurnOperation",
     "Save",
     "MemoryFact",
     "EmbeddingIndex",
