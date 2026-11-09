@@ -1,8 +1,4 @@
-"""Persist memory jobs and provider calls (part 1 of ADR 0020 S1 job storage).
-
-The second part, added in a follow-up commit, persists memory generations
-(per-provider calls) and turn request claims.
-"""
+"""Persist memory jobs, provider calls, and turn request claims (ADR 0020 S1)."""
 
 from pathlib import Path
 
@@ -32,16 +28,31 @@ def downgrade() -> None:
         DO $$
         BEGIN
             IF EXISTS (SELECT 1 FROM memory_jobs)
-               OR EXISTS (SELECT 1 FROM memory_job_attempts) THEN
+               OR EXISTS (SELECT 1 FROM turn_requests)
+               OR EXISTS (SELECT 1 FROM memory_generations) THEN
                 RAISE EXCEPTION 'Cannot downgrade memory jobs while persisted job data exists.';
             END IF;
         END
         $$;
         """
     )
+    op.execute("DROP TRIGGER turn_request_guard ON turn_requests")
+    op.execute("DROP FUNCTION saga_turn_request_guard()")
+    op.execute("DROP TRIGGER memory_generation_guard ON memory_generations")
+    op.execute("DROP FUNCTION saga_memory_generation_guard()")
     op.execute("DROP TRIGGER memory_job_sources ON memory_jobs")
     op.execute("DROP FUNCTION saga_memory_job_sources()")
     op.execute("DROP TRIGGER memory_job_guard ON memory_jobs")
     op.execute("DROP FUNCTION saga_memory_job_guard()")
+    op.drop_constraint("fk_campaigns_active_action_request", "campaigns", type_="foreignkey")
+    op.drop_column("campaigns", "active_action_request_id")
+    op.drop_table("turn_requests")
+    for table, constraint in (
+        ("memory_global_checkpoints", "fk_memory_global_checkpoints_generation"),
+        ("memory_facts", "fk_memory_facts_generation"),
+        ("memory_summaries", "fk_memory_summaries_generation"),
+    ):
+        op.drop_constraint(constraint, table, type_="foreignkey")
+    op.drop_table("memory_generations")
     op.drop_table("memory_job_attempts")
     op.drop_table("memory_jobs")

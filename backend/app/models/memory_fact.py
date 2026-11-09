@@ -51,6 +51,19 @@ class MemoryFact(Base, UUIDMixin, TimestampMixin):
             deferrable=True,
             initially="DEFERRED",
         ),
+        ForeignKeyConstraint(
+            ["generation_id", "campaign_id", "batch_id", "policy_id"],
+            [
+                "memory_generations.id",
+                "memory_generations.campaign_id",
+                "memory_generations.batch_id",
+                "memory_generations.policy_id",
+            ],
+            name="fk_memory_facts_generation",
+            deferrable=True,
+            initially="DEFERRED",
+            use_alter=True,
+        ),
         CheckConstraint(
             "(batch_id IS NULL AND policy_id IS NULL AND ordinal IS NULL AND category IS NULL AND assertion_type IS NULL AND fact_metadata IS NULL AND generation_id IS NULL AND schema_version IS NULL) OR "
             "(batch_id IS NOT NULL AND policy_id IS NOT NULL AND ordinal IS NOT NULL AND ordinal > 0 AND category IS NOT NULL AND assertion_type IS NOT NULL AND fact_metadata IS NOT NULL AND generation_id IS NOT NULL AND schema_version IS NOT NULL AND schema_version = 1 AND turn_number IS NULL AND entity_name IS NULL AND entity_type IS NULL AND btrim(content) <> '')",

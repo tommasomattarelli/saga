@@ -28,6 +28,19 @@ class MemorySummary(Base, UUIDMixin, TimestampMixin):
             deferrable=True,
             initially="DEFERRED",
         ),
+        ForeignKeyConstraint(
+            ["generation_id", "campaign_id", "batch_id", "policy_id"],
+            [
+                "memory_generations.id",
+                "memory_generations.campaign_id",
+                "memory_generations.batch_id",
+                "memory_generations.policy_id",
+            ],
+            name="fk_memory_summaries_generation",
+            deferrable=True,
+            initially="DEFERRED",
+            use_alter=True,
+        ),
         CheckConstraint(
             "jsonb_typeof(payload) = 'object' AND payload ? 'text' AND payload - 'text' = '{}'::jsonb AND jsonb_typeof(payload->'text')='string' AND btrim(payload->>'text') <> ''",
             name="ck_memory_summaries_payload",
@@ -68,6 +81,19 @@ class MemoryGlobalCheckpoint(Base, UUIDMixin, TimestampMixin):
             name="fk_memory_global_checkpoints_previous",
             deferrable=True,
             initially="DEFERRED",
+        ),
+        ForeignKeyConstraint(
+            ["generation_id", "campaign_id", "batch_id", "policy_id"],
+            [
+                "memory_generations.id",
+                "memory_generations.campaign_id",
+                "memory_generations.batch_id",
+                "memory_generations.policy_id",
+            ],
+            name="fk_memory_global_checkpoints_generation",
+            deferrable=True,
+            initially="DEFERRED",
+            use_alter=True,
         ),
         CheckConstraint(
             "id <> previous_checkpoint_id", name="ck_memory_global_checkpoints_not_self"

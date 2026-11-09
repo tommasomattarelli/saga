@@ -81,6 +81,14 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
             "active_memory_state_id IS NULL OR memory_policy_id IS NOT NULL",
             name="ck_campaigns_memory_state_policy",
         ),
+        ForeignKeyConstraint(
+            ["active_action_request_id", "id"],
+            ["turn_requests.request_id", "turn_requests.campaign_id"],
+            name="fk_campaigns_active_action_request",
+            use_alter=True,
+            deferrable=True,
+            initially="DEFERRED",
+        ),
         CheckConstraint(
             "(memory_policy_id IS NULL AND active_continuation_id IS NULL AND active_head_turn_id IS NULL)"
             " OR (memory_policy_id IS NOT NULL AND active_continuation_id IS NOT NULL)",
@@ -111,6 +119,7 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
     active_memory_state_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), index=True
     )
+    active_action_request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     context_epoch: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     fork_on_next_action: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false"
