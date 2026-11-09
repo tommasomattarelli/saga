@@ -757,6 +757,12 @@ Pubblicazione in una transazione, lock campagna prima delle altre righe per comp
 
 Il retry esplicito dopo esaurimento autorizza un nuovo ciclo limitato, registrato; il totale storico dei tentativi non viene azzerato. Aprire una campagna, inviare un turno o caricare un save non equivale a tale autorizzazione.
 
+**S1 note (2026-11-09, implementation).** The `saga_memory_job_sources` trigger is a PostgreSQL
+constraint trigger declared `AFTER INSERT`; its return value (`NEW` / `NULL`) is ignored by the
+executor, so the effective enforcement is the `RAISE EXCEPTION` on manifest mismatch. No contract
+divergence from §20.1–20.5; `MemoryProductionPolicy` remains without YAML defaults as intended by
+§20.8.
+
 ### 20.6 Payload generati e metadati
 
 Tutti i payload hanno modelli Pydantic rigorosi (`extra="forbid"`, tipi stretti e limiti da policy), con schema condiviso da prompt e validazione; le controparti API/export hanno schemi runtime equivalenti. Nessun campo generico `any`; i contenitori JSON usano valori JSON ricorsivi validati e contratti specifici dove la forma è nota.
