@@ -800,6 +800,42 @@ Registrare anche i percorsi NPC (identità/psicologia/interazioni pertinenti) e 
 
 Turno, head, stato ed eventi sono committati insieme. Nessuna task successiva tenta di ricostruire delta ormai perduti. La scelta dei fatti significativi rimane nel prompt, senza introdurre nuovi filtri sofisticati per categoria.
 
+**S2 note (2026-11-10, implementation).** `turn_operations` conserva UUID, campagna/turno,
+ordinale, step e beat come colonne; `payload` contiene origine, nome, argomenti, outcome,
+risultato discriminato e delta validati. `turns.operations_version` e `operation_count`
+distinguono una registrazione completa, anche vuota, dalle operazioni storiche non registrate
+(`NULL`): la migrazione non ricostruisce dati e i vincoli differiti verificano cardinalità,
+ordinali contigui e appartenenza alla campagna. Record e marcatori committati sono immutabili.
+
+Gli argomenti conosciuti hanno un contratto persistente v1 indipendente dal registro runtime
+dei tool: ritirare un tool non rende illeggibili le sue fonti già salvate. Un tentativo
+rifiutato per argomenti invalidi conserva il JSON originale sotto un esito di errore esplicito,
+non viene validato come una chiamata riuscita. Modifiche future della forma persistita
+richiedono una nuova versione, non la reinterpretazione delle righe esistenti.
+
+L'autocreazione NPC viene registrata prima della chiamata all'attore, separatamente dal suo
+eventuale fallimento; l'ordine segue validazione, mutazioni e applicazione dei risultati,
+non il riordino dei messaggi per il provider. La finalizzazione precedente modificava gli HP
+attraverso una copia superficiale di `char_data`: ora usa una copia profonda e restituisce
+esplicitamente il personaggio aggiornato, rendendo osservabile il delta senza mutare l'input
+del nodo. Interazioni e verifica morte/fato sono operazioni distinte.
+
+Il loader canonico legge membership e fonti persistite, conserva azioni e narrazioni anche
+vuote e distingue `operations: null` da una registrazione vuota. Solo la proiezione per i
+produttori esclude mood/clock isolati, verifiche morte senza conseguenze e aggiornamenti
+meramente archivistici di `last_interactions`; il registro completo resta intatto. Il parlato
+NPC compare nel transcript finale, non viene reiniettato tramite righe/descrizioni dell'esito
+o copie della cronologia interazioni; identità, intenzioni ed effetti strutturati rimangono.
+Viaggi, interruzioni, errori ed esiti significativi senza delta non vengono filtrati.
+
+Turno, stato, operazioni, eventi UI e autosave usano la stessa transazione di persistenza;
+head, claim/idempotenza, restore e attivazione della pipeline nuova restano al collegamento
+S4b già previsto in §22. Nessuna campagna o memoria precedente viene convertita. I test
+attraversano API, graph e handler reali con provider controllati e PostgreSQL reale, inclusi
+rollback coordinato, cambiamenti poi annullati e fallimento NPC dopo autocreazione. Full
+check: backend **1698/1698**, frontend **273/273**, lint, format, mypy, vulture, knip,
+coverage e build verdi; nessuna chiamata live o scelta dei default discende da queste prove.
+
 ### 20.8 Configurazione e timeout
 
 Namespace scelto per la nuova definizione: `memory.production`, con una sola definizione tipizzata dei default e snapshot `MemoryPolicy` per campagna. Questa è la forma, **non** un YAML da attivare con numeri provvisori:
