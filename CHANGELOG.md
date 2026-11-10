@@ -23,3 +23,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added ordered memory batches, typed documents, rich fact provenance and coverage cursors with PostgreSQL integrity constraints (ADR 0020 S1).
 - Captured typed outcomes and per-operation deltas across tools, dice, NPC beats and finalization, including rejected calls and unchanged successes independently of UI visibility (ADR 0020 S2).
 - Persisted immutable, ordered operations atomically with turns, state and autosaves, preserving unrecorded historical sources without backfill (ADR 0020 S2).
+- Added canonical batch inputs with complete transcripts, stable hashes and versioned operation projections, omitting routine updates and duplicate NPC speech (ADR 0020 S2).

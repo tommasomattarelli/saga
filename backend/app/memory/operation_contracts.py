@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from pydantic import Field, JsonValue, field_validator, model_validator
 
+from app.memory.operation_arguments_v1 import V1_ARGUMENTS
 from app.memory.operation_results import (
     AttackResult,
     CheckResult,
@@ -94,17 +95,15 @@ class OperationPayload(OperationModel):
         elif self.origin == "finalization" and self.name == "check_player_death":
             DeathArguments.model_validate(self.arguments)
         else:
-            from app.ai.tools.dm_tools import get_tool
-
-            tool = get_tool(self.name)
+            arguments = V1_ARGUMENTS.get(self.name)
             if (
-                tool is None
+                arguments is None
                 or self.origin == "finalization"
                 or (self.origin == "npc" and self.name != "invoke_npc")
                 or (self.origin == "tool" and self.name == "invoke_npc")
             ):
                 raise ValueError("Unknown operation")
-            tool.model_validate(self.arguments)
+            arguments.model_validate(self.arguments)
         if self.outcome == "succeeded":
             expected = {
                 "attack": "attack",

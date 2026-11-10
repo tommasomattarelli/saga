@@ -1,8 +1,10 @@
 import json
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
 
+from app.memory.operation_arguments_v1 import V1_ARGUMENTS
 from app.memory.operation_contracts import OperationPayload, StateDelta
 from app.memory.operation_delta import OperationState, state_delta
 
@@ -42,7 +44,7 @@ def test_snapshots_do_not_alias_in_place_mutations() -> None:
     assert changes[0].before.value == "Mira"
 
 
-def test_known_successful_arguments_use_the_real_tool_schema() -> None:
+def test_known_successful_arguments_use_the_versioned_storage_schema() -> None:
     payload = {
         "origin": "tool",
         "name": "move_to",
@@ -62,6 +64,28 @@ def test_known_successful_arguments_use_the_real_tool_schema() -> None:
         "description": "Invalid input.",
     }
     assert OperationPayload.model_validate_json(json.dumps(payload)).outcome == "rejected"
+
+
+def test_persisted_arguments_do_not_depend_on_runtime_tool_registration() -> None:
+    with patch("app.ai.tools.dm_tools.get_tool", return_value=None):
+        payload = OperationPayload.model_validate_json(
+            '{"origin":"tool","name":"move_to","outcome":"succeeded",'
+            '"arguments":{"location":"Thornhaven"},'
+            '"result":{"kind":"message","description":"Moved."},"deltas":[]}'
+        )
+    assert payload.name == "move_to"
+
+
+def test_v1_argument_fields_match_the_current_producers() -> None:
+    from app.ai.tools.dm_tools import get_tool
+
+    for name, storage in V1_ARGUMENTS.items():
+        runtime = get_tool(name)
+        assert runtime is not None
+        assert set(storage.model_fields) == set(runtime.model_fields)
+        assert {key for key, field in storage.model_fields.items() if field.is_required()} == {
+            key for key, field in runtime.model_fields.items() if field.is_required()
+        }
 
 
 def test_rejection_cannot_carry_an_unrelated_success_result() -> None:
