@@ -7,6 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage
 
+from app.ai.tools.tools_base import ToolResult
+
 
 def _make_state(**overrides) -> dict:
     base: dict = {
@@ -87,11 +89,11 @@ class TestToolsNodeRegularTool:
         }
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
-        mock_tool_result = MagicMock()
-        mock_tool_result.world_state = {"weather": "rainy"}
-        mock_tool_result.char_data = {}
-        mock_tool_result.description = "World updated."
-        mock_tool_result.extra = {}
+        mock_tool_result = ToolResult(
+            description="World updated.",
+            world_state={"weather": "rainy"},
+            char_data={},
+        )
 
         mock_tool_cls = MagicMock()
         mock_tool_cls.visible.return_value = False
@@ -120,11 +122,12 @@ class TestToolsNodeRegularTool:
         }
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
-        mock_tool_result = MagicMock()
-        mock_tool_result.world_state = {}
-        mock_tool_result.char_data = {}
-        mock_tool_result.description = "Mood set."
-        mock_tool_result.extra = {"mood": "tense"}
+        mock_tool_result = ToolResult(
+            description="Mood set.",
+            world_state={},
+            char_data={},
+            extra={"mood": "tense"},
+        )
 
         mock_tool_cls = MagicMock()
         mock_tool_cls.visible.return_value = False
@@ -163,11 +166,12 @@ class TestToolsNodeRegularTool:
         tc = {"id": "tc1", "name": "add_item", "args": {"name": "sword"}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
-        mock_tool_result = MagicMock()
-        mock_tool_result.world_state = {}
-        mock_tool_result.char_data = {}
-        mock_tool_result.description = "Item given."
-        mock_tool_result.extra = {"item": "sword"}
+        mock_tool_result = ToolResult(
+            description="Item given.",
+            world_state={},
+            char_data={},
+            extra={"item": "sword"},
+        )
 
         mock_tool_cls = MagicMock()
         mock_tool_cls.visible.return_value = True

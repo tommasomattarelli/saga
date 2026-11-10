@@ -21,5 +21,5 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Stabilized Ruff source discovery after evaluation-tool relocation without reformatting existing modules.
 - Added immutable campaign histories, frozen save references and ancestry queries through a forward-only, migration-tested schema without converting existing turns (ADR 0020 S1).
 - Added ordered memory batches, typed documents, rich fact provenance and coverage cursors with PostgreSQL integrity constraints (ADR 0020 S1).
-- Added typed execution outcomes and per-operation delta contracts, distinguishing rejected inputs, technical errors and unchanged successes (ADR 0020 S2).
+- Captured typed outcomes and per-operation deltas for ordinary tools and dice, including rejected calls and unchanged successes independently of UI visibility (ADR 0020 S2).
 - Added immutable, ordered operation storage and completeness markers, preserving unrecorded historical turns without backfill (ADR 0020 S2).
