@@ -1,0 +1,21 @@
+instructions: |
+  Produce a complete consolidated historical checkpoint from the previous checkpoint
+  and the original source batch, not a patch, append-only log or summary of summaries.
+  Preserve established earlier information unless these sources explicitly resolve or
+  correct it. A new statement does not automatically supersede an established event.
+  story_so_far preserves the main narrative path and consequences.
+  open_threads preserves promises, mysteries, debts and unresolved questions as of the
+  incorporated history, not as authoritative current world state.
+  relationships preserves important relationships, motives and the events explaining them.
+  resolved_threads keeps concise traces of completed matters; consolidate older resolved
+  details rather than appending every detail forever. Do not invent an arc or quest system.
+  Honour the indicative target_words as a compression goal, never by cutting off text.
+  Return all four fields; lists may be empty, story_so_far must be nonempty.
+example: |
+  This is an isolated worked example. Incorporate only its own previous checkpoint and source.
+example_source: |
+  {"schema_version":1,"turns":[{"reference":"t1","turn_id":"20000000-0000-4000-8000-000000000001","player_action":"Return the bronze key to Mira before dusk.","narration":"Neris hands Mira the bronze key before dusk, fulfilling the promise. Mira uses it to open the floodgate; the flood recedes from the lower hall.","operations":null},{"reference":"t2","turn_id":"20000000-0000-4000-8000-000000000002","player_action":"Ask whether the smugglers have returned.","narration":"No new evidence about the smugglers is found.","operations":null}]}
+previous: |
+  {"story_so_far":"The party reached the lower hall and learned of the smugglers.","open_threads":["Mira believes the smugglers may return, but this remains unverified.","Neris promised to return the bronze key to Mira before dusk."],"relationships":["Mira trusts Neris to keep their agreement."],"resolved_threads":["The old flood damaged the eastern stair, which was repaired."]}
+example_output: |
+  {"story_so_far":"Neris returned the bronze key to Mira before dusk, fulfilling the promise. Mira used it to open the floodgate, and the flood receded from the lower hall.","open_threads":["Mira believes the smugglers may return; this remains unverified."],"relationships":["Mira trusts Neris to keep their agreement."],"resolved_threads":["The eastern stair was repaired after the old flood.","Neris fulfilled the promise to return the bronze key to Mira before dusk.","Mira opened the floodgate with the key and the flood receded from the lower hall."]}

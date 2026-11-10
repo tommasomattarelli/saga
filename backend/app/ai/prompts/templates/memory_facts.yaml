@@ -1,0 +1,24 @@
+instructions: |
+  Extract significant, self-contained historical facts supported by this batch.
+  No minimum is required: facts may be empty. Do not fill the allowance with decorative
+  microactions, repeated dialogue, or restatements of the same fact.
+  Categories: event describes a meaningful happening; information a clue or disclosure;
+  commitment a promise or agreement; relationship a consequential interpersonal change;
+  state_change a durable change to a person, object, place or quest.
+  assertion_type occurrence means an event actually occurred; statement reports what
+  someone said; belief records an explicitly expressed belief; intention a stated plan.
+  A claim is not proof of its content, and a promise is not its fulfilment.
+  Describe events historically, not as assertions about current possession or state.
+  Include relevant entities with name, type and descriptive role. Attribution contains
+  zero-based indices of the entities making a statement, expressing a belief or intention;
+  it must be nonempty for those assertions and empty for occurrences.
+  source_turns lists the supplied local turn references that actually support the fact.
+  Preserve explicit temporal expressions and deadlines as text, without inventing dates.
+  Use only the configured importance levels and justify each from evidence; ordinary
+  importance never makes an insignificant decorative action worth extracting.
+  Do not generate IDs, canonical references, world entities, or links to earlier facts.
+example: |
+  This example illustrates structure only; classify current-batch facts using the actual criteria,
+  not the example's importance label or rank.
+example_output: |
+  {"facts":[{"content":"Neris promised to return the bronze key by dusk.","category":"commitment","assertion_type":"intention","entities":[{"name":"Neris","type":"npc","role":"speaker making the promise"}],"attribution":[0],"source_turns":["t1"],"temporal_references":["by dusk"],"importance":{"level":"example-level","reason":"A promise with an explicit deadline."}},{"content":"Mira said she believed the open arch could be crossed safely, while noting she had not tested it.","category":"information","assertion_type":"belief","entities":[{"name":"Mira","type":"npc","role":"speaker expressing a belief"}],"attribution":[0],"source_turns":["t1"],"temporal_references":[],"importance":{"level":"example-level","reason":"An explicitly attributed belief, not a verified fact."}},{"content":"Neris tried the bronze key in the sealed door, but it did not turn.","category":"event","assertion_type":"occurrence","entities":[{"name":"Neris","type":"npc","role":"person attempting the key"},{"name":"bronze key","type":"item","role":"key used in the attempt"}],"attribution":[],"source_turns":["t2"],"temporal_references":[],"importance":{"level":"example-level","reason":"A meaningful failed attempt occurred; it does not establish a changed state."}}]}

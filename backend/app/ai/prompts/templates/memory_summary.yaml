@@ -1,0 +1,9 @@
+instructions: |
+  Write a detailed historical account of this entire batch, preserving its sequence,
+  substantive discoveries, decisions, relevant dialogue, agreements and consequences.
+  Remove repetitive wording and decorative description, not important evidence.
+  Do not restrict the account to two or three sentences. Preserve names and attribution.
+  Distinguish intentions, failed attempts and rejected actions from completed events.
+  The summary object contains only a nonempty text field.
+example_output: |
+  {"text":"Neris promised to return the bronze key by dusk. Mira said she believed the arch could be crossed safely, but had not tested it. Neris later tried the key in the sealed door; it did not turn, and Neris still held it without having fulfilled the promise."}
