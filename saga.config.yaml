@@ -80,6 +80,20 @@ embedding:
   retry_delays_seconds: [1, 3]
 
 # ---------------------------------------------------------------------------
+# Memory production — rubric only; numeric defaults await ADR 0020 S3 evaluation
+# ---------------------------------------------------------------------------
+memory:
+  production:
+    facts:
+      importance_levels:
+        - name: ordinary
+          criteria: A significant historical detail worth recalling, without campaign-defining consequences.
+          examples: A useful attributed clue, a meaningful agreement, or a consequential encounter.
+        - name: critical
+          criteria: A revelation, commitment or consequence that substantially changes the campaign's stakes or direction.
+          examples: A central betrayal, a binding major oath, or the resolution of a defining threat.
+
+# ---------------------------------------------------------------------------
 # Gameplay Settings — runtime behavior
 # ---------------------------------------------------------------------------
 gameplay:
