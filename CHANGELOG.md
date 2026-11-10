@@ -26,3 +26,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added schema-driven memory prompts with validated worked examples and persistence-free summary, facts and global producers using the existing router (ADR 0020 S3).
 - Added a reproducible, annotated memory scenario through real handlers, sharing persisted-source projections and checking whether late resolutions reach the eligible global prefix (ADR 0020 S3).
 - Added read-only legacy transcript capture with explicit batching, preserved empty narration and guards against ambiguous or restored future history (ADR 0020 S3).
+- Added sealed evaluation manifests and offline reports with exact input-size measurements, separate quality reviews and preserved owner notes (ADR 0020 S3).
