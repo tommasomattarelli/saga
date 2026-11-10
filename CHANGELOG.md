@@ -24,3 +24,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Recorded per-operation outcomes and deltas atomically with turns, adding immutable provenance and canonical batch inputs without converting historical sources (ADR 0020 S2).
 - Added strict generated-fact contracts, source-bound identity resolution and a configurable importance rubric without selecting numeric production defaults (ADR 0020 S3).
 - Added schema-driven memory prompts with validated worked examples and persistence-free summary, facts and global producers using the existing router (ADR 0020 S3).
+- Added a reproducible, annotated memory scenario through real handlers, sharing persisted-source projections and checking whether late resolutions reach the eligible global prefix (ADR 0020 S3).
