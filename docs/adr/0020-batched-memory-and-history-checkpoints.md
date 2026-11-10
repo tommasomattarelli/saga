@@ -975,6 +975,45 @@ statici, coverage e build verdi; **168** integrazioni pertinenti su PostgreSQL i
 Il campione reale, la matrice, i limiti, il modello e l'autorizzazione del run restano al
 gate owner: S3 non è concluso e non autorizza la scelta production o l'avvio di S4a.
 
+**S3 note (2026-11-10, campione reale e primo pilot).** Ritrovati e catturati i 14
+turni reali sulla revisione `009_campaign_language`, con letture `REPEATABLE READ READ
+ONLY`, senza migrazioni o worker; la narrazione vuota del turno 4 è conservata e le
+operazioni storiche restano non registrate. Fonte, transcript, strumenti e hash sono
+conservati localmente nel repository separato `scratch/adr-0020-memory-production/`;
+il testo privato e gli artefatti delle richieste sono esclusi da Git.
+
+Il riferimento OpenAI `tiktoken 0.14.0` / `o200k_base`, scaricato con autorizzazione,
+misura **3.462** token per la somma di azione, newline e narrazione di ciascun turno
+(media **247,3**), non token fatturati o conteggi del modello OpenRouter. La fonte JSON
+non suddivisa in batch misura **4.300** token di riferimento; istruzioni, schema ed
+esempi dei produttori sono misurati separatamente nei manifest.
+
+L'owner ha scelto una sola configurazione **sperimentale**: R=8, B=4, K=2, massimo
+6 fatti per batch, target globale indicativo di 1.000 parole e J=9 aggiornamenti.
+K=2 serve alla prova del globale, non è una preferenza production; K=6 rimane una
+possibilità menzionata dall'owner, non un secondo esperimento o un default adottato.
+Con i 52 turni controllati, il prefisso globale raggiunge il turno 36 e include la
+risoluzione al turno 34. La variante production e i default restano al gate qualità.
+
+Il primo pilot approvato usa solo i turni reali 1–4, una ripetizione e quattro
+tentativi massimi: unico, summary, fatti e globale iniziale senza predecessore, con
+`nvidia/nemotron-3.5-super-vl:free` e il tetto output configurato invariato di 60.000.
+Il successivo confronto previsto con `deepseek/deepseek-v4.1-flash-1017` non è
+autorizzato. Il primo avvio si è fermato **prima di ogni chiamata provider**: il
+caricamento automatico di `User.campaigns` durante la risoluzione del profilo cercava
+colonne S1 inesistenti nel DB legacy. Non si migra il campione per aggirare il difetto;
+l'owner ha autorizzato una correzione circoscritta della lettura del profilo e una
+nuova preparazione offline, da approvare nuovamente prima del live.
+
+La correzione limita il caricamento delle relazioni alla sola query del profilo di
+generazione (`raiseload(User.campaigns)`), senza cambiare il modello globale, la
+risoluzione delle credenziali o il percorso embedding. La regressione usa PostgreSQL
+reale migrato dalla catena Alembic alla sola revisione 009, un utente con chiave fittizia
+cifrata e una campagna: lettura `READ ONLY`, nessuna query delle campagne e comportamento
+utente assente invariato. Nessun provider viene invocato dal test. Il fingerprint
+del router cambia: il manifest precedente resta prova storica del blocco, non viene
+riutilizzato o autorizzato implicitamente per il nuovo codice.
+
 ## 22. S0 — piano eseguibile, review e verifiche
 
 **Decisione owner (2026-11-09).** Accettata la suddivisione S4a/S4b per mantenere ogni sprint giocabile, senza toggle legacy; invariati integrazione unica, branch consecutivi, merge locali `--no-ff` e una PR finale.

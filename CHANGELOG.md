@@ -23,3 +23,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added ordered memory batches, typed documents, rich fact provenance and coverage cursors with PostgreSQL integrity constraints (ADR 0020 S1).
 - Recorded per-operation outcomes and deltas atomically with turns, adding immutable provenance and canonical batch inputs without converting historical sources (ADR 0020 S2).
 - Prepared strict memory producers, validated prompt examples and reproducible offline evaluations; live evidence, production defaults and variant selection remain owner-gated (ADR 0020 S3).
+- Isolated generation-profile reads from campaign relationships so memory evaluations can preserve legacy databases without migrations (ADR 0020 S3).
