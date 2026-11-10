@@ -24,6 +24,7 @@ from app.memory.compressor import compress_turn_to_summary, ensure_compression
 from app.memory.embedding_queue import enqueue_source_embedding
 from app.memory.fact_extractor import extract_and_store_facts
 from app.memory.global_summary import update_global_summary
+from app.memory.operation_storage import add_operation_recording
 from app.memory.world_state import migrate_world_state
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.quest import QuestRegistry
@@ -110,6 +111,7 @@ async def _submit_action(
         "narration_segments": [],
         "scene_mood": "neutral",
         "tool_events": [],
+        "operations": [],
         "dice_results": [],
         "npc_beats": [],
         "npc_lines": [],
@@ -188,6 +190,7 @@ async def _submit_action(
         campaign.quests = new_quests.model_dump()
 
         turn = Turn(
+            id=uuid.uuid4(),
             campaign_id=campaign_id,
             turn_number=turn_number,
             player_action=body.action,
@@ -203,6 +206,7 @@ async def _submit_action(
             summary=summary,
         )
         db.add(turn)
+        add_operation_recording(db, turn, final_state.get("operations"))
         await db.flush()
         queued_indexes = await enqueue_source_embedding(
             db,
