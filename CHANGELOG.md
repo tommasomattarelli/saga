@@ -27,3 +27,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added a reproducible, annotated memory scenario through real handlers, sharing persisted-source projections and checking whether late resolutions reach the eligible global prefix (ADR 0020 S3).
 - Added read-only legacy transcript capture with explicit batching, preserved empty narration and guards against ambiguous or restored future history (ADR 0020 S3).
 - Added sealed evaluation manifests and offline reports with exact input-size measurements, separate quality reviews and preserved owner notes (ADR 0020 S3).
+- Added explicitly authorized memory evaluation runs with request budgets, exclusive execution, durable evidence and guarded resume without hidden retries (ADR 0020 S3).
