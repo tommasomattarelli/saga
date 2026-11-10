@@ -226,6 +226,7 @@ async def tools_node(state: GameState) -> dict[str, Any]:
             npc_beats,
             npc_lines,
             progress,
+            operations,
         )
         for call, message in zip(npc_calls, npc_messages, strict=True):
             tool_messages[call["_position"]] = message

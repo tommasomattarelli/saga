@@ -27,9 +27,12 @@ from app.core.dm.game_state import GameState
 from app.core.dm.loop_policy import closing_step, dm_call_limit, step_tools
 from app.core.dm.npc_context import NarrativeObservation
 from app.core.dm.npc_results import flush_interaction_history
+from app.core.dm.operation_recorder import OperationRecorder
 from app.core.engine import CONTENT_POLICY_NARRATION
 from app.core.npc_resolver import npcs_at_current_location
 from app.exceptions import AIProviderError
+from app.memory.operation_delta import OperationState
+from app.memory.operation_results import DeathResult
 from app.memory.world_state import migrate_world_state
 from app.models.quest import QuestRegistry
 
@@ -226,13 +229,16 @@ def _record_narration(state: GameState, text: str) -> dict:
 
 def post_process_node(state: GameState) -> dict[str, Any]:
     world_state = copy.deepcopy(state["world_state"])
-    char_data = dict(state["char_data"])
+    char_data = copy.deepcopy(state["char_data"])
+    operations = OperationRecorder(state.get("operations", []))
+    step = max(state["step_count"] - 1, 0)
     segments = compose_segments(state["narration_segments"], state.get("npc_lines", []))
-    flush_interaction_history(world_state, state.get("npc_beats", []))
+    flush_interaction_history(world_state, state.get("npc_beats", []), operations, step=step)
 
     # The difficulty rides the state from context_node. It used to be read off
     # char_data, a key nothing ever wrote, so every campaign silently resolved as
     # "never dies" — Ironman included (ADR 0003 S3).
+    before = OperationState.capture(world_state, char_data, {})
     death_result = check_player_death(char_data, state["difficulty"], world_state)
     death_event: dict | None = None
     if death_result.action != "alive":
@@ -246,8 +252,28 @@ def post_process_node(state: GameState) -> dict[str, Any]:
         if death_result.fate_interventions_remaining is not None:
             world_state["fate_interventions_left"] = death_result.fate_interventions_remaining
 
+    operations.append(
+        origin="finalization",
+        name="check_player_death",
+        arguments={"difficulty": state["difficulty"]},
+        outcome="succeeded",
+        step=step,
+        before=before,
+        after=OperationState.capture(world_state, char_data, {}),
+        result=DeathResult.model_validate(
+            {
+                "description": death_result.narrative_instruction or "Death policy checked.",
+                "action": death_result.action,
+                "is_dead": death_result.is_dead,
+                "fate_interventions_remaining": death_result.fate_interventions_remaining,
+            }
+        ),
+    )
+
     return {
         "world_state": world_state,
+        "char_data": char_data,
+        "operations": operations.records,
         "death_event": death_event,
         "narration": transcript(segments),
         "narration_segments": [segment.model_dump(mode="json") for segment in segments],
