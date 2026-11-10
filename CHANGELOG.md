@@ -21,3 +21,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Stabilized Ruff source discovery after evaluation-tool relocation without reformatting existing modules.
 - Added immutable campaign histories, frozen save references and ancestry queries through a forward-only, migration-tested schema without converting existing turns (ADR 0020 S1).
 - Added ordered memory batches, typed documents, rich fact provenance and coverage cursors with PostgreSQL integrity constraints (ADR 0020 S1).
+- Recorded per-operation outcomes and deltas atomically with turns, adding immutable provenance and canonical batch inputs without converting historical sources (ADR 0020 S2).

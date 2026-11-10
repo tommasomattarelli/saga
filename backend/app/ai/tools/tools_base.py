@@ -10,9 +10,11 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import ClassVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.ai.prompts.loader import template
+from app.memory.operation_contracts import OperationOutcome
+from app.memory.operation_results import OperationErrorReason
 from app.memory.updater import apply_typed_updates
 from app.models.quest import QuestRegistry
 
@@ -40,6 +42,8 @@ class ToolResult:
     char_data: dict
     extra: dict = field(default_factory=dict)  # tool-specific data (dice result, NPC dialogue…)
     quests: QuestRegistry | None = None
+    outcome: OperationOutcome = "succeeded"
+    error_reason: OperationErrorReason | None = None
 
 
 class DmTool(BaseModel):
@@ -178,16 +182,28 @@ def execute_tool(
             description=f"Unknown tool: {name}",
             world_state=world_state,
             char_data=char_data,
+            outcome="rejected",
+            error_reason="unknown_tool",
         )
     try:
         instance = tool_cls(**arguments)
-        return instance.execute_with_context(world_state, char_data, baseline, quests)
-    except Exception as exc:
-        safe_msg = str(exc).replace("\n", " ").strip()[:120]
+    except ValidationError:
         return ToolResult(
-            description=f"Tool {name} failed: {safe_msg}",
+            description=f"Tool {name} failed validation. Check the tool's required fields.",
             world_state=world_state,
             char_data=char_data,
+            outcome="rejected",
+            error_reason="invalid_arguments",
+        )
+    try:
+        return instance.execute_with_context(world_state, char_data, baseline, quests)
+    except Exception:
+        return ToolResult(
+            description=f"Tool {name} failed. Try another action.",
+            world_state=world_state,
+            char_data=char_data,
+            outcome="failed",
+            error_reason="execution_failed",
         )
 
 

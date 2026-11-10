@@ -9,6 +9,7 @@ from langgraph.graph.message import add_messages
 from app.ai.prompts.dm import DMPromptContext
 from app.core.dm.dialogue_composition import NPCLine
 from app.core.dm.npc_context import NarrativeObservation, NPCBeat
+from app.memory.operation_contracts import RecordedOperation
 from app.models.quest import QuestRegistry
 
 
@@ -40,6 +41,7 @@ class GameState(TypedDict):
     dialogue_echo_removals: NotRequired[int]
     scene_mood: str
     tool_events: list[dict[str, Any]]
+    operations: NotRequired[list[RecordedOperation]]
     dice_results: list[dict[str, Any]]  # pre-rolled, sent to frontend as-is
     time_passed_minutes: int
 

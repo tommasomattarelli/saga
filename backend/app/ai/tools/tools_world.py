@@ -38,6 +38,7 @@ class MoveTo(DmTool):
             description="Movement unavailable: this campaign has no world map.",
             world_state=world_state,
             char_data=char_data,
+            outcome="rejected",
         )
 
     def execute_with_baseline(
@@ -63,6 +64,7 @@ class MoveTo(DmTool):
                 description=f"Move rejected: {outcome.reason}",
                 world_state=world_state,
                 char_data=char_data,
+                outcome="rejected",
             )
 
         new_state = copy.deepcopy(world_state)
@@ -169,6 +171,7 @@ class UpdateQuest(DmTool):
                 world_state=world_state,
                 char_data=char_data,
                 quests=quests,
+                outcome="rejected",
             )
         return ToolResult(
             description=f"Quest '{self.quest_id}' is now {self.status.value}.",
@@ -218,6 +221,7 @@ class ChangeNpcPsychology(DmTool):
                 ),
                 world_state=world_state,
                 char_data=char_data,
+                outcome="rejected",
             )
         resolution = resolve_npc(self.npc, world_state)
         if resolution.npc_id is None:
@@ -225,6 +229,7 @@ class ChangeNpcPsychology(DmTool):
                 description=resolution.error,
                 world_state=world_state,
                 char_data=char_data,
+                outcome="rejected",
             )
         update: dict = {
             "key": "npc_psychology",

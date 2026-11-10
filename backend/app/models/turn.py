@@ -31,6 +31,12 @@ class Turn(Base, UUIDMixin, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("id", "campaign_id", name="uq_turns_id_campaign"),
         UniqueConstraint("id", "campaign_id", "history_depth", name="uq_turns_id_campaign_depth"),
+        CheckConstraint(
+            "(operations_version IS NULL AND operation_count IS NULL) OR "
+            "(operations_version IS NOT NULL AND operations_version=1 AND "
+            "operation_count IS NOT NULL AND operation_count >= 0)",
+            name="ck_turns_operations_contract",
+        ),
         ForeignKeyConstraint(
             ["continuation_id", "campaign_id"],
             ["history_continuations.id", "history_continuations.campaign_id"],
@@ -68,6 +74,8 @@ class Turn(Base, UUIDMixin, TimestampMixin):
     continuation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     parent_turn_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     history_depth: Mapped[int | None] = mapped_column(Integer)
+    operations_version: Mapped[int | None] = mapped_column(Integer)
+    operation_count: Mapped[int | None] = mapped_column(Integer)
     parent_depth: Mapped[int | None] = mapped_column(
         Integer, Computed("history_depth - 1", persisted=True)
     )
