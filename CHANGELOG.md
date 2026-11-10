@@ -22,9 +22,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added immutable campaign histories, frozen save references and ancestry queries through a forward-only, migration-tested schema without converting existing turns (ADR 0020 S1).
 - Added ordered memory batches, typed documents, rich fact provenance and coverage cursors with PostgreSQL integrity constraints (ADR 0020 S1).
 - Recorded per-operation outcomes and deltas atomically with turns, adding immutable provenance and canonical batch inputs without converting historical sources (ADR 0020 S2).
-- Added strict generated-fact contracts, source-bound identity resolution and a configurable importance rubric without selecting numeric production defaults (ADR 0020 S3).
-- Added schema-driven memory prompts with validated worked examples and persistence-free summary, facts and global producers using the existing router (ADR 0020 S3).
-- Added a reproducible, annotated memory scenario through real handlers, sharing persisted-source projections and checking whether late resolutions reach the eligible global prefix (ADR 0020 S3).
-- Added read-only legacy transcript capture with explicit batching, preserved empty narration and guards against ambiguous or restored future history (ADR 0020 S3).
-- Added sealed evaluation manifests and offline reports with exact input-size measurements, separate quality reviews and preserved owner notes (ADR 0020 S3).
-- Added explicitly authorized memory evaluation runs with request budgets, exclusive execution, durable evidence and guarded resume without hidden retries (ADR 0020 S3).
+- Prepared strict memory producers, validated prompt examples and reproducible offline evaluations; live evidence, production defaults and variant selection remain owner-gated (ADR 0020 S3).

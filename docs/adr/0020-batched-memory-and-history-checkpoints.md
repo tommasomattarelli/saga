@@ -788,6 +788,30 @@ I metadati persistenti aggiungono canonical ref solo se verificata, UUID, campag
 
 Il globale viene renderizzato deterministicamente come quattro sezioni ordinate dentro `<global_summary>`, con testo escapato e liste ordinate; le sezioni vuote rimangono rappresentabili. Non inviare l'intero record gestionale o i checkpoint precedenti al DM; non presentare `open_threads` come stato corrente autorevole. Il checkpoint precedente entra invece nella successiva generazione globale insieme al batch originale.
 
+**S3 note (2026-11-10, implementation offline; gate live aperto).** I payload generati
+sono distinti dai metadati risolti: il modello non può fornire UUID o riferimenti canonici.
+La validazione controlla l'intera lista, membership delle fonti, rubrica e attribuzione;
+`facts: []` resta valido, mentre output parziali, chiavi duplicate, campi aggiuntivi e JSON
+non valido falliscono senza riparazione o slicing. La risoluzione conservativa collega NPC
+e quest soltanto quando operazioni riuscite nei turni citati forniscono un nome e un ID
+non ambiguo; negli altri casi conserva l'entità senza riferimento, senza leggere il mondo
+successivo o interrogare un modello.
+
+Le istruzioni summary/fatti sono YAML specialistici separati, composti nel candidato unico
+con un solo schema finale ed esempi input/output validati dagli stessi contratti, isolati
+dalle fonti correnti e composti senza duplicare l'esempio specialistico. Il globale riceve il predecessore completo e il batch originale;
+il renderer produce le quattro sezioni escapate, lasciando il wrapper al consumer DM.
+Ogni produttore esegue una sola generazione tramite il router, senza persistenza o retry
+interni. La rubrica `ordinary`/`critical` è definita una volta nel YAML; criteri/esempi
+restano da valutare con l'owner, senza adottare limiti numerici o una variante production.
+
+L'harness confronta tre richieste per batch (una unica e due specialistiche) e una catena
+globale distinta; i risultati intermedi non alimentano il globale. Preparazione e report
+sono offline, con fonti/policy/istruzioni congelate e budget per tentativo; riprese e output
+invalidi non autorizzano nuove chiamate implicite. Revisione umana e qualità di summary,
+fatti e globale restano separate. Il codice non collega ancora scheduler, copertura o
+contesto pubblico: i gate S4a/S4b e la verifica integrata S6 rimangono invariati.
+
 ### 20.7 Operazioni e delta
 
 `turn_operations`: UUID, campagna/turno, ordinale unico nel turno, step/beat se pertinenti, `origin` (`tool`, `npc`, `finalization`), nome operazione, argomenti, outcome (`succeeded`, `rejected`, `failed`), risultato e lista delta. UUID/ordine assegnati dal codice; outcome esplicito dal percorso esecutore, mai inferito dal testo o dall'assenza di cambiamenti.
@@ -911,6 +935,45 @@ Prima di preparare esperimenti live, scegliere con l'owner quali dati reali usar
 **Decisione owner S0 (2026-11-09, dataset).** Preparare i 14 turni reali come campione di fedeltà/dimensioni e uno scenario lungo controllato e annotato, con operazioni prodotte dai veri handler. Rifiutato usare soltanto i turni reali come prova longitudinale; non richiesta ora una nuova campagna di prova. Nessuna autorizzazione live discende dalla scelta del dataset. La lunghezza dello scenario dipende dalla matrice R/B/K e dai checkpoint consecutivi da osservare.
 
 **Decisione owner S0 (2026-11-09, matrice).** Scegliere R/B/K in S3, non adesso. La proposta esplorativa `R={8,16}, B={4,8}, K={2,4}` e l'alternativa ridotta con K=4 restano **non adottate**: non sono default, run preparati o budget approvati. La stima di circa 267 token/raw comprende la media testo del campione e il framing chat locale; non risolve ancora il peso dei summary/globale. Per la sola pianificazione vale `N_primo_globale = R+(K+1)*B` e, per J aggiornamenti, `N = R+(K+J)*B`; non è stato scelto J né fissata la lunghezza dello scenario.
+
+**S3 note (2026-11-10, disponibilità dei dati).** Snapshot/script e tokenizer della misura
+S0 non sono stati ritrovati nei file locali cercati; il DB di sviluppo non è stato avviato,
+migrato o consultato. Il campione reale resta quindi da rendere disponibile, non sostituito
+dal `gold` contaminato o da una campagna inventata. Il comando di cattura aggiunto legge
+la revisione legacy in `REPEATABLE READ READ ONLY`, rifiuta numeri ambigui e futuri oltre
+lo stato selezionato, conserva narrazioni vuote e operazioni non registrate, senza backfill.
+
+Lo scenario controllato è dichiaratamente sintetico: narrazione/risposte attore sono
+autorate, operazioni e finalizzazione passano per gli handler reali e la stessa proiezione
+delle fonti persistite. I batch completi hanno riferimenti locali; la coda incompleta resta
+separata e non sparisce. La sufficienza di N non basta a valutare una risoluzione tardiva:
+questa deve ricadere nel prefisso effettivamente incorporabile nel globale della matrice
+scelta, non soltanto negli ultimi raw. Dimensioni in caratteri/byte non vengono presentate
+come token provider; dimensioni e qualità dei nuovi summary/globali richiedono ancora le
+generazioni autorizzate. Nessuna chiamata live discende da queste verifiche offline.
+
+Misura riproducibile del solo scenario controllato, con `socket.connect` bloccato:
+**52 turni**, risoluzione al turno **34**, **16 operazioni proiettate**; hash delle fonti
+`2e4a8ef4b0444316ad038f23ebf595c7a8eccfe3f94c324e6159ff20fe8611f9`.
+
+| Componente | Caratteri | Byte UTF-8 |
+|---|---:|---:|
+| Fonte canonica completa | 28.210 | 28.214 |
+| Azioni e narrazioni, misurate separatamente | 6.910 | 6.910 |
+| Record operazione proiettati, misurati separatamente | — | 15.142 |
+
+Le componenti serializzate separatamente non sono una scomposizione additiva del JSON.
+Questi turni sono brevi e autorati: non misurano la densità dei 14 turni reali né certificano
+una lunga campagna giocata. Il planner esclude dal prefisso globale sia R sia gli intermedi
+K e la coda incompleta: `min(J, max(floor(max(N-R,0)/B)-K,0))*B`. Gli input numerici dei
+test non costituiscono una matrice adottata. I manifest successivi misurano i prompt
+effettivi, esempi/schema inclusi, in caratteri e byte dell'envelope interno; i successori
+globali restano non misurati finché non esiste un predecessore generato.
+
+Verifica offline: full check backend **1797/1797**, frontend **273/273**, tutti i gate
+statici, coverage e build verdi; **168** integrazioni pertinenti su PostgreSQL isolato.
+Il campione reale, la matrice, i limiti, il modello e l'autorizzazione del run restano al
+gate owner: S3 non è concluso e non autorizza la scelta production o l'avvio di S4a.
 
 ## 22. S0 — piano eseguibile, review e verifiche
 
