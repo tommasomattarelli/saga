@@ -14,6 +14,19 @@ from app.memory.document_contracts import GlobalPayload
 from app.memory.producer_contracts import MemoryOutputError
 
 
+@pytest.fixture(autouse=True)
+def stub_provider_affinity(monkeypatch: pytest.MonkeyPatch) -> None:
+    import eval.memory.runner as runner
+
+    def clone(provider, session_id):
+        return SimpleNamespace(
+            generate=getattr(provider, "generate", None),
+            client=SimpleNamespace(default_headers={"x-session-id": session_id}),
+        )
+
+    monkeypatch.setattr(runner, "provider_with_session", clone)
+
+
 def make_plan(*, source_count: int = 1, global_count: int = 1, language: str = "en"):
     turn_ids = [str(uuid4()) for _ in range(source_count * 2)]
     turns = [
@@ -51,6 +64,7 @@ def make_plan(*, source_count: int = 1, global_count: int = 1, language: str = "
         models=["provider/model"],
         repetitions=1,
         global_count=global_count,
+        session_scope="test-memory-scope",
     )
 
 

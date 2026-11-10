@@ -24,6 +24,7 @@ def main() -> None:
     parser.add_argument("--facts-policy", type=Path, required=True)
     parser.add_argument("--global-policy", type=Path)
     parser.add_argument("--language", required=True)
+    parser.add_argument("--session-scope", required=True)
     parser.add_argument("--model", action="append", required=True)
     parser.add_argument("--allow-paid-model", action="append", default=[])
     parser.add_argument("--repetitions", type=int, required=True)
@@ -55,6 +56,7 @@ def main() -> None:
         models=args.model,
         repetitions=args.repetitions,
         global_count=args.global_count,
+        session_scope=args.session_scope,
         paid_models=args.allow_paid_model,
     )
     if args.run:

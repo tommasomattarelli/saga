@@ -150,6 +150,7 @@ uv run python -m eval.memory.cli --prepare \
   --sources <source-directory>/batches.json \
   --facts-policy <facts-policy.json> --global-policy <global-policy.json> \
   --language <campaign-language> --model <openrouter-model-id> \
+  --session-scope <stable-evaluation-scope> \
   --repetitions <repetitions> --global-count <J> --output <new-evidence-directory>
 ```
 
@@ -160,6 +161,17 @@ instructions, producer identity and output cap. Its generation-request ceiling i
 that ceiling too. No embeddings, DM/actor generation or judge-model calls belong
 to this comparison. Size reports distinguish characters/bytes from unavailable
 token counts; local estimates are never reported as provider-billed usage.
+
+Reuse the same explicit `--session-scope` across blocks of one evaluation. Each
+model gets one stable `x-session-id` across all roles, batches, repetitions and
+manifests in that scope; another model or evaluation scope gets a different ID.
+The shared affinity helper binds the normal SAGA provider, and request ledgers
+record the header before I/O. Session affinity does not guarantee cache hits.
+Historical manifests without a scope remain readable offline, not executable.
+
+Models run concurrently in independent workers, with one request at a time per
+model and a shared free-tier limiter. A provider failure stops new requests while
+already-inflight calls finish and are recorded; no automatic retry is introduced.
 
 Regenerate a saved report offline, including after producer-code changes:
 

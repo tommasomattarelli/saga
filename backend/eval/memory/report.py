@@ -97,11 +97,43 @@ def write_report(directory: Path, plan: MemoryPlan) -> None:
         "Contract status is not narrative quality; no model judge or tokenizer was used.",
         "Missing provider usage means unknown, not zero.",
         "",
-        "## Per-role evidence",
+        "## Session affinity",
         "",
-        "| Model | Rep | Batch | Role | Status | Provider | Seconds | Input | Cached input | Output | Total | Reasoning | Cost | Currency | Output size |",
-        "|---|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|---|",
     ]
+    if plan.session_scope is None:
+        lines.extend(["Session affinity was not recorded in this historical manifest.", ""])
+    else:
+        lines.extend(
+            [
+                f"Session scope: {_cell(plan.session_scope)}.",
+                "Models run concurrently; each model's requests remain sequential.",
+                "Session affinity does not guarantee cache hits.",
+                "",
+                "| Model | Planned x-session-id | Recorded x-session-id |",
+                "|---|---|---|",
+            ]
+        )
+        for model in plan.models:
+            recorded = sorted(
+                {
+                    header
+                    for attempt in ledger.results()
+                    if attempt.model == model
+                    and isinstance(header := attempt.request_headers.get("x-session-id"), str)
+                    and header
+                }
+            )
+            session_cells = (model, plan.model_session_id(model), ", ".join(recorded) or "unknown")
+            lines.append("| " + " | ".join(_cell(value) for value in session_cells) + " |")
+        lines.append("")
+    lines.extend(
+        [
+            "## Per-role evidence",
+            "",
+            "| Model | Rep | Batch | Role | Status | Provider | Seconds | Input | Cached input | Output | Total | Reasoning | Cost | Currency | Output size |",
+            "|---|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|---|",
+        ]
+    )
     lines.extend(
         [
             "",

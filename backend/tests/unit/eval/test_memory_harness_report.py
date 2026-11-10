@@ -44,6 +44,7 @@ def test_report_separates_human_review_and_reports_size_without_fake_tokens(tmp_
         models=["provider/model"],
         repetitions=1,
         global_count=0,
+        session_scope="report-test",
     )
     write_plan(plan, tmp_path)
     (tmp_path / "outputs.jsonl").write_text(
@@ -93,6 +94,7 @@ def test_report_pairs_unified_against_both_split_roles_and_keeps_unknown_usage(t
         models=["provider/model"],
         repetitions=1,
         global_count=0,
+        session_scope="report-test",
     )
     rows = [
         {
@@ -173,6 +175,7 @@ def test_report_cli_uses_saved_sizes_without_current_code_or_provider_lookup(
         models=["provider/model"],
         repetitions=1,
         global_count=1,
+        session_scope="report-test",
     )
     write_plan(plan, tmp_path)
     monkeypatch.setattr("sys.argv", ["eval.memory.report", "--output", str(tmp_path)])

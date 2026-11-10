@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.ai.router import get_instance_default
 from app.memory.batch_source_contracts import BatchInput
@@ -16,6 +16,7 @@ from app.memory.producer_prompts import (
     prepare_request,
 )
 from app.memory.production_policy import FactsPolicy, GlobalPolicy
+from eval.support.dialogue_affinity import session_id_for_model
 
 
 def digest(value: object) -> str:
@@ -27,8 +28,9 @@ def digest(value: object) -> str:
 
 class MemoryPlan(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-    version: Literal[1] = 1
-    harness_version: str = "1"
+    version: Literal[1, 2] = 2
+    harness_version: str = "2"
+    session_scope: str | None = None
     producer_version: str
     implementation_fingerprint: str
     output_cap: int = Field(gt=0)
@@ -44,9 +46,24 @@ class MemoryPlan(BaseModel):
     input_sizes: tuple[PreparedInputSize, ...]
     seal: str
 
+    @model_validator(mode="after")
+    def validate_session_scope(self) -> MemoryPlan:
+        if self.version == 1 and self.session_scope is not None:
+            raise ValueError("legacy manifests cannot carry session scope")
+        if self.version == 2 and (self.session_scope is None or not self.session_scope.strip()):
+            raise ValueError("session_scope must be explicitly nonempty")
+        return self
+
     @property
     def call_budget(self) -> int:
         return len(self.models) * self.repetitions * (3 * len(self.sources) + self.global_count)
+
+    def model_session_id(self, model: str) -> str:
+        if model not in self.models:
+            raise ValueError("model must be selected in the plan")
+        if self.session_scope is None or not self.session_scope.strip():
+            raise ValueError("plan has no usable session scope")
+        return session_id_for_model(self.session_scope, model)
 
 
 class PreparedInputSize(BaseModel):
@@ -71,8 +88,11 @@ def prepare_plan(
     models: list[str],
     repetitions: int,
     global_count: int,
+    session_scope: str,
     paid_models: list[str] | None = None,
 ) -> MemoryPlan:
+    if not session_scope.strip():
+        raise ValueError("session_scope must be explicitly nonempty")
     parsed_sources = tuple(
         BatchInput.model_validate_json(json.dumps(source)) for source in sources
     )
@@ -120,6 +140,7 @@ def prepare_plan(
     )
     unsigned = MemoryPlan(
         producer_version=PRODUCER_VERSION,
+        session_scope=session_scope,
         implementation_fingerprint=implementation_fingerprint,
         output_cap=get_instance_default().max_tokens,
         sources=parsed_sources,
@@ -165,6 +186,8 @@ def current_implementation_fingerprint(root: Path | None = None) -> str:
         "eval/support/live_calls.py",
         "eval/support/provider_trace.py",
         "eval/support/ledger.py",
+        "eval/support/dialogue_affinity.py",
+        "eval/dialogue/limits.py",
     )
     contents = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in files}
     contents.update(
@@ -178,7 +201,10 @@ def current_implementation_fingerprint(root: Path | None = None) -> str:
 
 
 def plan_seal(plan: MemoryPlan) -> str:
-    return digest(plan.model_dump(mode="json", exclude={"seal"}))
+    fields = {"seal"}
+    if plan.version == 1:
+        fields.add("session_scope")
+    return digest(plan.model_dump(mode="json", exclude=fields))
 
 
 def _prepared_input_sizes(
@@ -240,6 +266,8 @@ def _prepared_input_sizes(
 
 
 def validate_plan(plan: MemoryPlan) -> None:
+    if plan.version != 2 or plan.session_scope is None or not plan.session_scope.strip():
+        raise ValueError("legacy manifest cannot be executed; prepare a version 2 plan")
     if plan.seal != plan_seal(plan):
         raise ValueError("manifest seal mismatch; evidence was edited")
     if plan.implementation_fingerprint != current_implementation_fingerprint():

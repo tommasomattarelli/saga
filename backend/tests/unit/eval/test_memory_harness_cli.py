@@ -23,6 +23,8 @@ def test_dry_run_only_writes_offline_manifest(tmp_path, monkeypatch: pytest.Monk
             str(facts_path),
             "--language",
             "en",
+            "--session-scope",
+            "offline-test",
             "--model",
             "provider/model",
             "--repetitions",
