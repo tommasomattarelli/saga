@@ -1,95 +1,132 @@
-import uuid
+from datetime import UTC, datetime
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
-from app.api.auth import get_current_user
-from app.dependencies import get_db
 from app.main import app
-from app.models.campaign import Campaign
-from app.models.turn import Turn
-
-client = TestClient(app)
+from app.models.user import User
+from app.schemas.campaign_export import CampaignExport, ExportCampaign
+from app.security.auth import get_current_user
+from app.services.campaign_export import CampaignExportNotFoundError
+from app.services.export_validation import ExportIntegrityError
 
 
 @pytest.fixture
-def mock_user_dependency(mocker):
-    mock_user = mocker.Mock()
-    mock_user.id = uuid.uuid4()
-
-    async def override_get_current_user():
-        return mock_user
-
-    app.dependency_overrides[get_current_user] = override_get_current_user
-    return mock_user
-
-
-def test_export_campaign(mocker, mock_user_dependency):
-    mock_db = mocker.AsyncMock()
-    campaign_id = str(uuid.uuid4())
-
-    camp_mock = Campaign(
-        id=uuid.UUID(campaign_id),
-        name="Epic Quest",
-        world_state={"locations": {}},
-        character_data={"hp": 10},
+def export_user():
+    user = User(
+        id=uuid4(), username="export-test", email="export@example.test", hashed_password="unused"
     )
 
-    class MockCampaignResult:
-        def scalar_one_or_none(self):
-            return camp_mock
+    async def override_user() -> User:
+        return user
 
-    class MockTurnsResult:
-        def scalars(self):
-            class MockAll:
-                def all(self):
-                    return [Turn(turn_number=1, player_action="Go", narration="You go.")]
+    app.dependency_overrides[get_current_user] = override_user
+    yield user
+    app.dependency_overrides.pop(get_current_user, None)
 
-            return MockAll()
 
-    class MockFactsResult:
-        def scalars(self):
-            class MockAll:
-                def all(self):
-                    return []
+def empty_archive() -> CampaignExport:
+    now = datetime.now(UTC)
+    campaign = ExportCampaign(
+        id=uuid4(),
+        world_slug="starter",
+        world_version=None,
+        name="Test",
+        language="en",
+        status="active",
+        difficulty="medium",
+        turn_number=0,
+        memory_policy_id=None,
+        active_continuation_id=None,
+        active_head_turn_id=None,
+        active_memory_state_id=None,
+        context_epoch=0,
+        fork_on_next_action=False,
+        character_data={},
+        world_baseline=None,
+        world_state={},
+        quests={},
+        global_summary=None,
+        persona_preset=None,
+        persona_xml=None,
+        created_at=now,
+        updated_at=now,
+    )
+    return CampaignExport(
+        format_version=1,
+        exported_at=now,
+        campaign=campaign,
+        turns=[],
+        turn_operations=[],
+        continuations=[],
+        saves=[],
+        memory_policies=[],
+        memory_states=[],
+        memory_batches=[],
+        batch_turns=[],
+        memory_summaries=[],
+        global_checkpoints=[],
+        memory_facts=[],
+        fact_sources=[],
+        generations=[],
+        jobs=[],
+        job_attempts=[],
+    )
 
-            return MockAll()
 
-    mock_db.execute.side_effect = [MockCampaignResult(), MockTurnsResult(), MockFactsResult()]
+def export_campaign_validation_error() -> ValidationError:
+    with pytest.raises(ValidationError) as error:
+        ExportCampaign.model_validate({})
+    return error.value
 
-    async def override_get_db():
-        yield mock_db
 
-    app.dependency_overrides[get_db] = override_get_db
+def test_export_delegates_campaign_and_owner_ids(mocker, export_user: User) -> None:
+    campaign_id = uuid4()
+    archive = empty_archive()
+    build = mocker.patch(
+        "app.api.export.build_campaign_export", autospec=True, return_value=archive
+    )
 
-    response = client.get(f"/api/export/{campaign_id}")
+    response = TestClient(app).get(f"/api/export/{campaign_id}")
+
     assert response.status_code == 200
-    data = response.json()
-    assert data["campaign"]["name"] == "Epic Quest"
-    assert len(data["turns"]) == 1
-    assert data["turns"][0]["player_action"] == "Go"
-    assert "memory_facts" in data
-    assert data["memory_facts"] == []
-
-    app.dependency_overrides.clear()
+    assert response.json()["format_version"] == 1
+    build.assert_awaited_once_with(campaign_id, export_user.id)
 
 
-def test_export_campaign_not_found(mocker, mock_user_dependency):
-    mock_db = mocker.AsyncMock()
-    campaign_id = str(uuid.uuid4())
+def test_export_maps_not_found_to_404(mocker, export_user: User) -> None:
+    mocker.patch(
+        "app.api.export.build_campaign_export",
+        autospec=True,
+        side_effect=CampaignExportNotFoundError("private detail"),
+    )
 
-    class MockCampaignResult:
-        def scalar_one_or_none(self):
-            return None
+    response = TestClient(app).get(f"/api/export/{uuid4()}")
 
-    mock_db.execute.return_value = MockCampaignResult()
-
-    async def override_get_db():
-        yield mock_db
-
-    app.dependency_overrides[get_db] = override_get_db
-
-    response = client.get(f"/api/export/{campaign_id}")
     assert response.status_code == 404
+    assert response.json()["detail"] == "Campaign not found"
+    assert "private detail" not in response.text
 
-    app.dependency_overrides.clear()
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        ExportIntegrityError("secret integrity detail"),
+        export_campaign_validation_error(),
+    ],
+)
+def test_export_sanitizes_inconsistent_archives(
+    mocker, export_user: User, error: Exception
+) -> None:
+    mocker.patch("app.api.export.build_campaign_export", autospec=True, side_effect=error)
+
+    response = TestClient(app).get(f"/api/export/{uuid4()}")
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == {
+        "code": "campaign_export_inconsistent",
+        "message": "Campaign export could not be validated.",
+    }
+    assert "secret" not in response.text
