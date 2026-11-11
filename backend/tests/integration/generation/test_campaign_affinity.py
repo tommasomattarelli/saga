@@ -12,12 +12,9 @@ from app.ai.generation_context import generation_context
 from app.ai.providers import base
 from app.ai.providers.local import LocalProvider
 from app.ai.router import get_generation, get_user_generation
-from app.dependencies import get_db_context
-from app.memory.compressor import ensure_compression
 from app.memory.fact_extractor import extract_facts
-from app.memory.global_summary import update_global_summary
-from app.models.turn import Turn
 from app.security.auth import decode_token
+from tests.action_support import action_body
 
 
 @pytest.fixture
@@ -121,47 +118,33 @@ async def configure(client: AsyncClient) -> tuple[uuid.UUID, list[str]]:
     return uuid.UUID(str(decode_token(token)["sub"])), campaigns
 
 
-async def drain_background() -> None:
-    tasks = [
-        task
-        for task in asyncio.all_tasks()
-        if getattr(task.get_coro(), "__name__", "")
-        in {
-            "extract_and_store_facts",
-            "_background_compression",
-            "_background_global_summary",
-        }
-    ]
-    await asyncio.gather(*tasks)
-
-
-async def test_real_concurrent_campaigns_bind_dm_actors_and_background_without_client_mutation(
+async def test_real_concurrent_campaigns_bind_dm_actors_without_client_mutation(
     auth_client: AsyncClient,
     affinity_client: tuple[LocalProvider, list[httpx.Request]],
 ) -> None:
     provider, requests = affinity_client
     owner, campaigns = await configure(auth_client)
+    bodies = [await action_body(auth_client, campaign, "Greet Lyra.") for campaign in campaigns]
     responses = await asyncio.gather(
         *[
-            auth_client.post(f"/api/campaigns/{campaign}/action", json={"action": "Greet Lyra."})
-            for campaign in campaigns
+            auth_client.post(f"/api/campaigns/{campaign}/action", json=body)
+            for campaign, body in zip(campaigns, bodies, strict=True)
         ]
     )
-    await drain_background()
     assert [r.status_code for r in responses] == [200, 200]
     assert {r.headers.get("x-session-id") for r in requests} == set(campaigns)
     for campaign in campaigns:
         bodies = [json.loads(r.content) for r in requests if r.headers["x-session-id"] == campaign]
         assert len([b for b in bodies if "tools" in b]) == 2
         assert len([b for b in bodies if "response_format" in b]) == 1
-        assert len([b for b in bodies if "tools" not in b and "response_format" not in b]) == 1
+        assert len([b for b in bodies if "tools" not in b and "response_format" not in b]) == 0
     before = len(requests)
     assert (
         await auth_client.post(
-            f"/api/campaigns/{campaigns[0]}/action", json={"action": "Greet again."}
+            f"/api/campaigns/{campaigns[0]}/action",
+            json=await action_body(auth_client, campaigns[0], "Greet again."),
         )
     ).status_code == 200
-    await drain_background()
     assert {r.headers["x-session-id"] for r in requests[before:]} == {campaigns[0]}
     assert all(r.headers["x-app"] == "preserved" for r in requests)
     assert "x-session-id" not in provider.client.default_headers
@@ -192,27 +175,6 @@ async def test_campaign_scope_survives_owner_rebinding_and_background_request_ex
         await task
         await extract_facts("look", "The square is quiet.")
     assert [r.headers["x-session-id"] for r in requests] == campaigns
-
-    async with get_db_context() as db:
-        db.add(
-            Turn(
-                campaign_id=uuid.UUID(campaigns[0]),
-                turn_number=1,
-                player_action="look",
-                narration="The square is quiet.",
-                model_used="affinity-model",
-            )
-        )
-        await db.commit()
-    with campaign_session(uuid.UUID(campaigns[0])), generation_context(owner):
-        async with get_db_context() as db:
-            await ensure_compression(campaigns[0], 20, db)
-            await db.commit()
-        async with get_db_context() as db:
-            await update_global_summary(uuid.UUID(campaigns[0]), 1, db)
-            await db.commit()
-    assert len(requests) == 4
-    assert all(r.headers["x-session-id"] == campaigns[0] for r in requests[2:])
     with generation_context(owner):
         unscoped, _ = await get_generation()
         assert unscoped is provider
@@ -225,7 +187,13 @@ async def test_unauthorized_campaign_emits_no_provider_request(
     _, requests = affinity_client
     await configure(auth_client)
     response = await auth_client.post(
-        f"/api/campaigns/{uuid.uuid4()}/action", json={"action": "look"}
+        f"/api/campaigns/{uuid.uuid4()}/action",
+        json={
+            "action": "look",
+            "request_id": str(uuid.uuid4()),
+            "expected_head_turn_id": None,
+            "expected_context_epoch": 0,
+        },
     )
     assert response.status_code == 404
     assert requests == []

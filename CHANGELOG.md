@@ -30,3 +30,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Snapshotted approved memory settings for new campaigns and derived action/client deadlines from one YAML configuration (ADR 0020 S4b).
 - Assembled three-level prompts from frozen history snapshots and filtered recalled facts by complete batch ancestry before ranking (ADR 0020 S4b).
 - Activated durable memory workers, bounded admission and explicit retry while preserving campaign affinity and historical attempt budgets (ADR 0020 S4b).
+- Fenced idempotent action publication and coherent save/load, retaining exact responses, immutable autosaves and active-history journal reads (ADR 0020 S4b).

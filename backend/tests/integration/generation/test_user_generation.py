@@ -11,6 +11,7 @@ from app.ai.router import get_user_generation
 from app.exceptions import ValidationError
 from app.models.user import User
 from app.security.auth import decode_token
+from tests.action_support import action_body
 
 
 def user_id(client: AsyncClient) -> uuid.UUID:
@@ -91,10 +92,11 @@ async def test_partial_personal_profile_is_rejected(auth_client: AsyncClient) ->
         await get_user_generation(user_id(auth_client))
 
 
-async def test_missing_credentials_reject_the_turn_before_claiming_it(
+async def test_missing_credentials_interrupt_claim_without_persisting_a_turn(
     auth_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     from app.models.campaign import Campaign
+    from app.models.turn_request import TurnRequest
 
     response = await auth_client.post(
         "/api/campaigns",
@@ -102,11 +104,13 @@ async def test_missing_credentials_reject_the_turn_before_claiming_it(
     )
     assert response.status_code == 201
     campaign_id = response.json()["id"]
-    response = await auth_client.post(
-        f"/api/campaigns/{campaign_id}/action", json={"action": "look around"}
-    )
+    body = await action_body(auth_client, campaign_id, "look around")
+    response = await auth_client.post(f"/api/campaigns/{campaign_id}/action", json=body)
     assert response.status_code == 422
     assert "key" in response.json()["detail"].lower()
     campaign = await db_session.get(Campaign, uuid.UUID(campaign_id), populate_existing=True)
     assert campaign is not None
-    assert campaign.turn_number == 0
+    assert campaign.turn_number == 1
+    assert campaign.active_action_request_id is None
+    request = await db_session.get(TurnRequest, uuid.UUID(body["request_id"]))
+    assert request is not None and request.state == "interrupted"

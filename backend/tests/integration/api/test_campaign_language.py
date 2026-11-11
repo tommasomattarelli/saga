@@ -8,10 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.providers.schemas import ToolCall
 from app.models.campaign import Campaign
 from app.models.memory_fact import MemoryFact
-from app.models.save import Save
 from app.models.turn import Turn
 from app.models.user import User
 from app.security.auth import create_access_token
+from app.services.save_service import create_campaign_save
 from tests.integration.gameplay.test_quest_persistence import (
     _autosave,
     _openai_provider,
@@ -155,15 +155,16 @@ async def test_restore_keeps_current_language_even_if_snapshot_contains_old_pref
 ) -> None:
     campaign = await _create(auth_client, language="it")
     campaign_id = campaign["id"]
-    saved = await auth_client.post(f"/api/saves/{campaign_id}", json={"name": "Italian"})
-    assert saved.status_code == 201
-    save_id = saved.json()["id"]
-    save = await db_session.get(Save, uuid.UUID(save_id))
-    assert save is not None
-    assert "language" not in save.campaign_snapshot
-    # Old or imported snapshots cannot overwrite a current campaign preference.
+    stored_campaign = await db_session.scalar(
+        select(Campaign).where(Campaign.id == uuid.UUID(campaign_id)).with_for_update()
+    )
+    assert stored_campaign is not None
+    save = await create_campaign_save(db_session, stored_campaign, name="Italian")
+    # Model a historical snapshot at creation without mutating a committed save.
     save.campaign_snapshot = {**save.campaign_snapshot, "language": "it"}
     await db_session.commit()
+    save_id = str(save.id)
+    assert save.campaign_snapshot["language"] == "it"
     assert (
         await auth_client.patch(f"/api/campaigns/{campaign_id}", json={"language": "en"})
     ).status_code == 200

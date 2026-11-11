@@ -18,6 +18,7 @@ from app.exceptions import ValidationError
 from app.main import app
 from app.models.user import User
 from app.security.auth import create_access_token
+from tests.action_support import action_body
 
 
 async def configure(client: AsyncClient, key: str, model: str) -> str:
@@ -52,26 +53,15 @@ async def test_two_real_turns_never_share_clients_or_models(
     ) as second:
         first_campaign = await configure(auth_client, "first-key", "first-model")
         second_campaign = await configure(second, "second-key", "second-model")
+        first_body = await action_body(auth_client, first_campaign, "look at the torch")
+        second_body = await action_body(second, second_campaign, "listen at the door")
         responses = await asyncio.gather(
-            auth_client.post(
-                f"/api/campaigns/{first_campaign}/action", json={"action": "look at the torch"}
-            ),
+            auth_client.post(f"/api/campaigns/{first_campaign}/action", json=first_body),
             second.post(
                 f"/api/campaigns/{second_campaign}/action",
-                json={"action": "listen at the door"},
+                json=second_body,
             ),
         )
-        background = [
-            task
-            for task in asyncio.all_tasks()
-            if getattr(task.get_coro(), "__name__", "")
-            in {
-                "extract_and_store_facts",
-                "_background_compression",
-                "_background_global_summary",
-            }
-        ]
-        await asyncio.gather(*background)
 
         assert [response.status_code for response in responses] == [200, 200]
         assert [response.json()["model_used"] for response in responses] == [
@@ -84,8 +74,13 @@ async def test_two_real_turns_never_share_clients_or_models(
         assert len(first) == len(other) == 1
         assert first[0] is not other[0]
         for providers, model in ((first, "first-model"), (other, "second-model")):
-            assert providers[0].generate_with_tools.call_args.kwargs["model"] == model
-            assert providers[0].generate.call_args.kwargs["model"] == model
+            provider = providers[0]
+            assert provider.generate_with_tools.await_count >= 1
+            assert all(
+                call.kwargs["model"] == model
+                for call in provider.generate_with_tools.await_args_list
+            )
+            provider.generate.assert_not_awaited()
         with pytest.raises(ValidationError, match="context"):
             await get_generation()
 
@@ -150,7 +145,10 @@ async def test_rejected_personal_key_never_retries_on_the_server_key(
         response=Response(status_code, request=Request("POST", "https://provider.test/private")),
         body=None,
     )
-    response = await auth_client.post(f"/api/campaigns/{campaign}/action", json={"action": "look"})
+    response = await auth_client.post(
+        f"/api/campaigns/{campaign}/action",
+        json=await action_body(auth_client, campaign, "look"),
+    )
     assert response.status_code == 502
     assert message in response.json()["detail"]
     assert "private-provider-payload" not in response.text
@@ -166,7 +164,10 @@ async def test_disabled_provider_is_rechecked_before_a_turn(
 ) -> None:
     campaign = await configure(auth_client, "disabled-key", "chosen-model")
     monkeypatch.setattr("app.ai.credentials.get_allowed_providers", lambda: ["google"])
-    response = await auth_client.post(f"/api/campaigns/{campaign}/action", json={"action": "look"})
+    response = await auth_client.post(
+        f"/api/campaigns/{campaign}/action",
+        json=await action_body(auth_client, campaign, "look"),
+    )
     assert response.status_code == 422
     assert "not enabled" in response.json()["detail"]
     assert not generation_clients
