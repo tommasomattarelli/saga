@@ -79,8 +79,31 @@ export const createCampaign = (data: {
   character_data?: Record<string, unknown>;
 }) => api.post<Campaign>("/campaigns", data);
 
-export const submitAction = (campaignId: string, action: string) =>
-  api.post<TurnResponse>(`/campaigns/${campaignId}/action`, { action });
+export interface ActionSubmission {
+  action: string;
+  request_id: string;
+  expected_head_turn_id: string | null;
+  expected_context_epoch: number;
+}
+
+export interface RuntimeConfig {
+  action_client_timeout_seconds: number;
+}
+
+export const getRuntimeConfig = () => api.get<RuntimeConfig>("/runtime-config");
+
+export const submitAction = (campaignId: string, submission: ActionSubmission, timeout: number) =>
+  api.post<TurnResponse>(`/campaigns/${campaignId}/action`, submission, { timeout });
+
+export const retryCampaignMemory = (
+  campaignId: string,
+  expected_head_turn_id: string | null,
+  expected_context_epoch: number,
+) =>
+  api.post(`/campaigns/${campaignId}/memory/retry`, {
+    expected_head_turn_id,
+    expected_context_epoch,
+  });
 
 export interface WorldOption {
   slug: string;
