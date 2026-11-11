@@ -178,22 +178,14 @@ _NPC_VERBOSITY_MAP: dict[str, int] = {
 class GameplayConfig:
     """Runtime gameplay settings loaded from saga.config.yaml."""
 
-    context_window_turns: int = 8
     max_agent_steps: int = 8
-    context_token_cap: int = 12000
     npc_verbosity: str = "medium"
-    compression_enabled: bool = True
-    fact_extraction_enabled: bool = True
-    global_summary_enabled: bool = True
-    global_summary_update_every: int = 5
-    pgvector_hybrid: bool = False
     auto_create_npcs: bool = True
     npc_auto_create_detail: str = "standard"
     consecutive_empty_steps_max: int = 2
     npc_last_interactions_kept: int = 3
     npc_max_lines: int = 4
     npc_narrative_max_chars: int = 1000
-    global_summary_max_input_chars: int = 4000
     npc_condition_max_chars: int = 80
     npc_name_match_threshold: float = 0.85
 
@@ -208,18 +200,6 @@ class GameplayConfig:
         return _NPC_VERBOSITY_MAP.get(self.npc_verbosity, 3)
 
 
-@dataclass
-class SummarizationConfig:
-    """Retry and deduplication settings for the summarization pipeline."""
-
-    max_retries: int = 3
-    retry_delays_seconds: list[int] = None  # type: ignore[assignment]
-
-    def __post_init__(self) -> None:
-        if self.retry_delays_seconds is None:
-            self.retry_delays_seconds = [1, 5, 30]
-
-
 def _bool_env(key: str, fallback: bool) -> bool:
     val = os.getenv(key)
     if val is None:
@@ -231,32 +211,11 @@ def get_gameplay_config() -> GameplayConfig:
     """Read the gameplay section from saga.config.yaml with env overrides."""
     config = _load_config()
     gp = config.get("gameplay", {})
-    gs = config.get("features", {}).get("global_summary", {})
-
     return GameplayConfig(
         max_agent_steps=int(
             os.getenv("SAGA_GAMEPLAY_MAX_AGENT_STEPS", gp.get("max_agent_steps", 8))
         ),
-        context_window_turns=int(
-            os.getenv("SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS", gp.get("context_window_turns", 8))
-        ),
-        context_token_cap=int(
-            os.getenv("SAGA_GAMEPLAY_CONTEXT_TOKEN_CAP", gp.get("context_token_cap", 12000))
-        ),
         npc_verbosity=os.getenv("SAGA_GAMEPLAY_NPC_VERBOSITY", gp.get("npc_verbosity", "medium")),
-        compression_enabled=_bool_env(
-            "SAGA_GAMEPLAY_COMPRESSION_ENABLED", gp.get("compression_enabled", True)
-        ),
-        fact_extraction_enabled=_bool_env(
-            "SAGA_GAMEPLAY_FACT_EXTRACTION_ENABLED", gp.get("fact_extraction_enabled", True)
-        ),
-        global_summary_enabled=_bool_env("SAGA_GLOBAL_SUMMARY_ENABLED", gs.get("enabled", True)),
-        global_summary_update_every=int(
-            os.getenv("SAGA_GLOBAL_SUMMARY_INTERVAL_TURNS", gs.get("interval_turns", 5))
-        ),
-        pgvector_hybrid=_bool_env(
-            "SAGA_GAMEPLAY_PGVECTOR_HYBRID", gp.get("pgvector_hybrid", False)
-        ),
         auto_create_npcs=_bool_env(
             "SAGA_GAMEPLAY_AUTO_CREATE_NPCS", gp.get("auto_create_npcs", True)
         ),
@@ -282,12 +241,6 @@ def get_gameplay_config() -> GameplayConfig:
                 "SAGA_GAMEPLAY_NPC_NARRATIVE_MAX_CHARS", gp.get("npc_narrative_max_chars", 1000)
             )
         ),
-        global_summary_max_input_chars=int(
-            os.getenv(
-                "SAGA_GLOBAL_SUMMARY_MAX_INPUT_CHARS",
-                gs.get("max_input_chars", 4000),
-            )
-        ),
         npc_condition_max_chars=int(
             os.getenv(
                 "SAGA_GAMEPLAY_NPC_CONDITION_MAX_CHARS",
@@ -300,15 +253,4 @@ def get_gameplay_config() -> GameplayConfig:
                 gp.get("npc_name_match_threshold", 0.85),
             )
         ),
-    )
-
-
-def get_summarization_config() -> SummarizationConfig:
-    """Read the summarization section from saga.config.yaml."""
-    config = _load_config()
-    sc = config.get("summarization", {})
-
-    return SummarizationConfig(
-        max_retries=int(os.getenv("SAGA_SUMMARIZATION_MAX_RETRIES", sc.get("max_retries", 3))),
-        retry_delays_seconds=sc.get("retry_delays_seconds", [1, 5, 30]),
     )

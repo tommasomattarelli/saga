@@ -110,17 +110,6 @@ def test_unknown_obligation_reference_is_rejected(monkeypatch):
 @pytest.mark.parametrize(
     "file,key,digest",
     [
-        ("compressor", "base", "24e0bab0c737be75f425d381be7bfb56c034f50e5e935643a8f79c8f4d8ca04d"),
-        (
-            "global_summary",
-            "initial",
-            "126fe3f5eb5ae8e0f3aeb9e6bb91111e0a9118b3bd13e2790760d0e87191df90",
-        ),
-        (
-            "global_summary",
-            "update",
-            "71db4a75ef6a84ac0057387276e1621d475c99cc1d140e1bc7dd2f123b40be2b",
-        ),
         (
             "personas",
             "grimdark",

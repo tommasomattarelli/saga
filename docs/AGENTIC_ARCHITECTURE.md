@@ -528,7 +528,7 @@ adding a call), and recall/NPC relevance by ADR
 | Transport | REST + JSON (not WebSocket/SSE) | Each turn is an independent POST returning the full result; no connection state to manage. The frontend renders narration with a typewriter effect, so token-level streaming isn't required. |
 | Agent framework | LangGraph 1.0 | Explicit graph routing, typed state, conditional edges |
 | Provider routing | Gemini 2.5 Pro for DM (default) | Best tool-calling reliability at cost point |
-| pgvector | Basic (vector only) now, hybrid RRF behind `gameplay.pgvector_hybrid` flag | Hybrid adds complexity; basic cosine is sufficient for v1 |
+| pgvector | Fact-content cosine top-K after active-history filtering | No hybrid ranking or TURN-summary embedding work |
 | Global memory storage | Immutable `MemoryGlobalCheckpoint` chain; active pointer in `MemoryState` | Snapshot renders only the checkpoint active for the selected history |
 | Turn action publication | Request ID + expected head/epoch + execution token and DB lease | Idempotent claim; conditional fenced commit stores the exact response with turn, operations, and auto-save |
 | Save/load history | Save freezes continuation, head, policy, and memory cursors; load creates a new epoch/state | History is append-only; stale graph writes are fenced and future history is isolated |
