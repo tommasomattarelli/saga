@@ -26,9 +26,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Isolated generation-profile reads from campaign relationships so memory evaluations can preserve legacy databases without migrations (ADR 0020 S3).
 - Added stable per-model memory-evaluation sessions, recorded request headers and parallel model workers with sequential requests and quota-safe stopping.
 - Refined candidate memory prompts toward concise third-person DM summaries, future-useful facts and importance calibration for central unresolved revelations (ADR 0020 S3).
-- Added fenced memory-job claims, persistent attempt budgets, expired-lease recovery and explicit retry cycles without activating public memory production (ADR 0020 S4a).
-- Added context-local single-attempt generation so durable memory jobs own retry budgets without changing ordinary provider retry behavior (ADR 0020 S4a).
-- Froze complete specialist/global job requests in versioned manifests, preserving source and instruction identity across restarts and template changes (ADR 0020 S4a).
-- Added atomic memory document/fact/embedding publication, independent coverage cursors and fenced detached results for history changes (ADR 0020 S4a).
-- Added memory transition scheduling and bounded artifact reconciliation that preserve protected detail and reuse compatible work without resetting retries (ADR 0020 S4a).
-- Added an unactivated memory worker with pre-call provenance, whole-attempt deadlines and independent raw/global execution outside database sessions (ADR 0020 S4a).
+- Added durable memory jobs with frozen requests, bounded retries, atomic publication and history-safe artifact reuse, without activating the public pipeline (ADR 0020 S4a).
