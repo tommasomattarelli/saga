@@ -30,7 +30,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Connected idempotent actions, three-level memory, bounded admission and history-safe restore/recall, with YAML-derived client deadlines and explicit blocking retries (ADR 0020 S4b).
 - Delivered versioned campaign archives with full memory provenance, offline reference validation, and recoverable save/retry behavior under repeatable-read isolation (ADR 0020 S5).
 - Retired legacy memory producers, harnesses, unused fixtures, TURN indexing and obsolete settings while preserving historical archives (ADR 0020 S6).
-- Added eval-only generation and embedding attempt guards with durable, frozen budgets and interruption-safe ledgers, without changing gameplay runtime (ADR 0020 S6).
-- Added sealed integrated-evaluation manifests, offline preparation and reporting, with model, embedding-space and authorization gates left explicit (ADR 0020 S6).
-- Replayed authored memory sources through real actions and persisted ordered turn, operation and batch provenance, including interrupted prefixes (ADR 0020 S6).
-- Connected guarded integrated memory-job and embedding evaluation with optional persisted-source sidecars and PostgreSQL verification, without authorizing live execution (ADR 0020 S6).
+- Prepared guarded integrated memory evaluation with persisted-source provenance, bounded generation/embedding ledgers and offline manifests, leaving live runs and production decisions owner-gated (ADR 0020 S6).

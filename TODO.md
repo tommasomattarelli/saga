@@ -17,7 +17,7 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 
 [ ] **playtest su `v0.3.0`**
 
-[ ] **re-eval memoria ADR 0020 prima del merge in main**: rivalutare la pipeline integrata con scenario lungo/globale e playtest; confrontare specialisti (preferenza provvisoria) e unified per fedeltà, utilità dei fatti, importanza e recall effettivo, poi confermare variante/default; ogni run live richiede nuova autorizzazione.
+[ ] **re-eval memoria ADR 0020 prima del merge in main**: runner integrato e manifest preparati offline; scegliere modelli, spazio embedding, cap/retry e sidecar prima della singola autorizzazione live, poi valutare qualità, recall e playtest e confermare variante/default.
 
 [ ] **harness modelli (`backend/eval/`) — completamenti aperti**:
     [ ] **baseline satura dalla pipeline ADR 0020**: produrre evidenza revisionata della pipeline collegata; i vecchi fixture generati e il derivatore per-turno sono ritirati, ogni generazione live richiede autorizzazione.

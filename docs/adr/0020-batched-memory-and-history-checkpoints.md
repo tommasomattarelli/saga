@@ -591,6 +591,32 @@ controlli grafici di save/load o download e senza anticipare il redesign.
 - Full check entrambi gli stack e integrazioni pertinenti; docs/CHANGELOG/TODO riconciliati; stato ADR aggiornato secondo accettazione effettiva.
 - Una sola PR finale, merge commit. Nessun merge verso main prima dei gate e della review.
 
+**S6 note (2026-11-12, implementation offline).** Il runner integrato usa API,
+graph e job reali con confini DM/NPC controllati, senza lifespan o worker autonomi;
+la strumentazione dei tentativi resta interamente nell'eval, senza modifiche al runtime.
+Le identità autorate sono collegate ai turni e alle operazioni persistite prima di
+avviare i job, con membership e input congelati verificati e provenienza conservata
+anche sui prefissi interrotti. Il profilo personale non viene modificato dal replay.
+
+Il limite persistente di quattro tentativi per job non è un budget esterno: questo
+runner si ferma prima del retry del job, disabilita i retry SDK della generazione e
+contabilizza ogni tentativo embedding, inclusi quelli della policy finita esistente.
+I cap separati per generazioni, embedding e testi reinviati sono congelati nel ledger;
+un run interrotto o già esistente richiede revisione, non riparte automaticamente.
+Il sidecar unico è separato e usa gli stessi batch persistiti, senza pubblicarli.
+
+I test PostgreSQL con trasporto SDK simulato verificano 31 generazioni baseline,
+42 con sidecar e la coda fattuale; non sono evidenza live o accettazione della qualità.
+La preparazione conserva selezione modello/spazio e budget nulli, `executable=false`
+e `approved=false`; credenziali/cataloghi/provider non vengono risolti offline.
+Restano i gate owner per modello, spazio, cap, retry, sidecar e singola autorizzazione
+live, poi qualità, recall effettivo, playtest, variante/default e accettazione prima di main.
+
+Verifiche: **1.896 test backend passati, tre casi junction Windows saltati su Linux,
+284 frontend passati**, gate statici/coverage/build passati; unico errore iniziale di
+formato nel builder, corretto e riverificato su 571 file senza ripetere il full su
+richiesta owner. Nessuna chiamata live o modifica a `backend/app/`.
+
 ## 15. Riferimento OpenCode /compact
 
 L'owner ha chiesto di studiarlo per ispirare il globale. Analisi Luna e verifica diretta del prompt, senza clone o file nel repo.
