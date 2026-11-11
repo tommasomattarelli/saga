@@ -3,7 +3,6 @@ extends: debug-shrine
 meta:
   name: travel-coherent
   origin: controlled
-  derived: false
   reconstructed: true
   notes: >-
     Authored coherent history at the shrine, retaining the captured mechanical state,

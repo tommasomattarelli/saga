@@ -33,7 +33,6 @@ class Scenario:
     recall: dict[str, list[str]] = field(default_factory=dict)
     history: list[dict] = field(default_factory=list)
     stimuli: dict[str, Stimulus] = field(default_factory=dict)
-    derived: bool = True
     reconstructed: bool = False
     notes: str = ""
 
@@ -270,7 +269,6 @@ def load(name: str) -> Scenario:
         recall=context.get("recall") or {},
         history=data.get("history") or [],
         stimuli=stimuli,
-        derived=bool(data["meta"].get("derived")),
         reconstructed=bool(data["meta"].get("reconstructed")),
         notes=str(data["meta"].get("notes") or ""),
     )
