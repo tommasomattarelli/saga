@@ -36,7 +36,10 @@ async def list_campaigns(
 ) -> list[Campaign]:
     """List all campaigns for current user."""
     result = await db.execute(
-        select(Campaign).where(Campaign.user_id == user.id).order_by(Campaign.updated_at.desc())
+        select(Campaign)
+        .where(Campaign.user_id == user.id)
+        .order_by(Campaign.updated_at.desc())
+        .execution_options(populate_existing=True)
     )
     return list(result.scalars().all())
 
@@ -72,7 +75,9 @@ async def get_campaign(
 ) -> Campaign:
     """Get a single campaign."""
     result = await db.execute(
-        select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user.id)
+        select(Campaign)
+        .where(Campaign.id == campaign_id, Campaign.user_id == user.id)
+        .execution_options(populate_existing=True)
     )
     campaign = result.scalar_one_or_none()
     if not campaign:

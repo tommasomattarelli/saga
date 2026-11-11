@@ -1,26 +1,28 @@
 # Agentic DM Architecture
 
-This document describes the **current production architecture** of the SAGA AI engine — the LangGraph-based DM agent loop, memory pipeline, NPC system, prompt structure, and provider layer. It documents what runs today; planned work lives in the ADRs, summarised at the end.
+This document describes the **current production architecture** of the SAGA AI engine. Turn Flow and Memory Pipeline below reflect the S4b public path; other subsystem sections are unchanged. Planned work lives in the ADRs, summarised at the end.
 
 ---
 
 ## Turn Flow
 
-Each player turn is a single POST request that returns the complete turn result as JSON (the frontend renders narration with a typewriter effect). There are no WebSocket connections — each turn is independent. The endpoint never holds a DB session across the LLM/graph call (rule 15): a short session claims the turn number, the graph runs with no session held, and a second short session persists the result.
+Each player turn is a POST carrying a request ID and the expected history head and context epoch. Under a campaign lock, a short claim transaction checks that context and capacity, captures a frozen turn snapshot, and claims a fenced execution slot. The graph runs without a DB session; a second short transaction conditionally publishes the turn. A committed retry returns its stored response only while its result remains the active head.
 
 ```mermaid
 sequenceDiagram
     participant F as Frontend
     participant A as FastAPI (submit_action)
     participant G as dm_graph (LangGraph)
+    participant W as Persistent memory worker
     participant DB as PostgreSQL
 
-    F->>A: POST /api/campaigns/{campaign_id}/action<br/>{action: "I push the door"}
-    A->>DB: Session 1 — validate + atomic claim turn_number (UPDATE...RETURNING) — then CLOSE
-    A->>G: dm_graph.ainvoke(initial_state)  (no DB session held — rule 15)
+    F->>A: POST action + request_id + expected head/epoch
+    A->>DB: Session 1 — campaign lock, validate context/capacity, capture snapshot, claim token — COMMIT
+    A->>G: dm_graph.ainvoke(initial_state with TurnContextSnapshot) (no DB session)
 
-    loop Agent Loop (max 5 steps)
-        G->>G: context_node — build_context(), route_ai_call() (own short session, closed before LLM)
+    loop Agent Loop (configured DM-call cap)
+        G->>G: context_node — consume frozen scene/history/policy; recall embedding outside DB
+        G->>DB: Short recall query session — ancestry-filtered facts — CLOSE
         G->>G: dm_node — generate_with_tools() → narration + tool_calls
         opt tool_calls present
             G->>G: tools_node — sort + execute tools
@@ -30,14 +32,12 @@ sequenceDiagram
     G->>G: post_process_node — clock, death check, segments (pure, no DB)
     G-->>A: final GameState
 
-    A->>A: compress_turn_to_summary() + generate_embedding()
-    A->>DB: Session 2 — persist Turn + campaign world/char + auto-save — then CLOSE
-    A-->>F: TurnResponse JSON {narration, world_state, char_data, dice, ...}
-
-    Note over A,DB: Fire-and-forget background tasks (non-blocking)
-    A-->>DB: ensure_compression()
-    A-->>DB: extract_and_store_facts()
-    A-->>DB: update_global_summary() — every N turns
+    A->>DB: Session 2 — token+DB-lease CAS; write Turn/operations, campaign, auto-save, response, schedule memory — COMMIT
+    A-->>F: Stored TurnResponse JSON
+    A-->>W: Wake after commit
+    W->>DB: Claim durable jobs and read frozen inputs — CLOSE
+    W->>W: Generate batch summary/facts or global checkpoint (no DB session)
+    W->>DB: Atomic publication + fact-embedding enqueue — COMMIT
 ```
 
 ---
@@ -46,7 +46,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    START([START]) --> CN[context_node\nload campaign · build prompt · select model]
+    START([START]) --> CN[context_node\nconsume claim-time snapshot · assemble prompt]
     CN --> DN[dm_node\ncall LLM with tools]
     DN -->|tool_calls present| TN[tools_node\nsort · pre-hook · execute]
     DN -->|no tool_calls| PP[post_process_node\nclock · death · segments]
@@ -59,7 +59,7 @@ flowchart TD
 
 | Node | Reads | Writes |
 |------|-------|--------|
-| `context_node` | Campaign (DB), player_action | messages, world_state, char_data, system_prompt, model_config, importance_score |
+| `context_node` | TurnContextSnapshot, player_action | messages, snapshot scene, system_prompt, model_config, importance_score |
 | `dm_node` | messages, system_prompt, model_config, world_state | messages (AI reply), narration, step_count |
 | `tools_node` | messages (last AI msg), world_state, char_data | messages (tool results), world_state, char_data, narration_segments, time_passed_minutes, consecutive_empty_steps |
 | `post_process_node` | narration, world_state, char_data, time_passed_minutes, narration_segments | world_state (clock advanced), death_event, narration_segments |
@@ -81,7 +81,7 @@ flowchart TD
 
 ### System Prompt (XML structure)
 
-The system prompt is assembled by `build_dm_system_prompt()` in `app/ai/prompts/dm.py`. Every block except `<instructions>` and `<character>` is conditional.
+The system prompt is assembled by `render_dm_prompt()` in `app/ai/prompts/dm.py`. Every block except `<instructions>` and `<character>` is conditional.
 
 ```
 [optional] <persona>
@@ -138,23 +138,21 @@ The system prompt is assembled by `build_dm_system_prompt()` in `app/ai/prompts/
 </scene>
 
 [optional] <global_summary>
-  Rolling story arc paragraph (~200 words). Updated every 5 turns.
-  Captures campaign-spanning narrative: who Eron is, what happened,
-  current situation. Never reset — always extended.
+  Deterministic rendering of the active immutable global checkpoint:
+  story so far, open threads, relationships, and resolved threads.
+  It covers the checkpoint's batch prefix, not necessarily the newest turn.
 </global_summary>
 
 [optional] <history label="story_so_far">
-  Batch summaries of turns outside the Active Window.
-  Each summary is 2-3 sentences covering a 5-turn block.
-  Up to 5 summaries (= last 25-40 turns before the Active Window).
-  Format: "[Turns N-M] The player verb. First_sentence."
+  Active intermediate summaries after the global checkpoint and before
+  the raw suffix. Membership and order come from the captured memory state.
 </history>
 
 [optional] <recalled_memories>
   - Marta mentioned her son disappeared near the old mine three weeks ago.
   - The artifact glows when touched by someone with Hollow blood.
   - Guard Captain Aldric is secretly allied with The Hollow faction.
-  <!-- Top-3 pgvector hits: MemoryFacts semantically similar to player_action -->
+  <!-- Top-K fact vectors; whole producer batch must be in captured ancestry -->
 </recalled_memories>
 
 [optional] <quests>
@@ -172,20 +170,20 @@ not `trust=-24`. An axis is only shown when it is salient, i.e. sitting in a ban
 than its default, so a scene block stays short and what appears in it is what changed.
 See ADR [`0005`](adr/0005-npc-multi-axis-psychology.md).
 
-### Message History (conversation turns)
+### Message History (selected history)
 
 ```
 messages = [
-  {role: "user",      content: "I ask Marta about the mine"},   # turn N-7
-  {role: "assistant", content: "Marta wipes the counter..."},    # turn N-7 narration
-  ...                                                             # turns N-6 to N-1 (Active Window)
-  {role: "user",      content: "I push open the tavern door"},   # current action
+  ...                                                               # every raw turn in the captured history
+  {role: "user",      content: "I ask Marta about the mine"},
+  {role: "assistant", content: "Marta wipes the counter..."},
+  {role: "user",      content: "I push open the tavern door"},    # current action
 ]
 ```
 
-- **Active Window**: last `gameplay.context_window_turns` (default 8) turns verbatim
-- **Token budget**: if total tokens > `gameplay.context_token_cap` (default 12000), oldest user+assistant pairs are dropped until it fits. The current action (last user message) is always preserved.
-- **Older turns**: available as batch summaries in `<history>` (not verbatim)
+- The snapshot contains the complete raw suffix selected by the active memory cursors; turns with no narration still contribute their player action.
+- Raw, intermediate-summary, and global-checkpoint coverage are disjoint temporal levels. The prompt assembler does not silently trim raw history to fit a token estimate.
+- R/B/K/H and operational limits come from the captured policy; current YAML settings are experimental inputs, not a final quality/default decision. See [ADR 0020](adr/0020-batched-memory-and-history-checkpoints.md) and `saga.config.yaml`.
 
 ---
 
@@ -193,50 +191,42 @@ messages = [
 
 ```mermaid
 flowchart LR
-    T["Turn N\n(player action + narration)"]
+    CLAIM["Locked action claim\nhead + epoch + request ID"] --> SNAP["TurnContextSnapshot\nscene · policy · history · cursors"]
+    SNAP --> RAW["Raw suffix\nfull action/narration"]
+    SNAP --> INTER["Published intermediate batch summaries"]
+    SNAP --> GLOBAL["Active global checkpoint\nthrough its covered prefix"]
+    SNAP --> PROMPT["DM prompt\n<global_summary> + <history>"]
+    RAW --> PROMPT
+    INTER --> PROMPT
+    GLOBAL --> PROMPT
 
-    subgraph hot["Active Window (per-turn, synchronous)"]
-        T --> AW["Last 8 verbatim turns\nin messages[]"]
-    end
-
-    subgraph compress["Compression (async, post-turn)"]
-        T -->|fire-and-forget| COMP["compress_turns_batch_llm()\nbatch_id dedup · 3 retries"]
-        COMP --> SUM["Turn.summary\n2-3 prose sentences\n[Turns N-M] prefix"]
-        SUM --> HIST["<history> block\nup to 5 summaries"]
-    end
-
-    subgraph facts["Fact Extraction (async, post-turn)"]
-        T -->|fire-and-forget| FE["extract_and_store_facts()\n1-5 atomic facts per turn"]
-        FE --> MF["memory_facts table\n384-dim pgvector embedding"]
-    end
-
-    subgraph global["Global Summary (async, every 5 turns)"]
-        SUM -->|interval_turns=5| GS["update_global_summary()\nanchored iterative extension"]
-        GS --> GSD["campaign.global_summary\n≈200 words · always current"]
-    end
-
-    subgraph ctx["build_context() — each turn"]
-        AW --> BC
-        HIST --> BC
-        GSD --> BC
-        MF -->|"search_similar_facts(player_action, limit=3)"| BC["build_context()"]
-        BC --> SP["System Prompt\n<global_summary> + <history>\n+ <recalled_memories>"]
-    end
+    TURN["Committed turn + operations"] -->|post-commit wake| WORKER["Persistent memory worker"]
+    WORKER --> BATCH["Batch producer\nsummary + facts; atomic publication"]
+    BATCH --> ARTIFACT["Immutable batch summary + facts"]
+    ARTIFACT -->|compatible and within restore ceiling| INTER
+    ARTIFACT -->|eligible next intermediate| CHECKPOINT["Global producer\npredecessor + original batch input"]
+    CHECKPOINT --> GLOBAL
+    ARTIFACT --> FACTS["Published facts + full batch membership"]
+    FACTS --> EMBED["Fact-content embedding queue"]
+    SNAP --> RECALL["Semantic recall\nfull producer-input ancestry filter, then cosine top-K"]
+    FACTS --> RECALL
+    RECALL --> PROMPT
 ```
 
-### Three-tier recall
+### Three temporal levels
 
 | Tier | What | How | Depth |
 |------|------|-----|-------|
-| **Active Window** | Full verbatim turns | `messages[]` | Last 8 turns |
-| **Rolling Summary** | Batch summaries + global arc | `<history>` + `<global_summary>` | Last ~40+ turns |
-| **Semantic Search** | Specific facts (names, events, secrets) | pgvector cosine similarity on MemoryFact | All turns ever |
+| **Raw** | Full player action and narration for the selected raw suffix | `messages[]` | After the active compacted prefix |
+| **Intermediate** | Immutable summaries for published batches not yet included globally | `<history>` | Between raw and global coverage |
+| **Global** | Immutable checkpoint over its covered batch prefix | `<global_summary>` | Campaign history through the active checkpoint |
 
-### Compressor behavior
-- Batch: groups of turns with the same `batch_id` are idempotent (re-run produces the same `Turn.summary`)
-- Retry: up to `summarization.max_retries` (3) attempts with exponential backoff `[1s, 5s, 30s]`
-- On final failure: `Turn.summarization_failed = True`, no summary stored (batch summary omitted for that range)
-- Format heuristic: `"[Turns N-M] The player {verb}. {first_sentence}."` — no verbatim NPC dialogue, paraphrase only
+Semantic recall is separate from these temporal tiers: cosine top-K runs only after SQL excludes facts whose **entire producer batch input** is not in the captured history ancestry. It is not “all turns ever.”
+
+### Memory production behavior
+- Durable jobs freeze their source membership, policy, instructions, and producer version; retries are bounded and explicit after exhaustion.
+- Batch summary, facts, fact provenance, embedding enqueue, and raw-cursor advancement publish atomically. Global checkpoints advance from the expected predecessor and original batch input.
+- Workers do not hold DB sessions across provider calls. The active policy and production variant remain subject to ADR 0020’s evaluation/owner gates; the YAML values are not evidence of final quality.
 
 ---
 
@@ -404,14 +394,15 @@ that play different roles for the whole campaign:
 ```mermaid
 flowchart TD
     WY["worlds/&lt;slug&gt;/*.yaml\n(authored content)"] -->|load_world| WA["WorldAsset\n(validated Pydantic tree)"]
-    WA -->|instantiate_world at\ncampaign creation| CDB["campaigns table\nworld_baseline: JSONB (frozen)\nworld_state: JSONB (overlay)\ncharacter_data · quests\nglobal_summary · persona"]
+    WA -->|instantiate_world at\ncampaign creation| CDB["campaigns table\nworld_baseline: JSONB (frozen)\nworld_state: JSONB (overlay)\ncharacter_data · quests\nactive history head/epoch · memory policy/state"]
 
     subgraph "Each Turn — Tool Mutations"
         TN2["tools_node"] -->|"move_to → player_position\nchange_npc_psychology → npcs[uuid].psychology\nstart_combat → combat_state\nadvance_time → clock.total_minutes\nlog_event → narrative.event_log"| WS["world_state (in GameState)"]
     end
 
-    WS -->|post_process_node| CDB
-    CDB -->|context_node each turn| BC["build_context()\n→ system_prompt XML"]
+    WS -->|conditional action publish| CDB
+    CDB -->|locked action claim captures snapshot| SNAP["TurnContextSnapshot"]
+    SNAP -->|context_node| BC["build_context(snapshot)\n→ system_prompt XML"]
 ```
 
 Node ids are UUIDs minted at instantiation; the authored slugs survive as resolution
@@ -538,7 +529,9 @@ adding a call), and recall/NPC relevance by ADR
 | Agent framework | LangGraph 1.0 | Explicit graph routing, typed state, conditional edges |
 | Provider routing | Gemini 2.5 Pro for DM (default) | Best tool-calling reliability at cost point |
 | pgvector | Basic (vector only) now, hybrid RRF behind `gameplay.pgvector_hybrid` flag | Hybrid adds complexity; basic cosine is sufficient for v1 |
-| Global summary storage | `Campaign.global_summary` column | Zero-join hot path in `context_node` |
+| Global memory storage | Immutable `MemoryGlobalCheckpoint` chain; active pointer in `MemoryState` | Snapshot renders only the checkpoint active for the selected history |
+| Turn action publication | Request ID + expected head/epoch + execution token and DB lease | Idempotent claim; conditional fenced commit stores the exact response with turn, operations, and auto-save |
+| Save/load history | Save freezes continuation, head, policy, and memory cursors; load creates a new epoch/state | History is append-only; stale graph writes are fenced and future history is isolated |
 | NPC auto-create | Config flag + 3 detail levels | Balances world coherence vs token cost |
 | Persona system | `persona_preset` enum + `persona_xml` override | Curated quality (4 presets) with escape hatch for custom campaigns |
 | Tool max in context | ~12 tools max | Empirical limit for reliable tool calling on medium models |
@@ -579,14 +572,13 @@ DB sessions must never be held open across LLM calls. An LLM call can take 5–3
 
 **Correct pattern:**
 ```
-open session → read campaign + world_state → close session
-→ call LLM (potentially slow)
-→ open session → write Turn + updated world_state → close session
+Session 1: lock campaign → validate request/head/epoch/capacity → capture snapshot + claim token → commit/close
+→ run graph and provider calls with no DB session
+→ open session → verify token + DB lease → atomically publish Turn + operations + save + response + memory scheduling → commit/close
+→ wake persistent memory worker after commit; each provider call is likewise outside its worker DB sessions
 ```
 
-**Status: enforced (2026-06).** The endpoint and every node now follow this pattern — short
-sessions around the graph, no session held across the LLM call. The former WebSocket handler that
-violated it has been removed. See ADR [`adr/0001-db-session-lifecycle.md`](adr/0001-db-session-lifecycle.md).
+**Status: enforced.** The public graph consumes the claim-time snapshot rather than re-reading mutable campaign state. Recall query embedding and memory production run without an open DB session; publication uses short fenced transactions. See ADR [`adr/0001-db-session-lifecycle.md`](adr/0001-db-session-lifecycle.md) and [ADR 0020](adr/0020-batched-memory-and-history-checkpoints.md).
 
 ---
 

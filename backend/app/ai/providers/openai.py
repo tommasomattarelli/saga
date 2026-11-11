@@ -9,6 +9,7 @@ import openai
 import structlog
 
 from app.ai.exceptions import ContentPolicyError
+from app.ai.generation_attempt import generation_attempt_is_single
 from app.ai.providers.base import AIProvider
 from app.ai.providers.openai_compat import first_choice, stream_choice, strip_provider_metadata
 from app.ai.providers.schemas import AgentResponse, ToolCall
@@ -42,7 +43,12 @@ class OpenAIProvider(AIProvider):
         }
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
-        response = await self.client.chat.completions.create(**kwargs)
+        client = (
+            self.client.with_options(max_retries=0)
+            if generation_attempt_is_single()
+            else self.client
+        )
+        response = await client.chat.completions.create(**kwargs)
         choice = first_choice(response, "openai")
         if choice.finish_reason == "content_filter":
             raise ContentPolicyError("openai", "Response blocked by content filter")

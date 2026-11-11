@@ -9,6 +9,7 @@ from langgraph.graph.message import add_messages
 from app.ai.prompts.dm import DMPromptContext
 from app.core.dm.dialogue_composition import NPCLine
 from app.core.dm.npc_context import NarrativeObservation, NPCBeat
+from app.memory.context_snapshot import TurnContextSnapshot
 from app.memory.operation_contracts import RecordedOperation
 from app.models.quest import QuestRegistry
 
@@ -63,3 +64,4 @@ class GameState(TypedDict):
     system_prompt: str
     prompt_context: DMPromptContext
     model_config: dict[str, Any]  # {provider, model, max_tokens}
+    turn_context: NotRequired[TurnContextSnapshot]

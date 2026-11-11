@@ -2,7 +2,7 @@
 
 import json
 import uuid
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import event, select
@@ -12,6 +12,7 @@ from app.models.campaign import Campaign
 from app.models.save import Save
 from app.models.turn import Turn
 from app.models.turn_operation import TurnOperation
+from tests.action_support import action_body
 from tests.integration.gameplay.test_npc_beats import actor
 from tests.integration.gameplay.test_quest_persistence import (
     _create_campaign,
@@ -192,19 +193,14 @@ async def test_operation_rollback(auth_client, db_session, generation_clients):
     engine = db_session.bind.sync_engine
     event.listen(engine, "before_cursor_execute", fail_insert)
     try:
-        with (
-            patch("app.api.turns.extract_and_store_facts", new=AsyncMock()),
-            patch("app.api.turns._background_compression", new=AsyncMock()),
-            patch("app.api.turns._background_global_summary", new=AsyncMock()),
-            pytest.raises(RuntimeError, match="injected operation insert failure"),
-        ):
-            await auth_client.post(
-                f"/api/campaigns/{campaign['id']}/action",
-                json={"action": "I discover the truth"},
-            )
+        response = await auth_client.post(
+            f"/api/campaigns/{campaign['id']}/action",
+            json=await action_body(auth_client, campaign["id"], "I discover the truth"),
+        )
     finally:
         event.remove(engine, "before_cursor_execute", fail_insert)
     await db_session.rollback()
+    assert response.status_code == 500
     assert (
         await db_session.scalar(
             select(Turn.id).where(Turn.campaign_id == uuid.UUID(campaign["id"]))

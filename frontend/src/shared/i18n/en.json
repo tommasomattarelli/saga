@@ -196,7 +196,15 @@
     "invalid_credentials": "Invalid credentials.",
     "request_failed": "Request failed. Check your details.",
     "server_error": "Server error. Please try again later.",
-    "action_failed": "Your action didn't go through. Your text is kept — try again."
+    "action_failed": "Your action didn't go through. Your text is kept — try again.",
+    "memory_busy": "Memory is busy. Your action was not accepted; try again shortly.",
+    "memory_retry_required": "Memory needs an explicit retry before this action can continue.",
+    "memory_configuration_required": "Memory is unavailable. Ask the campaign operator to check memory settings and credentials.",
+    "memory_retry": "Retry memory, then resubmit",
+    "memory_retry_failed": "Memory retry failed. Your action is still available to retry.",
+    "action_in_progress": "This action is already being processed. No automatic retry was started.",
+    "action_context_changed": "The campaign history changed. Refreshing the story before you continue.",
+    "campaign_history_required": "This campaign history cannot be continued with the current memory contract."
   },
   "map": {
     "close": "Close map",

@@ -11,6 +11,7 @@ from google import genai
 from google.genai import types as genai_types
 
 from app.ai.exceptions import ContentPolicyError
+from app.ai.generation_attempt import generation_attempt_is_single
 from app.ai.providers.base import AIProvider
 from app.ai.providers.schemas import (
     TEXT_SIGNATURE_KEY,
@@ -171,18 +172,24 @@ class GoogleProvider(AIProvider):
         max_tokens: int = 2000,
         json_mode: bool = False,
     ) -> str:
-        config: dict = {
-            "system_instruction": system_prompt,
-            "max_output_tokens": max_tokens,
-        }
-        if json_mode:
-            config["response_mime_type"] = "application/json"
-        response = await _with_retry(
-            self.client.aio.models.generate_content,
-            model=model,
-            contents=_to_contents(messages),
-            config=config,
+        single_attempt = generation_attempt_is_single()
+        config = genai_types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            max_output_tokens=max_tokens,
+            response_mime_type="application/json" if json_mode else None,
+            http_options=(
+                genai_types.HttpOptions(retry_options=genai_types.HttpRetryOptions(attempts=1))
+                if single_attempt
+                else None
+            ),
         )
+        call = self.client.aio.models.generate_content
+        if single_attempt:
+            response = await call(model=model, contents=_to_contents(messages), config=config)
+        else:
+            response = await _with_retry(
+                call, model=model, contents=_to_contents(messages), config=config
+            )
         _check_safety(response)
         return response.text or ""
 

@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+from pydantic import JsonValue
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
@@ -12,7 +13,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -57,6 +58,10 @@ class TurnRequest(Base, TimestampMixin):
         ),
         CheckConstraint("context_epoch >= 0", name="ck_turn_requests_context_epoch"),
         CheckConstraint("payload_hash ~ '^[0-9a-f]{64}$'", name="ck_turn_requests_payload_hash"),
+        CheckConstraint(
+            "response_payload IS NULL OR (state = 'committed' AND jsonb_typeof(response_payload) = 'object')",
+            name="ck_turn_requests_response_state",
+        ),
         Index(
             "uq_turn_requests_campaign_running",
             "campaign_id",
@@ -85,3 +90,4 @@ class TurnRequest(Base, TimestampMixin):
     claimed_turn_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     result_turn_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    response_payload: Mapped[dict[str, JsonValue] | None] = mapped_column(JSONB, nullable=True)

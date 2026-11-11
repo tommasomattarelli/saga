@@ -26,3 +26,5 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Isolated generation-profile reads from campaign relationships so memory evaluations can preserve legacy databases without migrations (ADR 0020 S3).
 - Added stable per-model memory-evaluation sessions, recorded request headers and parallel model workers with sequential requests and quota-safe stopping.
 - Refined candidate memory prompts toward concise third-person DM summaries, future-useful facts and importance calibration for central unresolved revelations (ADR 0020 S3).
+- Added durable memory jobs with frozen requests, bounded retries, atomic publication and history-safe artifact reuse, without activating the public pipeline (ADR 0020 S4a).
+- Connected idempotent actions, three-level memory, bounded admission and history-safe restore/recall, with YAML-derived client deadlines and explicit blocking retries (ADR 0020 S4b).
