@@ -28,3 +28,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Refined candidate memory prompts toward concise third-person DM summaries, future-useful facts and importance calibration for central unresolved revelations (ADR 0020 S3).
 - Added durable memory jobs with frozen requests, bounded retries, atomic publication and history-safe artifact reuse, without activating the public pipeline (ADR 0020 S4a).
 - Snapshotted approved memory settings for new campaigns and derived action/client deadlines from one YAML configuration (ADR 0020 S4b).
+- Assembled three-level prompts from frozen history snapshots and filtered recalled facts by complete batch ancestry before ranking (ADR 0020 S4b).
