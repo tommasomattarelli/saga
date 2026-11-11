@@ -96,11 +96,11 @@ class Turn(Base, UUIDMixin, TimestampMixin):
     model_used: Mapped[str] = mapped_column(String(50))
     importance_score: Mapped[int] = mapped_column(Integer, default=5)
 
-    # Compressed summary for memory
+    # Retained for historical exports, not the current memory pipeline.
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     summarization_failed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    # Vector embedding for semantic search
+    # Historical vectors; active recall uses the versioned source index.
     embedding: Mapped[list | None] = mapped_column(Vector(384), nullable=True)
 
     # Relationships

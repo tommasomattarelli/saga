@@ -8,7 +8,10 @@ from httpx import AsyncClient
 from app.ai.generation_context import generation_context
 from app.ai.router import get_generation
 from app.exceptions import ValidationError
-from app.memory.fact_extractor import extract_facts
+from app.memory.batch_source_contracts import BatchInput
+from app.memory.producer_prompts import prepare_request
+from app.memory.producers import generate_memory
+from app.memory.production_policy import FactsPolicy
 from app.security.auth import decode_token
 
 
@@ -23,14 +26,37 @@ async def test_background_task_keeps_its_owner_after_request_context_exits(
     token = auth_client.headers["Authorization"].removeprefix("Bearer ")
     owner = uuid.UUID(str(decode_token(token)["sub"]))
     provider = AsyncMock()
-    provider.generate.return_value = '[{"entity_name":"Inn","content":"The inn is closed."}]'
+    provider.generate.return_value = '{"facts":[]}'
+    source = BatchInput.model_validate(
+        {
+            "turns": (
+                {
+                    "reference": "t1",
+                    "turn_id": uuid.uuid4(),
+                    "player_action": "look",
+                    "narration": "The inn is closed.",
+                    "operations": None,
+                },
+            )
+        }
+    )
+    facts_policy = FactsPolicy.model_validate(
+        {
+            "max_per_batch": 4,
+            "importance_levels": [
+                {"name": "ordinary", "criteria": "Useful later", "examples": "A clue."}
+            ],
+        }
+    )
+    request = prepare_request("facts", source, language="en", facts_policy=facts_policy)
     with patch("app.ai.providers.openai.OpenAIProvider", return_value=provider) as factory:
         with generation_context(owner):
-            task = asyncio.create_task(extract_facts("look", "The inn is closed."))
-        facts = await task
+            task = asyncio.create_task(generate_memory(request))
+        resolved = await task
 
-    assert facts[0]["entity_name"] == "Inn"
     factory.assert_called_once_with(api_key="background-key")
+    assert resolved.facts == ()
     assert provider.generate.call_args.kwargs["model"] == "background-model"
+    assert request.source.turns[0].narration == "The inn is closed."
     with pytest.raises(ValidationError, match="context"):
         await get_generation()

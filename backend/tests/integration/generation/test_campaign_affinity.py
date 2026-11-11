@@ -12,7 +12,10 @@ from app.ai.generation_context import generation_context
 from app.ai.providers import base
 from app.ai.providers.local import LocalProvider
 from app.ai.router import get_generation, get_user_generation
-from app.memory.fact_extractor import extract_facts
+from app.memory.batch_source_contracts import BatchInput
+from app.memory.producer_prompts import prepare_request
+from app.memory.producers import generate_memory
+from app.memory.production_policy import FactsPolicy
 from app.security.auth import decode_token
 from tests.action_support import action_body
 
@@ -38,6 +41,8 @@ async def affinity_client(
                 }
             ),
         }
+        if "response_format" in body:
+            message["content"] = '{"facts":[]}'
         if "tools" in body:
             if body["messages"][-1]["role"] == "user":
                 message = {
@@ -118,6 +123,31 @@ async def configure(client: AsyncClient) -> tuple[uuid.UUID, list[str]]:
     return uuid.UUID(str(decode_token(token)["sub"])), campaigns
 
 
+async def generate_test_facts(action: str, narration: str) -> None:
+    source = BatchInput.model_validate(
+        {
+            "turns": (
+                {
+                    "reference": "t1",
+                    "turn_id": uuid.uuid4(),
+                    "player_action": action,
+                    "narration": narration,
+                    "operations": None,
+                },
+            )
+        }
+    )
+    policy = FactsPolicy.model_validate(
+        {
+            "max_per_batch": 4,
+            "importance_levels": [
+                {"name": "ordinary", "criteria": "Useful later", "examples": "A clue."}
+            ],
+        }
+    )
+    await generate_memory(prepare_request("facts", source, language="en", facts_policy=policy))
+
+
 async def test_real_concurrent_campaigns_bind_dm_actors_without_client_mutation(
     auth_client: AsyncClient,
     affinity_client: tuple[LocalProvider, list[httpx.Request]],
@@ -166,14 +196,14 @@ async def test_campaign_scope_survives_owner_rebinding_and_background_request_ex
     async def later() -> None:
         await ready.wait()
         with generation_context(owner):
-            await extract_facts("look", "The inn is closed.")
+            await generate_test_facts("look", "The inn is closed.")
 
     with campaign_session(uuid.UUID(campaigns[0])), generation_context(owner):
         task = asyncio.create_task(later())
     with campaign_session(uuid.UUID(campaigns[1])), generation_context(owner):
         ready.set()
         await task
-        await extract_facts("look", "The square is quiet.")
+        await generate_test_facts("look", "The square is quiet.")
     assert [r.headers["x-session-id"] for r in requests] == campaigns
     with generation_context(owner):
         unscoped, _ = await get_generation()
@@ -217,7 +247,7 @@ async def test_config_can_disable_campaign_affinity_without_mutating_shared_clie
     with campaign_session(uuid.UUID(campaigns[0])), generation_context(owner):
         resolved, _ = await get_generation()
         assert resolved is provider
-        await extract_facts("look", "The square is quiet.")
+        await generate_test_facts("look", "The square is quiet.")
     assert len(requests) == 1
     assert "x-session-id" not in requests[0].headers
 
@@ -256,6 +286,6 @@ async def test_non_openrouter_generation_never_receives_campaign_header(
     with campaign_session(uuid.UUID(campaigns[0])), generation_context(owner):
         resolved, _ = await get_generation()
         assert resolved is provider
-        await extract_facts("look", "The square is quiet.")
+        await generate_test_facts("look", "The square is quiet.")
     assert len(requests) == 1
     assert "x-session-id" not in requests[0].headers

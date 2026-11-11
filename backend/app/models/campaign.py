@@ -138,7 +138,7 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
     # Active quests
     quests: Mapped[dict] = mapped_column(JSONB, default=dict)
 
-    # Rolling story summary — updated every N turns (see gameplay.global_summary_update_every)
+    # Retained for historical campaign export; new memory uses immutable checkpoints.
     global_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Persona preset — copied from template at creation, drives DM narrative tone
