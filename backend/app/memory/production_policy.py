@@ -93,3 +93,12 @@ class MemoryProductionPolicy(_PolicyModel):
             allow_nan=False,
         )
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def configured_facts_policy(*, max_per_batch: int) -> FactsPolicy:
+    from app.config_loader import load_saga_config
+
+    levels = load_saga_config()["memory"]["production"]["facts"]["importance_levels"]
+    return FactsPolicy.model_validate(
+        {"max_per_batch": max_per_batch, "importance_levels": levels}
+    )

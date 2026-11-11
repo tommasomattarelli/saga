@@ -7,6 +7,8 @@ import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from sqlalchemy.orm import raiseload
+
 from app.ai.providers.base import AIProvider, get_provider
 from app.config_loader import load_saga_config
 from app.dependencies import get_db_context
@@ -138,7 +140,11 @@ async def get_user_generation(user_id: uuid.UUID | str) -> tuple[AIProvider, Mod
     from app.ai.credentials import resolve_generation
 
     async with get_db_context() as db:
-        user = await db.get(User, uuid.UUID(str(user_id)))
+        user = await db.get(
+            User,
+            uuid.UUID(str(user_id)),
+            options=[raiseload(User.campaigns)],
+        )
         if user is None:
             raise ValidationError("The user's AI settings are unavailable.")
         config, key, base_url = resolve_generation(user)

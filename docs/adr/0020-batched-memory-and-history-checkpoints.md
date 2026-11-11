@@ -540,6 +540,15 @@ La riga commentata descrive lavoro, non un invito ad eseguire comandi senza veri
 - Live run soltanto autorizzati. Revisione umana e scelta motivata della variante production/default.
 - Se l'evidenza modifica un contratto, domanda all'owner e nota nell'ADR prima di propagare l'implementazione.
 
+**S3 note (2026-11-11, decisione owner).** Fermare qui le iterazioni sui prompt e i run
+isolati: si propende per i due specialisti rispetto a unified, con Nemotron come modello
+di prova, senza dichiarare una scelta production definitiva. Il gate S3 è ricalendarizzato:
+si può proseguire con S4a, mantenendo espliciti nei test i valori non ancora adottati come
+default. Prima del merge dell'integration branch in main, rivalutare la pipeline integrata
+con scenario lungo/globale e playtest, verificando fedeltà dell'incertezza, utilità dei fatti,
+importanza e recall effettivo; confermare allora variante e default. I difetti osservati
+restano aperti; nessuna ulteriore chiamata live è autorizzata da questa nota.
+
 ### S4 — Pipeline durevole e contesto
 
 **S0 note (2026-11-09, sequenza confermata dall'owner).** Dividere in S4a/S4b e anticipare in S4b l'integrazione minima save/load e UI: attivare turni/memoria nuovi lasciando il vecchio restore a S5 renderebbe la fase non giocabile in sicurezza. Il dettaglio è in §22; l'elenco originale sotto resta il perimetro complessivo di S4.
@@ -788,6 +797,30 @@ I metadati persistenti aggiungono canonical ref solo se verificata, UUID, campag
 
 Il globale viene renderizzato deterministicamente come quattro sezioni ordinate dentro `<global_summary>`, con testo escapato e liste ordinate; le sezioni vuote rimangono rappresentabili. Non inviare l'intero record gestionale o i checkpoint precedenti al DM; non presentare `open_threads` come stato corrente autorevole. Il checkpoint precedente entra invece nella successiva generazione globale insieme al batch originale.
 
+**S3 note (2026-11-10, implementation offline; gate live aperto).** I payload generati
+sono distinti dai metadati risolti: il modello non può fornire UUID o riferimenti canonici.
+La validazione controlla l'intera lista, membership delle fonti, rubrica e attribuzione;
+`facts: []` resta valido, mentre output parziali, chiavi duplicate, campi aggiuntivi e JSON
+non valido falliscono senza riparazione o slicing. La risoluzione conservativa collega NPC
+e quest soltanto quando operazioni riuscite nei turni citati forniscono un nome e un ID
+non ambiguo; negli altri casi conserva l'entità senza riferimento, senza leggere il mondo
+successivo o interrogare un modello.
+
+Le istruzioni summary/fatti sono YAML specialistici separati, composti nel candidato unico
+con un solo schema finale ed esempi input/output validati dagli stessi contratti, isolati
+dalle fonti correnti e composti senza duplicare l'esempio specialistico. Il globale riceve il predecessore completo e il batch originale;
+il renderer produce le quattro sezioni escapate, lasciando il wrapper al consumer DM.
+Ogni produttore esegue una sola generazione tramite il router, senza persistenza o retry
+interni. La rubrica `ordinary`/`critical` è definita una volta nel YAML; criteri/esempi
+restano da valutare con l'owner, senza adottare limiti numerici o una variante production.
+
+L'harness confronta tre richieste per batch (una unica e due specialistiche) e una catena
+globale distinta; i risultati intermedi non alimentano il globale. Preparazione e report
+sono offline, con fonti/policy/istruzioni congelate e budget per tentativo; riprese e output
+invalidi non autorizzano nuove chiamate implicite. Revisione umana e qualità di summary,
+fatti e globale restano separate. Il codice non collega ancora scheduler, copertura o
+contesto pubblico: i gate S4a/S4b e la verifica integrata S6 rimangono invariati.
+
 ### 20.7 Operazioni e delta
 
 `turn_operations`: UUID, campagna/turno, ordinale unico nel turno, step/beat se pertinenti, `origin` (`tool`, `npc`, `finalization`), nome operazione, argomenti, outcome (`succeeded`, `rejected`, `failed`), risultato e lista delta. UUID/ordine assegnati dal codice; outcome esplicito dal percorso esecutore, mai inferito dal testo o dall'assenza di cambiamenti.
@@ -911,6 +944,84 @@ Prima di preparare esperimenti live, scegliere con l'owner quali dati reali usar
 **Decisione owner S0 (2026-11-09, dataset).** Preparare i 14 turni reali come campione di fedeltà/dimensioni e uno scenario lungo controllato e annotato, con operazioni prodotte dai veri handler. Rifiutato usare soltanto i turni reali come prova longitudinale; non richiesta ora una nuova campagna di prova. Nessuna autorizzazione live discende dalla scelta del dataset. La lunghezza dello scenario dipende dalla matrice R/B/K e dai checkpoint consecutivi da osservare.
 
 **Decisione owner S0 (2026-11-09, matrice).** Scegliere R/B/K in S3, non adesso. La proposta esplorativa `R={8,16}, B={4,8}, K={2,4}` e l'alternativa ridotta con K=4 restano **non adottate**: non sono default, run preparati o budget approvati. La stima di circa 267 token/raw comprende la media testo del campione e il framing chat locale; non risolve ancora il peso dei summary/globale. Per la sola pianificazione vale `N_primo_globale = R+(K+1)*B` e, per J aggiornamenti, `N = R+(K+J)*B`; non è stato scelto J né fissata la lunghezza dello scenario.
+
+**S3 note (2026-11-10, disponibilità dei dati).** Snapshot/script e tokenizer della misura
+S0 non sono stati ritrovati nei file locali cercati; il DB di sviluppo non è stato avviato,
+migrato o consultato. Il campione reale resta quindi da rendere disponibile, non sostituito
+dal `gold` contaminato o da una campagna inventata. Il comando di cattura aggiunto legge
+la revisione legacy in `REPEATABLE READ READ ONLY`, rifiuta numeri ambigui e futuri oltre
+lo stato selezionato, conserva narrazioni vuote e operazioni non registrate, senza backfill.
+
+Lo scenario controllato è dichiaratamente sintetico: narrazione/risposte attore sono
+autorate, operazioni e finalizzazione passano per gli handler reali e la stessa proiezione
+delle fonti persistite. I batch completi hanno riferimenti locali; la coda incompleta resta
+separata e non sparisce. La sufficienza di N non basta a valutare una risoluzione tardiva:
+questa deve ricadere nel prefisso effettivamente incorporabile nel globale della matrice
+scelta, non soltanto negli ultimi raw. Dimensioni in caratteri/byte non vengono presentate
+come token provider; dimensioni e qualità dei nuovi summary/globali richiedono ancora le
+generazioni autorizzate. Nessuna chiamata live discende da queste verifiche offline.
+
+Misura riproducibile del solo scenario controllato, con `socket.connect` bloccato:
+**52 turni**, risoluzione al turno **34**, **16 operazioni proiettate**; hash delle fonti
+`2e4a8ef4b0444316ad038f23ebf595c7a8eccfe3f94c324e6159ff20fe8611f9`.
+
+| Componente | Caratteri | Byte UTF-8 |
+|---|---:|---:|
+| Fonte canonica completa | 28.210 | 28.214 |
+| Azioni e narrazioni, misurate separatamente | 6.910 | 6.910 |
+| Record operazione proiettati, misurati separatamente | — | 15.142 |
+
+Le componenti serializzate separatamente non sono una scomposizione additiva del JSON.
+Questi turni sono brevi e autorati: non misurano la densità dei 14 turni reali né certificano
+una lunga campagna giocata. Il planner esclude dal prefisso globale sia R sia gli intermedi
+K e la coda incompleta: `min(J, max(floor(max(N-R,0)/B)-K,0))*B`. Gli input numerici dei
+test non costituiscono una matrice adottata. I manifest successivi misurano i prompt
+effettivi, esempi/schema inclusi, in caratteri e byte dell'envelope interno; i successori
+globali restano non misurati finché non esiste un predecessore generato.
+
+Verifica offline: full check backend **1797/1797**, frontend **273/273**, tutti i gate
+statici, coverage e build verdi; **168** integrazioni pertinenti su PostgreSQL isolato.
+Il campione reale, la matrice, i limiti, il modello e l'autorizzazione del run restano al
+gate owner: S3 non è concluso e non autorizza la scelta production o l'avvio di S4a.
+
+**S3 note (2026-11-10, campione reale e primo pilot).** Ritrovati e catturati i 14
+turni reali sulla revisione `009_campaign_language`, con letture `REPEATABLE READ READ
+ONLY`, senza migrazioni o worker; la narrazione vuota del turno 4 è conservata e le
+operazioni storiche restano non registrate. Fonte, transcript, strumenti e hash sono
+conservati localmente nel repository separato `scratch/adr-0020-memory-production/`;
+il testo privato e gli artefatti delle richieste sono esclusi da Git.
+
+Il riferimento OpenAI `tiktoken 0.14.0` / `o200k_base`, scaricato con autorizzazione,
+misura **3.462** token per la somma di azione, newline e narrazione di ciascun turno
+(media **247,3**), non token fatturati o conteggi del modello OpenRouter. La fonte JSON
+non suddivisa in batch misura **4.300** token di riferimento; istruzioni, schema ed
+esempi dei produttori sono misurati separatamente nei manifest.
+
+L'owner ha scelto una sola configurazione **sperimentale**: R=8, B=4, K=2, massimo
+6 fatti per batch, target globale indicativo di 1.000 parole e J=9 aggiornamenti.
+K=2 serve alla prova del globale, non è una preferenza production; K=6 rimane una
+possibilità menzionata dall'owner, non un secondo esperimento o un default adottato.
+Con i 52 turni controllati, il prefisso globale raggiunge il turno 36 e include la
+risoluzione al turno 34. La variante production e i default restano al gate qualità.
+
+Il primo pilot approvato usa solo i turni reali 1–4, una ripetizione e quattro
+tentativi massimi: unico, summary, fatti e globale iniziale senza predecessore, con
+`nvidia/nemotron-3.5-super-vl:free` e il tetto output configurato invariato di 60.000.
+Il successivo confronto previsto con `deepseek/deepseek-v4.1-flash-1017` non è
+autorizzato. Il primo avvio si è fermato **prima di ogni chiamata provider**: il
+caricamento automatico di `User.campaigns` durante la risoluzione del profilo cercava
+colonne S1 inesistenti nel DB legacy. Non si migra il campione per aggirare il difetto;
+l'owner ha autorizzato una correzione circoscritta della lettura del profilo e una
+nuova preparazione offline, da approvare nuovamente prima del live.
+
+La correzione limita il caricamento delle relazioni alla sola query del profilo di
+generazione (`raiseload(User.campaigns)`), senza cambiare il modello globale, la
+risoluzione delle credenziali o il percorso embedding. La regressione usa PostgreSQL
+reale migrato dalla catena Alembic alla sola revisione 009, un utente con chiave fittizia
+cifrata e una campagna: lettura `READ ONLY`, nessuna query delle campagne e comportamento
+utente assente invariato. Nessun provider viene invocato dal test. Il fingerprint
+del router cambia: il manifest precedente resta prova storica del blocco, non viene
+riutilizzato o autorizzato implicitamente per il nuovo codice.
 
 ## 22. S0 — piano eseguibile, review e verifiche
 
