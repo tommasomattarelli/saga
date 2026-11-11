@@ -32,3 +32,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Activated durable memory workers, bounded admission and explicit retry while preserving campaign affinity and historical attempt budgets (ADR 0020 S4b).
 - Fenced idempotent action publication and coherent save/load, retaining exact responses, immutable autosaves and active-history journal reads (ADR 0020 S4b).
 - Preserved action identity across retries and validated response applicability, with explicit memory recovery and backend-derived browser deadlines (ADR 0020 S4b).
+- Covered API-to-prompt memory production and bounded admission recovery through real PostgreSQL flows with controlled providers (ADR 0020 S4b).
