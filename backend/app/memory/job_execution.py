@@ -9,6 +9,7 @@ from app.ai.exceptions import PROVIDER_SDK_ERRORS, ContentPolicyError
 from app.ai.generation_attempt import single_generation_attempt
 from app.ai.generation_context import generation_context
 from app.ai.router import ModelConfig, get_user_generation
+from app.ai.session_affinity import campaign_session
 from app.exceptions import ForbiddenError, UnauthorizedError, ValidationError
 from app.memory.batch_input import load_batch_input
 from app.memory.job_claims import JobClaim, claim_job, fail_claim, load_claim
@@ -75,6 +76,11 @@ async def _fail(
 
 
 async def execute_job(campaign_id: UUID, job_id: UUID) -> bool:
+    with campaign_session(campaign_id):
+        return await _execute_job(campaign_id, job_id)
+
+
+async def _execute_job(campaign_id: UUID, job_id: UUID) -> bool:
     async with dependencies.async_session() as db:
         claim = await claim_job(db, campaign_id, job_id)
         await db.commit()
