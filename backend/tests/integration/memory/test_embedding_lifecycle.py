@@ -19,6 +19,7 @@ from app.models.embedding_index import EmbeddingIndex
 from app.models.embedding_index import EmbeddingRebuildState as State
 from app.models.source_embedding import SourceEmbedding
 from tests.integration.memory.embedding_support import (
+    add_fact,
     add_turn,
     create_user_campaign,
     fake_space,
@@ -204,7 +205,7 @@ async def test_terminal_target_blocks_a_new_job_even_with_an_active_index(
 async def test_restart_reconciles_missing_sources_without_ensure(db_session, monkeypatch) -> None:
     install_provider(monkeypatch)
     user, campaign = await create_user_campaign(db_session)
-    await add_turn(db_session, campaign, 1, "The bridge is out.")
+    await add_fact(db_session, campaign, 1, "The bridge is out.")
     index = _manual_index(campaign, rebuild_state=State.QUEUED)
     db_session.add(index)
     await db_session.commit()

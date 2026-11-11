@@ -138,26 +138,25 @@ async def test_source_and_queue_rollback_together(campaign: Campaign, db_session
     db_session.add(index)
     await db_session.commit()
     index_id = index.id
-    turn = Turn(
+    fact = MemoryFact(
         campaign_id=campaign.id,
         turn_number=77,
-        player_action="test",
-        narration="test",
-        model_used="test-model",
-        summary="rollback summary",
+        entity_name="Rollback",
+        entity_type="npc",
+        content="rollback fact",
     )
-    db_session.add(turn)
+    db_session.add(fact)
     await db_session.flush()
     await enqueue_source_embedding(
         db_session,
         campaign_id=campaign.id,
-        source_type=EmbeddingSourceType.TURN,
-        source_id=turn.id,
-        source_text=turn.summary,
+        source_type=EmbeddingSourceType.MEMORY_FACT,
+        source_id=fact.id,
+        source_text=fact.content,
     )
     await db_session.rollback()
 
-    assert await db_session.scalar(select(Turn).where(Turn.turn_number == 77)) is None
+    assert await db_session.scalar(select(MemoryFact).where(MemoryFact.turn_number == 77)) is None
     assert (
         await db_session.scalar(
             select(SourceEmbedding).where(SourceEmbedding.index_id == index_id)

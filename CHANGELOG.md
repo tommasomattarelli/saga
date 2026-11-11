@@ -31,3 +31,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Delivered versioned campaign archives with full memory provenance, offline reference validation, and recoverable save/retry behavior under repeatable-read isolation (ADR 0020 S5).
 - Retired legacy memory capture/derivation tools, unused fixtures and derivation-only metadata, aligning the offline builder with campaign policy (ADR 0020 S6).
 - Removed per-turn memory producers, prompt templates and obsolete settings, preserving historical records and current generation/transcript guarantees (ADR 0020 S6).
+- Restricted embedding work, rebuilds and progress to facts without deleting historical TURN rows or vectors (ADR 0020 S6).
