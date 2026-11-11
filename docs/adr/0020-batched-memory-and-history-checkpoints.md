@@ -569,6 +569,12 @@ restano aperti; nessuna ulteriore chiamata live è autorizzata da questa nota.
 
 ### S5 — Restore, export e UX del blocco
 
+**Decisione owner S5 (2026-11-11, perimetro).** Non modificare la UI in questa
+fase: l'owner la sta ridisegnando separatamente in Figma e rimanda l'integrazione
+al relativo lavoro frontend. S5 completa restore/recovery ed export backend;
+la UX minima di blocco/retry già consegnata in S4b resta invariata, senza nuovi
+controlli grafici di save/load o download e senza anticipare il redesign.
+
 - Collegare API save/load al nuovo modello con continuazioni, altri save ancora caricabili e fencing di job/turni.
 - Riattivazione coerente della memoria del save, senza mescolare output di batch che attraversano il fork.
 - Export completo e referenzialmente consistente, diagnostica dei job senza claim runtime.
@@ -978,6 +984,35 @@ più applicabili al contesto corrente richiedono un riallineamento della UI.
 ### 20.9 Export e verifica forward dello schema
 
 L'export legge tutti gli oggetti della campagna in una transazione PostgreSQL `REPEATABLE READ READ ONLY`; restituisce un formato versionato e tipizzato con puntatori attivi, continuazioni, save, fonti, documenti, fatti, policy e diagnostica sanitizzata. Nessun claim/lease operativo, chiave o vettore obbligatorio. La validazione offline controlla tutti i riferimenti, anche quelli fuori dalla storia attiva.
+
+**S5 note (2026-11-11, implementation).** Il precedente endpoint esportava soltanto
+stato corrente, turni e fatti semplificati. Il formato 1 conserva tutte le righe della
+campagna nelle famiglie previste dal contratto, incluse operazioni, stati di memoria,
+generazioni e tentativi diagnostici, con schemi e validazione referenziale condivisi
+fra API e comando offline. Le provenienze legacy nullable restano tali, senza
+conversione, ricostruzione di delta o perdita dei vecchi summary.
+
+L'autenticazione ha già interrogato la propria sessione: l'export apre quindi una
+sessione dedicata e imposta isolamento/read-only prima della prima lettura. La
+serializzazione esplicita termina dentro lo snapshot senza lazy load successivi.
+I job esportano fonti, hash, versioni, contatori ed errori da allowlist, non envelope
+eseguibili, token, lease o pianificazione dei retry. Nessuna nuova migrazione.
+
+La validazione distingue il percorso selezionato dalla sola continuazione del
+head: durante il primo claim dopo un restore può esistere un segmento figlio ancora
+vuoto, mentre il head rimane nel prefisso padre. Un fallimento può lasciare segmenti
+vuoti annidati e numeri già riservati; questi stati sono validi, i head di fratelli
+estranei invece no. Il controllo della copertura conta nodi completati e membership,
+non uguaglianza dei numeri turno, e preserva i raw/intermedi protetti dai save.
+
+Le regressioni attraversano API, graph e worker reali con provider controllati:
+confronto dell'archivio con le righe persistite, più checkpoint globali, pubblicazioni
+concorrenti, load alternati fra futuri conservati e budget blocked/exhausted che
+restano invariati finché non arriva un retry esplicito. La verifica offline blocca
+gli accessi socket; nessuna nuova chiamata live o conferma di qualità production.
+
+Verifica mirata S5: **224 integrazioni PostgreSQL** e **26 test unitari** verdi,
+oltre a Ruff, formato e mypy sull'intero backend; frontend invariato come richiesto.
 
 Le migrazioni nuove seguono `009_campaign_language`; nessun dato storico viene convertito in una storia inventata. Eventuali campi nullable servono alla transizione dello schema, non a un writer/reader legacy permanente. Le campagne senza il nuovo contratto non devono entrare silenziosamente nella pipeline nuova. La gestione esplicita del cutover e i messaggi per i dati fuori contratto vengono verificati prima del ritiro definitivo, senza cancellazioni automatiche.
 
