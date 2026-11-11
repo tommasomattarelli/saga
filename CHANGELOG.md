@@ -29,3 +29,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added durable memory jobs with frozen requests, bounded retries, atomic publication and history-safe artifact reuse, without activating the public pipeline (ADR 0020 S4a).
 - Connected idempotent actions, three-level memory, bounded admission and history-safe restore/recall, with YAML-derived client deadlines and explicit blocking retries (ADR 0020 S4b).
 - Defined a versioned, typed campaign archive preserving full history, memory provenance and nullable legacy records (ADR 0020 S5).
+- Validated archive references, history coverage and producer provenance through a shared offline checker without database or provider access (ADR 0020 S5).
