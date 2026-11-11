@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from langchain_core.messages import AIMessage, HumanMessage
@@ -33,7 +33,6 @@ from app.core.npc_resolver import npcs_at_current_location
 from app.exceptions import AIProviderError
 from app.memory.operation_delta import OperationState
 from app.memory.operation_results import DeathResult
-from app.memory.world_state import migrate_world_state
 from app.models.quest import QuestRegistry
 
 _llm_io = logging.getLogger("llm_io")
@@ -44,7 +43,8 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
     from sqlalchemy import select
 
     from app.dependencies import get_db_context
-    from app.memory.recall import embed_recall_query, snapshot_recall_query
+    from app.memory.context_snapshot import capture_turn_context
+    from app.memory.recall import embed_recall_query
     from app.models.campaign import Campaign
 
     campaign_id = state["campaign_id"]
@@ -55,40 +55,41 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
 
     _, model_cfg = await get_user_generation(state["user_id"])
 
-    async with get_db_context() as db:
-        result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
-        campaign: Campaign = result.scalar_one()
-        try:
-            recall_snapshot = await snapshot_recall_query(db, campaign.id)
-        except Exception:
-            logger.exception("recall_snapshot_failed", campaign_id=campaign_id)
-            recall_snapshot = None
+    turn_context = state.get("turn_context")
+    if turn_context is None:
+        async with get_db_context() as db:
+            result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
+            campaign: Campaign = result.scalar_one()
+            turn_context = await capture_turn_context(db, campaign)
+    elif str(turn_context.campaign_id) != campaign_id:
+        raise ValueError("The turn context does not match the requested campaign.")
+    recall_snapshot = turn_context.recall_snapshot
 
     query_embedding = (
         await embed_recall_query(recall_snapshot, player_action) if recall_snapshot else None
     )
 
     async with get_db_context() as db:
-        result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
-        campaign = result.scalar_one()
+        context = await build_context(
+            turn_context, player_action, db, query_embedding=query_embedding
+        )
 
-        context = await build_context(campaign, player_action, db, query_embedding=query_embedding)
-
-    lc_messages = raw_history_to_lc(context.messages[:-1])
+    lc_messages = raw_history_to_lc(cast(list[dict], context.messages[:-1]))
     lc_messages.append(HumanMessage(content=player_action))
 
     return {
         "player_action": player_action,
         "messages": lc_messages,
-        "world_state": migrate_world_state(campaign.world_state or {}),
-        "char_data": campaign.character_data or {},
-        "quests": QuestRegistry.model_validate(campaign.quests or {}),
-        "world_baseline": campaign.world_baseline or {},
-        "difficulty": str(campaign.difficulty),
+        "world_state": copy.deepcopy(turn_context.scene.world_state),
+        "char_data": copy.deepcopy(turn_context.scene.character_data),
+        "quests": copy.deepcopy(turn_context.scene.quests),
+        "world_baseline": copy.deepcopy(turn_context.scene.world_baseline),
+        "difficulty": turn_context.difficulty,
         "model_used": model_cfg.model,
         "importance_score": context.importance_score,
         "system_prompt": context.system_prompt,
         "prompt_context": context.prompt_context,
+        "turn_context": turn_context,
         "model_config": {
             "provider": model_cfg.provider,
             "model": model_cfg.model,

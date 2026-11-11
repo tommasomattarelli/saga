@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+export const RuntimeConfigSchema = z.object({
+  action_client_timeout_seconds: z.number().finite().positive(),
+});
+
+export const ActionResponseIdentitySchema = z.object({
+  request_id: z.string().uuid(),
+  turn_id: z.string().uuid(),
+  head_turn_id: z.string().uuid(),
+  context_epoch: z.number().int().nonnegative(),
+});
+
 const DiceOutcomeSchema = z.enum([
   "critical_failure",
   "hard_failure",

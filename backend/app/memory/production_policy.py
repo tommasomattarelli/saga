@@ -7,6 +7,8 @@ from typing import Annotated, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.config_loader import load_saga_config
+
 NonEmptyText = Annotated[str, Field(min_length=1)]
 
 
@@ -96,9 +98,11 @@ class MemoryProductionPolicy(_PolicyModel):
 
 
 def configured_facts_policy(*, max_per_batch: int) -> FactsPolicy:
-    from app.config_loader import load_saga_config
-
     levels = load_saga_config()["memory"]["production"]["facts"]["importance_levels"]
     return FactsPolicy.model_validate(
         {"max_per_batch": max_per_batch, "importance_levels": levels}
     )
+
+
+def configured_memory_policy() -> MemoryProductionPolicy:
+    return MemoryProductionPolicy.model_validate(load_saga_config()["memory"]["production"])

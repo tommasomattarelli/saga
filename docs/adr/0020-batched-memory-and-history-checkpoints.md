@@ -752,6 +752,35 @@ Il client crea un `request_id` UUID per l'azione logica e lo conserva durante at
 
 Il crash di una richiesta accettata ma non committata lascia un tentativo interrotto, non un turno completato. Il recupero rilascia soltanto slot scaduti/invalidati con fencing del vecchio token; nessuna rigenerazione a pagamento automatica al restart. La scadenza di esecuzione e i timeout devono essere finiti e concordati prima dell'attivazione. Un numero già claimato può restare un buco, come in ADR 0001.
 
+**S4b note (2026-11-11, implementation).** Il replay esatto non è ricostruibile
+dal solo `Turn`: esiti dado strutturati, evento morte, tempo trascorso e snapshot
+di risposta non vi erano conservati integralmente. La migrazione forward 014
+aggiunge il payload della risposta a `turn_requests`, senza ricostruire risposte
+precedenti; risposta e completamento della richiesta sono pubblicati nella stessa
+transazione di turno, operazioni, stato e autosave. La transizione finale usa un
+UPDATE condizionale su token, stato e clock DB, non una lettura seguita da una
+scrittura non condizionata. Una richiesta interrotta è terminale: nessuna
+rigenerazione automatica per il medesimo ID; un nuovo invio volontario ne usa uno nuovo.
+
+Lo snapshot di claim comprende scena, personaggio, quest, baseline, difficoltà,
+lingua/persona, storia, documenti di memoria e indice del recall. La query semantica
+filtra l'intera membership del batch prima del top-K, mantenendo i controlli dello
+spazio embedding. I job durevoli ripristinano esplicitamente lo scope della
+campagna per l'affinity, che non possono più ereditare dalla richiesta HTTP.
+
+La riga campagna viene riletta sotto lock anche se già presente nell'identity map
+della sessione di autenticazione: il solo FOR UPDATE non aggiorna un oggetto ORM
+precaricato. Lo stesso riallineamento serve alle letture di head/epoca e journal;
+senza, un load poteva riutilizzare un'epoca vecchia o mostrare il futuro escluso dal restore.
+I save nuovi sono immutabili anche al DB: l'autosave inserisce nuovi punti,
+senza cancellare il precedente come faceva il percorso legacy. L'export completo
+e la rimozione definitiva degli orfani rimangono rispettivamente in S5 e S6.
+
+Verifica S4b: full check backend **1883/1883**, frontend **284/284**, lint/format,
+mypy, vulture, knip, coverage e build verdi in **4m 47s**, oltre alle integrazioni
+mirate con PostgreSQL reale e provider controllati. Nessuna nuova chiamata live,
+scelta production definitiva o autorizzazione al merge in main deriva dai test.
+
 ### 20.5 Job, tentativi e pubblicazione
 
 `memory_jobs` contiene UUID, campagna, tipo `batch`/`global`, batch, policy, predecessore globale quando pertinente, manifest/versioni/hash delle fonti e delle istruzioni, stato, tentativi persistenti, prossimo tentativo, token/scadenza del claim ed errore sanitizzato. Il manifest congela lingua, riferimenti e versioni del produttore: il restart non applica di nascosto prompt nuovi a un lavoro vecchio.
@@ -917,6 +946,34 @@ Namespace scelto per la nuova definizione: `memory.production`, con una sola def
 La policy snapshot congela tali regole di produzione, non provider/modello/credenziali, permessi amministrativi o timeout infrastrutturali del deployment. Il tetto output condiviso di 0018 rimane tale; non aggiungere cap per summary/fatti/globale senza una nuova decisione motivata. Le vecchie opzioni superate vengono ritirate nel cutover, non mantenute come fallback.
 
 **Grounding S0.** Axios oggi non imposta un timeout (`frontend/src/shared/api/client.ts:11–14`); il mutation hook non conserva una chiave idempotente (`features/game/hooks/use-submit-action.ts:8–42`). Il claim del turno precede il graph e non ha un deadline endpoint dichiarato (`backend/app/api/turns.py:66–153`). Non esiste quindi già una durata verificata da copiare: prima di S4/S5 vanno fissati deadline server, margine client/proxy e timeout dell'esecuzione accettata, senza scambiare timeout di rete per mancato commit.
+
+**Decisione owner S4b (2026-11-11, configurazione del branch).** Approvati nel YAML
+R=8, B=4, K=2, H=1, massimo 6 fatti e target globale indicativo 1.000 parole;
+rimangono `ordinary`/`critical` e i due specialisti, con conferma production rinviata
+alla valutazione integrata prima di main. I job hanno 4 tentativi totali, backoff
+`[5, 30, 120]` secondi, timeout dell'intero tentativo 120 secondi, lease 150 e
+poll 5; l'ammissione attende al massimo 10 secondi. Ogni nuova campagna congela
+questa policy; cambiare YAML non ripartiziona campagne esistenti.
+
+I parametri runtime globali `gameplay.action_timeout_seconds=600`,
+`action_completion_margin_seconds=50` e `action_proxy_margin_seconds=80`
+derivano, rispettivamente, timeout graph 600, durata token e timeout client 650,
+timeout minimo proxy 680 secondi. Il backend espone al frontend il timeout action
+calcolato tramite una configurazione runtime senza segreti: nessun valore 650
+duplicato nel bundle. Il margine di completamento copre anche l'attesa pre-claim
+del client e deve superarla; quello proxy supera il margine client. Il proxy non
+è presente oggi: un eventuale deployment dovrà derivarne la configurazione dalla
+stessa fonte. Questi timeout runtime non appartengono allo snapshot narrativo.
+
+Client e token hanno uguale durata configurata, non uguale scadenza assoluta:
+il primo parte dall'invio, il secondo dal claim dopo l'eventuale attesa. Un timeout
+di rete può quindi precedere un commit valido e non autorizza una seconda
+generazione; il protocollo idempotente risolve questa ambiguità senza polling automatico.
+
+Le campagne precedenti restano consultabili in journal/save, ma nuove azioni e
+load fuori contratto ricevono un errore strutturato, senza conversioni o doppio
+writer. Il replay conserva il payload della risposta committata; i risultati non
+più applicabili al contesto corrente richiedono un riallineamento della UI.
 
 ### 20.9 Export e verifica forward dello schema
 

@@ -80,11 +80,17 @@ embedding:
   retry_delays_seconds: [1, 3]
 
 # ---------------------------------------------------------------------------
-# Memory production — rubric only; numeric defaults await ADR 0020 S3 evaluation
+# Memory production — ADR 0020 experimental branch values; production defaults remain gated
 # ---------------------------------------------------------------------------
 memory:
   production:
+    # Experimental ADR 0020 branch values; not a production default before integrated evaluation.
+    raw_turns: 8 # R: recent raw turns retained in full.
+    batch_turns: 4 # B: complete turns in each compaction batch.
+    intermediate_limit: 2 # K: intermediate summaries retained before global compaction.
+    backlog_batches: 1 # H: additional backlog batches tolerated before admission blocks.
     facts:
+      max_per_batch: 6 # Maximum facts emitted by one production batch.
       importance_levels:
         - name: ordinary
           criteria: A significant historical detail worth recalling, without campaign-defining consequences.
@@ -94,11 +100,24 @@ memory:
             A revelation, commitment or consequence that substantially changes the campaign's stakes or direction.
             A supported revelation central to an unresolved campaign mystery qualifies even before a resulting decision or action.
           examples: A central betrayal, a revelation redefining a central mystery, a binding major oath, or the resolution of a defining threat.
+    global:
+      target_words: 1000 # Indicative global-summary length target; never a truncation limit.
+    jobs:
+      max_attempts: 4 # Total persisted attempts, including the initial attempt.
+      retry_backoff_seconds: [5, 30, 120] # Delays between recoverable attempts.
+      request_timeout_seconds: 120 # Maximum duration of one complete producer attempt.
+      lease_seconds: 150 # Claim lease; must exceed the complete producer timeout.
+      poll_seconds: 5 # Worker interval while looking for eligible durable jobs.
+    admission:
+      wait_timeout_seconds: 10 # Maximum bounded wait before rejecting an action as memory-busy.
 
 # ---------------------------------------------------------------------------
 # Gameplay Settings — runtime behavior
 # ---------------------------------------------------------------------------
 gameplay:
+  action_timeout_seconds: 600 # Maximum graph execution time before fencing the action attempt.
+  action_completion_margin_seconds: 50 # Time beyond graph execution for commit; must exceed memory admission wait.
+  action_proxy_margin_seconds: 80 # Additional time beyond graph execution allowed by the HTTP proxy.
   default_campaign_language: en  # persisted at creation; existing campaigns keep their language
   context_window_turns: 8        # verbatim turns in DM prompt
   context_token_cap: 12000       # max tokens in DM prompt before oldest verbatim turns are dropped

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -133,7 +134,10 @@ class TestContextNode:
     async def test_precomputes_embedding_outside_session(self):
         # B-M1: the recall embedding is generated before the DB session opens and
         # forwarded to build_context, so no embedding API call runs in-session.
+        from app.ai.prompts.dm import DMPromptContext, DMPromptState
         from app.core.dm.dm_nodes import context_node
+        from app.memory.context_snapshot import TurnContextSnapshot
+        from app.models.quest import QuestRegistry
 
         campaign = MagicMock()
         campaign.world_state = {}
@@ -152,7 +156,25 @@ class TestContextNode:
         game_ctx = GameContext(messages=[], importance_score=5, system_prompt="sys")
         model_cfg = MagicMock(provider="openai", model="gpt-4o", max_tokens=100)
 
-        state = _make_state(player_action="I attack the guard", campaign_id="cid")
+        turn_context = TurnContextSnapshot(
+            campaign_id=uuid.uuid4(),
+            head_turn_id=None,
+            context_epoch=0,
+            scene=DMPromptState({}, {}, {}, QuestRegistry()),
+            prompt=DMPromptContext(),
+            difficulty="normal",
+            history=(),
+            policy=None,
+            global_checkpoint_id=None,
+            intermediate_batch_ids=(),
+            recall_snapshot=None,
+            ancestry_turn_ids=(),
+            raw_turn_ids=(),
+        )
+        state = _make_state(
+            player_action="I attack the guard", campaign_id=str(turn_context.campaign_id)
+        )
+        state["turn_context"] = turn_context
 
         with (
             patch("app.memory.recall.snapshot_recall_query", new=AsyncMock(return_value=None)),

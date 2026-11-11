@@ -32,5 +32,35 @@ async def test_sql_recall_uses_prepared_index_query() -> None:
         uuid.uuid4(), campaign_id, index_id, legacy_space(), 384, (0.25,) * 384
     )
 
-    assert await search_similar_facts(campaign_id, "query", db, query_embedding=prepared) == [fact]
+    assert await search_similar_facts(
+        campaign_id,
+        "query",
+        db,
+        query_embedding=prepared,
+        ancestry_turn_ids=(uuid.uuid4(),),
+    ) == [fact]
     db.execute.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_sql_recall_filters_complete_batch_input_to_history_ancestry() -> None:
+    from app.memory.semantic import search_similar_facts
+
+    campaign_id, index_id = uuid.uuid4(), uuid.uuid4()
+    db = AsyncMock()
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = []
+    db.execute.return_value = result
+    prepared = PreparedRecallQuery(
+        uuid.uuid4(), campaign_id, index_id, legacy_space(), 384, (0.25,) * 384
+    )
+
+    await search_similar_facts(
+        campaign_id,
+        "query",
+        db,
+        query_embedding=prepared,
+        ancestry_turn_ids=(uuid.uuid4(),),
+    )
+
+    assert "memory_batch_turns" in str(db.execute.await_args.args[0])

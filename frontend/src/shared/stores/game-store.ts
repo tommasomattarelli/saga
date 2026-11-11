@@ -13,6 +13,7 @@ interface GameState {
   setCampaign: (campaign: Campaign) => void;
   setTurnHistory: (turns: TurnResponse[]) => void;
   addTurn: (turn: TurnResponse) => void;
+  applyTurn: (turn: TurnResponse) => void;
   setLoading: (loading: boolean) => void;
   setPendingAction: (action: string | null) => void;
   clearPendingDice: () => void;
@@ -40,11 +41,38 @@ export const useGameStore = create<GameState>()(
           (turn.dice_results && turn.dice_results.length > 0) ||
           !!(turn.dice_rolls && Object.keys(turn.dice_rolls).length > 0);
         set((state) => ({
-          turnHistory: [...state.turnHistory, turn],
+          turnHistory:
+            turn.turn_id && state.turnHistory.some((item) => item.turn_id === turn.turn_id)
+              ? state.turnHistory
+              : [...state.turnHistory, turn],
           freshTurnNumber: turn.turn_number,
           hasPendingDice: hasDice,
         }));
       },
+      applyTurn: (turn) =>
+        set((state) => {
+          if (turn.turn_id && state.turnHistory.some((item) => item.turn_id === turn.turn_id))
+            return state;
+          const campaign = state.campaign;
+          if (!campaign) return state;
+          const hasDice =
+            (turn.dice_results && turn.dice_results.length > 0) ||
+            !!(turn.dice_rolls && Object.keys(turn.dice_rolls).length > 0);
+          return {
+            turnHistory: [...state.turnHistory, turn],
+            freshTurnNumber: turn.turn_number,
+            hasPendingDice: hasDice,
+            campaign: {
+              ...campaign,
+              ...(turn.head_turn_id ? { active_head_turn_id: turn.head_turn_id } : {}),
+              ...(turn.context_epoch !== undefined ? { context_epoch: turn.context_epoch } : {}),
+              ...(turn.world_state ? { world_state: turn.world_state } : {}),
+              ...(turn.character_data ? { character_data: turn.character_data } : {}),
+              ...(turn.quests ? { quests: turn.quests } : {}),
+              turn_number: turn.turn_number || campaign.turn_number,
+            },
+          };
+        }),
       setLoading: (loading) => set({ isLoading: loading }),
       setPendingAction: (action) => set({ pendingAction: action }),
       clearPendingDice: () => set({ hasPendingDice: false }),

@@ -9,14 +9,18 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager, contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID
 
 import pytest
 from google.genai import types as genai_types
 
 from app.ai.context import GameContext
+from app.ai.prompts.dm import DMPromptContext, DMPromptState
 from app.ai.providers.google import GoogleProvider
 from app.ai.router import ModelConfig
 from app.core.dm.dm_graph import dm_graph
+from app.memory.context_snapshot import TurnContextSnapshot
+from app.models.quest import QuestRegistry
 
 _SIG_1 = b"\x00\x01opaque-signature-one"
 _SIG_2 = b"\xfe\xffopaque-signature-two"
@@ -56,9 +60,10 @@ def _make_google_provider(monkeypatch, responses):
 
 
 def _initial_state() -> dict:
+    campaign_id = UUID("00000000-0000-0000-0000-000000000001")
     return {
         "player_action": "I look around",
-        "campaign_id": "cid",
+        "campaign_id": str(campaign_id),
         "user_id": "uid",
         "messages": [],
         "world_state": {"npcs": {}},
@@ -80,6 +85,21 @@ def _initial_state() -> dict:
         "death_event": None,
         "system_prompt": "",
         "model_config": {},
+        "turn_context": TurnContextSnapshot(
+            campaign_id=campaign_id,
+            head_turn_id=None,
+            context_epoch=0,
+            scene=DMPromptState({}, {}, {}, QuestRegistry()),
+            prompt=DMPromptContext(),
+            difficulty="medium",
+            history=(),
+            policy=None,
+            global_checkpoint_id=None,
+            intermediate_batch_ids=(),
+            recall_snapshot=None,
+            ancestry_turn_ids=(),
+            raw_turn_ids=(),
+        ),
     }
 
 

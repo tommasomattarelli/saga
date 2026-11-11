@@ -45,6 +45,9 @@ class CampaignResponse(BaseModel):
     status: CampaignStatus
     difficulty: Difficulty
     turn_number: int
+    active_head_turn_id: uuid.UUID | None = None
+    context_epoch: int = 0
+    memory_policy_id: uuid.UUID | None = None
     character_data: dict
     world_state: dict
     quests: QuestRegistry
@@ -64,10 +67,19 @@ class CampaignResponse(BaseModel):
 
 
 class TurnSubmit(BaseModel):
+    model_config = {"extra": "forbid"}
+
     action: str
+    request_id: uuid.UUID
+    expected_head_turn_id: uuid.UUID | None
+    expected_context_epoch: int = Field(ge=0)
 
 
 class TurnResponse(BaseModel):
+    request_id: uuid.UUID
+    turn_id: uuid.UUID
+    head_turn_id: uuid.UUID
+    context_epoch: int
     turn_number: int
     player_action: str = ""
     narration: str

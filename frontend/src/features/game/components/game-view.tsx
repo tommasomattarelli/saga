@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { isAxiosError } from "axios";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useGameStore } from "../../../shared/stores/game-store";
@@ -6,9 +7,12 @@ import { useUIStore } from "../../../shared/stores/ui-store";
 
 import { useCampaignData } from "../hooks/use-campaign-data";
 import { useSubmitAction } from "../hooks/use-submit-action";
+import { retryCampaignMemory } from "../../../shared/api/client";
 import { useEnsureEmbeddingIndex } from "../hooks/use-ensure-embedding-index";
 import NarrativeStream from "../../narrative/components/narrative-stream";
 import ActionInput from "./action-input";
+import ActionErrorBanner from "./action-error-banner";
+import HeroBadge from "./hero-badge";
 import CharacterSheet from "../../character/components/character-sheet";
 import CompanionBar from "../../character/components/companion-bar";
 import SceneLifeBars, { npcsInScene } from "../../scene/components/scene-life-bars";
@@ -16,59 +20,6 @@ import JournalDrawer from "./journal-drawer";
 import SettingsDrawer from "./settings-drawer";
 import WorldMap from "../../map/components/world-map";
 // CharacterSheet manages its own fullscreen modal dialog internally
-
-/* Avatar disc + name / level / HP — the player identity cluster (ADR 0013 A4) */
-function HeroBadge() {
-  const { t } = useTranslation();
-  const char = useGameStore((s) => s.campaign?.character_data);
-  if (!char?.name) return null;
-  const hp = char.hp ?? { current: 0, max: 0 };
-  const hpPct = hp.max > 0 ? Math.max(0, Math.min(100, (hp.current / hp.max) * 100)) : 0;
-
-  return (
-    <div className="flex items-center gap-3 min-w-0">
-      <div
-        aria-hidden="true"
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-sm font-semibold"
-        style={{
-          border: "1px solid var(--line-strong)",
-          color: "var(--accent)",
-          background: "var(--parchment-base)",
-        }}
-      >
-        {char.name[0]?.toUpperCase()}
-      </div>
-      <div className="min-w-0">
-        <div className="flex items-baseline gap-2">
-          <span
-            className="font-display text-sm font-semibold truncate"
-            style={{ color: "var(--ink-primary)" }}
-          >
-            {char.name}
-          </span>
-          <span className="font-display text-xs" style={{ color: "var(--ink-faded)" }}>
-            {t("game.level_abbr")} {char.level}
-          </span>
-        </div>
-        <div className="mt-1 flex items-center gap-2">
-          <div
-            aria-label={`HP ${hp.current} of ${hp.max}`}
-            className="h-1 w-20 overflow-hidden rounded-full"
-            style={{ background: "var(--line)" }}
-          >
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${hpPct}%`, background: "var(--blood)" }}
-            />
-          </div>
-          <span className="font-display text-[11px]" style={{ color: "var(--ink-faded)" }}>
-            {hp.current}/{hp.max}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function GameView() {
   const { t } = useTranslation();
@@ -85,18 +36,85 @@ export default function GameView() {
 
   const { isLoading: isDataLoading, error: dataError } = useCampaignData(campaignId);
   useEnsureEmbeddingIndex(campaignId);
-  const { mutation } = useSubmitAction(campaignId!, scrollRef);
+  const { submit, actionReady } = useSubmitAction(campaignId!, scrollRef);
 
   const [actionError, setActionError] = useState<string | null>(null);
+  const [memoryRetryRequired, setMemoryRetryRequired] = useState(false);
+  const retryRef = useRef<{
+    action: string;
+    requestId: string;
+    head: string | null;
+    epoch: number;
+  } | null>(null);
+
+  useEffect(() => {
+    retryRef.current = null;
+  }, [campaignId]);
 
   const handleAction = async (action: string) => {
     setActionError(null);
     try {
-      await mutation.mutateAsync(action);
+      const retry = retryRef.current?.action === action ? retryRef.current : null;
+      const requestId = retry?.requestId ?? crypto.randomUUID();
+      const context = retry ?? {
+        action,
+        requestId,
+        head: campaign?.active_head_turn_id ?? null,
+        epoch: campaign?.context_epoch ?? 0,
+      };
+      retryRef.current = context;
+      await submit(action, requestId, { head: context.head, epoch: context.epoch });
+      retryRef.current = null;
+      setMemoryRetryRequired(false);
     } catch (err) {
-      setActionError(t("errors.action_failed"));
+      const code = isAxiosError<{ detail?: { code?: string } }>(err)
+        ? err.response?.data?.detail?.code
+        : undefined;
+      const status = isAxiosError(err) ? err.response?.status : undefined;
+      if (
+        code === "action_interrupted" ||
+        code === "action_timeout" ||
+        code === "action_context_changed" ||
+        status === 422 ||
+        status === 500 ||
+        status === 502
+      ) {
+        retryRef.current = null;
+      }
+      setMemoryRetryRequired(
+        code === "memory_retry_required" || code === "memory_configuration_required",
+      );
+      setActionError(
+        t(
+          code === "memory_busy"
+            ? "errors.memory_busy"
+            : code === "memory_retry_required"
+              ? "errors.memory_retry_required"
+              : code === "memory_configuration_required"
+                ? "errors.memory_configuration_required"
+                : code === "action_in_progress"
+                  ? "errors.action_in_progress"
+                  : code === "action_context_changed"
+                    ? "errors.action_context_changed"
+                    : code === "campaign_history_required"
+                      ? "errors.campaign_history_required"
+                      : "errors.action_failed",
+        ),
+      );
       throw err; // let ActionInput keep the typed text
     }
+  };
+
+  const handleMemoryRetry = async () => {
+    const pending = retryRef.current;
+    if (!pending) return;
+    try {
+      await retryCampaignMemory(campaign!.id, pending.head, pending.epoch);
+    } catch {
+      setActionError(t("errors.memory_retry_failed"));
+      return;
+    }
+    await handleAction(pending.action).catch(() => undefined);
   };
 
   if (isDataLoading || !campaign) {
@@ -209,18 +227,12 @@ export default function GameView() {
           style={{ background: "var(--parchment-base)" }}
         >
           <div className="mx-auto" style={{ maxWidth: "68ch" }}>
-            {dataError && (
-              <div
-                role="alert"
-                className="mb-6 rounded-md px-4 py-3 font-display text-sm"
-                style={{
-                  border: "1px solid var(--blood-dark)",
-                  color: "var(--blood)",
-                }}
-              >
-                {t("game.history_error")}
-              </div>
-            )}
+            <ActionErrorBanner
+              actionError={actionError}
+              historyError={!!dataError}
+              memoryRetryRequired={memoryRetryRequired && !!retryRef.current}
+              onMemoryRetry={() => void handleMemoryRetry()}
+            />
             {/* on a failed history load don't render the misleading "not started yet" empty state */}
             {(!dataError || hasTurns) && (
               <NarrativeStream scrollRef={scrollRef} actionError={actionError} />
@@ -228,7 +240,7 @@ export default function GameView() {
           </div>
         </main>
 
-        <ActionInput onAction={handleAction} />
+        <ActionInput onAction={handleAction} disabled={!actionReady} />
       </div>
 
       {/* Character sheet — fullscreen modal (self-contained) */}
