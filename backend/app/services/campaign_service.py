@@ -8,6 +8,7 @@ from app.core.world_instantiation import instantiate_world
 from app.core.world_library import ensure_library, world_path
 from app.core.world_loader import WorldAsset, WorldLoadError, load_world
 from app.core.world_validator import validate_world
+from app.memory.campaign_history import initialize_campaign_history
 from app.memory.world_state import migrate_world_state
 from app.models.campaign import Campaign
 from app.models.user import User
@@ -60,6 +61,7 @@ async def create_campaign(db: AsyncSession, user: User, body: CampaignCreate) ->
         persona_xml=asset.scenario.dm_persona if asset.scenario else None,
     )
     db.add(campaign)
+    await initialize_campaign_history(db, campaign)
     await db.commit()
     await db.refresh(campaign)
     return campaign

@@ -918,6 +918,34 @@ La policy snapshot congela tali regole di produzione, non provider/modello/crede
 
 **Grounding S0.** Axios oggi non imposta un timeout (`frontend/src/shared/api/client.ts:11–14`); il mutation hook non conserva una chiave idempotente (`features/game/hooks/use-submit-action.ts:8–42`). Il claim del turno precede il graph e non ha un deadline endpoint dichiarato (`backend/app/api/turns.py:66–153`). Non esiste quindi già una durata verificata da copiare: prima di S4/S5 vanno fissati deadline server, margine client/proxy e timeout dell'esecuzione accettata, senza scambiare timeout di rete per mancato commit.
 
+**Decisione owner S4b (2026-11-11, configurazione del branch).** Approvati nel YAML
+R=8, B=4, K=2, H=1, massimo 6 fatti e target globale indicativo 1.000 parole;
+rimangono `ordinary`/`critical` e i due specialisti, con conferma production rinviata
+alla valutazione integrata prima di main. I job hanno 4 tentativi totali, backoff
+`[5, 30, 120]` secondi, timeout dell'intero tentativo 120 secondi, lease 150 e
+poll 5; l'ammissione attende al massimo 10 secondi. Ogni nuova campagna congela
+questa policy; cambiare YAML non ripartiziona campagne esistenti.
+
+I parametri runtime globali `gameplay.action_timeout_seconds=600`,
+`action_completion_margin_seconds=50` e `action_proxy_margin_seconds=80`
+derivano, rispettivamente, timeout graph 600, durata token e timeout client 650,
+timeout minimo proxy 680 secondi. Il backend espone al frontend il timeout action
+calcolato tramite una configurazione runtime senza segreti: nessun valore 650
+duplicato nel bundle. Il margine di completamento copre anche l'attesa pre-claim
+del client e deve superarla; quello proxy supera il margine client. Il proxy non
+è presente oggi: un eventuale deployment dovrà derivarne la configurazione dalla
+stessa fonte. Questi timeout runtime non appartengono allo snapshot narrativo.
+
+Client e token hanno uguale durata configurata, non uguale scadenza assoluta:
+il primo parte dall'invio, il secondo dal claim dopo l'eventuale attesa. Un timeout
+di rete può quindi precedere un commit valido e non autorizza una seconda
+generazione; il protocollo idempotente risolve questa ambiguità senza polling automatico.
+
+Le campagne precedenti restano consultabili in journal/save, ma nuove azioni e
+load fuori contratto ricevono un errore strutturato, senza conversioni o doppio
+writer. Il replay conserva il payload della risposta committata; i risultati non
+più applicabili al contesto corrente richiedono un riallineamento della UI.
+
 ### 20.9 Export e verifica forward dello schema
 
 L'export legge tutti gli oggetti della campagna in una transazione PostgreSQL `REPEATABLE READ READ ONLY`; restituisce un formato versionato e tipizzato con puntatori attivi, continuazioni, save, fonti, documenti, fatti, policy e diagnostica sanitizzata. Nessun claim/lease operativo, chiave o vettore obbligatorio. La validazione offline controlla tutti i riferimenti, anche quelli fuori dalla storia attiva.
