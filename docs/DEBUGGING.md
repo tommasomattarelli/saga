@@ -56,32 +56,29 @@ Port `8000` must be free: stop the compose `backend` service first
 
 ## 3. The turn, in order
 
-`POST /api/campaigns/{campaign_id}/action` with `{"action": "..."}` — not
-`/turns`. Router prefix at `backend/app/main.py:73`, handler
-`backend/app/api/turns.py:42`.
+`POST /api/campaigns/{campaign_id}/action` carries `action`, `request_id`,
+`expected_head_turn_id` and `expected_context_epoch` — not `/turns`.
 
 | # | Where | What to look at |
 |---|---|---|
-| 1 | `turns.py:66-94` | Session 1: campaign fetch, the atomic `turn_number` claim (`:82-88`), the state snapshot (`:89-93`). **The session closes at `:94`, before any LLM call** (std 15). |
-| 2 | `turns.py:97-122` | `initial_state` — exactly what the graph receives: action, `world_state`, `character_data`, `quests`, `world_baseline`, `difficulty`. |
-| 3 | `turns.py:125-128` | `dm_graph.ainvoke(...)`, `recursion_limit=30`. Step in here to follow the graph. |
-| 4 | `core/dm/dm_nodes.py:35-87` | `context_node` → `build_context` (`ai/context.py:140`): verbatim window, batch summaries, pgvector recall, then `build_dm_system_prompt` (`ai/prompts/dm.py:35`). **This is the prompt the model really gets.** |
-| 5 | `core/dm/dm_nodes.py:90-168` | `dm_node`: active tool schemas (`:93-94`), the provider call (`:120-126`), the raw assistant message. |
-| 6 | `core/dm/dm_tools_executor.py:45-194` | `tools_node`: ordering (`request_dice` first, `invoke_npc` last), per-tool handling, sanitized errors. |
-| 7 | `core/dm/dm_graph.py:30-59` | Routing back to `dm_node` or out. Bounded by `max_agent_steps` (5) and `consecutive_empty_steps_max` (2). |
-| 8 | `core/dm/dm_nodes.py:171-209` | `post_process_node`: narration, dice reveal, death event, state written back. |
-| 9 | `turns.py:160` | `compress_turn_to_summary` — heuristic summary for the next window, **no session held**. |
-| 10 | `turns.py:168-225` | Session 2: re-select `FOR UPDATE`, write `world_state`/`character_data`/`quests`, insert `Turn`, enqueue embedding, replace the auto-save, commit. |
-| 11 | `turns.py:235-256` | `asyncio.create_task`: fact extraction, compression, global summary. **Nothing here has been awaited yet** — best place to see why a turn "wrote nothing". |
-| 12 | `turns.py:258-276` | `TurnResponse` — what the frontend receives. |
+| 1 | `services/action_claims.py` | Lock campaign, validate head/epoch and memory capacity, capture context, claim request/token. **The session closes before generation.** |
+| 2 | `api/turns.py` | Frozen initial state and bounded `dm_graph.ainvoke(...)`, without a DB session. |
+| 3 | `memory/context_snapshot.py`, `ai/context.py` | Raw suffix, published intermediate/global documents and ancestry-filtered recall form the actual prompt. |
+| 4 | `core/dm/dm_nodes.py` | `dm_node`: active schemas, provider call and raw assistant message. |
+| 5 | `core/dm/dm_tools_executor.py` | Tool execution, typed outcomes/deltas and sanitized errors. |
+| 6 | `core/dm/dm_graph.py` | Bounded routing and terminal-safe closing call. |
+| 7 | `core/dm/dm_nodes.py` | `post_process_node`: finalized transcript, dice, clock and death consequences. |
+| 8 | `services/action_persistence.py` | Fenced transaction publishes turn, operations, state, immutable autosave, response and memory scheduling together. |
+| 9 | `memory/job_worker.py`, `job_execution.py` | Durable attempts generate summary/facts or a global checkpoint outside DB sessions. |
+| 10 | `memory/job_publication.py` | Atomically publish documents, facts, embedding work and compatible coverage pointers. |
 
 Graph order: `context_node → dm_node → (tools_node → dm_node)* → post_process_node`
 (`core/dm/dm_graph.py:65-75`).
 
-Useful wants: the prompt → `dm_nodes.py:96`, inspect `state["system_prompt"]`;
-the model's tool requests → `dm_nodes.py:138`, after the provider returns, inspect
-`response.tool_calls`; a tool's outcome → `tools_node` right after the branch; what got
-persisted → `turns.py:177-179`.
+Useful wants: the prompt → `context_node`, inspect `state["system_prompt"]`;
+the model's tool requests → `dm_node`, inspect `response.tool_calls`;
+a tool's outcome → `tools_node`; persisted state → `publish_action` in
+`services/action_persistence.py`.
 
 ## 4. The scenarios
 
@@ -93,7 +90,7 @@ One per area. Do not add more until these produce something actionable.
 - **Action**: `"I look around and take in the scene."`
 - **Check**: whether the model actually returns no tool calls (the action does not
   force this). `tool_events: []` alone is not proof: some tools are invisible there.
-  For a no-tool turn, expect narration, one turn, one replaced auto-save and unchanged quests.
+  For a no-tool turn, expect narration, one turn, one new immutable auto-save and unchanged quests.
 - **Watch**: the `<instructions>`, `<character>`, `<scene>`, `<history>` and
   `<quests>` blocks actually rendered — empty or duplicated blocks are a tuning
   finding, not a bug. Then `turn_number` before/after in `turns.py:82-88`.
@@ -127,22 +124,22 @@ One per area. Do not add more until these produce something actionable.
 
 ### 4.4 Memory
 
-- **State**: at least two turns in the same campaign, with a fact worth keeping.
-- **Action**: two consecutive turns that should be linked.
-- **Expect**: after turn 1, background fact extraction writes `memory_facts`,
-  `source_embeddings` rows appear and the worker processes them; turn 2's prompt
-  carries the fact in `<recalled_memories>`.
-- **Watch**: `turns.py:235-247` → `memory/fact_extractor.py:105-173` (LLM call,
-  parse, cap of 5, `enqueue_source_embedding` at `:153-160`);
-  `memory/embedding_queue.py:58-81`; the worker in `memory/embedding_worker.py:93`.
-  Recall is `context.py:119-137`. If embeddings fail, gameplay continues and
+- **State**: a campaign with at least R+B completed turns and a fact worth keeping
+  in the first eligible batch; R/B come from its frozen memory policy.
+- **Action**: continue until the batch and its fact embeddings are published,
+  then ask a question whose answer needs that earlier fact.
+- **Expect**: one batch summary and its selected facts, persistent embedding work,
+  then compatible facts in `<recalled_memories>` on a later action.
+- **Watch**: `memory/job_scheduler.py`, `job_execution.py`, `job_publication.py`,
+  `embedding_queue.py` and `embedding_worker.py`. Recall is assembled in
+  `ai/context.py` through `memory/semantic.py`. If embeddings fail, gameplay continues and
   recall is empty — verify **which** of the two you are looking at before calling
   it a bug.
 - **Isolate use from availability**: a fact in `<recalled_memories>` proves retrieval
   and injection, not that the model used it. A temporary
-  `SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS=1` in the backend launch config reduces verbatim
-  history after restart, but leaves summaries and other prompt blocks. Inspect those
-  too before claiming an isolated recall test; remove the override afterwards.
+  override of `memory.production.raw_turns` only affects new campaigns; existing
+  campaigns retain their frozen policy. Inspect raw, intermediate and global
+  context before claiming an isolated recall test.
 
 ### 4.5 Quest
 

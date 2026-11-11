@@ -10,7 +10,7 @@ commands below from `backend/`.
 |---|---|
 | `eval/dialogue/` | Multi-turn dialogue suite and trial orchestration |
 | `eval/probes/` | Reusable checks and bounded actor probes |
-| `eval/scenario_tools/` | Scenario loading, capture, offline build and context derivation |
+| `eval/scenario_tools/` | Scenario loading and offline transcript build |
 | `eval/smoke/` | Per-model smoke runner |
 | `eval/support/` | Request ledger, provider calls, tracing, affinity and usage reports |
 | `eval/cache/` | Separate OpenRouter cache diagnostic |
@@ -28,38 +28,34 @@ allows the same obligation to be measured with an empty and a saturated context.
 The smoke report's per-scenario scores and delta are more useful than a pooled
 absolute score; heuristic failures still need human review.
 
-There are three fixture producers:
+Current scenario tools:
 
 - `eval.scenario_tools.build` replays an authored transcript through production
-  state handlers. It is offline and leaves summaries, recall and fact corpus
-  empty, marking the output `derived: false`.
-- `eval.scenario_tools.derive` runs the real summarizer and fact extractor over
-  that transcript. It uses the configured router, can spend provider quota, and
-  checkpoints each call so a later invocation can resume.
-- `eval.scenario_tools.capture_scenario` captures an existing campaign's state
-  and history. Stimuli and per-probe recall remain authored fixture data.
+  state handlers. It is offline and leaves generated memory context empty.
 
 `transcripts/variants/<name>/overlay.yaml` changes only the turns relevant to a
 variant; avoid full transcript copies that can drift. `world_patch` is reserved
 for state without a typed replay handler, such as player position and node
 status. Captured campaign data must be anonymized before it is committed.
+The old context-capture CLI has been retired with the derive CLI; no integrated
+context-capture workflow is currently available. `eval.memory_capture` remains a
+separate read-only source capture for the producer comparison below.
 
-**Current fixture warning:** `scenarios/built/gold.yaml` is still marked
-`derived: false`, and its `global_summary` contains contaminated model output.
-Do not use it as a valid saturated-context baseline until it has been
-re-derived and reviewed. Building it again only recreates world state and
-history; it does not derive context.
+Legacy generated `gold`, `bloat` and `contradiction` fixtures and the old
+capture/derivation CLIs are retired. Authored transcripts remain offline builder
+inputs, not reviewed saturated-memory evidence. Integrated S6 preparation is not
+yet delivered.
 
 ## Offline preparation
 
 These commands do not make generation requests. `build --check-only` validates
-an authored transcript without writing a fixture; `derive --dry-run` reports
-the configured provider and request budget without making calls.
+an authored transcript without writing a fixture. The memory producer comparison
+and controlled-source builder are available separately below; integrated S6
+preparation is not yet delivered.
 
 ```bash
 uv run python -m eval.scenario_tools.build gold --check-only
 uv run python -m eval.scenario_tools.build gold --variant contradiction --check-only
-uv run python -m eval.scenario_tools.derive gold --dry-run
 uv run python -m eval.smoke.model_smoke \
   --model nvidia/nemotron-3-ultra-550b-a55b:free \
   --scenario debug-thornhaven --probe travel_move --dry-run
