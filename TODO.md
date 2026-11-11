@@ -17,6 +17,8 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 
 [ ] **playtest su `v0.3.0`**
 
+[ ] **re-eval memoria ADR 0020 prima del merge in main**: rivalutare la pipeline integrata con scenario lungo/globale e playtest; confrontare specialisti (preferenza provvisoria) e unified per fedeltà, utilità dei fatti, importanza e recall effettivo, poi confermare variante/default; ogni run live richiede nuova autorizzazione.
+
 [~] **harness modelli (`backend/eval/`)**: fatto — 5 probe, scenari `empty`/`gold`/`bloat`/`contradiction`, colonna Δ, `--dry-run` per validare i prompt senza consumare quota. Il trascritto gold e' 25 turni ancorati al world reale, con lunghezza calibrata su produzione (1375 char/turno, misurati dal DB dev) e stato derivato replayando gli update negli handler veri. RESTA:
     [ ] **ri-derivare `gold`** (34 chiamate, `uv run python eval/derive.py gold`): la prima derivazione e' CONTAMINATA — girata prima del fix di #77, il `global_summary` e' il ragionamento del modello troncato a meta' parola, e il fixture e' stato rimesso a `derived: false` finche' non si rifa'. Da rifare dopo **#78**, non prima: #77 toglie il troncamento ma il ragionamento puo' ancora finire dentro la risposta.
     [ ] **`derive.py` — persistere tutto e riemettere senza chiamate**: oggi cancella il checkpoint a fine run, quindi i riassunti dei batch che il lettore non raggiunge (vedi #79) sono persi. Salvare batch summary + corpus completo e poter riscrivere il fixture dallo stato salvato: quando ADR 0017 cambiera' le probe, il fixture si aggiorna a costo zero invece che a 34 chiamate.

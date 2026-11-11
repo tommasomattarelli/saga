@@ -540,6 +540,15 @@ La riga commentata descrive lavoro, non un invito ad eseguire comandi senza veri
 - Live run soltanto autorizzati. Revisione umana e scelta motivata della variante production/default.
 - Se l'evidenza modifica un contratto, domanda all'owner e nota nell'ADR prima di propagare l'implementazione.
 
+**S3 note (2026-11-11, decisione owner).** Fermare qui le iterazioni sui prompt e i run
+isolati: si propende per i due specialisti rispetto a unified, con Nemotron come modello
+di prova, senza dichiarare una scelta production definitiva. Il gate S3 è ricalendarizzato:
+si può proseguire con S4a, mantenendo espliciti nei test i valori non ancora adottati come
+default. Prima del merge dell'integration branch in main, rivalutare la pipeline integrata
+con scenario lungo/globale e playtest, verificando fedeltà dell'incertezza, utilità dei fatti,
+importanza e recall effettivo; confermare allora variante e default. I difetti osservati
+restano aperti; nessuna ulteriore chiamata live è autorizzata da questa nota.
+
 ### S4 — Pipeline durevole e contesto
 
 **S0 note (2026-11-09, sequenza confermata dall'owner).** Dividere in S4a/S4b e anticipare in S4b l'integrazione minima save/load e UI: attivare turni/memoria nuovi lasciando il vecchio restore a S5 renderebbe la fase non giocabile in sicurezza. Il dettaglio è in §22; l'elenco originale sotto resta il perimetro complessivo di S4.
