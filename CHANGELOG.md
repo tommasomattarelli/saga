@@ -31,3 +31,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Delivered versioned campaign archives with full memory provenance, offline reference validation, and recoverable save/retry behavior under repeatable-read isolation (ADR 0020 S5).
 - Retired legacy memory producers, harnesses, unused fixtures, TURN indexing and obsolete settings while preserving historical archives (ADR 0020 S6).
 - Added eval-only generation and embedding attempt guards with durable, frozen budgets and interruption-safe ledgers, without changing gameplay runtime (ADR 0020 S6).
+- Added sealed integrated-evaluation manifests, offline preparation and reporting, with model, embedding-space and authorization gates left explicit (ADR 0020 S6).
