@@ -26,8 +26,7 @@ export function useCampaignData(campaignId: string | undefined) {
   }, [campaignQuery.data, setCampaign]);
 
   useEffect(() => {
-    if (!turnsQuery.data?.length) return;
-    setTurnHistory([...turnsQuery.data].reverse() as TurnResponse[]);
+    setTurnHistory([...(turnsQuery.data ?? [])].reverse() as TurnResponse[]);
   }, [turnsQuery.data, setTurnHistory]);
 
   return {

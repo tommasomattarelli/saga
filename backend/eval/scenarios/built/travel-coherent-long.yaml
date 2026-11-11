@@ -3,7 +3,6 @@ extends: travel-coherent
 meta:
   name: travel-coherent-long
   origin: controlled
-  derived: false
   reconstructed: true
   notes: >-
     Ten authored coherent turns, not a captured or replayed campaign; this stress test

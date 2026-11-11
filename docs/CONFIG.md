@@ -2,7 +2,7 @@
 
 All game-tunable settings live in `saga.config.yaml` at the project root. Secrets and infrastructure settings (DB URLs, JWT keys, API keys) stay in `.env` / `backend/app/config.py`.
 
-Environment variable overrides are supported for all fields using the pattern `SAGA_<SECTION>_<FIELD>` (uppercase, underscores). Example: `SAGA_GAMEPLAY_CONTEXT_WINDOW_TURNS=12`.
+Supported gameplay environment overrides use `SAGA_GAMEPLAY_<FIELD>`, for example `SAGA_GAMEPLAY_MAX_AGENT_STEPS=8`. Memory-production policy is configured in YAML, not through retired per-turn memory overrides.
 
 ## Database migrations
 
@@ -36,7 +36,59 @@ selection. Prompt content, state refresh, summaries and tool availability are no
 changed to improve cache reuse. Evaluation has its own suite/model affinity;
 see [`backend/eval/README.md`](../backend/eval/README.md#session-affinity).
 
-## Model Routing
+## Memory production and action deadlines
+
+`memory.production` is validated and copied into an immutable `MemoryPolicy` when
+a campaign is created. YAML changes affect new campaigns only; they do not
+repartition existing histories or reset job attempts. Restart the backend after
+editing the YAML, which is cached in each process.
+
+| Setting under `memory.production` | Branch value | Meaning |
+|---|---|---|
+| `raw_turns` / `batch_turns` | `8` / `4` | Protected complete turns / turns per compaction batch |
+| `intermediate_limit` / `backlog_batches` | `2` / `1` | Normal intermediate count / additional backlog allowance |
+| `facts.max_per_batch` | `6` | Validated output maximum, never silent slicing |
+| `facts.importance_levels` | `ordinary`, `critical` | Shared prompt and validation rubric |
+| `global.target_words` | `1000` | Indicative target, not mechanical truncation |
+| `jobs.max_attempts` | `4` | Initial attempt plus at most three automatic retries |
+| `jobs.retry_backoff_seconds` | `[5, 30, 120]` | Delays before those retries |
+| `jobs.request_timeout_seconds` / `lease_seconds` | `120` / `150` | Entire specialist attempt / publication lease |
+| `jobs.poll_seconds` | `5` | Durable worker scan interval |
+| `admission.wait_timeout_seconds` | `10` | Pre-claim wait before returning `memory_busy` |
+
+These values and the specialist variant remain subject to the integrated quality
+evaluation before release. The raw ceiling is 16; projected intermediate pressure
+is capped at 4, including complete raw batches still awaiting production. A blocked
+action consumes neither a request slot nor a turn number. Exhausted or
+configuration-blocked memory work requires an explicit retry; loading a save does
+not reset its historical attempt count.
+
+Action transport settings are runtime-global, not campaign policy snapshots:
+
+| Setting under `gameplay` | Value | Derived deadline |
+|---|---|---|
+| `action_timeout_seconds` | `600` | Accepted DM graph execution |
+| `action_completion_margin_seconds` | `50` | Request token and client: `600 + 50 = 650` seconds |
+| `action_proxy_margin_seconds` | `80` | Future proxy minimum: `600 + 80 = 680` seconds |
+
+The authenticated `GET /api/runtime-config` exposes only the calculated
+`action_client_timeout_seconds`; the frontend applies it to action requests, with
+no duplicate numeric timeout in its bundle. The client budget includes admission
+waiting, so the completion margin must exceed that wait; the proxy margin must
+exceed the completion margin. There is no proxy in the current deployment.
+
+Network timeout does not prove that a turn failed. Retries retain their logical
+request ID and expected head/epoch; a committed result is replayed without another
+generation, or reported historical if the active context changed. Interrupted
+accepted actions are not regenerated automatically.
+
+Per-turn compression, TURN-summary embedding work, silent context trimming and
+their legacy settings are retired. Only fact content is eligible for new embedding
+work or rebuilds; historical summaries remain readable and exportable.
+Pre-contract campaigns and saves remain readable but cannot enter the new action
+or restore path through automatic conversion.
+
+## Legacy routing reference
 
 SAGA routes AI calls across multiple call types. Each type can be configured independently with provider, model, temperature, and max_tokens.
 
@@ -126,34 +178,12 @@ Currently unused (world simulation is a v2 feature). Lower temperature for deter
 
 ---
 
-### `memory_compression` — Turn summarization
+### Embedding sources
 
-```yaml
-memory_compression:
-  default:
-    provider: google
-    model: gemini-3.5-flash
-    temperature: 0.3
-    max_tokens: 500
-```
-
-Summarizes batches of turns into 2-3 sentence summaries for the `<history>` block. Very low temperature for factual, consistent compression. Runs async post-turn (non-blocking).
-
-**When to change**: Rarely. If summaries are inaccurate, try a slightly higher temperature (0.4–0.5) or better model. Don't exceed 600 max_tokens — summaries should be concise.
-
----
-
-### `embedding` — pgvector embeddings
-
-```yaml
-embedding:
-  default:
-    provider: google
-    model: text-embedding-004
-    dimensions: 1536
-```
-
-Used by `fact_extractor` for MemoryFact embeddings and `search_similar_facts` for semantic recall. **Do not change `dimensions` after the database has been populated** — it would require a full pgvector column migration.
+Published batch facts enqueue their `content` in the versioned embedding index.
+Embedding provider/model settings are separate from generation settings; changing
+the embedding space uses the existing rebuild lifecycle, never mixed vectors.
+See [ADR 0018](adr/0018-byoak-personal-config-and-embedding-index.md).
 
 ---
 
@@ -162,14 +192,9 @@ Used by `fact_extractor` for MemoryFact embeddings and `search_similar_facts` fo
 ```yaml
 gameplay:
   default_campaign_language: en
-  context_window_turns: 8
-  context_token_cap: 60000
   npc_verbosity: "medium"
-  compression_enabled: true
-  fact_extraction_enabled: true
   semantic_resolver_enabled: false
   max_agent_steps: 8
-  pgvector_hybrid: false
   auto_create_npcs: true
   npc_auto_create_detail: standard
   consecutive_empty_steps_max: 2
@@ -177,15 +202,10 @@ gameplay:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `context_window_turns` | int | `8` | Verbatim turns kept in `messages[]` (the Active Window). Higher = more context, more tokens. |
-| `context_token_cap` | int | `12000` | Max estimated tokens in the DM prompt. If exceeded, oldest verbatim turn pairs are dropped (newest always preserved). |
 | `npc_verbosity` | string | `medium` | NPC response length: `null` (0 sentences) \| `minimal` (1) \| `low` (2) \| `medium` (3) \| `high` (5) \| `unlimited` |
-| `compression_enabled` | bool | `true` | Whether to run async batch summarization after each turn. Disable only for debugging. |
-| `fact_extraction_enabled` | bool | `true` | Whether to extract and store MemoryFacts after each turn. Powers pgvector recall. |
 | `semantic_resolver_enabled` | bool | `false` | Disabled in v1. Will enable NPC filtering + intent classification in v1.5. |
 | `default_campaign_language` | string | `en` | ISO 639-1 target persisted for new campaigns; existing campaigns retain their selection across saves and global-default changes. |
 | `max_agent_steps` | int | `8` | Hard DM-call cap; the last call exposes only active `advance_time`, `set_scene_mood`, `log_event`. Actor calls are separate; graph recursion is derived from this cap. Override with `SAGA_GAMEPLAY_MAX_AGENT_STEPS`. |
-| `pgvector_hybrid` | bool | `false` | Enable hybrid RRF search (vector + tsvector) for semantic recall. v1.1 feature flag. |
 | `auto_create_npcs` | bool | `true` | If `invoke_npc` is called for an NPC not in `world_state`, auto-create a minimal profile. |
 | `npc_auto_create_detail` | string | `standard` | Detail level for auto-created NPC profiles: `minimal` \| `standard` \| `rich` |
 | `consecutive_empty_steps_max` | int | `2` | Consecutive steps without state change or fresh playable dice/NPC results force a terminal-safe closing call within the remaining budget; repeated identical request/results without new effects stall, regardless of prose. |
@@ -200,46 +220,15 @@ gameplay:
 
 ---
 
-## Summarization
-
-```yaml
-summarization:
-  max_retries: 3
-  retry_delays_seconds: [1, 5, 30]
-```
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `max_retries` | int | `3` | LLM retry attempts before marking `Turn.summarization_failed = True` |
-| `retry_delays_seconds` | list[int] | `[1, 5, 30]` | Delay before each retry (exponential backoff). Length must equal `max_retries`. |
-
-On final failure the turn is marked `summarization_failed=True` and no summary is stored. The batch is skipped in the `<history>` block for that turn range, but the campaign continues normally.
-
----
-
 ## Feature Toggles
 
 ```yaml
 features:
-  global_summary:
-    enabled: true
-    mode: llm
-    interval_turns: 5
   npc_enrichment:
     enabled: false
   world_sim:
     enabled: false
 ```
-
-### `features.global_summary`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enabled` | bool | `true` | Enable rolling campaign summary. Injected as `<global_summary>` in every system prompt. |
-| `mode` | string | `llm` | `llm` (LLM-generated, anchored iterative extension) \| `rule_based` (concatenation fallback) |
-| `interval_turns` | int | `5` | Update global summary every N turns. Lower = more up-to-date but more LLM calls. |
-
-The global summary is a single ~200-word paragraph that captures the entire campaign arc so far. It is **extended** each cycle, never regenerated from scratch (anchored iterative approach prevents drift).
 
 ### `features.npc_enrichment` [v1.5]
 
@@ -308,35 +297,8 @@ Individual section overrides take precedence over global settings.
 
 ## Configuration Tips
 
-**Budget-constrained setup** — minimal LLM calls, still playable:
-```yaml
-dm_narration:
-  low:
-    model: gemini-3.5-flash
-  medium:
-    model: gemini-3.5-flash
-  high:
-    model: gemini-3.1-pro  # keep quality only for peaks
-gameplay:
-  context_window_turns: 6   # fewer verbatim turns = fewer tokens
-  context_token_cap: 15000
-features:
-  global_summary:
-    mode: rule_based         # no extra LLM call for summaries
-```
-
-**Quality-first setup** — best narrative experience:
-```yaml
-dm_narration:
-  high:
-    provider: google
-    model: gemini-3.1-pro  # pro tier for dramatic moments
-gameplay:
-  context_window_turns: 12  # more verbatim context
-  context_token_cap: 60000
-  npc_auto_create_detail: rich
-features:
-  global_summary:
-    mode: llm
-    interval_turns: 3        # more frequent summary updates
-```
+Tune `memory.production.raw_turns`, `batch_turns` and `intermediate_limit`
+together using measured prompt sizes and reviewed memory quality. Larger batches
+reduce generation frequency but increase each request's input; fewer raw turns
+reduce verbatim context, not the requirement for complete published replacements.
+Do not use removed toggles or truncation settings to bypass memory admission.

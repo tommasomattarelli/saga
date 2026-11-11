@@ -13,7 +13,9 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from sqlalchemy import text
+from alembic.autogenerate import compare_metadata
+from alembic.migration import MigrationContext
+from sqlalchemy import Connection, text
 from sqlalchemy.engine import Row, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -22,11 +24,14 @@ from app.migrations.adopt import adopt_unversioned_database
 from app.migrations.catalog import SchemaSnapshot
 from app.migrations.introspect import introspect_connection
 from app.migrations.lock import LOCK_KEY
-from app.migrations.profiles import load_profile, require_profile_match
+from app.migrations.profiles import diff_schema
 from app.migrations.runner import upgrade_database
+from app.models.base import Base
 
-BACKEND_DIR = Path(__file__).resolve().parents[2]
+BACKEND_DIR = Path(__file__).resolve().parents[3]
 REPO_ROOT = BACKEND_DIR.parent
+HEAD_REVISION = "014_turn_request_responses"
+_HEAD_SCHEMA_SNAPSHOT: SchemaSnapshot | None = None
 TEST_DATABASE_URL = make_url(
     os.getenv(
         "TEST_DATABASE_URL", "postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_test"
@@ -36,11 +41,15 @@ TEST_DATABASE_URL = make_url(
 _BOOTSTRAP = """
 import asyncio
 import os
+from pathlib import Path
 
 from sqlalchemy.ext.asyncio import create_async_engine
 
-import app.models  # noqa: F401  registers the models of this historical commit
+import app.models
 from app.models.base import Base
+
+if not Path(app.models.__file__).resolve().is_relative_to(Path(__file__).resolve().parent):
+    raise RuntimeError("frozen models were not loaded from the archived backend")
 
 
 async def main() -> None:
@@ -195,17 +204,20 @@ class DisposableDatabase:
             return await conn.run_sync(introspect_connection)
 
     async def require_head_schema(self) -> None:
-        snapshot = await self.snapshot()
-        language = snapshot["tables"]["public.campaigns"]["columns"].pop("language")
-        assert language == {
-            "type": "character varying(2)",
-            "nullable": False,
-            "default": "'en'::character varying",
-            "identity": "",
-            "generated": "",
-            "collation": 'pg_catalog."default"',
-        }
-        require_profile_match(load_profile("current_post_pr1"), snapshot)
+        expected = await _head_schema_snapshot()
+        differences = diff_schema(expected, await self.snapshot())
+        assert not differences, "head schema differs from a migrated reference: " + "; ".join(
+            differences
+        )
+
+    async def require_model_schema(self) -> None:
+        def compare(connection: Connection) -> list[object]:
+            context = MigrationContext.configure(connection)
+            return compare_metadata(context, Base.metadata)
+
+        async with self._engine().connect() as connection:
+            differences = await connection.run_sync(compare)
+        assert not differences, "migrated schema differs from ORM metadata: " + repr(differences)
 
     async def execute(self, sql: str, params: dict[str, object] | None = None) -> None:
         async with self._engine().begin() as conn:
@@ -259,3 +271,12 @@ class DisposableDatabase:
                     await connection.commit()
         finally:
             await engine.dispose()
+
+
+async def _head_schema_snapshot() -> SchemaSnapshot:
+    global _HEAD_SCHEMA_SNAPSHOT
+    if _HEAD_SCHEMA_SNAPSHOT is None:
+        async with DisposableDatabase() as reference:
+            await reference.upgrade(HEAD_REVISION)
+            _HEAD_SCHEMA_SNAPSHOT = await reference.snapshot()
+    return _HEAD_SCHEMA_SNAPSHOT

@@ -1,0 +1,16 @@
+instructions: |
+  Write compact historical memory for the Dungeon Master, not a retelling of the scene.
+  Use essential, factual prose in consistent third person with stable character names
+  or roles. Preserve the causal sequence of consequential events, decisions and their
+  stated motivations, outcomes and the final situation needed to continue play.
+  Retain substantive discoveries, unresolved clues, agreements and relevant dialogue
+  content. Preserve meaningful injuries, time and travel constraints, names and attribution.
+  State repeated information only once unless later evidence changes its meaning or status.
+  Keep scene-setting and sensory details when they establish a clue, identify a place or
+  explain a consequence; omit decorative description and incidental action-by-action detail.
+  Compress wording, not important evidence. Do not add literary embellishment, inferred
+  motives or predictions. Do not narrate source-format metadata as story events.
+  Distinguish intentions, failed attempts and rejected actions from completed events.
+  The summary object contains only a nonempty text field.
+example_output: |
+  {"text":"Neris promised to return the bronze key by dusk. Mira said she believed the arch could be crossed safely, but had not tested it. Neris later tried the key in the sealed door; it did not turn, and Neris still held it without having fulfilled the promise."}

@@ -31,7 +31,6 @@ from app.security.encryption import encrypt_api_key
 from tests.integration.memory.embedding_support import (
     DIMENSION,
     add_fact,
-    add_turn,
     create_user_campaign,
     fake_rebuild_config,
     fake_space,
@@ -83,11 +82,11 @@ async def _reload_index(db, index_id: uuid.UUID) -> EmbeddingIndex:
     ).scalar_one()
 
 
-async def _row(db, turn_id: uuid.UUID) -> SourceEmbedding:
+async def _row(db, fact_id: uuid.UUID) -> SourceEmbedding:
     return (
         await db.execute(
             select(SourceEmbedding)
-            .where(SourceEmbedding.turn_id == turn_id)
+            .where(SourceEmbedding.memory_fact_id == fact_id)
             .execution_options(populate_existing=True)
         )
     ).scalar_one()
@@ -98,7 +97,7 @@ async def _prepared_campaign(db, monkeypatch, *, turns: int = 2):
     user, campaign = await create_user_campaign(db)
     created = []
     for number in range(1, turns + 1):
-        created.append(await add_turn(db, campaign, number, f"Turn number {number}."))
+        created.append(await add_fact(db, campaign, number, f"Fact number {number}."))
     await db.commit()
     await ensure_campaign_embedding_index(db, user_id=user.id, campaign_id=campaign.id)
     await db.commit()
@@ -112,7 +111,7 @@ async def test_lease_expiry_during_call_blocks_save_cutover_and_renewal(
     db_session, monkeypatch
 ) -> None:
     user, campaign = await create_user_campaign(db_session)
-    await add_turn(db_session, campaign, 1, "A quiet road.")
+    await add_fact(db_session, campaign, 1, "A quiet road.")
     await db_session.commit()
     expired = {"at": datetime.now(UTC) - timedelta(hours=2), "token": None}
 
@@ -161,7 +160,7 @@ async def test_lease_expiry_during_call_blocks_save_cutover_and_renewal(
 
 async def test_expired_lease_error_path_writes_nothing(db_session, monkeypatch) -> None:
     user, campaign = await create_user_campaign(db_session)
-    await add_turn(db_session, campaign, 1, "A quiet road.")
+    await add_fact(db_session, campaign, 1, "A quiet road.")
     await db_session.commit()
 
     async def embed(texts, resolved):
@@ -202,7 +201,7 @@ async def test_writer_lock_serializes_with_save_and_hash_is_rechecked(
     db_session, monkeypatch
 ) -> None:
     user, campaign = await create_user_campaign(db_session)
-    turn = await add_turn(db_session, campaign, 1, "Original text.")
+    fact = await add_fact(db_session, campaign, 1, "Original text.")
     await db_session.commit()
     calls = {"count": 0}
     state: dict[str, object] = {}
@@ -217,8 +216,8 @@ async def test_writer_lock_serializes_with_save_and_hash_is_rechecked(
                 {"cid": campaign.id},
             )
             await writer.execute(
-                text("UPDATE turns SET summary = :summary WHERE id = :tid"),
-                {"summary": "Changed during save", "tid": turn.id},
+                text("UPDATE memory_facts SET content = :content WHERE id = :fid"),
+                {"content": "Changed during save", "fid": fact.id},
             )
             state["writer"] = writer
             writer_started.set()
@@ -238,9 +237,9 @@ async def test_writer_lock_serializes_with_save_and_hash_is_rechecked(
             barrier = (
                 await probe.execute(
                     text(
-                        "SELECT work_state, embedding FROM source_embeddings WHERE turn_id = :tid"
+                        "SELECT work_state, embedding FROM source_embeddings WHERE memory_fact_id = :fid"
                     ),
-                    {"tid": turn.id},
+                    {"fid": fact.id},
                 )
             ).first()
         assert barrier is not None
@@ -259,7 +258,7 @@ async def test_writer_lock_serializes_with_save_and_hash_is_rechecked(
             .execution_options(populate_existing=True)
         )
     ).scalar_one()
-    row = await _row(db_session, turn.id)
+    row = await _row(db_session, fact.id)
     assert row.work_state is EmbeddingWorkState.EMBEDDED
     assert row.text_hash == text_hash("Changed during save")
     assert row.embedding is not None and row.embedding[0] == 2.0
@@ -287,13 +286,13 @@ async def test_single_pacing_gate_spans_campaigns(
     install_provider(monkeypatch, policy=fake_rebuild_config(rebuild_min_interval_seconds=1))
 
     user, first = await create_user_campaign(db_session)
-    await add_turn(db_session, first, 1, "First campaign.")
+    await add_fact(db_session, first, 1, "First campaign.")
     await db_session.commit()
     await ensure_campaign_embedding_index(db_session, user_id=user.id, campaign_id=first.id)
     await db_session.commit()
 
     _, second = await create_user_campaign(db_session)
-    await add_turn(db_session, second, 1, "Second campaign.")
+    await add_fact(db_session, second, 1, "Second campaign.")
     await db_session.commit()
     await ensure_campaign_embedding_index(
         db_session, user_id=second.user_id, campaign_id=second.id
@@ -363,13 +362,13 @@ async def test_cutover_with_new_pending_releases_claim(db_session, monkeypatch) 
     assert claim is not None
     assert claim.kind == "cutover"
 
-    turn = await add_turn(db_session, campaign, 1, "Arrived after the claim.")
+    fact = await add_fact(db_session, campaign, 1, "Arrived after the claim.")
     await embedding_queue.enqueue_source_embedding(
         db_session,
         campaign_id=campaign.id,
-        source_type=EmbeddingSourceType.TURN,
-        source_id=turn.id,
-        source_text=turn.summary,
+        source_type=EmbeddingSourceType.MEMORY_FACT,
+        source_id=fact.id,
+        source_text=fact.content,
     )
     await db_session.commit()
 
@@ -443,7 +442,7 @@ async def test_active_failure_suspends_without_a_paid_loop(db_session, monkeypat
 
 async def test_suspended_active_does_not_block_a_target(db_session, monkeypatch) -> None:
     _, campaign = await create_user_campaign(db_session)
-    first = await add_turn(db_session, campaign, 1, "First.")
+    first = await add_fact(db_session, campaign, 1, "First.")
     active = _manual_index(
         campaign.id,
         is_active=True,
@@ -457,23 +456,23 @@ async def test_suspended_active_does_not_block_a_target(db_session, monkeypatch)
         SourceEmbedding(
             index_id=active.id,
             campaign_id=campaign.id,
-            source_type=EmbeddingSourceType.TURN,
-            turn_id=first.id,
-            text_hash=text_hash(first.summary or ""),
+            source_type=EmbeddingSourceType.MEMORY_FACT,
+            memory_fact_id=first.id,
+            text_hash=text_hash(first.content),
             work_state=EmbeddingWorkState.PENDING,
         )
     )
     target = _manual_index(campaign.id, rebuild_state=State.QUEUED)
     db_session.add(target)
     await db_session.flush()
-    second = await add_turn(db_session, campaign, 2, "Second.")
+    second = await add_fact(db_session, campaign, 2, "Second.")
     db_session.add(
         SourceEmbedding(
             index_id=target.id,
             campaign_id=campaign.id,
-            source_type=EmbeddingSourceType.TURN,
-            turn_id=second.id,
-            text_hash=text_hash(second.summary or ""),
+            source_type=EmbeddingSourceType.MEMORY_FACT,
+            memory_fact_id=second.id,
+            text_hash=text_hash(second.content),
             work_state=EmbeddingWorkState.PENDING,
         )
     )
@@ -517,13 +516,13 @@ async def test_active_maintenance_uses_the_manifest_space_not_the_profile(
     )
     db_session.add(active)
     await db_session.flush()
-    turn = await add_turn(db_session, campaign, 1, "Maintenance source.")
+    fact = await add_fact(db_session, campaign, 1, "Maintenance source.")
     await embedding_queue.enqueue_source_embedding(
         db_session,
         campaign_id=campaign.id,
-        source_type=EmbeddingSourceType.TURN,
-        source_id=turn.id,
-        source_text=turn.summary,
+        source_type=EmbeddingSourceType.MEMORY_FACT,
+        source_id=fact.id,
+        source_text=fact.content,
     )
     await db_session.commit()
     captured: dict[str, object] = {}
@@ -538,7 +537,7 @@ async def test_active_maintenance_uses_the_manifest_space_not_the_profile(
 
     assert captured["model"] == "openai/text-embedding-3-small"
     assert "dimensions" not in captured
-    row = await _row(db_session, turn.id)
+    row = await _row(db_session, fact.id)
     assert row.work_state is EmbeddingWorkState.EMBEDDED
 
 
@@ -560,13 +559,13 @@ async def test_active_maintenance_uses_the_legacy_384_space(db_session, assert_n
     )
     db_session.add(active)
     await db_session.flush()
-    turn = await add_turn(db_session, campaign, 1, "Legacy source.")
+    fact = await add_fact(db_session, campaign, 1, "Legacy source.")
     await embedding_queue.enqueue_source_embedding(
         db_session,
         campaign_id=campaign.id,
-        source_type=EmbeddingSourceType.TURN,
-        source_id=turn.id,
-        source_text=turn.summary,
+        source_type=EmbeddingSourceType.MEMORY_FACT,
+        source_id=fact.id,
+        source_text=fact.content,
     )
     await db_session.commit()
     captured: dict[str, object] = {}
@@ -581,5 +580,5 @@ async def test_active_maintenance_uses_the_legacy_384_space(db_session, assert_n
 
     assert captured["model"] == "text-embedding-3-small"
     assert captured["dimensions"] == 384
-    row = await _row(db_session, turn.id)
+    row = await _row(db_session, fact.id)
     assert row.work_state is EmbeddingWorkState.EMBEDDED

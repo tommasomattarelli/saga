@@ -7,12 +7,13 @@ the second generate_content call of the same turn.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from google.genai import types as genai_types
 
 from app.ai.providers import base
+from tests.action_support import action_body
 
 _SIG = b"\x00\xffintegration-signature"
 
@@ -68,18 +69,10 @@ async def _run_turn(
 
     base._providers.clear()
     try:
-        with (
-            patch("app.ai.providers.google.genai.Client", lambda **_: client),
-            patch(
-                "app.api.turns.compress_turn_to_summary",
-                new=AsyncMock(return_value="summary"),
-            ),
-            patch("app.api.turns.extract_and_store_facts", new=AsyncMock(return_value=None)),
-            patch("app.api.turns._background_compression", new=AsyncMock(return_value=None)),
-            patch("app.api.turns._background_global_summary", new=AsyncMock(return_value=None)),
-        ):
+        with patch("app.ai.providers.google.genai.Client", lambda **_: client):
             resp = await auth_client.post(
-                f"/api/campaigns/{campaign_id}/action", json={"action": "I look around"}
+                f"/api/campaigns/{campaign_id}/action",
+                json=await action_body(auth_client, campaign_id, "I look around"),
             )
     finally:
         base._providers.clear()

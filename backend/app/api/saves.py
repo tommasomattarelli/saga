@@ -3,14 +3,15 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import raiseload
 
 from app.dependencies import get_db
 from app.models.campaign import Campaign
-from app.models.quest import QuestRegistry
 from app.models.save import Save
 from app.models.user import User
 from app.schemas.save import SaveCreate, SaveResponse
 from app.security.auth import get_current_user
+from app.services.save_service import SaveHistoryError, create_campaign_save, restore_campaign_save
 
 router = APIRouter()
 
@@ -45,26 +46,23 @@ async def create_save(
 ) -> Save:
     """Create a manual save."""
     result = await db.execute(
-        select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user.id)
+        select(Campaign)
+        .where(Campaign.id == campaign_id, Campaign.user_id == user.id)
+        .with_for_update()
+        .options(raiseload("*"))
+        .execution_options(populate_existing=True)
     )
     campaign = result.scalar_one_or_none()
     if not campaign:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
 
-    save = Save(
-        campaign_id=campaign.id,
-        name=body.name,
-        turn_number=campaign.turn_number,
-        scene_summary=f"Turn {campaign.turn_number}",
-        is_auto=False,
-        campaign_snapshot={
-            "character_data": campaign.character_data,
-            "world_state": campaign.world_state,
-            "quests": QuestRegistry.model_validate(campaign.quests or {}).model_dump(),
-            "turn_number": campaign.turn_number,
-        },
-    )
-    db.add(save)
+    try:
+        save = await create_campaign_save(db, campaign, name=body.name)
+    except SaveHistoryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "campaign_history_inconsistent", "message": str(exc)},
+        ) from exc
     await db.commit()
     await db.refresh(save)
     return save
@@ -78,6 +76,17 @@ async def load_save(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Restore campaign state."""
+    campaign_result = await db.execute(
+        select(Campaign)
+        .where(Campaign.id == campaign_id, Campaign.user_id == user.id)
+        .with_for_update()
+        .options(raiseload("*"))
+        .execution_options(populate_existing=True)
+    )
+    campaign = campaign_result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
     result = await db.execute(
         select(Save).where(Save.id == save_id, Save.campaign_id == campaign_id)
     )
@@ -85,18 +94,20 @@ async def load_save(
     if not save:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Save not found")
 
-    campaign_result = await db.execute(
-        select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user.id)
-    )
-    campaign = campaign_result.scalar_one_or_none()
-    if not campaign:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
-
-    snapshot = save.campaign_snapshot
-    campaign.character_data = snapshot.get("character_data", {})
-    campaign.world_state = snapshot.get("world_state", {})
-    campaign.quests = QuestRegistry.model_validate(snapshot.get("quests") or {}).model_dump()
-    campaign.turn_number = snapshot.get("turn_number", 0)
+    try:
+        turn_number = await restore_campaign_save(db, campaign, save)
+    except SaveHistoryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "campaign_history_required", "message": str(exc)},
+        ) from exc
     await db.commit()
 
-    return {"message": "Save loaded", "turn_number": campaign.turn_number}
+    return {
+        "message": "Save loaded",
+        "turn_number": turn_number,
+        "active_head_turn_id": str(campaign.active_head_turn_id)
+        if campaign.active_head_turn_id
+        else None,
+        "context_epoch": campaign.context_epoch,
+    }

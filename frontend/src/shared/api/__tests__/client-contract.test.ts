@@ -91,7 +91,16 @@ describe("API wire contracts", () => {
       difficulty: "medium",
       character_data: { name: "Aria" },
     });
-    await submitAction("campaign", "Open the door");
+    await submitAction(
+      "campaign",
+      {
+        action: "Open the door",
+        request_id: "00000000-0000-4000-8000-000000000001",
+        expected_head_turn_id: null,
+        expected_context_epoch: 0,
+      },
+      2345,
+    );
 
     expect(
       requests.map(({ method, url, data }) => [method, url, JSON.parse(String(data))]),
@@ -112,8 +121,18 @@ describe("API wire contracts", () => {
           character_data: { name: "Aria" },
         },
       ],
-      ["post", "/campaigns/campaign/action", { action: "Open the door" }],
+      [
+        "post",
+        "/campaigns/campaign/action",
+        {
+          action: "Open the door",
+          request_id: "00000000-0000-4000-8000-000000000001",
+          expected_head_turn_id: null,
+          expected_context_epoch: 0,
+        },
+      ],
     ]);
+    expect(requests[3].timeout).toBe(2345);
   });
 
   it("creates and saves worlds and dispatches deletion endpoints", async () => {

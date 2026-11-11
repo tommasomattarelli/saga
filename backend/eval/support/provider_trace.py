@@ -6,8 +6,9 @@ from app.ai.providers.usage import UsageMetadata, usage_scope
 
 
 class ProviderTrace(AIProvider):
-    def __init__(self, provider: AIProvider) -> None:
+    def __init__(self, provider: AIProvider, *, role: str = "actor") -> None:
         self.provider = provider
+        self.role = role
         self.request: dict = {}
         self.response: dict = {}
         self.error: Exception | None = None
@@ -36,7 +37,7 @@ class ProviderTrace(AIProvider):
             }
         )
         try:
-            with usage_scope(role="actor") as collector:
+            with usage_scope(role=self.role) as collector:
                 try:
                     raw = await self.provider.generate(**self.request)
                 finally:

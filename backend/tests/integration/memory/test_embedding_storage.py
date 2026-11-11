@@ -1,6 +1,7 @@
 """ADR 0018 point 5 — real-PostgreSQL invariants of the versioned embedding storage."""
 
 import hashlib
+import json
 import uuid
 from typing import Any
 from unittest.mock import patch
@@ -137,26 +138,25 @@ async def test_source_and_queue_rollback_together(campaign: Campaign, db_session
     db_session.add(index)
     await db_session.commit()
     index_id = index.id
-    turn = Turn(
+    fact = MemoryFact(
         campaign_id=campaign.id,
         turn_number=77,
-        player_action="test",
-        narration="test",
-        model_used="test-model",
-        summary="rollback summary",
+        entity_name="Rollback",
+        entity_type="npc",
+        content="rollback fact",
     )
-    db_session.add(turn)
+    db_session.add(fact)
     await db_session.flush()
     await enqueue_source_embedding(
         db_session,
         campaign_id=campaign.id,
-        source_type=EmbeddingSourceType.TURN,
-        source_id=turn.id,
-        source_text=turn.summary,
+        source_type=EmbeddingSourceType.MEMORY_FACT,
+        source_id=fact.id,
+        source_text=fact.content,
     )
     await db_session.rollback()
 
-    assert await db_session.scalar(select(Turn).where(Turn.turn_number == 77)) is None
+    assert await db_session.scalar(select(MemoryFact).where(MemoryFact.turn_number == 77)) is None
     assert (
         await db_session.scalar(
             select(SourceEmbedding).where(SourceEmbedding.index_id == index_id)
@@ -169,17 +169,23 @@ async def test_source_and_queue_rollback_together(campaign: Campaign, db_session
     ("old_dimension", "new_dimension", "legacy"), [(3, 3, False), (384, 1536, True)]
 )
 async def test_recall_stays_on_snapshotted_index_with_vectors_after_cutover(
-    campaign: Campaign,
-    db_session,
+    history_fixture,
     assert_no_db_held,
     old_dimension: int,
     new_dimension: int,
     legacy: bool,
 ) -> None:
     from app.ai.embedding_config import EmbeddingBatch
+    from app.memory.history import history_path
+    from app.memory.job_publication import JobOutput, publish_job
     from app.memory.recall import embed_recall_query, snapshot_recall_query
     from app.memory.semantic import search_similar_facts
     from app.models.embedding_index import text_hash
+    from app.models.source_embedding import EmbeddingWorkState
+    from tests.integration.memory.test_job_publication import _claimed_job
+
+    db_session = history_fixture.session
+    campaign = history_fixture.campaign
 
     old_index = _index(
         campaign.id,
@@ -193,29 +199,51 @@ async def test_recall_stays_on_snapshotted_index_with_vectors_after_cutover(
         is_active=True,
         rebuild_state=EmbeddingRebuildState.COMPLETED,
     )
-    fact = MemoryFact(
-        campaign_id=campaign.id,
-        turn_number=1,
-        entity_name="Rook",
-        entity_type="npc",
-        content="Rook guards the northern gate.",
+    db_session.add(old_index)
+    await db_session.commit()
+    _job, claim, generations, batch, _state = await _claimed_job(history_fixture)
+    payload = {
+        "facts": [
+            {
+                "content": "Rook guards the northern gate.",
+                "category": "event",
+                "assertion_type": "occurrence",
+                "entities": [{"name": "Rook", "type": "npc", "role": "guard"}],
+                "attribution": [],
+                "source_turns": ["t1"],
+                "temporal_references": [],
+                "importance": {"level": "ordinary", "reason": "A witnessed fact."},
+            }
+        ]
+    }
+    assert await publish_job(
+        db_session,
+        claim,
+        (
+            JobOutput(generations[0].id, '{"text":"Rook guarded the northern gate."}'),
+            JobOutput(generations[1].id, json.dumps(payload)),
+        ),
     )
-    db_session.add_all([old_index, fact])
-    await db_session.flush()
-    db_session.add(
-        _source(
-            old_index.id,
-            campaign.id,
-            source_type=EmbeddingSourceType.MEMORY_FACT,
-            memory_fact_id=fact.id,
-            work_state=EmbeddingWorkState.EMBEDDED,
-            embedding=[0.1] * old_dimension,
+    await db_session.commit()
+    fact = await db_session.scalar(select(MemoryFact).where(MemoryFact.batch_id == batch.id))
+    assert fact is not None
+    stored_embedding = await db_session.scalar(
+        select(SourceEmbedding).where(
+            SourceEmbedding.index_id == old_index.id,
+            SourceEmbedding.memory_fact_id == fact.id,
         )
     )
+    assert stored_embedding is not None
+    stored_embedding.work_state = EmbeddingWorkState.EMBEDDED
+    stored_embedding.embedding = [0.1] * old_dimension
     await db_session.commit()
     old_index_id = old_index.id
     snapshot = await snapshot_recall_query(db_session, campaign.id)
     assert snapshot is not None
+    ancestry_turn_ids = tuple(
+        turn.id
+        for turn in await history_path(db_session, campaign.id, campaign.active_head_turn_id)
+    )
     await db_session.close()
 
     async def swap_active_and_embed(space, query, *, user_id):
@@ -259,7 +287,13 @@ async def test_recall_stays_on_snapshotted_index_with_vectors_after_cutover(
     assert prepared.index_id == old_index_id
     assert prepared.dimension == old_dimension
     async with async_session() as db:
-        facts = await search_similar_facts(campaign.id, "ignored", db, query_embedding=prepared)
+        facts = await search_similar_facts(
+            campaign.id,
+            "ignored",
+            db,
+            query_embedding=prepared,
+            ancestry_turn_ids=ancestry_turn_ids,
+        )
     assert [item.id for item in facts] == [fact.id]
 
     async def failed_query(space, query, *, user_id):

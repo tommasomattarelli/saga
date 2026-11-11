@@ -14,6 +14,7 @@ and decision logs in the same file.
 | [`../TODO.md`](../TODO.md) | Backlog | See what's next — `## NOW` is the active near-term work; the rest is the curated backlog |
 | [`AGENTIC_ARCHITECTURE.md`](AGENTIC_ARCHITECTURE.md) | Explanation | Understand *why* the agentic DM / LangGraph design is shaped this way |
 | [`CONFIG.md`](CONFIG.md) | Reference | Look up a config knob in `saga.config.yaml` |
+| [`CAMPAIGN_EXPORT.md`](CAMPAIGN_EXPORT.md) | Reference | Download a complete campaign archive and validate its references offline |
 | [`../backend/eval/README.md`](../backend/eval/README.md) | Operations guide | Prepare scenarios and understand offline checks, live evaluation and its safeguards |
 | [`MIGRATIONS.md`](MIGRATIONS.md) | Operations | Bootstrap, upgrade or validate adoption of a PostgreSQL database |
 | [`DEBUGGING.md`](DEBUGGING.md) | Guide | Drive a turn through the debugger — setup, launch configs, breakpoints, scenarios, triage |
