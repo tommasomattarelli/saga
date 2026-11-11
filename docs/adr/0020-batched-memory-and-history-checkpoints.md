@@ -752,6 +752,35 @@ Il client crea un `request_id` UUID per l'azione logica e lo conserva durante at
 
 Il crash di una richiesta accettata ma non committata lascia un tentativo interrotto, non un turno completato. Il recupero rilascia soltanto slot scaduti/invalidati con fencing del vecchio token; nessuna rigenerazione a pagamento automatica al restart. La scadenza di esecuzione e i timeout devono essere finiti e concordati prima dell'attivazione. Un numero già claimato può restare un buco, come in ADR 0001.
 
+**S4b note (2026-11-11, implementation).** Il replay esatto non è ricostruibile
+dal solo `Turn`: esiti dado strutturati, evento morte, tempo trascorso e snapshot
+di risposta non vi erano conservati integralmente. La migrazione forward 014
+aggiunge il payload della risposta a `turn_requests`, senza ricostruire risposte
+precedenti; risposta e completamento della richiesta sono pubblicati nella stessa
+transazione di turno, operazioni, stato e autosave. La transizione finale usa un
+UPDATE condizionale su token, stato e clock DB, non una lettura seguita da una
+scrittura non condizionata. Una richiesta interrotta è terminale: nessuna
+rigenerazione automatica per il medesimo ID; un nuovo invio volontario ne usa uno nuovo.
+
+Lo snapshot di claim comprende scena, personaggio, quest, baseline, difficoltà,
+lingua/persona, storia, documenti di memoria e indice del recall. La query semantica
+filtra l'intera membership del batch prima del top-K, mantenendo i controlli dello
+spazio embedding. I job durevoli ripristinano esplicitamente lo scope della
+campagna per l'affinity, che non possono più ereditare dalla richiesta HTTP.
+
+La riga campagna viene riletta sotto lock anche se già presente nell'identity map
+della sessione di autenticazione: il solo FOR UPDATE non aggiorna un oggetto ORM
+precaricato. Lo stesso riallineamento serve alle letture di head/epoca e journal;
+senza, un load poteva riutilizzare un'epoca vecchia o mostrare il futuro escluso dal restore.
+I save nuovi sono immutabili anche al DB: l'autosave inserisce nuovi punti,
+senza cancellare il precedente come faceva il percorso legacy. L'export completo
+e la rimozione definitiva degli orfani rimangono rispettivamente in S5 e S6.
+
+Verifica S4b: full check backend **1883/1883**, frontend **284/284**, lint/format,
+mypy, vulture, knip, coverage e build verdi in **4m 47s**, oltre alle integrazioni
+mirate con PostgreSQL reale e provider controllati. Nessuna nuova chiamata live,
+scelta production definitiva o autorizzazione al merge in main deriva dai test.
+
 ### 20.5 Job, tentativi e pubblicazione
 
 `memory_jobs` contiene UUID, campagna, tipo `batch`/`global`, batch, policy, predecessore globale quando pertinente, manifest/versioni/hash delle fonti e delle istruzioni, stato, tentativi persistenti, prossimo tentativo, token/scadenza del claim ed errore sanitizzato. Il manifest congela lingua, riferimenti e versioni del produttore: il restart non applica di nascosto prompt nuovi a un lavoro vecchio.

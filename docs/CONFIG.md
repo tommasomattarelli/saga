@@ -36,7 +36,59 @@ selection. Prompt content, state refresh, summaries and tool availability are no
 changed to improve cache reuse. Evaluation has its own suite/model affinity;
 see [`backend/eval/README.md`](../backend/eval/README.md#session-affinity).
 
-## Model Routing
+## Memory production and action deadlines
+
+`memory.production` is validated and copied into an immutable `MemoryPolicy` when
+a campaign is created. YAML changes affect new campaigns only; they do not
+repartition existing histories or reset job attempts. Restart the backend after
+editing the YAML, which is cached in each process.
+
+| Setting under `memory.production` | Branch value | Meaning |
+|---|---|---|
+| `raw_turns` / `batch_turns` | `8` / `4` | Protected complete turns / turns per compaction batch |
+| `intermediate_limit` / `backlog_batches` | `2` / `1` | Normal intermediate count / additional backlog allowance |
+| `facts.max_per_batch` | `6` | Validated output maximum, never silent slicing |
+| `facts.importance_levels` | `ordinary`, `critical` | Shared prompt and validation rubric |
+| `global.target_words` | `1000` | Indicative target, not mechanical truncation |
+| `jobs.max_attempts` | `4` | Initial attempt plus at most three automatic retries |
+| `jobs.retry_backoff_seconds` | `[5, 30, 120]` | Delays before those retries |
+| `jobs.request_timeout_seconds` / `lease_seconds` | `120` / `150` | Entire specialist attempt / publication lease |
+| `jobs.poll_seconds` | `5` | Durable worker scan interval |
+| `admission.wait_timeout_seconds` | `10` | Pre-claim wait before returning `memory_busy` |
+
+These values and the specialist variant remain subject to the integrated quality
+evaluation before release. The raw ceiling is 16; projected intermediate pressure
+is capped at 4, including complete raw batches still awaiting production. A blocked
+action consumes neither a request slot nor a turn number. Exhausted or
+configuration-blocked memory work requires an explicit retry; loading a save does
+not reset its historical attempt count.
+
+Action transport settings are runtime-global, not campaign policy snapshots:
+
+| Setting under `gameplay` | Value | Derived deadline |
+|---|---|---|
+| `action_timeout_seconds` | `600` | Accepted DM graph execution |
+| `action_completion_margin_seconds` | `50` | Request token and client: `600 + 50 = 650` seconds |
+| `action_proxy_margin_seconds` | `80` | Future proxy minimum: `600 + 80 = 680` seconds |
+
+The authenticated `GET /api/runtime-config` exposes only the calculated
+`action_client_timeout_seconds`; the frontend applies it to action requests, with
+no duplicate numeric timeout in its bundle. The client budget includes admission
+waiting, so the completion margin must exceed that wait; the proxy margin must
+exceed the completion margin. There is no proxy in the current deployment.
+
+Network timeout does not prove that a turn failed. Retries retain their logical
+request ID and expected head/epoch; a committed result is replayed without another
+generation, or reported historical if the active context changed. Interrupted
+accepted actions are not regenerated automatically.
+
+The public action path no longer uses per-turn compression, TURN-summary
+embeddings, or silent `context_token_cap` trimming. Their legacy settings below
+remain pending final removal in ADR 0020 S6, not as an alternative gameplay mode.
+Pre-contract campaigns and saves remain readable but cannot enter the new action
+or restore path through automatic conversion.
+
+## Legacy routing reference
 
 SAGA routes AI calls across multiple call types. Each type can be configured independently with provider, model, temperature, and max_tokens.
 

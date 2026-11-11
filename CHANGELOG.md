@@ -27,9 +27,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added stable per-model memory-evaluation sessions, recorded request headers and parallel model workers with sequential requests and quota-safe stopping.
 - Refined candidate memory prompts toward concise third-person DM summaries, future-useful facts and importance calibration for central unresolved revelations (ADR 0020 S3).
 - Added durable memory jobs with frozen requests, bounded retries, atomic publication and history-safe artifact reuse, without activating the public pipeline (ADR 0020 S4a).
-- Snapshotted approved memory settings for new campaigns and derived action/client deadlines from one YAML configuration (ADR 0020 S4b).
-- Assembled three-level prompts from frozen history snapshots and filtered recalled facts by complete batch ancestry before ranking (ADR 0020 S4b).
-- Activated durable memory workers, bounded admission and explicit retry while preserving campaign affinity and historical attempt budgets (ADR 0020 S4b).
-- Fenced idempotent action publication and coherent save/load, retaining exact responses, immutable autosaves and active-history journal reads (ADR 0020 S4b).
-- Preserved action identity across retries and validated response applicability, with explicit memory recovery and backend-derived browser deadlines (ADR 0020 S4b).
-- Covered API-to-prompt memory production and bounded admission recovery through real PostgreSQL flows with controlled providers (ADR 0020 S4b).
+- Connected idempotent actions, three-level memory, bounded admission and history-safe restore/recall, with YAML-derived client deadlines and explicit blocking retries (ADR 0020 S4b).

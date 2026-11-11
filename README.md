@@ -184,11 +184,13 @@ world-defined axes, places hold status. The DM reads a scene out of that state; 
 invent one and hope the next turn agrees.
 
 **Memory is a pipeline, not a context window.**
-Three tiers work together: the last eight turns verbatim, rolling summaries of everything
-older, and pgvector semantic recall that pulls the handful of past facts relevant to *this*
-action back into context. Above them sits a rolling ~200-word summary of the whole campaign
-arc, rewritten every few turns. The DM can call back to something from turn 12 on turn 300
-without it ever having been in the window.
+Recent turns stay verbatim until a complete batch summary and its facts are published.
+Older batches feed a consolidated global checkpoint from their original transcripts:
+three temporal levels with explicit, non-overlapping coverage. Durable jobs recover after
+restart, and new actions wait when memory falls too far behind instead of silently losing
+context. Semantic recall searches facts compatible with the selected history, excluding
+abandoned futures after a restore. See [configuration](docs/CONFIG.md#memory-production-and-action-deadlines-adr-0020)
+and [ADR 0020](docs/adr/0020-batched-memory-and-history-checkpoints.md) for the quality gates.
 
 **Models are measured, not chosen by reputation.**
 `backend/eval/` drives the production prompts and tool schemas through probes taken from
