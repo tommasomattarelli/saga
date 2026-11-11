@@ -27,22 +27,35 @@ async def load_batch_input(session: AsyncSession, campaign_id: UUID, batch_id: U
     if batch is None:
         raise HistoryIntegrityError("The selected batch does not belong to this campaign.")
     policy = await session.get(MemoryPolicy, batch.policy_id)
-    turns = list(
+    turn_ids = tuple(
         (
             await session.scalars(
-                select(Turn)
-                .join(MemoryBatchTurn, MemoryBatchTurn.turn_id == Turn.id)
+                select(MemoryBatchTurn.turn_id)
                 .where(
                     MemoryBatchTurn.batch_id == batch_id,
                     MemoryBatchTurn.campaign_id == campaign_id,
-                    Turn.campaign_id == campaign_id,
                 )
                 .order_by(MemoryBatchTurn.ordinal)
             )
         ).all()
     )
-    if policy is None or len(turns) != policy.payload.batch_turns:
+    if policy is None or len(turn_ids) != policy.payload.batch_turns:
         raise HistoryIntegrityError("The selected batch has incomplete source membership.")
+    return await load_turn_input(session, campaign_id, turn_ids)
+
+
+async def load_turn_input(
+    session: AsyncSession, campaign_id: UUID, turn_ids: tuple[UUID, ...]
+) -> BatchInput:
+    rows = {
+        turn.id: turn
+        for turn in await session.scalars(
+            select(Turn).where(Turn.campaign_id == campaign_id, Turn.id.in_(turn_ids))
+        )
+    }
+    if not turn_ids or len(set(turn_ids)) != len(turn_ids) or set(rows) != set(turn_ids):
+        raise HistoryIntegrityError("The selected memory sources are incomplete or duplicated.")
+    turns = [rows[turn_id] for turn_id in turn_ids]
     operations: dict[UUID, list[TurnOperation]] = defaultdict(list)
     for operation in await session.scalars(
         select(TurnOperation)

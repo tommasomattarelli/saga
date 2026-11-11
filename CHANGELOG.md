@@ -30,3 +30,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added context-local single-attempt generation so durable memory jobs own retry budgets without changing ordinary provider retry behavior (ADR 0020 S4a).
 - Froze complete specialist/global job requests in versioned manifests, preserving source and instruction identity across restarts and template changes (ADR 0020 S4a).
 - Added atomic memory document/fact/embedding publication, independent coverage cursors and fenced detached results for history changes (ADR 0020 S4a).
+- Added memory transition scheduling and bounded artifact reconciliation that preserve protected detail and reuse compatible work without resetting retries (ADR 0020 S4a).
