@@ -457,13 +457,21 @@ main
     ├── adr/0020-s1-history-and-schema
     ├── adr/0020-s2-operation-sources
     ├── adr/0020-s3-producers-and-eval
-    ├── adr/0020-s4a-durable-memory-jobs
-    ├── adr/0020-s4b-turn-and-context-cutover
+    ├── adr/0020-s4-memory-pipeline              aggregazione temporanea S4
+    │   ├── adr/0020-s4a-durable-memory-jobs
+    │   └── adr/0020-s4b-turn-and-context-cutover
     ├── adr/0020-s5-restore-export-and-ui
     └── adr/0020-s6-validation-and-cutover
 ```
 
-I branch operativi partono **in sequenza dalla punta aggiornata dell'integrazione**. Parallelizzare analisi o unità indipendenti, non creare anticipatamente branch che fingono già disponibili contratti non chiusi.
+I branch operativi partono **in sequenza dalla punta aggiornata dell'integrazione**, salvo l'aggregazione S4 descritta sotto. Parallelizzare analisi o unità indipendenti, non creare anticipatamente branch che fingono già disponibili contratti non chiusi.
+
+**Decisione owner S4a (2026-11-11, topologia Git).** Creare
+`adr/0020-s4-memory-pipeline` dalla punta dell'integrazione precedente a S4a;
+mergiare S4a con `--no-ff` in S4, poi creare S4b dalla punta aggiornata di S4
+e mergiarlo nello stesso branch. Soltanto a S4 completo, merge `--no-ff` di S4
+nell'integrazione; invariata l'unica PR finale verso main. A fine branch riunire
+le voci changelog della fase in una sola sintesi, senza perdere i commit logici.
 
 La divisione originale è in sette fasi operative, non sette commit complessivi; S0 ha suddiviso S4 in S4a/S4b con conferma owner (§22). Ogni fase contiene commit logici con i relativi test e changelog. Se una fase si rivela troppo larga, proporre una suddivisione coerente all'owner, mantenendo una sola PR finale.
 
@@ -771,6 +779,28 @@ constraint trigger declared `AFTER INSERT`; its return value (`NEW` / `NULL`) is
 executor, so the effective enforcement is the `RAISE EXCEPTION` on manifest mismatch. No contract
 divergence from §20.1–20.5; `MemoryProductionPolicy` remains without YAML defaults as intended by
 §20.8.
+
+**S4a note (2026-11-11, implementation).** Implementati claim/tentativi persistenti,
+recupero delle lease scadute e retry esplicito senza azzerare lo storico, usando lo schema
+S1 senza nuove migrazioni. Il manifest conserva in `instruction_text` un envelope JSON
+tipizzato e versionato con le richieste complete: al restart non rilegge i template correnti
+e valida fonti, policy e hash rispetto alla versione congelata. Il batch usa per ora i due
+specialisti, come ipotesi d'integrazione concordata in S3, non come scelta production finale.
+
+`request_timeout_seconds` delimita l'intero tentativo, comprese entrambe le chiamate
+specialistiche; la lease maggiore lascia il margine alla pubblicazione. I retry trasparenti
+SDK/provider sono disabilitati soltanto nello scope di questa generazione; ogni chiamata
+ha provenienza persistita prima dell'I/O, con credenziali correnti e nessuna sessione DB
+aperta durante la generazione. Nessuna modifica a parsing, riparazione JSON o prompt.
+
+Summary/fatti/fonti/enqueue embedding e cursore raw sono pubblicati insieme; il globale
+avanza soltanto il proprio cursore, dal predecessore corretto e dai transcript originali.
+Il controllo finale della lease invalida anche una pubblicazione scaduta durante la scrittura.
+Scheduler e riconciliazione contano il debito raw non ancora riservato, riusano gli artefatti
+compatibili entro i limiti del restore e conservano come detached i risultati del vecchio
+contesto. I moduli worker sono testati ma non collegati al lifespan o alle API: attivazione,
+storia pubblica, contesto, gating e save/load rimangono insieme in S4b. Valori espliciti
+nei test, nessun nuovo default YAML o run live; full check non ripetuto su richiesta owner.
 
 ### 20.6 Payload generati e metadati
 
