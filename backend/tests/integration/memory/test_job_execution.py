@@ -130,6 +130,88 @@ async def test_missing_credentials_blocks_without_reserving_provider_calls(
     assert await f.session.scalar(select(func.count()).select_from(MemoryGeneration)) == 0
 
 
+@pytest.mark.parametrize("valid", [True, False])
+async def test_integrated_driver_ledgers_real_job_calls_and_preserves_invalid_raw(
+    history_fixture: HistoryFixture,
+    tmp_path,
+    assert_no_db_held,
+    valid: bool,
+) -> None:
+    import json
+    from uuid import uuid4
+
+    import httpx
+    import openai
+    from eval.integrated_memory.job_driver import MemoryDriver
+    from eval.integrated_memory.ledger import IntegratedLedger
+    from eval.integrated_memory.plan import prepare_plan
+    from eval.integrated_memory.provider_guard import guard_generation
+
+    from app.ai.providers.local import LocalProvider
+
+    f = history_fixture
+    await active_history(f, 4)
+    (job_id,) = await coordinate_memory(f.session, f.campaign.id)
+    await f.session.commit()
+    facts = '{"facts":[]}' if valid else '{"wrong":[]}'
+    replies = ['{"text":"Integrated memory."}', facts]
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        assert_no_db_held()
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": replies.pop(0)}, "finish_reason": "stop"}]},
+        )
+
+    plan = prepare_plan(
+        sources={
+            "turns": [
+                {
+                    "reference": f"t{i}",
+                    "turn_id": str(uuid4()),
+                    "player_action": "Wait",
+                    "narration": "Quiet.",
+                    "operations": [],
+                }
+                for i in range(1, 13)
+            ]
+        },
+        run_id="job-test",
+        generation_model="test-model:free",
+    )
+    ledger = IntegratedLedger(
+        tmp_path / "requests.jsonl",
+        generation_cap=2,
+        embedding_cap=0,
+        text_cap=0,
+        run_seal=plan.seal,
+    )
+    provider = object.__new__(LocalProvider)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+        provider.client = openai.AsyncOpenAI(
+            api_key="offline", base_url="https://openrouter.ai/api/v1", http_client=http
+        )
+
+        async def resolve(owner):
+            assert owner == f.campaign.user_id
+            return guard_generation(provider, ledger), ModelConfig(
+                "openrouter", "test-model:free", 500
+            )
+
+        driver = MemoryDriver(plan, ledger, f.campaign.id, tmp_path, resolve)
+        if valid:
+            await driver._job(job_id)
+        else:
+            with pytest.raises(ValueError, match="did not publish"):
+                await driver._job(job_id)
+    assert ledger.counts["generation"] == 2
+    outputs = [json.loads(line) for line in (tmp_path / "outputs.jsonl").read_text().splitlines()]
+    assert outputs[-1]["raw"] == facts
+    assert outputs[-1]["valid"] is valid
+    with pytest.raises(ValueError, match="before retrying"):
+        await driver._job(job_id)
+
+
 async def test_one_deadline_covers_both_specialists_and_persists_failure(
     history_fixture: HistoryFixture,
     monkeypatch: pytest.MonkeyPatch,

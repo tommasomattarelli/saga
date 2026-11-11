@@ -33,3 +33,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added eval-only generation and embedding attempt guards with durable, frozen budgets and interruption-safe ledgers, without changing gameplay runtime (ADR 0020 S6).
 - Added sealed integrated-evaluation manifests, offline preparation and reporting, with model, embedding-space and authorization gates left explicit (ADR 0020 S6).
 - Replayed authored memory sources through real actions and persisted ordered turn, operation and batch provenance, including interrupted prefixes (ADR 0020 S6).
+- Connected guarded integrated memory-job and embedding evaluation with optional persisted-source sidecars and PostgreSQL verification, without authorizing live execution (ADR 0020 S6).

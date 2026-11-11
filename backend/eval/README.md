@@ -15,6 +15,7 @@ commands below from `backend/`.
 | `eval/support/` | Request ledger, provider calls, tracing, affinity and usage reports |
 | `eval/cache/` | Separate OpenRouter cache diagnostic |
 | `eval/memory/` | Offline manifests, guarded producer comparison and human-review reports |
+| `eval/integrated_memory/` | Guarded API-to-DB memory replay, persisted-source evidence and offline run preparation |
 | `eval/memory_scenarios/` | Controlled memory sources replayed through real operation handlers |
 | `eval/memory_capture.py` | Read-only capture of unambiguous legacy campaign transcripts |
 | `eval/scenarios/` | Authored transcripts, overlays, stimuli and built fixtures |
@@ -43,15 +44,15 @@ separate read-only source capture for the producer comparison below.
 
 Legacy generated `gold`, `bloat` and `contradiction` fixtures and the old
 capture/derivation CLIs are retired. Authored transcripts remain offline builder
-inputs, not reviewed saturated-memory evidence. Integrated S6 preparation is not
-yet delivered.
+inputs, not reviewed saturated-memory evidence. Integrated S6 preparation is
+described separately below; preparation is not live authorization or quality evidence.
 
 ## Offline preparation
 
 These commands do not make generation requests. `build --check-only` validates
 an authored transcript without writing a fixture. The memory producer comparison
-and controlled-source builder are available separately below; integrated S6
-preparation is not yet delivered.
+and controlled-source builder are available separately below, alongside integrated
+S6 preparation.
 
 ```bash
 uv run python -m eval.scenario_tools.build gold --check-only
@@ -187,6 +188,56 @@ Interrupted attempts require review, not automatic replay. Evaluate summary,
 facts and global quality separately; a valid summary does not rescue failed
 facts. Keep human notes separate from regenerable reports. Winning variant,
 numeric defaults and the eventual integrated S6 evaluation remain owner gates.
+
+## Integrated memory evaluation (ADR 0020 S6)
+
+This runner replays the authored scenario through the authenticated action API,
+production graph, operation handlers, PostgreSQL and durable memory jobs. Only
+external DM/NPC responses are controlled; recall-query embeddings and probes are
+excluded. It never enters the application lifespan or starts background workers.
+Its provider instrumentation lives entirely under `eval/`, not in the game runtime.
+
+Prepare and review a new evidence directory **offline**:
+
+```bash
+uv run python -m eval.integrated_memory.cli prepare \
+  --sources <source-directory>/sources.json \
+  --run-id <unique-run-id> --output <new-evidence-directory>
+uv run python -m eval.integrated_memory.cli validate --output <evidence-directory>
+uv run python -m eval.integrated_memory.cli report --output <evidence-directory>
+```
+
+These commands do not resolve credentials, query model catalogs or contact
+providers. The manifest freezes source, code, world assets, production policy,
+embedding policy and the existing generation output cap. A draft has no selected
+model, embedding space or request/text-attempt budgets; it remains unapproved and
+non-executable. Every generation model needs its own prepared run and authorization.
+
+For the 52-turn R8/B4/K2/H1 scenario, a successful first-attempt baseline makes
+22 specialist plus 9 global generation requests per model. The optional unified
+sidecar adds 11 requests on those same persisted batches, for 42 total. It does
+not publish alternate production memory. Generation SDK retries are disabled;
+the runner stops before any memory-job retry, despite the campaign's persisted
+four-attempt policy. Authorizing retries requires a newly reviewed run scope.
+
+The 66-text bound concerns **distinct fact contents**, not outbound requests or
+submitted-text attempts. Embeddings are drained after replay through the real
+queue and vector publication. Batching and the frozen finite retry policy determine
+actual attempts; every retry reserves another request and its submitted texts.
+Choose separate generation-request, embedding-request and embedding-text-attempt
+caps explicitly. Caps bound provider attempts, not currency or provider-side routing.
+
+The run directory is locked, and reservations are persisted before each provider
+attempt. Failed, cancelled, interrupted or incompatible evidence cannot silently
+resume or reset its budget. Re-running an existing integrated run requires manual
+review; no automatic replay or retry-wait loop is provided. Do not run other
+evaluations, application workers or account clients concurrently.
+
+Live execution remains a separate gate: review the exact manifest, model/payment
+permissions, embedding profile/space, caps, retry policy and output limits, then
+obtain explicit owner authorization for that single run. A CLI flag is not owner
+consent, and no preparation or deterministic test confirms production defaults,
+variant quality, recall effectiveness, ADR acceptance or permission to merge main.
 
 ## OpenRouter cache diagnostic
 
