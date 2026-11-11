@@ -28,3 +28,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Refined candidate memory prompts toward concise third-person DM summaries, future-useful facts and importance calibration for central unresolved revelations (ADR 0020 S3).
 - Added fenced memory-job claims, persistent attempt budgets, expired-lease recovery and explicit retry cycles without activating public memory production (ADR 0020 S4a).
 - Added context-local single-attempt generation so durable memory jobs own retry budgets without changing ordinary provider retry behavior (ADR 0020 S4a).
+- Froze complete specialist/global job requests in versioned manifests, preserving source and instruction identity across restarts and template changes (ADR 0020 S4a).
