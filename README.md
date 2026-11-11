@@ -329,6 +329,9 @@ context — is the main open content track.
 
 Worlds export and import as ZIP archives from the world library in the app. Campaigns export over
 the API (`GET /api/export/{campaign_id}`); a button for it in the UI is still to come.
+Campaign archives include retained branches, immutable saves, operation records and
+memory provenance in one consistent snapshot, with [offline validation](docs/CAMPAIGN_EXPORT.md).
+Campaign import is not implemented.
 Nothing you make is locked in.
 
 ## Configuration

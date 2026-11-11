@@ -28,5 +28,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Refined candidate memory prompts toward concise third-person DM summaries, future-useful facts and importance calibration for central unresolved revelations (ADR 0020 S3).
 - Added durable memory jobs with frozen requests, bounded retries, atomic publication and history-safe artifact reuse, without activating the public pipeline (ADR 0020 S4a).
 - Connected idempotent actions, three-level memory, bounded admission and history-safe restore/recall, with YAML-derived client deadlines and explicit blocking retries (ADR 0020 S4b).
-- Defined a versioned, typed campaign archive preserving full history, memory provenance and nullable legacy records (ADR 0020 S5).
-- Validated archive references, history coverage and producer provenance through a shared offline checker without database or provider access (ADR 0020 S5).
+- Delivered versioned campaign archives with full memory provenance, offline reference validation, and recoverable save/retry behavior under repeatable-read isolation (ADR 0020 S5).
