@@ -90,8 +90,10 @@ memory:
           criteria: A significant historical detail worth recalling, without campaign-defining consequences.
           examples: A useful attributed clue, a meaningful agreement, or a consequential encounter.
         - name: critical
-          criteria: A revelation, commitment or consequence that substantially changes the campaign's stakes or direction.
-          examples: A central betrayal, a binding major oath, or the resolution of a defining threat.
+          criteria: >-
+            A revelation, commitment or consequence that substantially changes the campaign's stakes or direction.
+            A supported revelation central to an unresolved campaign mystery qualifies even before a resulting decision or action.
+          examples: A central betrayal, a revelation redefining a central mystery, a binding major oath, or the resolution of a defining threat.
 
 # ---------------------------------------------------------------------------
 # Gameplay Settings — runtime behavior

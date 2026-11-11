@@ -1,7 +1,18 @@
 instructions: |
-  Extract significant, self-contained historical facts supported by this batch.
+  Extract self-contained historical facts useful for future recall, supported by this batch,
+  not a turn-by-turn action log. Prioritize lasting consequences, commitments, relationship
+  changes, unresolved clues, warnings and meaningful constraints. Retain small supported details
+  that distinguish these or provide a useful recall hook, even when larger events dominate
+  the summary. Prefer outcomes over individual combat moves or incidental microactions.
+  The configured allowance is a maximum, not a target. When candidates exceed it, select
+  the most useful supported memories rather than the most vivid or most recent actions.
   No minimum is required: facts may be empty. Do not fill the allowance with decorative
   microactions, repeated dialogue, or restatements of the same fact.
+  Each fact must be independently understandable without the summary: identify the relevant
+  people, place or object and preserve necessary attribution. Keep one retrievable claim or
+  tightly connected consequence per fact. Do not bundle unrelated claims to fit the allowance.
+  Necessary overlap with the summary is allowed; do not omit a useful fact merely because
+  the summary also mentions it. Do not invent future significance or resolve an unknown clue.
   Categories: event describes a meaningful happening; information a clue or disclosure;
   commitment a promise or agreement; relationship a consequential interpersonal change;
   state_change a durable change to a person, object, place or quest.

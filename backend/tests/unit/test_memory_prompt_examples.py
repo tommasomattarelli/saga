@@ -9,7 +9,7 @@ from app.memory.batch_source_contracts import BatchInput
 from app.memory.document_contracts import GlobalPayload, SummaryPayload
 from app.memory.producer_contracts import BatchPayload, FactsPayload
 from app.memory.producer_examples import worked_example
-from app.memory.producer_prompts import prepare_request
+from app.memory.producer_prompts import PreparedMemoryRequest, ProducerKind, prepare_request
 from app.memory.production_policy import FactsPolicy
 
 
@@ -135,3 +135,90 @@ def test_real_prompt_includes_one_isolated_example_and_composes_specialist_outpu
         "summary": parse_example("summary")["output"],
         "facts": parse_example("facts")["output"]["facts"],
     }
+
+
+@pytest.mark.parametrize("kind", ["batch", "summary"])
+def test_summary_instructions_define_dm_memory_without_losing_continuity(
+    kind: ProducerKind,
+) -> None:
+    source = BatchInput.model_validate_json(template("memory_production", "example_source"))
+    prepared = prepare_request(kind, source, language="it", facts_policy=policy())
+    instructions = template("memory_summary", "instructions")
+    assert instructions in prepared.system_prompt
+    for requirement in (
+        "memory for the Dungeon Master",
+        "third person",
+        "causal sequence",
+        "unresolved clues",
+        "injuries",
+        "time and travel constraints",
+        "only once unless later evidence changes",
+        "not a retelling",
+        "Do not add literary embellishment",
+        "source-format metadata",
+    ):
+        assert requirement in instructions
+
+
+@pytest.mark.parametrize(
+    ("template_name", "affected"),
+    [("memory_summary", {"batch", "summary"}), ("memory_facts", {"batch", "facts"})],
+)
+def test_specialist_instruction_changes_affect_only_requests_using_that_specialist(
+    monkeypatch: pytest.MonkeyPatch,
+    template_name: str,
+    affected: set[ProducerKind],
+) -> None:
+    from app.memory import producer_prompts
+    from app.memory.production_policy import GlobalPolicy
+
+    source = BatchInput.model_validate_json(template("memory_production", "example_source"))
+
+    def prepare(kind: ProducerKind) -> PreparedMemoryRequest:
+        return prepare_request(
+            kind,
+            source,
+            language="it",
+            facts_policy=policy(),
+            global_policy=GlobalPolicy(target_words=100) if kind == "global" else None,
+        )
+
+    kinds: tuple[ProducerKind, ...] = ("batch", "summary", "facts", "global")
+    baseline = {kind: prepare(kind) for kind in kinds}
+    monkeypatch.setattr(
+        producer_prompts,
+        "template",
+        lambda name, key: (
+            "Alternative specialist instruction."
+            if (name, key) == (template_name, "instructions")
+            else template(name, key)
+        ),
+    )
+    for kind in kinds:
+        changed = prepare(kind)
+        assert changed.source_hash == baseline[kind].source_hash
+        assert changed.user_prompt == baseline[kind].user_prompt
+        if kind in affected:
+            assert changed.instruction_hash != baseline[kind].instruction_hash
+        else:
+            assert changed == baseline[kind]
+
+
+@pytest.mark.parametrize("kind", ["batch", "facts"])
+def test_fact_instructions_prioritize_future_recall_over_action_logs(kind: ProducerKind) -> None:
+    source = BatchInput.model_validate_json(template("memory_production", "example_source"))
+    prepared = prepare_request(kind, source, language="it", facts_policy=policy())
+    instructions = template("memory_facts", "instructions")
+    assert instructions in prepared.system_prompt
+    for requirement in (
+        "useful for future recall",
+        "not a turn-by-turn action log",
+        "lasting consequences",
+        "small supported details",
+        "outcomes over individual combat moves",
+        "maximum, not a target",
+        "independently understandable",
+        "Do not bundle unrelated claims",
+        "Do not invent future significance",
+    ):
+        assert requirement in instructions

@@ -130,6 +130,20 @@ def test_configured_facts_policy_renders_explicit_max_and_yaml_rubric() -> None:
         assert text in prepared.system_prompt or text in prepared.user_prompt
 
 
+def test_configured_importance_includes_central_revelations_before_action() -> None:
+    from app.memory.production_policy import configured_facts_policy
+
+    configured = configured_facts_policy(max_per_batch=6)
+    critical = next(level for level in configured.importance_levels if level.name == "critical")
+    assert "central to an unresolved campaign mystery" in critical.criteria
+    assert "before a resulting decision or action" in critical.criteria
+    assert "a revelation redefining a central mystery" in critical.examples
+    for kind in ("batch", "facts"):
+        prepared = prepare_request(kind, source(), language="it", facts_policy=configured)
+        assert critical.criteria in prepared.system_prompt
+        assert critical.examples in prepared.system_prompt
+
+
 def test_global_request_contains_full_previous_state_and_original_batch() -> None:
     previous = GlobalPayload(
         story_so_far="The party reached the drowned city.",

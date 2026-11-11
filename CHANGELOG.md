@@ -25,3 +25,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Prepared strict memory producers, validated prompt examples and reproducible offline evaluations; live evidence, production defaults and variant selection remain owner-gated (ADR 0020 S3).
 - Isolated generation-profile reads from campaign relationships so memory evaluations can preserve legacy databases without migrations (ADR 0020 S3).
 - Added stable per-model memory-evaluation sessions, recorded request headers and parallel model workers with sequential requests and quota-safe stopping.
+- Refined candidate memory prompts toward concise third-person DM summaries, future-useful facts and importance calibration for central unresolved revelations (ADR 0020 S3).
