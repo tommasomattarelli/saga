@@ -20,11 +20,6 @@ from app.models.base import Base, TimestampMixin, UUIDMixin
 from app.models.validated_json import ValidatedJSON
 
 
-class MemoryJobKind(StrEnum):
-    BATCH = "batch"
-    GLOBAL = "global"
-
-
 class MemoryJobState(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"

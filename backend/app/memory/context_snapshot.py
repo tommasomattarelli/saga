@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
+from html import escape
 from typing import Literal
 from uuid import UUID
 
@@ -9,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.prompts.dm import DMPromptContext, DMPromptState, campaign_prompt_context
-from app.memory.global_render import render_global_sections
+from app.memory.document_contracts import GlobalPayload
 from app.memory.history import history_path
 from app.memory.job_coverage import load_coverage
 from app.memory.production_policy import MemoryProductionPolicy
@@ -19,6 +20,18 @@ from app.models.campaign import Campaign
 from app.models.history import MemoryPolicy
 from app.models.memory_document import MemoryGlobalCheckpoint, MemoryState, MemorySummary
 from app.models.quest import QuestRegistry
+
+
+def render_global_sections(payload: GlobalPayload) -> str:
+    sections = [f"<story_so_far>{escape(payload.story_so_far)}</story_so_far>"]
+    for name, values in (
+        ("open_threads", payload.open_threads),
+        ("relationships", payload.relationships),
+        ("resolved_threads", payload.resolved_threads),
+    ):
+        entries = "".join(f"<item>{escape(text)}</item>" for text in values)
+        sections.append(f"<{name}>{entries}</{name}>")
+    return "\n".join(sections)
 
 
 @dataclass(frozen=True)

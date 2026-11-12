@@ -187,7 +187,6 @@ CREATE TABLE turn_requests (
     CONSTRAINT fk_turn_requests_result_turn_campaign
         FOREIGN KEY (result_turn_id, campaign_id) REFERENCES turns(id, campaign_id)
         DEFERRABLE INITIALLY DEFERRED,
-    CONSTRAINT uq_turn_requests_campaign_request UNIQUE (campaign_id, request_id),
     CONSTRAINT uq_turn_requests_request_campaign UNIQUE (request_id, campaign_id),
     CONSTRAINT ck_turn_requests_state CHECK (state IN ('running', 'committed', 'interrupted', 'invalidated')),
     CONSTRAINT ck_turn_requests_execution_state

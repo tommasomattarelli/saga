@@ -33,3 +33,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Prepared guarded integrated memory evaluation with persisted-source provenance, bounded generation/embedding ledgers and offline manifests, leaving live runs and production decisions owner-gated (ADR 0020 S6).
 - Removed unread integrated-evaluation helpers and the duplicated source-evidence batch query, leaving one ordered-batch loader for evidence and sidecar runs (ADR 0020 S6).
 - Shared compaction targets and cached evidence fingerprints, centralized attempt-scope checks, and froze eval-only embedding retry reductions without changing production defaults (ADR 0020 S6).
+- Removed test-only memory entry points, merged single-caller helpers and dropped redundant indexes while retaining JSON revalidation and real-database initialization coverage (ADR 0020 S6).
