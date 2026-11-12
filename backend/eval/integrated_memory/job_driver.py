@@ -23,6 +23,31 @@ from eval.support.provider_trace import ProviderTrace
 GenerationResolver = Callable[[UUID], Awaitable[Generation]]
 
 
+async def record_generation(
+    request: PreparedMemoryRequest,
+    scope: AttemptScope,
+    trace: ProviderTrace | None,
+    output: Path,
+) -> MemoryGeneration:
+    started = monotonic()
+    result: MemoryGeneration | None = None
+    try:
+        result = await generate_memory(request)
+        return result
+    finally:
+        append_json(
+            output,
+            {
+                "scope": scope.model_dump(mode="json"),
+                "raw": result.raw
+                if result
+                else str(trace.response.get("text", "") if trace else ""),
+                "valid": result is not None,
+                **provider_evidence(trace, monotonic() - started),
+            },
+        )
+
+
 class MemoryDriver:
     def __init__(
         self,
@@ -102,32 +127,10 @@ class MemoryDriver:
                     },
                 },
             )
-            started = monotonic()
-            try:
-                with self.ledger.scope(scope):
-                    result = await generate_memory(request)
-            except BaseException:
-                raw = trace.response.get("text", "") if trace else ""
-                append_json(
-                    self.directory / "outputs.jsonl",
-                    {
-                        "scope": scope.model_dump(mode="json"),
-                        "raw": str(raw),
-                        "valid": False,
-                        **provider_evidence(trace, monotonic() - started),
-                    },
+            with self.ledger.scope(scope):
+                return await record_generation(
+                    request, scope, trace, self.directory / "outputs.jsonl"
                 )
-                raise
-            append_json(
-                self.directory / "outputs.jsonl",
-                {
-                    "scope": scope.model_dump(mode="json"),
-                    "raw": result.raw,
-                    "valid": True,
-                    **provider_evidence(trace, monotonic() - started),
-                },
-            )
-            return result
 
         with (
             patch.object(job_execution, "get_user_generation", resolve),

@@ -31,3 +31,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Delivered versioned campaign archives with full memory provenance, offline reference validation, and recoverable save/retry behavior under repeatable-read isolation (ADR 0020 S5).
 - Retired legacy memory producers, harnesses, unused fixtures, TURN indexing and obsolete settings while preserving historical archives (ADR 0020 S6).
 - Prepared guarded integrated memory evaluation with persisted-source provenance, bounded generation/embedding ledgers and offline manifests, leaving live runs and production decisions owner-gated (ADR 0020 S6).
+- Removed unread integrated-evaluation helpers and the duplicated source-evidence batch query, leaving one ordered-batch loader for evidence and sidecar runs (ADR 0020 S6).

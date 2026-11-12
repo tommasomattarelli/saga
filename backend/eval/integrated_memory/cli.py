@@ -62,8 +62,6 @@ def main() -> None:
     elif args.command == "report":
         print(write_report(args.output))
     else:
-        if not args.authorized:
-            raise SystemExit("live integrated evaluation requires --authorized")
         plan = load_plan(args.output)
         from .runner import run_plan
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from collections.abc import Iterator
@@ -264,12 +263,6 @@ class IntegratedLedger:
 
     def latch(self) -> None:
         self._blocked = True
-
-
-def content_hash(texts: list[str]) -> str:
-    return hashlib.sha256(
-        json.dumps(texts, ensure_ascii=False, separators=(",", ":")).encode()
-    ).hexdigest()
 
 
 def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
