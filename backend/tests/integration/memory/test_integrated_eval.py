@@ -42,6 +42,7 @@ async def test_guarded_integrated_runner_uses_real_api_jobs_and_embedding_queue_
         embedding_space=space,
         embedding_request_cap=3,
         embedding_text_cap=66,
+        embedding_max_retries=1,
         unified_sidecar=sidecar,
     )
     write_plan(plan, tmp_path)
@@ -143,6 +144,18 @@ async def test_guarded_integrated_runner_uses_real_api_jobs_and_embedding_queue_
     outcome = json.loads((tmp_path / "run.json").read_text())
     assert outcome["state"] == "completed"
     assert outcome["counts"] == {**calls, "texts": 66}
+    assert {path.name for path in tmp_path.iterdir()} == {
+        "manifest.json",
+        "run-start.json",
+        "run.json",
+        "requests.jsonl",
+        "turns.jsonl",
+        "inputs.jsonl",
+        "outputs.jsonl",
+        "source-evidence.json",
+        "embedding-inputs.jsonl",
+        "campaign.json",
+    } | ({"sidecar-inputs.jsonl", "sidecar-outputs.jsonl"} if sidecar else set())
     profile = (await auth_client.get("/api/settings")).json()
     for key in ("generation_provider", "generation_model", "generation_local_endpoint"):
         assert profile[key] == original_profile[key]

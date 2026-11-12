@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Literal, cast
 
@@ -17,17 +17,16 @@ from pydantic import (
 from app.ai.embedding_config import (
     EmbeddingPolicy,
     EmbeddingSpace,
+    ResolvedEmbedding,
     check_space_contract,
     get_embedding_policy,
 )
 from app.ai.router import get_instance_default
 from app.memory.batch_source_contracts import BatchInput
+from app.memory.job_coverage import coverage_counts
 from app.memory.production_policy import MemoryProductionPolicy, configured_memory_policy
-
-
-def _digest(value: object) -> str:
-    raw = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    return hashlib.sha256(raw.encode()).hexdigest()
+from eval.support.digest import digest
+from eval.support.digest import implementation_fingerprint as _fingerprint
 
 
 class IntegratedPlan(BaseModel):
@@ -45,6 +44,7 @@ class IntegratedPlan(BaseModel):
     embedding_space: EmbeddingSpace | None = None
     embedding_request_cap: int | None = None
     embedding_text_cap: int | None = None
+    embedding_max_retries: int | None = None
     unified_sidecar: bool = False
     output_cap: int
     session_scope: str
@@ -84,18 +84,28 @@ class IntegratedPlan(BaseModel):
                 self.generation_request_cap,
                 self.embedding_request_cap,
                 self.embedding_text_cap,
+                self.embedding_max_retries,
             )
         ):
-            raise ValueError("request and text caps must be nonnegative")
+            raise ValueError("request, text, and retry caps must be nonnegative")
         return self
 
     @property
     def batch_count(self) -> int:
-        return max((len(self.sources.turns) - self.policy.raw_turns) // self.policy.batch_turns, 0)
+        return self.coverage_counts[0]
 
     @property
     def global_count(self) -> int:
-        return max(self.batch_count - self.policy.intermediate_limit, 0)
+        return self.coverage_counts[1]
+
+    @property
+    def coverage_counts(self) -> tuple[int, int]:
+        return coverage_counts(
+            len(self.sources.turns),
+            self.policy.raw_turns,
+            self.policy.batch_turns,
+            self.policy.intermediate_limit,
+        )
 
     @property
     def generation_baseline(self) -> int:
@@ -166,65 +176,21 @@ class IntegratedPlan(BaseModel):
         return missing
 
 
-def _fingerprint(root: Path) -> str:
-    paths = list((root / "app").rglob("*.py")) + list((root / "eval").rglob("*.py"))
-    paths += list((root / "app" / "ai" / "prompts").rglob("*.yaml"))
-    paths += list((root.parent / "worlds" / "the-awakening").rglob("*.yaml"))
-    paths += [
-        path
-        for path in (root.parent / "saga.config.yaml", root / "pyproject.toml", root / "uv.lock")
-        if path.is_file()
-    ]
-    return _digest(
-        {
-            str(path.relative_to(root.parent)): hashlib.sha256(path.read_bytes()).hexdigest()
-            for path in sorted(set(paths))
-        }
-    )
-
-
-def _unsigned(
-    *,
-    source: BatchInput,
-    run_id: str,
-    root: Path,
-    generation_model: str | None,
-    generation_request_cap: int | None,
-    embedding_space: EmbeddingSpace | None,
-    embedding_request_cap: int | None,
-    embedding_text_cap: int | None,
-    unified_sidecar: bool,
-    language: str,
-    allow_paid_generation: bool,
-) -> IntegratedPlan:
-    provisional = IntegratedPlan(
-        run_id=run_id,
-        sources=source,
-        policy=configured_memory_policy(),
-        embedding_policy=get_embedding_policy(),
-        language=language,
-        generation_model=generation_model,
-        allow_paid_generation=allow_paid_generation,
-        generation_request_cap=generation_request_cap,
-        embedding_space=embedding_space,
-        embedding_request_cap=embedding_request_cap,
-        embedding_text_cap=embedding_text_cap,
-        unified_sidecar=unified_sidecar,
-        output_cap=get_instance_default().max_tokens,
-        session_scope=f"integrated-memory:{run_id}",
-        source_hash=source.source_hash(),
-        implementation_fingerprint=_fingerprint(root),
-        seal="",
-    )
-    seal = _plan_seal(provisional)
-    return provisional.model_copy(update={"seal": seal})
+def _expected_embedding_policy(
+    configured: EmbeddingPolicy, max_retries: int | None
+) -> EmbeddingPolicy:
+    if max_retries is None:
+        return configured
+    if max_retries < 0 or max_retries > configured.max_retries:
+        raise ValueError("embedding_max_retries must be between 0 and the configured maximum")
+    return replace(configured, max_retries=max_retries)
 
 
 def _plan_seal(plan: IntegratedPlan) -> str:
     payload = plan.model_dump(mode="json", by_alias=True)
     payload.pop("seal", None)
     payload.pop("executable", None)
-    return _digest(payload)
+    return digest(payload)
 
 
 def prepare_plan(
@@ -236,6 +202,7 @@ def prepare_plan(
     embedding_space: EmbeddingSpace | None = None,
     embedding_request_cap: int | None = None,
     embedding_text_cap: int | None = None,
+    embedding_max_retries: int | None = None,
     unified_sidecar: bool = False,
     language: str = "en",
     allow_paid_generation: bool = False,
@@ -261,25 +228,30 @@ def prepare_plan(
     else:
         data = sources
     source = BatchInput.model_validate_json(json.dumps(data))
-    turns = source.turns
     policy = configured_memory_policy()
     _validate_source(source, policy.raw_turns, policy.batch_turns)
-    if len(turns) < policy.raw_turns or (len(turns) - policy.raw_turns) % policy.batch_turns:
-        raise ValueError("source has an incomplete raw prefix or batch tail")
     root = Path(__file__).resolve().parents[2]
-    return _unsigned(
-        source=source,
+    provisional = IntegratedPlan(
         run_id=run_id,
-        root=root,
+        sources=source,
+        policy=policy,
+        embedding_policy=_expected_embedding_policy(get_embedding_policy(), embedding_max_retries),
         generation_model=generation_model,
         generation_request_cap=generation_request_cap,
         embedding_space=embedding_space,
         embedding_request_cap=embedding_request_cap,
         embedding_text_cap=embedding_text_cap,
+        embedding_max_retries=embedding_max_retries,
         unified_sidecar=unified_sidecar,
         language=language,
         allow_paid_generation=allow_paid_generation,
+        output_cap=get_instance_default().max_tokens,
+        session_scope=f"integrated-memory:{run_id}",
+        source_hash=source.source_hash(),
+        implementation_fingerprint=_fingerprint(root),
+        seal="",
     )
+    return provisional.model_copy(update={"seal": _plan_seal(provisional)})
 
 
 def _validate_source(source: BatchInput, raw_turns: int, batch_turns: int) -> None:
@@ -315,10 +287,26 @@ def validate_plan(
     if check_fingerprint and plan.output_cap != get_instance_default().max_tokens:
         raise ValueError("configured generation output cap changed")
     if check_embedding_policy:
-        if plan.embedding_policy != get_embedding_policy():
+        configured = get_embedding_policy()
+        expected = _expected_embedding_policy(configured, plan.embedding_max_retries)
+        if plan.embedding_policy != expected:
             raise ValueError("configured embedding policy changed")
         if plan.embedding_space is not None:
             check_space_contract(plan.embedding_space)
+
+
+def resolve_effective_embedding(
+    plan: IntegratedPlan, resolved: ResolvedEmbedding
+) -> ResolvedEmbedding:
+    configured = get_embedding_policy()
+    if resolved.space != plan.embedding_space:
+        raise ValueError("embedding space differs from the frozen manifest")
+    if resolved.policy != configured:
+        raise ValueError("embedding profile differs from the configured policy")
+    expected = _expected_embedding_policy(configured, plan.embedding_max_retries)
+    if plan.embedding_policy != expected:
+        raise ValueError("frozen embedding policy is not a permitted retry reduction")
+    return replace(resolved, policy=replace(resolved.policy, max_retries=expected.max_retries))
 
 
 def write_plan(plan: IntegratedPlan, directory: Path | str) -> Path:

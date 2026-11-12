@@ -26,6 +26,7 @@ def main() -> None:
     prepare.add_argument("--embedding-space", type=Path)
     prepare.add_argument("--embedding-request-cap", type=int)
     prepare.add_argument("--embedding-text-cap", type=int)
+    prepare.add_argument("--embedding-max-retries", type=int)
     prepare.add_argument("--unified-sidecar", action="store_true")
     validate = subparsers.add_parser("validate")
     validate.add_argument("--output", required=True, type=Path)
@@ -51,6 +52,7 @@ def main() -> None:
             embedding_space=space,
             embedding_request_cap=args.embedding_request_cap,
             embedding_text_cap=args.embedding_text_cap,
+            embedding_max_retries=args.embedding_max_retries,
             unified_sidecar=args.unified_sidecar,
             allow_paid_generation=args.allow_paid_generation,
         )

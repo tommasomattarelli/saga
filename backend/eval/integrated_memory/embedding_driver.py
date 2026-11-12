@@ -14,19 +14,21 @@ from app.models.memory_fact import MemoryFactSource
 from app.models.source_embedding import SourceEmbedding
 from eval.integrated_memory.evidence_io import append_json
 from eval.integrated_memory.ledger import AttemptScope, IntegratedLedger
-from eval.integrated_memory.plan import IntegratedPlan
+from eval.integrated_memory.plan import IntegratedPlan, resolve_effective_embedding
 from eval.integrated_memory.provider_guard import guard_embedding_attempts
-from eval.memory.plan import digest
+from eval.support.digest import digest
 
 
 async def drain_embeddings(
     plan: IntegratedPlan, ledger: IntegratedLedger, campaign_id: UUID, directory: Path
 ) -> None:
     cfg = embedding_queue.get_rebuild_config()
+    if plan.embedding_request_cap is None:
+        raise ValueError("embedding request cap is required")
     async with dependencies.async_session() as db:
         claim = await batch.claim_work(db, campaign_id, cfg)
         await db.commit()
-    for _ in range(plan.embedding_text_upper_bound + 2):
+    for _ in range(plan.embedding_request_cap + 2):
         ledger.ensure_healthy()
         if claim is None:
             return
@@ -67,9 +69,9 @@ async def drain_embeddings(
         )
         await embedding_worker._pace(cfg.rebuild_min_interval_seconds)
         try:
-            resolved = await get_user_embedding(claim.owner_id, space=space)
-            if resolved.space != space or resolved.policy != plan.embedding_policy:
-                raise ValueError("resolved embedding policy differs from the frozen manifest")
+            resolved = resolve_effective_embedding(
+                plan, await get_user_embedding(claim.owner_id, space=space)
+            )
             append_json(
                 directory / "embedding-inputs.jsonl",
                 {
@@ -81,7 +83,11 @@ async def drain_embeddings(
             with (
                 ledger.scope(scope),
                 guard_embedding_attempts(
-                    ledger, model=space.model, provider=space.provider, texts=claim.texts
+                    ledger,
+                    model=space.model,
+                    provider=space.provider,
+                    texts=claim.texts,
+                    policy=plan.embedding_policy,
                 ),
             ):
                 result = await embedding_queue.embed_texts_via_provider(claim.texts, resolved)

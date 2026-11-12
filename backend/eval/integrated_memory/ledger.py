@@ -180,6 +180,14 @@ class IntegratedLedger:
     def current_scope(self) -> AttemptScope | None:
         return self._scope
 
+    def require_scope(self, *, provider: str, model: str) -> AttemptScope:
+        scope = self._scope
+        if scope is None or scope.provider != provider or scope.model != model:
+            raise LedgerBlockedError(
+                "request provider/model do not match the active attempt scope"
+            )
+        return scope
+
     def reserve(self, kind: Kind, metadata: dict[str, str], *, texts: int) -> None:
         self.ensure_healthy()
         if (
@@ -201,15 +209,11 @@ class IntegratedLedger:
             raise LedgerBlockedError("integrated evaluation request budget exhausted")
         scope = self._scope
         scoped = scope.model_dump(mode="json") if scope else {}
-        if scope is not None and metadata.get("model") != scope.model:
-            raise LedgerBlockedError(
-                "request provider/model do not match the active attempt scope"
-            )
-        if scope is not None and metadata.get("provider") == "local":
-            metadata = {**metadata, "provider": scope.provider}
-        elif scope is not None and metadata.get("provider") != scope.provider:
-            raise LedgerBlockedError(
-                "request provider/model do not match the active attempt scope"
+        if scope is not None:
+            if metadata.get("provider") == "local":
+                metadata = {**metadata, "provider": scope.provider}
+            self.require_scope(
+                provider=metadata.get("provider", ""), model=metadata.get("model", "")
             )
         attempt_id = uuid4().hex
         merged_metadata = {
