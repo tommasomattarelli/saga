@@ -35,3 +35,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Shared compaction targets and cached evidence fingerprints, centralized attempt-scope checks, and froze eval-only embedding retry reductions without changing production defaults (ADR 0020 S6).
 - Removed test-only memory entry points, merged single-caller helpers and dropped redundant indexes while retaining JSON revalidation and real-database initialization coverage (ADR 0020 S6).
 - Consolidated archive ownership, ordered batch membership and ancestry checks while preserving restore invariants and validating cross-campaign corruption against real pipeline exports (ADR 0020 S6).
+- Removed overlapping unit coverage after porting unique operation assertions into real turn-path tests, retaining distinct fencing, recall-ordering and restore windows (ADR 0020 S6).

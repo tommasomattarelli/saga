@@ -45,8 +45,7 @@ def test_rendered_examples_are_one_delimited_json_object_and_match_output_schema
         "facts": FactsPayload,
         "global": GlobalPayload,
     }[kind]
-    payload = expected.model_validate_json(json.dumps(data["output"]))
-    assert payload
+    expected.model_validate_json(json.dumps(data["output"]))
     assert set(data) == (
         {"source", "output", "previous"} if kind == "global" else {"source", "output"}
     )

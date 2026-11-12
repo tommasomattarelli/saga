@@ -2,38 +2,11 @@ from unittest.mock import AsyncMock, patch
 
 from langchain_core.messages import AIMessage
 
-from app.ai.npc_outcomes import NPCFailure, NPCSilent
+from app.ai.npc_outcomes import NPCSilent
 from app.core.dm.dm_nodes import post_process_node
 from app.core.dm.dm_tools_executor import tools_node
 from tests.unit.core.test_operation_recording import call
 from tests.unit.core.test_tools_node import _make_state
-
-
-async def test_autocreation_is_separate_from_a_failed_actor() -> None:
-    state = _make_state(
-        allowed_tools=["invoke_npc"],
-        messages=[
-            AIMessage(
-                content="",
-                tool_calls=[
-                    call("invoke_npc", name="New Farmer"),
-                ],
-            )
-        ],
-    )
-    with patch(
-        "app.core.dm.npc_beat.invoke_npcs_parallel",
-        new=AsyncMock(return_value=[NPCFailure("New Farmer")]),
-    ):
-        result = await tools_node(state)
-    records = result["operations"]
-    assert [(r.payload.name, r.payload.outcome) for r in records] == [
-        ("create_npc", "succeeded"),
-        ("invoke_npc", "failed"),
-    ]
-    assert records[0].payload.deltas[0].before.presence == "absent"
-    assert records[1].payload.deltas == ()
-    assert records[0].payload.result.npc_id == records[1].payload.result.npc_id
 
 
 async def test_npc_silence_is_success_and_rejections_are_recorded() -> None:

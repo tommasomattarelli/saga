@@ -11,15 +11,6 @@ from eval.memory_capture import (
 from app.memory.batch_source_contracts import BatchTurnSource
 
 
-def test_ordered_turns_reject_duplicate_display_numbers() -> None:
-    rows = [
-        LegacyTurn(id=uuid4(), turn_number=1, player_action="A", narration=""),
-        LegacyTurn(id=uuid4(), turn_number=1, player_action="B", narration=""),
-    ]
-    with pytest.raises(ValueError, match="duplicate display turn numbers"):
-        ordered_turns(tuple(rows))
-
-
 def test_ordered_turns_reject_duplicate_ids() -> None:
     turn_id = uuid4()
     rows = tuple(

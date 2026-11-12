@@ -21,12 +21,6 @@ def _npc_state() -> dict:
     }
 
 
-def test_move_unavailable_is_rejected():
-    result = execute_tool("move_to", {"location": "Elsewhere"}, {}, {})
-
-    assert result.outcome == "rejected"
-
-
 def test_invalid_quest_is_rejected():
     result = execute_tool(
         "update_quest", {"quest_id": "", "status": "active", "name": "Quest"}, {}, {}
@@ -110,14 +104,3 @@ def test_attack_miss_is_still_succeeded():
 def test_unknown_and_invalid_calls_are_rejected() -> None:
     assert execute_tool("missing", {}, {}, {}).outcome == "rejected"
     assert execute_tool("advance_time", {"minutes": "invalid"}, {}, {}).outcome == "rejected"
-
-
-def test_technical_failure_is_explicit_and_sanitized() -> None:
-    with patch(
-        "app.ai.tools.tools_inventory.AddItem.execute",
-        side_effect=RuntimeError("/internal/path: secret traceback"),
-    ):
-        result = execute_tool("add_item", {"name": "Key"}, {}, {})
-    assert result.outcome == "failed"
-    assert "/internal" not in result.description
-    assert "RuntimeError" not in result.description
