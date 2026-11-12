@@ -34,3 +34,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Removed unread integrated-evaluation helpers and the duplicated source-evidence batch query, leaving one ordered-batch loader for evidence and sidecar runs (ADR 0020 S6).
 - Shared compaction targets and cached evidence fingerprints, centralized attempt-scope checks, and froze eval-only embedding retry reductions without changing production defaults (ADR 0020 S6).
 - Removed test-only memory entry points, merged single-caller helpers and dropped redundant indexes while retaining JSON revalidation and real-database initialization coverage (ADR 0020 S6).
+- Consolidated archive ownership, ordered batch membership and ancestry checks while preserving restore invariants and validating cross-campaign corruption against real pipeline exports (ADR 0020 S6).

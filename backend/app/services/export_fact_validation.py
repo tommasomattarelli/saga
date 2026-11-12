@@ -6,7 +6,6 @@ from app.services.export_integrity import _require, _unique
 
 
 def validate_facts(archive: CampaignExport, ordered_members: dict[UUID, list[UUID]]) -> None:
-    campaign_id = archive.campaign.id
     turns = {row.id: row for row in archive.turns}
     policies = {row.id: row for row in archive.memory_policies}
     batches = {row.id: row for row in archive.memory_batches}
@@ -70,10 +69,7 @@ def validate_facts(archive: CampaignExport, ordered_members: dict[UUID, list[UUI
         )
     for source in archive.fact_sources:
         _require(
-            source.campaign_id == campaign_id
-            and source.fact_id in facts
-            and source.turn_id in turns
-            and source.batch_id in batches,
+            source.fact_id in facts and source.turn_id in turns and source.batch_id in batches,
             "Fact source reference is invalid.",
         )
         _require(

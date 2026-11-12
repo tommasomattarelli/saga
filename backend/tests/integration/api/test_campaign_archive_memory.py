@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import select
@@ -17,6 +17,7 @@ from app.models.save import Save
 from app.models.turn import Turn
 from app.models.turn_operation import TurnOperation
 from app.schemas.campaign_export import CampaignExport
+from app.services.export_validation import ExportIntegrityError, validate_campaign_export
 from tests.integration.api.archive_integrity_checks import assert_archive_rejects_corruption
 from tests.integration.gameplay.test_memory_pipeline_cutover import PipelineProvider
 from tests.integration.gameplay.test_quest_persistence import (
@@ -211,3 +212,11 @@ async def test_archive_exports_complete_records_from_real_memory_pipeline(
             }
     assert provider.global_calls >= 2
     assert_archive_rejects_corruption(CampaignExport.model_validate_json(response.content))
+    source = CampaignExport.model_validate_json(response.content)
+    for collection in ("turn_operations", "batch_turns", "fact_sources"):
+        foreign = source.model_copy(deep=True)
+        rows = getattr(foreign, collection)
+        assert rows
+        rows[0].campaign_id = uuid4()
+        with pytest.raises(ExportIntegrityError, match="another campaign"):
+            validate_campaign_export(foreign)
