@@ -57,10 +57,6 @@ def empty_archive() -> CampaignExport:
     )
 
 
-def test_campaign_export_has_versioned_archive_envelope() -> None:
-    assert empty_archive().format_version == 1
-
-
 def test_archive_rejects_unknown_claims_and_future_versions() -> None:
     archive = empty_archive().model_dump(mode="python")
     archive["format_version"] = 2

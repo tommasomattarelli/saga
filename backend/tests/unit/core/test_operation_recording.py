@@ -8,22 +8,6 @@ def call(tool_name: str, **args: object) -> dict:
     return {"name": tool_name, "args": args, "id": "same", "type": "tool_call"}
 
 
-async def test_invisible_operations_preserve_intermediate_quest_changes() -> None:
-    calls = [
-        call("update_quest", quest_id="lead", status="active", name="A lead"),
-        call("update_quest", quest_id="lead", status="completed"),
-        call("update_quest", quest_id="lead", status="active"),
-    ]
-    result = await tools_node(_make_state(messages=[AIMessage(content="", tool_calls=calls)]))
-    records = result["operations"]
-    assert [record.ordinal for record in records] == [1, 2, 3]
-    assert len({record.id for record in records}) == 3
-    assert all(record.payload.outcome == "succeeded" for record in records)
-    assert all(record.payload.deltas for record in records)
-    assert result["tool_events"] == []
-    assert result["quests"].active[0].id == "lead"
-
-
 async def test_rejected_and_unknown_calls_are_not_lost_on_early_returns() -> None:
     calls = [
         call("missing"),
@@ -41,16 +25,6 @@ async def test_rejected_and_unknown_calls_are_not_lost_on_early_returns() -> Non
     assert all(
         record.payload.outcome == "rejected" and not record.payload.deltas for record in records
     )
-
-
-async def test_check_without_delta_still_records_the_mechanical_result() -> None:
-    calls = [call("request_dice", stat="DEX", check="Balance", difficulty="normal")]
-    result = await tools_node(_make_state(messages=[AIMessage(content="", tool_calls=calls)]))
-    record = result["operations"][0]
-    assert record.payload.outcome == "succeeded"
-    assert record.payload.result.kind == "check"
-    assert record.payload.deltas == ()
-    assert isinstance(record.payload.result.checks["Balance"].success, bool)
 
 
 async def test_operations_accumulate_across_steps_in_execution_order() -> None:

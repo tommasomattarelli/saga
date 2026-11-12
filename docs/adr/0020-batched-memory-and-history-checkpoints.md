@@ -617,6 +617,36 @@ Verifiche: **1.896 test backend passati, tre casi junction Windows saltati su Li
 formato nel builder, corretto e riverificato su 571 file senza ripetere il full su
 richiesta owner. Nessuna chiamata live o modifica a `backend/app/`.
 
+**S6 note (2026-11-12, subtraction review e decisioni owner).** La seconda
+passata ritira anche l'interfaccia di confronto dei produttori S3, estraendo
+digest e lock condivisi senza perdere i test del runner integrato; il capture
+legacy resta uno strumento esplicito, non un secondo writer. Annotazioni,
+diagnostica e fencing a confini diversi restano contratti, non codice morto
+per il solo fatto di non avere un consumer automatico.
+
+Per la prossima preparazione offline l'owner ha scelto
+`nvidia/nemotron-3.5-super-vl:free`, sidecar incluso e cap di **42 generazioni**;
+embedding OpenRouter `openai/text-embedding-3-small`, spazio `embed-v1` nativo,
+**un retry**, cap di **6 richieste / 132 testi inviati** per al massimo 66
+contenuti distinti. Il costo minimo degli embedding è ammesso per quel futuro
+run, non costituisce autorizzazione ad eseguirlo. La riduzione dei retry è
+congelata nel manifest eval, non cambia il profilo utente o i default runtime.
+
+Il vecchio manifest resta immutato; la nuova preparazione ha fingerprint/seal
+nuovi e può essere `executable=true`, ma non è autorizzata. `approved=false`
+è una dichiarazione, non un gate aggiuntivo: restano i controlli `executable`
+e `--authorized`, dopo un consenso esplicito per quel run. Nessun catalogo,
+provider o worker viene avviato come effetto collaterale della preparazione.
+Qualità, recall effettivo, playtest, variante/default e accettazione owner
+continuano a impedire il merge in main; ADR ancora **Proposed**.
+
+I riferimenti di riga del rilievo S0 descrivono il codice del 9 novembre,
+non quello dopo il cutover: claim e pubblicazione sono ora in
+`services/action_claims.py` e `services/action_persistence.py`; la memoria
+vive in `job_scheduler`/`job_execution`/`job_publication`, non nei produttori
+per-turno ritirati. Il full check cumulativo si esegue una sola volta dopo
+i sette commit, su richiesta owner; durante restano test mirati e hook.
+
 ## 15. Riferimento OpenCode /compact
 
 L'owner ha chiesto di studiarlo per ispirare il globale. Analisi Luna e verifica diretta del prompt, senza clone o file nel repo.
@@ -911,6 +941,12 @@ sono offline, con fonti/policy/istruzioni congelate e budget per tentativo; ripr
 invalidi non autorizzano nuove chiamate implicite. Revisione umana e qualità di summary,
 fatti e globale restano separate. Il codice non collega ancora scheduler, copertura o
 contesto pubblico: i gate S4a/S4b e la verifica integrata S6 rimangono invariati.
+
+**S6 note (2026-11-12, implementation).** Il contratto del wrapper di §20.6
+non cambia: le quattro sezioni sono rese prima del framing e
+`ai/prompts/dm.py` aggiunge `<global_summary>`, come già chiarito dalla nota
+S3; il renderer non deve aggiungere un secondo wrapper. I riferimenti
+all'harness S3 sopra restano evidenza storica, non istruzioni per un run nuovo.
 
 ### 20.7 Operazioni e delta
 

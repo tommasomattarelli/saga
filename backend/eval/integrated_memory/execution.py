@@ -24,7 +24,7 @@ from eval.integrated_memory.embedding_driver import drain_embeddings
 from eval.integrated_memory.evidence_io import write_json
 from eval.integrated_memory.job_driver import MemoryDriver
 from eval.integrated_memory.ledger import IntegratedLedger
-from eval.integrated_memory.plan import IntegratedPlan
+from eval.integrated_memory.plan import IntegratedPlan, resolve_effective_embedding
 from eval.integrated_memory.provider_guard import guard_generation
 from eval.integrated_memory.sidecar import run_sidecar
 from eval.support.dialogue_affinity import provider_with_session, session_id_for_model
@@ -73,9 +73,9 @@ async def execute_plan(plan: IntegratedPlan, directory: Path, owner: UUID) -> No
     campaign_id: UUID | None = None
     try:
         await resolve(owner)
-        resolved = await get_user_embedding(owner, space=plan.embedding_space)
-        if resolved.space != plan.embedding_space or resolved.policy != plan.embedding_policy:
-            raise ValueError("embedding profile differs from the frozen manifest")
+        resolve_effective_embedding(
+            plan, await get_user_embedding(owner, space=plan.embedding_space)
+        )
         async with AsyncClient(
             transport=ASGITransport(app=create_app()),
             base_url="http://integrated-eval",

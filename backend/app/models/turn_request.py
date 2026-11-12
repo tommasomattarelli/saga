@@ -22,7 +22,6 @@ from app.models.base import Base, TimestampMixin
 class TurnRequest(Base, TimestampMixin):
     __tablename__ = "turn_requests"
     __table_args__ = (
-        UniqueConstraint("campaign_id", "request_id", name="uq_turn_requests_campaign_request"),
         UniqueConstraint("request_id", "campaign_id", name="uq_turn_requests_request_campaign"),
         ForeignKeyConstraint(
             ["starting_head_turn_id", "campaign_id"],

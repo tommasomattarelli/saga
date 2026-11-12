@@ -100,7 +100,6 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "batch_id", "turn_id", "campaign_id", name="uq_memory_batch_turns_source"
         ),
-        sa.UniqueConstraint("batch_id", "turn_id", name="uq_memory_batch_turns_batch_turn"),
         sa.CheckConstraint("ordinal > 0", name="ck_memory_batch_turns_ordinal"),
     )
     _fk(

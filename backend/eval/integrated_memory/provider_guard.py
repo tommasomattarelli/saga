@@ -40,9 +40,7 @@ class _GuardedGeneration(AIProvider):
         json_mode: bool = False,
     ) -> str:
         self.ledger.ensure_healthy()
-        scope = self.ledger.current_scope
-        if scope is None or scope.provider != "openrouter" or scope.model != model:
-            raise LedgerBlockedError("generation requires a matching OpenRouter attempt scope")
+        self.ledger.require_scope(provider="openrouter", model=model)
         if self.limiter is not None:
             await self.limiter.wait(model)
         request = [{"role": "system", "content": system_prompt}, *messages]
@@ -106,12 +104,18 @@ def guard_generation(
 
 @contextmanager
 def guard_embedding_attempts(
-    ledger: IntegratedLedger, *, model: str, provider: str, texts: list[str]
+    ledger: IntegratedLedger,
+    *,
+    model: str,
+    provider: str,
+    texts: list[str],
+    policy: EmbeddingPolicy | None = None,
 ) -> Iterator[None]:
     """Patch adapter retry aliases for one serial eval operation; not concurrency-safe."""
     request_hash = hashlib.sha256(
         json.dumps(texts, ensure_ascii=False, separators=(",", ":")).encode()
     ).hexdigest()
+    guard_policy = policy
 
     def wrap(original: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         async def guarded(
@@ -121,10 +125,12 @@ def guard_embedding_attempts(
             call: Callable[[], Awaitable[T]],
             is_transient: Callable[[Exception], bool],
         ) -> T:
-            scope = ledger.current_scope
-            if scope is None or scope.model != model or scope.provider != provider:
+            frozen_policy = guard_policy if guard_policy is not None else policy
+            try:
+                ledger.require_scope(provider=provider, model=model)
+            except LedgerBlockedError:
                 ledger.latch()
-                raise LedgerBlockedError("embedding request requires a matching attempt scope")
+                raise
             attempts = 0
 
             async def guarded_call() -> T:
@@ -153,7 +159,7 @@ def guard_embedding_attempts(
                     retrying = (
                         isinstance(exc, Exception)
                         and is_transient(exc)
-                        and attempts <= policy.max_retries
+                        and attempts <= frozen_policy.max_retries
                     )
                     ledger.fail(retrying=retrying)
                     raise
@@ -162,7 +168,10 @@ def guard_embedding_attempts(
 
             try:
                 return await original(
-                    provider=provider, policy=policy, call=guarded_call, is_transient=is_transient
+                    provider=provider,
+                    policy=frozen_policy,
+                    call=guarded_call,
+                    is_transient=is_transient,
                 )
             except Exception as exc:
                 try:

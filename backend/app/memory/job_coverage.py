@@ -13,6 +13,16 @@ from app.models.memory_document import MemoryGlobalCheckpoint, MemoryState
 from app.models.turn import Turn
 
 
+def coverage_counts(
+    total_turns: int,
+    raw_turns: int,
+    batch_turns: int,
+    intermediate_limit: int,
+) -> tuple[int, int]:
+    batches = max(total_turns - raw_turns, 0) // batch_turns
+    return batches, max(batches - intermediate_limit, 0)
+
+
 @dataclass(frozen=True)
 class MemoryCoverage:
     raw_turn_ids: tuple[UUID, ...]

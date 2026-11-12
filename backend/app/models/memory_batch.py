@@ -71,7 +71,6 @@ class MemoryBatchTurn(Base):
         UniqueConstraint(
             "batch_id", "turn_id", "campaign_id", name="uq_memory_batch_turns_source"
         ),
-        UniqueConstraint("batch_id", "turn_id", name="uq_memory_batch_turns_batch_turn"),
         ForeignKeyConstraint(
             ["batch_id", "campaign_id"],
             ["memory_batches.id", "memory_batches.campaign_id"],

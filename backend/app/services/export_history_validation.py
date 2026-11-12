@@ -25,7 +25,6 @@ def head_in_history(
 
 
 def validate_history(archive: CampaignExport) -> None:
-    campaign_id = archive.campaign.id
     turns = {row.id: row for row in archive.turns}
     continuations = {row.id: row for row in archive.continuations}
     _acyclic({row.id: row.parent_turn_id for row in archive.turns})
@@ -34,10 +33,7 @@ def validate_history(archive: CampaignExport) -> None:
     _unique(archive.turn_operations, lambda row: (row.turn_id, row.ordinal), "operation ordinal")
     ordinals: dict[UUID, list[int]] = defaultdict(list)
     for op in archive.turn_operations:
-        _require(
-            op.campaign_id == campaign_id and op.turn_id in turns,
-            "Turn operation reference is invalid.",
-        )
+        _require(op.turn_id in turns, "Turn operation reference is invalid.")
         ordinals[op.turn_id].append(op.ordinal)
     _unique(
         [turn for turn in archive.turns if turn.continuation_id is not None],

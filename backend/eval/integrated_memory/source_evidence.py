@@ -5,9 +5,12 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import dependencies
+from app.models.memory_batch import MemoryBatch
 from app.models.memory_job import MemoryJob
+from app.models.turn import Turn
 
 
 class OperationEvidence(BaseModel):
@@ -37,29 +40,34 @@ class BatchEvidence(BaseModel):
     batch_id: UUID
     job_id: UUID
     source_turn_ids: tuple[UUID, ...]
-    input_hash: str
-    canonical_input: str
+
+
+async def ordered_batches(db: AsyncSession, campaign_id: UUID) -> list[MemoryBatch]:
+    return list(
+        await db.scalars(
+            select(MemoryBatch)
+            .join(Turn, Turn.id == MemoryBatch.source_head_turn_id)
+            .where(MemoryBatch.campaign_id == campaign_id)
+            .order_by(Turn.history_depth)
+        )
+    )
+
+
+async def ordered_batch_ids(campaign_id: UUID) -> tuple[UUID, ...]:
+    async with dependencies.async_session() as db:
+        return tuple(batch.id for batch in await ordered_batches(db, campaign_id))
 
 
 async def collect_batch_evidence(
     campaign_id: UUID, turns: tuple[PersistedTurnEvidence, ...]
 ) -> tuple[BatchEvidence, ...]:
     from app.memory.batch_input import load_batch_input
-    from app.models.memory_batch import MemoryBatch, MemoryBatchTurn
-    from app.models.turn import Turn
+    from app.models.memory_batch import MemoryBatchTurn
 
     turn_ids = {turn.turn_id for turn in turns}
     async with dependencies.async_session() as db:
-        batches = list(
-            await db.scalars(
-                select(MemoryBatch)
-                .join(Turn, Turn.id == MemoryBatch.source_head_turn_id)
-                .where(MemoryBatch.campaign_id == campaign_id)
-                .order_by(Turn.history_depth)
-            )
-        )
         evidence: list[BatchEvidence] = []
-        for batch in batches:
+        for batch in await ordered_batches(db, campaign_id):
             source = await load_batch_input(db, campaign_id, batch.id)
             job = await db.scalar(
                 select(MemoryJob).where(
@@ -89,8 +97,6 @@ async def collect_batch_evidence(
                     batch_id=batch.id,
                     job_id=job.id,
                     source_turn_ids=member_ids,
-                    input_hash=source.source_hash(),
-                    canonical_input=source.canonical_json(),
                 )
             )
         return tuple(evidence)

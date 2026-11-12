@@ -13,6 +13,13 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ## [Unreleased]
 
+### Highlights
+
+- [Gameplay] Retried actions preserve their request identity and reject stale histories instead of applying a second turn.
+- [UI] Action failures expose a memory-retry banner while preserving the pending action and its identity.
+- [World & DM] Experimental batched memory retains turn-level provenance and assembles context only from the selected history.
+- [Infra] Campaign exports include a versioned archive of histories and memory records with an offline integrity validator.
+
 ### Internal
 
 - Reorganized backend evaluation tools and tests, indexed their guide, and clarified harness-independent skills and owner authorization for external evaluation calls.
@@ -31,3 +38,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Delivered versioned campaign archives with full memory provenance, offline reference validation, and recoverable save/retry behavior under repeatable-read isolation (ADR 0020 S5).
 - Retired legacy memory producers, harnesses, unused fixtures, TURN indexing and obsolete settings while preserving historical archives (ADR 0020 S6).
 - Prepared guarded integrated memory evaluation with persisted-source provenance, bounded generation/embedding ledgers and offline manifests, leaving live runs and production decisions owner-gated (ADR 0020 S6).
+- Simplified ADR 0020 S6 memory and archive paths, retired the isolated producer harness and overlapping coverage, and bounded offline evaluation preparation without authorizing live calls.

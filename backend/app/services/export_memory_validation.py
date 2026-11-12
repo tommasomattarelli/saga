@@ -1,17 +1,27 @@
 from collections import defaultdict
+from collections.abc import Sequence
 from uuid import UUID
 
 from app.schemas.campaign_export import CampaignExport
 from app.schemas.campaign_export_memory import ExportBatchTurn
 from app.services.export_fact_validation import validate_facts
-from app.services.export_integrity import _ancestors, _require, _unique
+from app.services.export_integrity import _acyclic, _ancestors, _require, _unique
+
+
+def ordered_members(batch_turns: Sequence[ExportBatchTurn]) -> dict[UUID, list[ExportBatchTurn]]:
+    grouped: dict[UUID, list[ExportBatchTurn]] = defaultdict(list)
+    for member in batch_turns:
+        grouped[member.batch_id].append(member)
+    return {
+        batch_id: sorted(rows, key=lambda row: row.ordinal) for batch_id, rows in grouped.items()
+    }
 
 
 def validate_memory(archive: CampaignExport) -> None:
-    campaign_id = archive.campaign.id
     turns = {row.id: row for row in archive.turns}
     policies = {row.id: row for row in archive.memory_policies}
     batches = {row.id: row for row in archive.memory_batches}
+    batch_parents = {row.id: row.previous_batch_id for row in archive.memory_batches}
     checkpoints = {row.id: row for row in archive.global_checkpoints}
     generations = {row.id: row for row in archive.generations}
     continuations = {row.id: row for row in archive.continuations}
@@ -28,23 +38,18 @@ def validate_memory(archive: CampaignExport) -> None:
         lambda row: (row.policy_id, row.previous_batch_id, row.source_head_turn_id),
         "batch source",
     )
-    batch_members: dict[UUID, list[ExportBatchTurn]] = defaultdict(list)
     for member in archive.batch_turns:
         _require(
-            member.campaign_id == campaign_id
-            and member.batch_id in batches
-            and member.turn_id in turns,
+            member.batch_id in batches and member.turn_id in turns,
             "Batch turn reference is invalid.",
         )
-        batch_members[member.batch_id].append(member)
-    ordered_members: dict[UUID, list[UUID]] = {}
-    for batch_id, members in batch_members.items():
-        ordered = sorted(members, key=lambda item: item.ordinal)
+    ordered_turns: dict[UUID, list[UUID]] = {}
+    for batch_id, members in ordered_members(archive.batch_turns).items():
         _require(
-            [item.ordinal for item in ordered] == list(range(1, len(ordered) + 1)),
+            [item.ordinal for item in members] == list(range(1, len(members) + 1)),
             "Batch turn ordinals are not contiguous.",
         )
-        ordered_members[batch_id] = [item.turn_id for item in ordered]
+        ordered_turns[batch_id] = [item.turn_id for item in members]
     for batch in archive.memory_batches:
         _require(
             batch.policy_id in policies and batch.source_head_turn_id in turns,
@@ -54,7 +59,7 @@ def validate_memory(archive: CampaignExport) -> None:
             batch.previous_batch_id is None or batch.previous_batch_id in batches,
             "Previous batch reference is invalid.",
         )
-        member_ids = ordered_members.get(batch.id, [])
+        member_ids = ordered_turns.get(batch.id, [])
         _require(
             bool(member_ids) and member_ids[-1] == batch.source_head_turn_id,
             "Batch source membership is invalid.",
@@ -71,7 +76,7 @@ def validate_memory(archive: CampaignExport) -> None:
             )
             previous_head = previous.source_head_turn_id
             _require(
-                turns[ordered_members[batch.id][0]].parent_turn_id == previous_head,
+                turns[ordered_turns[batch.id][0]].parent_turn_id == previous_head,
                 "Batch membership is not contiguous with its predecessor.",
             )
         else:
@@ -84,13 +89,7 @@ def validate_memory(archive: CampaignExport) -> None:
                 turns[turn_id].parent_turn_id == previous_turn_id,
                 "Batch turn membership is not contiguous.",
             )
-    for start in batches:
-        visited: set[UUID] = set()
-        current: UUID | None = start
-        while current is not None:
-            _require(current not in visited, "Batch history contains a cycle.")
-            visited.add(current)
-            current = batches[current].previous_batch_id if current in batches else None
+    _acyclic(batch_parents)
 
     for state in archive.memory_states:
         _require(state.policy_id in policies, "Memory state policy reference is invalid.")
@@ -107,10 +106,7 @@ def validate_memory(archive: CampaignExport) -> None:
                 batches[state.last_compacted_batch_id].policy_id == state.policy_id,
                 "Memory state batch policy is inconsistent.",
             )
-            compacted = _ancestors(
-                {batch.id: batch.previous_batch_id for batch in archive.memory_batches},
-                state.last_compacted_batch_id,
-            )
+            compacted = _ancestors(batch_parents, state.last_compacted_batch_id)
             published = {summary.batch_id for summary in archive.memory_summaries}
             _require(
                 all(batch_id in published for batch_id in compacted),
@@ -126,14 +122,7 @@ def validate_memory(archive: CampaignExport) -> None:
                 state.last_compacted_batch_id is not None,
                 "Memory state checkpoint has no compacted prefix.",
             )
-            current_batch: UUID | None = state.last_compacted_batch_id
-            prefix: set[UUID] = set()
-            while current_batch is not None:
-                _require(
-                    current_batch not in prefix, "Memory state batch prefix contains a cycle."
-                )
-                prefix.add(current_batch)
-                current_batch = batches[current_batch].previous_batch_id
+            prefix = set(_ancestors(batch_parents, state.last_compacted_batch_id))
             _require(
                 checkpoint.batch_id in prefix,
                 "Memory state checkpoint is outside its compacted prefix.",
@@ -165,8 +154,6 @@ def validate_memory(archive: CampaignExport) -> None:
                 row.turn_number >= head.turn_number,
                 "Save cursor is inconsistent with its history head.",
             )
-        if row.memory_policy_id is not None:
-            _require(row.memory_policy_id in policies, "Save policy reference is invalid.")
         if row.last_compacted_batch_id is not None:
             _require(
                 batches[row.last_compacted_batch_id].policy_id == row.memory_policy_id,
@@ -181,12 +168,7 @@ def validate_memory(archive: CampaignExport) -> None:
             _require(
                 row.last_compacted_batch_id is not None, "Save checkpoint has no compacted prefix."
             )
-            cursor: UUID | None = row.last_compacted_batch_id
-            save_prefix: set[UUID] = set()
-            while cursor is not None:
-                _require(cursor not in save_prefix, "Save batch prefix contains a cycle.")
-                save_prefix.add(cursor)
-                cursor = batches[cursor].previous_batch_id
+            save_prefix = set(_ancestors(batch_parents, row.last_compacted_batch_id))
             _require(
                 checkpoint.batch_id in save_prefix,
                 "Save checkpoint is outside its compacted prefix.",
@@ -242,4 +224,4 @@ def validate_memory(archive: CampaignExport) -> None:
                 "Checkpoint chain is inconsistent with batch history.",
             )
 
-    validate_facts(archive, ordered_members)
+    validate_facts(archive, ordered_turns)

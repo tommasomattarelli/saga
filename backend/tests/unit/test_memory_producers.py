@@ -131,9 +131,9 @@ def test_configured_facts_policy_renders_explicit_max_and_yaml_rubric() -> None:
 
 
 def test_configured_importance_includes_central_revelations_before_action() -> None:
-    from app.memory.production_policy import configured_facts_policy
+    from app.memory.production_policy import configured_memory_policy
 
-    configured = configured_facts_policy(max_per_batch=6)
+    configured = configured_memory_policy().facts
     critical = next(level for level in configured.importance_levels if level.name == "critical")
     assert "central to an unresolved campaign mystery" in critical.criteria
     assert "before a resulting decision or action" in critical.criteria

@@ -1,5 +1,7 @@
 from pydantic import JsonValue
 
+from app.memory.job_coverage import coverage_counts
+
 
 def batch_plan(
     *,
@@ -25,12 +27,11 @@ def batch_plan(
     if batch_size < 1 or resolution_turn < 1:
         raise ValueError("B and resolution turn must be positive")
     required = raw_turns + (intermediate_limit + global_updates) * batch_size
-    completed_source_batches = max(available_turns - raw_turns, 0) // batch_size
-    intermediate_turns = intermediate_limit * batch_size
-    global_update_batches = min(
-        global_updates, max(completed_source_batches - intermediate_limit, 0)
+    _, eligible_globals = coverage_counts(
+        available_turns, raw_turns, batch_size, intermediate_limit
     )
-    global_update_turns = global_update_batches * batch_size
+    intermediate_turns = intermediate_limit * batch_size
+    global_update_turns = min(global_updates, eligible_globals) * batch_size
     global_prefix = global_update_turns
     blockers: list[JsonValue] = []
     if available_turns < required:

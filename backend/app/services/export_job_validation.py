@@ -3,6 +3,7 @@ from uuid import UUID
 
 from app.schemas.campaign_export import CampaignExport
 from app.services.export_integrity import _require, _unique
+from app.services.export_memory_validation import ordered_members
 
 
 def validate_jobs(archive: CampaignExport) -> None:
@@ -19,17 +20,7 @@ def validate_jobs(archive: CampaignExport) -> None:
         lambda attempt: (attempt.job_id, attempt.attempt_number),
         "job attempt number",
     )
-    ordered_members: dict[UUID, list[UUID]] = {}
-    for member in archive.batch_turns:
-        ordered_members.setdefault(member.batch_id, []).append(member.turn_id)
-    for batch_id in ordered_members:
-        ordered_members[batch_id] = [
-            row.turn_id
-            for row in sorted(
-                (row for row in archive.batch_turns if row.batch_id == batch_id),
-                key=lambda row: row.ordinal,
-            )
-        ]
+    ordered = ordered_members(archive.batch_turns)
     for generation in archive.generations:
         _require(
             generation.policy_id in policies
@@ -85,7 +76,7 @@ def validate_jobs(archive: CampaignExport) -> None:
                 "Global job is missing its checkpoint predecessor.",
             )
         _require(
-            job.source_turn_ids == ordered_members.get(job.batch_id, []),
+            job.source_turn_ids == [row.turn_id for row in ordered.get(job.batch_id, [])],
             "Job source membership is inconsistent.",
         )
         _require(

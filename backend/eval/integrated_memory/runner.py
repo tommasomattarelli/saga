@@ -4,7 +4,7 @@ from pathlib import Path
 from uuid import UUID
 
 from eval.integrated_memory.plan import IntegratedPlan, validate_plan, write_plan
-from eval.memory.run_lock import evidence_run_lock
+from eval.support.run_lock import evidence_run_lock
 
 
 async def run_plan(

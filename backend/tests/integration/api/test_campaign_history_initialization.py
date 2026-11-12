@@ -39,3 +39,5 @@ async def test_new_campaign_gets_immutable_policy_root_and_empty_memory_state(
     assert state.context_epoch == campaign.context_epoch == 0
     assert state.global_checkpoint_id is None
     assert state.last_compacted_batch_id is None
+    assert campaign.active_head_turn_id is None
+    assert campaign.fork_on_next_action is False

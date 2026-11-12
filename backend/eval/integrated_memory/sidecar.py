@@ -1,21 +1,16 @@
 from pathlib import Path
-from time import monotonic
 from uuid import UUID
-
-from sqlalchemy import select
 
 from app import dependencies
 from app.ai.generation_attempt import single_generation_attempt
 from app.ai.generation_context import generation_context
 from app.memory.batch_input import load_batch_input
 from app.memory.producer_prompts import prepare_request
-from app.memory.producers import generate_memory
-from app.models.memory_batch import MemoryBatch
-from app.models.turn import Turn
-from eval.integrated_memory.evidence_io import append_json, provider_evidence
-from eval.integrated_memory.job_driver import GenerationResolver
+from eval.integrated_memory.evidence_io import append_json
+from eval.integrated_memory.job_driver import GenerationResolver, record_generation
 from eval.integrated_memory.ledger import AttemptScope, IntegratedLedger
 from eval.integrated_memory.plan import IntegratedPlan
+from eval.integrated_memory.source_evidence import ordered_batch_ids
 from eval.support.provider_trace import ProviderTrace
 
 
@@ -27,15 +22,7 @@ async def run_sidecar(
     directory: Path,
     resolve: GenerationResolver,
 ) -> None:
-    async with dependencies.async_session() as db:
-        batch_ids = tuple(
-            await db.scalars(
-                select(MemoryBatch.id)
-                .join(Turn, Turn.id == MemoryBatch.source_head_turn_id)
-                .where(MemoryBatch.campaign_id == campaign_id)
-                .order_by(Turn.history_depth)
-            )
-        )
+    batch_ids = await ordered_batch_ids(campaign_id)
     if len(batch_ids) != plan.batch_count:
         raise ValueError("sidecar batch count differs from the integrated replay")
     for batch_id in batch_ids:
@@ -65,31 +52,9 @@ async def run_sidecar(
                 "user_prompt": request.user_prompt,
             },
         )
-        started = monotonic()
-        try:
-            with (
-                ledger.scope(scope),
-                single_generation_attempt(),
-                generation_context((trace, config)),
-            ):
-                result = await generate_memory(request)
-        except BaseException:
-            append_json(
-                directory / "sidecar-outputs.jsonl",
-                {
-                    "scope": scope.model_dump(mode="json"),
-                    "raw": str(trace.response.get("text", "")),
-                    "valid": False,
-                    **provider_evidence(trace, monotonic() - started),
-                },
-            )
-            raise
-        append_json(
-            directory / "sidecar-outputs.jsonl",
-            {
-                "scope": scope.model_dump(mode="json"),
-                "raw": result.raw,
-                "valid": True,
-                **provider_evidence(trace, monotonic() - started),
-            },
-        )
+        with (
+            ledger.scope(scope),
+            single_generation_attempt(),
+            generation_context((trace, config)),
+        ):
+            await record_generation(request, scope, trace, directory / "sidecar-outputs.jsonl")

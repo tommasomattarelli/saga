@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from collections.abc import Iterator
@@ -181,6 +180,14 @@ class IntegratedLedger:
     def current_scope(self) -> AttemptScope | None:
         return self._scope
 
+    def require_scope(self, *, provider: str, model: str) -> AttemptScope:
+        scope = self._scope
+        if scope is None or scope.provider != provider or scope.model != model:
+            raise LedgerBlockedError(
+                "request provider/model do not match the active attempt scope"
+            )
+        return scope
+
     def reserve(self, kind: Kind, metadata: dict[str, str], *, texts: int) -> None:
         self.ensure_healthy()
         if (
@@ -202,15 +209,11 @@ class IntegratedLedger:
             raise LedgerBlockedError("integrated evaluation request budget exhausted")
         scope = self._scope
         scoped = scope.model_dump(mode="json") if scope else {}
-        if scope is not None and metadata.get("model") != scope.model:
-            raise LedgerBlockedError(
-                "request provider/model do not match the active attempt scope"
-            )
-        if scope is not None and metadata.get("provider") == "local":
-            metadata = {**metadata, "provider": scope.provider}
-        elif scope is not None and metadata.get("provider") != scope.provider:
-            raise LedgerBlockedError(
-                "request provider/model do not match the active attempt scope"
+        if scope is not None:
+            if metadata.get("provider") == "local":
+                metadata = {**metadata, "provider": scope.provider}
+            self.require_scope(
+                provider=metadata.get("provider", ""), model=metadata.get("model", "")
             )
         attempt_id = uuid4().hex
         merged_metadata = {
@@ -264,12 +267,6 @@ class IntegratedLedger:
 
     def latch(self) -> None:
         self._blocked = True
-
-
-def content_hash(texts: list[str]) -> str:
-    return hashlib.sha256(
-        json.dumps(texts, ensure_ascii=False, separators=(",", ":")).encode()
-    ).hexdigest()
 
 
 def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:

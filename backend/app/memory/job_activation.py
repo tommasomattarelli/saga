@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.memory.batch_compatibility import batch_is_compatible
-from app.memory.job_coverage import load_coverage
+from app.memory.job_coverage import coverage_counts, load_coverage
 from app.models.campaign import Campaign
 from app.models.history import MemoryPolicy
 from app.models.memory_batch import MemoryBatch
@@ -32,7 +32,12 @@ async def activate_artifact(
         return False
     coverage = await load_coverage(db, campaign, state, policy.payload)
     total_turns = len(coverage.raw_turn_ids) + len(coverage.batches) * policy.payload.batch_turns
-    batch_limit = max(total_turns - policy.payload.raw_turns, 0) // policy.payload.batch_turns
+    batch_limit, global_limit = coverage_counts(
+        total_turns,
+        policy.payload.raw_turns,
+        policy.payload.batch_turns,
+        policy.payload.intermediate_limit,
+    )
     if checkpoint is not None:
         if (
             checkpoint.campaign_id != campaign.id
@@ -43,7 +48,6 @@ async def activate_artifact(
             or coverage.batches[coverage.global_batches].id != batch.id
         ):
             return False
-        global_limit = max(batch_limit - policy.payload.intermediate_limit, 0)
         if coverage.global_batches + 1 > global_limit:
             return False
         state.global_checkpoint_id = checkpoint.id

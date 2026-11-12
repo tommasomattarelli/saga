@@ -1,7 +1,7 @@
 from xml.etree import ElementTree
 
+from app.memory.context_snapshot import render_global_sections
 from app.memory.document_contracts import GlobalPayload
-from app.memory.global_render import render_global_sections
 
 
 def test_global_sections_preserve_order_escape_text_and_keep_empty_sections() -> None:
