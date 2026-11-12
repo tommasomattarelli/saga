@@ -184,6 +184,14 @@ actual attempts; every retry reserves another request and its submitted texts.
 Choose separate generation-request, embedding-request and embedding-text-attempt
 caps explicitly. Caps bound provider attempts, not currency or provider-side routing.
 
+Preparation may reduce the frozen embedding retry count with
+`--embedding-max-retries`; it cannot exceed the configured policy, change the
+personal profile or change production defaults. The owner-selected preparation
+uses one retry and caps of 6 embedding requests / 132 submitted texts, plus
+42 generation requests including the sidecar. Generation must stay free;
+OpenRouter `openai/text-embedding-3-small` is separately allowed to incur its
+small embedding cost. These selections are not permission to execute a run.
+
 The run directory is locked, and reservations are persisted before each provider
 attempt. Failed, cancelled, interrupted or incompatible evidence cannot silently
 resume or reset its budget. Re-running an existing integrated run requires manual

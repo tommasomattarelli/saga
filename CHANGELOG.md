@@ -13,6 +13,13 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ## [Unreleased]
 
+### Highlights
+
+- [Gameplay] Retried actions preserve their request identity and reject stale histories instead of applying a second turn.
+- [UI] Action failures expose a memory-retry banner while preserving the pending action and its identity.
+- [World & DM] Experimental batched memory retains turn-level provenance and assembles context only from the selected history.
+- [Infra] Campaign exports include a versioned archive of histories and memory records with an offline integrity validator.
+
 ### Internal
 
 - Reorganized backend evaluation tools and tests, indexed their guide, and clarified harness-independent skills and owner authorization for external evaluation calls.
@@ -31,9 +38,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Delivered versioned campaign archives with full memory provenance, offline reference validation, and recoverable save/retry behavior under repeatable-read isolation (ADR 0020 S5).
 - Retired legacy memory producers, harnesses, unused fixtures, TURN indexing and obsolete settings while preserving historical archives (ADR 0020 S6).
 - Prepared guarded integrated memory evaluation with persisted-source provenance, bounded generation/embedding ledgers and offline manifests, leaving live runs and production decisions owner-gated (ADR 0020 S6).
-- Removed unread integrated-evaluation helpers and the duplicated source-evidence batch query, leaving one ordered-batch loader for evidence and sidecar runs (ADR 0020 S6).
-- Shared compaction targets and cached evidence fingerprints, centralized attempt-scope checks, and froze eval-only embedding retry reductions without changing production defaults (ADR 0020 S6).
-- Removed test-only memory entry points, merged single-caller helpers and dropped redundant indexes while retaining JSON revalidation and real-database initialization coverage (ADR 0020 S6).
-- Consolidated archive ownership, ordered batch membership and ancestry checks while preserving restore invariants and validating cross-campaign corruption against real pipeline exports (ADR 0020 S6).
-- Removed overlapping unit coverage after porting unique operation assertions into real turn-path tests, retaining distinct fencing, recall-ordering and restore windows (ADR 0020 S6).
-- Retired the isolated producer-evaluation CLI and tests while preserving integrated checks, shared evidence helpers, authored scenario inputs and explicit legacy capture (ADR 0020 S6).
+- Simplified ADR 0020 S6 memory and archive paths, retired the isolated producer harness and overlapping coverage, and bounded offline evaluation preparation without authorizing live calls.
