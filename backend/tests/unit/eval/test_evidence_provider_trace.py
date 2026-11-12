@@ -7,7 +7,7 @@ from app.ai.providers.usage import current_correlation
 
 
 @pytest.mark.asyncio
-async def test_provider_trace_supports_memory_diagnostic_roles_and_keeps_default_actor() -> None:
+async def test_provider_trace_role_override_keeps_default_actor() -> None:
     observed: list[str | None] = []
 
     async def generate(**_request: object) -> str:
@@ -17,5 +17,5 @@ async def test_provider_trace_supports_memory_diagnostic_roles_and_keeps_default
     provider = Mock()
     provider.generate = AsyncMock(side_effect=generate)
     await ProviderTrace(provider).generate("system", [], "model")
-    await ProviderTrace(provider, role="memory_global").generate("system", [], "model")
-    assert observed == ["actor", "memory_global"]
+    await ProviderTrace(provider, role="memory_unified").generate("system", [], "model")
+    assert observed == ["actor", "memory_unified"]

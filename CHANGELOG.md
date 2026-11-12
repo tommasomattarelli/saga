@@ -36,3 +36,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Removed test-only memory entry points, merged single-caller helpers and dropped redundant indexes while retaining JSON revalidation and real-database initialization coverage (ADR 0020 S6).
 - Consolidated archive ownership, ordered batch membership and ancestry checks while preserving restore invariants and validating cross-campaign corruption against real pipeline exports (ADR 0020 S6).
 - Removed overlapping unit coverage after porting unique operation assertions into real turn-path tests, retaining distinct fencing, recall-ordering and restore windows (ADR 0020 S6).
+- Retired the isolated producer-evaluation CLI and tests while preserving integrated checks, shared evidence helpers, authored scenario inputs and explicit legacy capture (ADR 0020 S6).

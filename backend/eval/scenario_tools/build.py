@@ -2,7 +2,8 @@
 
 This offline builder instantiates the world, replays each turn's typed updates
 through the real handlers, and emits world state and message history. Generated
-memory context is left empty; integrated S6 preparation is not yet available.
+memory context is left empty; integrated S6 evidence preparation lives in
+`eval/integrated_memory`.
 
 Replaying through `apply_typed_updates` rather than hand-authoring the end state
 is the point: every state a fixture can encode is one the engine can actually

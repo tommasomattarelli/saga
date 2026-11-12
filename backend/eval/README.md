@@ -12,9 +12,8 @@ commands below from `backend/`.
 | `eval/probes/` | Reusable checks and bounded actor probes |
 | `eval/scenario_tools/` | Scenario loading and offline transcript build |
 | `eval/smoke/` | Per-model smoke runner |
-| `eval/support/` | Request ledger, provider calls, tracing, affinity and usage reports |
+| `eval/support/` | Request ledger, provider calls, tracing, affinity, run lock and usage reports |
 | `eval/cache/` | Separate OpenRouter cache diagnostic |
-| `eval/memory/` | Offline manifests, guarded producer comparison and human-review reports |
 | `eval/integrated_memory/` | Guarded API-to-DB memory replay, persisted-source evidence and offline run preparation |
 | `eval/memory_scenarios/` | Controlled memory sources replayed through real operation handlers |
 | `eval/memory_capture.py` | Read-only capture of unambiguous legacy campaign transcripts |
@@ -40,19 +39,20 @@ for state without a typed replay handler, such as player position and node
 status. Captured campaign data must be anonymized before it is committed.
 The old context-capture CLI has been retired with the derive CLI; no integrated
 context-capture workflow is currently available. `eval.memory_capture` remains a
-separate read-only source capture for the producer comparison below.
+separate read-only source capture for the archived ADR 0020 S3 dataset below.
 
-Legacy generated `gold`, `bloat` and `contradiction` fixtures and the old
-capture/derivation CLIs are retired. Authored transcripts remain offline builder
-inputs, not reviewed saturated-memory evidence. Integrated S6 preparation is
-described separately below; preparation is not live authorization or quality evidence.
+Legacy generated `gold`, `bloat` and `contradiction` built fixtures and the old
+capture/derivation CLIs are retired; the authored gold transcript and its
+overlays remain offline builder inputs. Authored transcripts are not reviewed
+saturated-memory evidence. Integrated S6 preparation is described separately
+below; preparation is not live authorization or quality evidence.
 
 ## Offline preparation
 
 These commands do not make generation requests. `build --check-only` validates
-an authored transcript without writing a fixture. The memory producer comparison
-and controlled-source builder are available separately below, alongside integrated
-S6 preparation.
+an authored transcript without writing a fixture. The controlled-source builder
+remains available below, alongside integrated S6 preparation; the S3 producer
+comparison is archived.
 
 ```bash
 uv run python -m eval.scenario_tools.build gold --check-only
@@ -102,14 +102,18 @@ continuity but do not isolate provider caches or guarantee cache hits. Reports
 must be reviewed for semantic quality; lexical and language heuristics are not
 acceptance evidence by themselves.
 
-## Memory producer evaluation (ADR 0020 S3)
+## Memory producer evaluation (ADR 0020 S3) — archived
 
-These tools do not activate the new memory pipeline in the game. S3 compares one
+The isolated-producer comparison was retired by ADR 0020 S6. It compared one
 combined summary/facts request against two specialist requests over identical
-canonical batch sources. A separate global chain consumes the original batches
-and its preceding checkpoint, never the intermediate summaries.
+canonical batch sources; a separate global chain consumed the original batches
+and its preceding checkpoint, never the intermediate summaries. The `eval.memory`
+harness, its prepare/run/report CLI and the comparison manifests are no longer in
+the tree; their evidence stays on disk and the code remains in git history. No
+standalone producer-comparison CLI remains; the integrated harness below is
+the memory evaluation path, including its optional combined-request sidecar.
 
-Prepare a controlled, explicitly synthetic source offline:
+The controlled, explicitly synthetic source builder remains available offline:
 
 ```bash
 uv run python -m eval.memory_scenarios.build \
@@ -137,57 +141,10 @@ Capture requires `REPEATABLE READ READ ONLY`, rejects ambiguous or history-aware
 sources, preserves empty narration, and marks old operations as unrecorded rather
 than reconstructing them from UI events. Never commit private campaign text.
 
-Choose explicit fact/global limits with the owner. Build the fact policy using
-`configured_facts_policy(max_per_batch=...)` so the configured importance rubric
-feeds both prompt and validation; serialize it as JSON. The global policy is
-`{"target_words": ...}`. Neither file selects production defaults.
-
-```bash
-uv run python -m eval.memory.cli --prepare \
-  --sources <source-directory>/batches.json \
-  --facts-policy <facts-policy.json> --global-policy <global-policy.json> \
-  --language <campaign-language> --model <openrouter-model-id> \
-  --session-scope <stable-evaluation-scope> \
-  --repetitions <repetitions> --global-count <J> --output <new-evidence-directory>
-```
-
-`--prepare` and `--dry-run` write offline evidence without resolving the owner's
-profile or contacting a provider/catalog. The manifest freezes sources, policies,
-instructions, producer identity and output cap. Its generation-request ceiling is
-`models × repetitions × (3 × batches + global_updates)`; failed attempts consume
-that ceiling too. No embeddings, DM/actor generation or judge-model calls belong
-to this comparison. Size reports distinguish characters/bytes from unavailable
-token counts; local estimates are never reported as provider-billed usage.
-
-Reuse the same explicit `--session-scope` across blocks of one evaluation. Each
-model gets one stable `x-session-id` across all roles, batches, repetitions and
-manifests in that scope; another model or evaluation scope gets a different ID.
-The shared affinity helper binds the normal SAGA provider, and request ledgers
-record the header before I/O. Session affinity does not guarantee cache hits.
-Historical manifests without a scope remain readable offline, not executable.
-
-Models run concurrently in independent workers, with one request at a time per
-model and a shared free-tier limiter. A provider failure stops new requests while
-already-inflight calls finish and are recorded; no automatic retry is introduced.
-
-Regenerate a saved report offline, including after producer-code changes:
-
-```bash
-uv run python -m eval.memory.report --output <evidence-directory>
-```
-
-This verifies saved manifest integrity without resolving a profile or generating
-new output. Input-size bytes describe the internal generation-API envelope,
-not an exact provider wire format. Worked examples are illustrative, not batch
-evidence; the combined example is composed from the same specialist outputs.
-
-**Stop after preparation.** A live run requires explicit owner approval of that
-manifest and budget. Only then may the same command use `--run --authorized
---user <owner-uuid>`; paid models additionally require an explicit allowlist.
-Interrupted attempts require review, not automatic replay. Evaluate summary,
-facts and global quality separately; a valid summary does not rescue failed
-facts. Keep human notes separate from regenerable reports. Winning variant,
-numeric defaults and the eventual integrated S6 evaluation remain owner gates.
+The retired comparison also owned its own fact/global policy selection, session
+scope, concurrent workers and human-review report; those are historical detail,
+not usable tooling. The integrated harness freezes its own manifest and evidence
+contracts instead.
 
 ## Integrated memory evaluation (ADR 0020 S6)
 
