@@ -15,6 +15,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Highlights
 
+- [UI] Generation settings expose independent format-fallback choices without carrying saved consent to another destination (ADR 0021).
 - [Gameplay] Retried actions preserve their request identity and reject stale histories instead of applying a second turn.
 - [UI] Action failures expose a memory-retry banner while preserving the pending action and its identity.
 - [World & DM] Experimental batched memory retains turn-level provenance and assembles context only from the selected history.
