@@ -6,8 +6,12 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 from app.ai.providers.schemas import AgentResponse
+
+if TYPE_CHECKING:
+    from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
 
 _llm_io = logging.getLogger("llm_io")
 
@@ -48,6 +52,9 @@ class AIProvider(ABC):
     ) -> AgentResponse:
         """Generate a response with tool-calling support."""
         raise NotImplementedError(f"{self.__class__.__name__} does not support tool calling")
+
+    async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
+        raise NotImplementedError(f"{self.__class__.__name__} does not support typed generation")
 
 
 async def logged_generate(

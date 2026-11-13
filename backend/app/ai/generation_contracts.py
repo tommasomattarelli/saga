@@ -133,6 +133,7 @@ class GenerationRequest:
         output_limit: OutputLimit,
         tool_declarations: list[dict[str, object]] | None = None,
         wire_model: type[BaseModel] | None = None,
+        wire_schema: dict[str, JsonValue] | None = None,
         effective_schema: dict[str, JsonValue] | None = None,
         format_mode: FormatMode | None = None,
         allow_json_mode_fallback: bool = False,
@@ -145,9 +146,19 @@ class GenerationRequest:
         tools_json = _canonical_json(
             _copy_json([] if tool_declarations is None else tool_declarations)
         )
-        selected_wire_model = wire_model or contract.model_type
-        wire_schema_json = _canonical_json(selected_wire_model.model_json_schema())
         selected_schema = contract.schema if effective_schema is None else effective_schema
+        if wire_schema is not None:
+            selected_wire_schema = wire_schema
+        elif wire_model is not None:
+            if selected_schema != contract.schema:
+                raise ValueError(
+                    "An effective wire schema is required when a wire model and enriched "
+                    "canonical schema differ."
+                )
+            selected_wire_schema = wire_model.model_json_schema()
+        else:
+            selected_wire_schema = selected_schema
+        wire_schema_json = _canonical_json(_copy_json(selected_wire_schema))
         effective_schema_json = _canonical_json(selected_schema)
         return cls(
             system_prompt=system_prompt,

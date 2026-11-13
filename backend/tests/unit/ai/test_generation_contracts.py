@@ -98,6 +98,7 @@ def make_request(**changes: object) -> GenerationRequest:
         output_limit=cast(OutputLimit, values["output_limit"]),
         tool_declarations=cast(list[dict[str, object]] | None, values.get("tool_declarations")),
         wire_model=cast(type[BaseModel] | None, values.get("wire_model")),
+        wire_schema=cast(dict[str, JsonValue] | None, values.get("wire_schema")),
         effective_schema=cast(dict[str, JsonValue] | None, values.get("effective_schema")),
     )
 
@@ -262,6 +263,45 @@ def test_request_binds_provider_inputs_and_derives_prefix_hash() -> None:
     assert request.identity.tool_declarations_hash != make_identity().tool_declarations_hash
     assert request.canonical_schema == effective_schema
     assert request.identity.effective_schema_hash != make_identity().effective_schema_hash
+
+
+def test_request_accepts_an_effective_wire_schema_and_hashes_it() -> None:
+    effective_schema: dict[str, JsonValue] = {
+        "type": "object",
+        "properties": {"result": {"type": "string", "enum": ["approved"]}},
+        "required": ["result"],
+        "additionalProperties": False,
+    }
+    request = make_request(
+        wire_model=OtherWirePayload,
+        effective_schema=effective_schema,
+        wire_schema=effective_schema,
+    )
+    assert request.wire_schema == effective_schema
+    assert request.canonical_schema == effective_schema
+    assert request.identity.wire_schema_hash != make_identity().wire_schema_hash
+
+
+def test_policy_enriched_schema_is_the_default_wire_schema_without_a_wire_model() -> None:
+    effective_schema: dict[str, JsonValue] = {
+        "type": "object",
+        "properties": {"result": {"type": "string", "enum": ["approved"]}},
+        "required": ["result"],
+        "additionalProperties": False,
+    }
+    request = make_request(effective_schema=effective_schema)
+    assert request.wire_schema == effective_schema
+
+
+def test_policy_enriched_canonical_schema_requires_explicit_wire_encoding() -> None:
+    effective_schema: dict[str, JsonValue] = {
+        "type": "object",
+        "properties": {"result": {"type": "string", "enum": ["approved"]}},
+        "required": ["result"],
+        "additionalProperties": False,
+    }
+    with pytest.raises(ValueError, match="effective wire schema"):
+        make_request(wire_model=OtherWirePayload, effective_schema=effective_schema)
 
 
 def test_request_identity_is_derived_from_frozen_request_after_replace() -> None:
