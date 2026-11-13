@@ -25,6 +25,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 - Added destination-bound format fallback settings with strict boolean overrides, opaque HMAC identities and a forward profile migration (ADR 0021).
 - Extended owner-controlled workflow scope extensions to automatic isolated worktrees and per-worktree receipts, with fresh independent correctness and slop review before every commit.
+- Added cumulative correction requests with quoted failed outputs and schema-derived, redacted validation guidance (ADR 0021).
 - Added strict response validation with exact JSON-fence normalization and schema-aware diagnostics that redact untrusted field paths (ADR 0021).
 - Added immutable generation requests, derived execution identities and lossless raw receipts with explicit output limits and signature snapshots (ADR 0021).
 - Added typed OpenAI generation with faithful schema modes, lossless receipts, output caps and zero SDK retries (ADR 0021).

@@ -4,7 +4,12 @@ import pytest
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.ai.response_contracts import ResponseContract
-from app.ai.response_validation import Normalization, ResponseValidationError, validate_response
+from app.ai.response_validation import (
+    DiagnosticCode,
+    Normalization,
+    ResponseValidationError,
+    validate_response,
+)
 
 
 class Detail(BaseModel):
@@ -68,9 +73,18 @@ def test_schema_failure_is_not_retried_as_a_wrapper_parse_failure() -> None:
         validate_response('{"text":"safe","details":[{"count":"2"}]}', contract())
 
     assert raised.value.normalization is Normalization.NONE
-    assert raised.value.diagnostics[0].code == "int_type"
+    assert raised.value.diagnostics[0].code == "expected_integer"
     assert raised.value.diagnostics[0].path == ("details", 0, "count")
     assert raised.value.__context__ is None
+
+
+def test_pydantic_numeric_constraint_maps_to_stable_saga_diagnostic() -> None:
+    with pytest.raises(ResponseValidationError) as raised:
+        validate_response('{"text":"safe","details":[{"count":-1}]}', contract())
+
+    diagnostic = raised.value.diagnostics[0]
+    assert diagnostic.code is DiagnosticCode.BELOW_MINIMUM
+    assert diagnostic.path == ("details", 0, "count")
 
 
 def test_untrusted_extra_field_name_is_not_exposed_in_diagnostics() -> None:
@@ -81,7 +95,7 @@ def test_untrusted_extra_field_name_is_not_exposed_in_diagnostics() -> None:
         validate_response(raw, contract())
 
     diagnostic = raised.value.diagnostics[0]
-    assert diagnostic.code == "extra_forbidden"
+    assert diagnostic.code == "unexpected_field"
     assert diagnostic.path == ("<unknown>",)
     assert secret_key not in str(diagnostic)
     assert "secret-value" not in str(diagnostic)
@@ -94,7 +108,7 @@ def test_fenced_schema_failure_reports_provenance_and_safe_path() -> None:
         validate_response(raw, contract())
 
     assert raised.value.normalization is Normalization.JSON_FENCE_V1
-    assert raised.value.diagnostics[0].code == "int_type"
+    assert raised.value.diagnostics[0].code == "expected_integer"
     assert raised.value.diagnostics[0].path == ("details", 0, "count")
 
 

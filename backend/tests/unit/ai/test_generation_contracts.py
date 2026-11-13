@@ -322,6 +322,77 @@ def test_request_identity_is_derived_from_frozen_request_after_replace() -> None
     assert base.identity.logical_result_id == "result-1"
 
 
+def test_derived_request_changes_only_messages_and_explicit_format_mode() -> None:
+    base = GenerationRequest.create(
+        "system",
+        [
+            {
+                "role": "assistant",
+                "content": None,
+                TEXT_SIGNATURE_KEY: b"google-root-signature",
+                TOOL_CALL_SIGNATURES_KEY: {"call-2": b"sig-2", "call-1": b"sig-1"},
+                "tool_calls": [
+                    {"id": "call-2", "function": {"arguments": '{"z":1,"a":2}'}},
+                    {"id": "call-1", "function": {"arguments": "{malformed"}},
+                ],
+            },
+            {"role": "user", "content": "original"},
+        ],
+        contract=ResponseContract("payload", "v1", Payload),
+        provider="google",
+        model="model-a",
+        destination_fingerprint="destination-a",
+        wire_model=WirePayload,
+        wire_schema=WirePayload.model_json_schema(),
+        effective_schema={
+            "type": "object",
+            "properties": {"result": {"type": "string"}, "policy": {"const": "frozen"}},
+        },
+        role="dm_response",
+        logical_result_id="result-1",
+        output_limit=OutputLimit(60000),
+        allow_json_mode_fallback=True,
+        allow_prompt_only_fallback=True,
+        session_affinity="session-1",
+    )
+    original_messages = base.messages
+    messages: list[dict[str, object]] = [
+        *original_messages,
+        {"role": "user", "content": "correction"},
+    ]
+
+    derived = base.derive(messages=messages)
+    json_mode = base.derive(messages=messages, format_mode=FormatMode.JSON_MODE)
+
+    assert base.messages == original_messages
+    assert derived.messages == messages
+    assert derived.system_prompt == base.system_prompt
+    assert derived.identity.digest != base.identity.digest
+    assert derived.identity.format_mode is base.identity.format_mode
+    assert derived.identity.provider == base.identity.provider
+    assert derived.identity.model == base.identity.model
+    assert derived.identity.output_limit == base.identity.output_limit
+    assert derived.wire_schema == base.wire_schema
+    assert derived.canonical_schema == base.canonical_schema
+    assert derived.identity.allow_json_mode_fallback
+    assert derived.identity.allow_prompt_only_fallback
+    assert derived.identity.session_affinity == "session-1"
+    assert json_mode.identity.format_mode is FormatMode.JSON_MODE
+    assert json_mode.identity.digest != derived.identity.digest
+    assert base.identity.format_mode is FormatMode.STRICT_NATIVE
+    assert base.messages[0][TEXT_SIGNATURE_KEY] == b"google-root-signature"
+    assert cast(dict[str, bytes], base.messages[0][TOOL_CALL_SIGNATURES_KEY]) == {
+        "call-2": b"sig-2",
+        "call-1": b"sig-1",
+    }
+    assert cast(list[dict[str, object]], base.messages[0]["tool_calls"])[0]["id"] == "call-2"
+
+    with pytest.raises(TypeError):
+        cast(Callable[..., GenerationRequest], base.derive)(messages=messages, provider="openai")
+    with pytest.raises(ValueError, match="not authorized"):
+        make_request().derive(messages=messages, format_mode=FormatMode.JSON_MODE)
+
+
 def test_request_requires_explicit_result_identity_and_output_limit() -> None:
     with pytest.raises(TypeError):
         cast(Callable[..., GenerationRequest], GenerationRequest.create)(
