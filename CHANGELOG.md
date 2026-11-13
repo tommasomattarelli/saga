@@ -22,6 +22,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Added lossless, Pydantic-derived wire DTOs for NPC update and psychology maps, preserving canonical validation and rejecting duplicate entries (ADR 0021).
 - Added a shared strict response contract and canonical schema snapshots, reused by memory validation without changing prompts or contextual checks (ADR 0021).
 - Recorded Proposed ADR 0021 for unified structured generation, bounded recovery and durable memory candidates, replacing ADR 0020's no-repair rule without authorizing live evaluation.
 - Reorganized backend evaluation tools and tests, indexed their guide, and clarified harness-independent skills and owner authorization for external evaluation calls.
