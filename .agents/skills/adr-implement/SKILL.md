@@ -59,13 +59,22 @@ user-configured options for each run. Do not hardcode agent identifiers,
 model/provider names, or proprietary effort labels. Surface actual selections
 through the workflow controller; never silently substitute a default.
 
-Use adaptive, bounded parallelism: start with two concurrent writers; allow up
-to three only for genuinely disjoint scopes and within the limit approved for
-this run. Mapping and review remain read-only. Serialize migrations and
-database tests unless they use genuinely disposable, isolated infrastructure.
-Before any commit or hook, freeze every writer and wait for all work to finish;
-hooks may run the whole unit collection even when implementation tasks appeared
-independent.
+Use adaptive, bounded parallelism within each worktree: start with two concurrent
+writers; allow up to three only for genuinely disjoint scopes and within the
+limit approved for this run. Mapping and review remain read-only. Serialize
+migrations and database tests unless they use genuinely disposable, isolated
+infrastructure.
+
+Create isolated worktrees and private controllers automatically when independently
+implementable units need separate indexes or hook barriers; do not request
+repeated owner approval for that setup. Keep dependency interfaces and file
+ownership explicit, and integrate reviewed commits through verified local
+cherry-picks without inferring push, merge, rebase, or live-run authorization.
+Before any commit or hook, freeze every writer in that worktree; hooks may run
+its whole unit collection. Unrelated isolated worktrees may continue working.
+Each worktree records its own actual checks and receipts. Correctness and slop
+must be reviewed by a fresh, independent subagent that reads the source and
+requirements; the implementer must never review or approve its own changes.
 
 Keep reviews in the conversation and use concise tool verdicts, not repository
 review reports or handoff documents. The workflow controller maintains a

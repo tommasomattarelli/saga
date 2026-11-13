@@ -129,6 +129,79 @@ export function bindPlan(root: string, session: string, input: { adr: string; br
   });
 }
 
+function validateExtensionBlock(root: string, value: unknown): Block {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("Each extension block must be an object");
+  const candidate = value as Record<string, unknown>;
+  if (typeof candidate.id !== "string" || !candidate.id.trim()) throw new Error("Block id must be a non-empty string");
+  if (!Array.isArray(candidate.paths) || !candidate.paths.length || !candidate.paths.every((file) => typeof file === "string" && file.trim())) {
+    throw new Error(`Block ${candidate.id} requires non-empty string paths`);
+  }
+  if (!Array.isArray(candidate.checks) || !candidate.checks.length || !candidate.checks.every((check) => typeof check === "string" && check.trim())) {
+    throw new Error(`Block ${candidate.id} requires non-empty string checks`);
+  }
+  const files = candidate.paths as string[];
+  const checks = candidate.checks as string[];
+  if (new Set(files).size !== files.length || new Set(checks).size !== checks.length) throw new Error(`Block ${candidate.id} paths and checks must be unique`);
+  for (const file of files) {
+    if (file.split(/[\\/]/).some((part) => !part || part === "." || part === "..")) throw new Error(`Unsafe repository path: ${file}`);
+    const full = safeRepoPath(root, file);
+    try {
+      const stat = lstatSync(full);
+      if (stat.isSymbolicLink()) throw new Error(`Block ${candidate.id} path ${file} must not be a symbolic link`);
+      if (stat.isDirectory()) throw new Error(`Block ${candidate.id} path ${file} must be a file, not a directory`);
+      if (!stat.isFile()) throw new Error(`Block ${candidate.id} path ${file} must be a file`);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  }
+  return { id: candidate.id, paths: files, checks };
+}
+
+export function extendPlan(root: string, session: string, input: unknown): Workflow {
+  if (!Array.isArray(input) || !input.length) throw new Error("Plan extension requires at least one block");
+  return updateState(root, (state, actual) => {
+    if (!state || state.session !== session) throw new Error("Only the workflow owner may extend the plan");
+    if (state.root !== actual.root || state.gitDir !== actual.gitDir) throw new Error("Workflow registry belongs to another checkout");
+    if (state.paused) throw new Error("Resume the workflow before extending its plan");
+    if (git(actual.root, "branch", "--show-current") !== state.branch) throw new Error("Current branch differs from the workflow binding");
+    if (!state.adr || !state.base || !state.boundHead) throw new Error("Workflow plan is not bound");
+    const adrPath = safeRepoPath(actual.root, state.adr.path);
+    if (lstatSync(adrPath).isSymbolicLink() || sha(readFileSync(adrPath)) !== state.adr.hash) throw new Error("Bound ADR changed; owner review is required");
+
+    const additions = input.map((value) => validateExtensionBlock(actual.root, value));
+    if (new Set(additions.map((item) => item.id)).size !== additions.length) throw new Error("Plan extension requires uniquely named blocks");
+    const nextBlocks = { ...state.blocks };
+    for (const addition of additions) {
+      const prior = state.blocks[addition.id];
+      if (!prior) {
+        for (const [otherId, other] of Object.entries(state.blocks)) {
+          if (other.writer?.state === "active" && pathsOverlap(blockPathsExcludingMetadata(addition), blockPathsExcludingMetadata(other))) {
+            throw new Error(`Block ${addition.id} overlaps active writer block ${otherId}`);
+          }
+        }
+        nextBlocks[addition.id] = { paths: addition.paths, checks: addition.checks, receipts: [] };
+        continue;
+      }
+      if (prior.writer?.state === "active") throw new Error(`Block ${addition.id} requires an inactive writer`);
+      if (!prior.paths.every((file) => addition.paths.includes(file))) throw new Error(`Block ${addition.id} scope cannot shrink`);
+      for (const [otherId, other] of Object.entries(state.blocks)) {
+        if (otherId !== addition.id && other.writer?.state === "active" && pathsOverlap(blockPathsExcludingMetadata(addition), blockPathsExcludingMetadata(other))) {
+          throw new Error(`Block ${addition.id} overlaps active writer block ${otherId}`);
+        }
+      }
+      nextBlocks[addition.id] = {
+        ...prior,
+        paths: addition.paths,
+        checks: addition.checks,
+        receipts: [],
+        review: undefined,
+      };
+    }
+    const result: Workflow = { ...state, blocks: nextBlocks };
+    return [result, result];
+  });
+}
+
 export function claimWriter(root: string, id: string, writerSession: string): void {
   updateState(root, (state) => {
     if (!state) throw new Error("Workflow is not active");

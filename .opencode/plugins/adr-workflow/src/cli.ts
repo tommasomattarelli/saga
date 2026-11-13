@@ -1,5 +1,5 @@
 import { installHooks, uninstallHooks } from "./hooks.ts";
-import { activate, bindPlan, claimWriter, completeWriter, pause, prepare, registerReview, runCheck, snapshot } from "./workflow.ts";
+import { activate, bindPlan, claimWriter, completeWriter, extendPlan, pause, prepare, registerReview, runCheck, snapshot } from "./workflow.ts";
 import { readState } from "./store.ts";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -10,6 +10,7 @@ Operations:
   activate
   status
   bind          {"adr":"docs/adr/NNNN.md","branch":"...","base":"...","blocks":[{"id":"...","paths":["..."],"checks":["..."]}]}
+  extend        [{"id":"existing-block","paths":["..."],"checks":["..."]},{"id":"new-block","paths":["..."],"checks":["..."]}]
   claim | done  {"block":"..."}
   check         {"block":"...","command":"registered exact command"}
   review        {"block":"...","correctness":"pass","slop":"pass"}
@@ -30,6 +31,7 @@ export function runCli(args: string[], cwd: string, session: string): unknown {
     case "activate": return activate(cwd, session);
     case "status": return { state: readState(cwd), snapshot: snapshot(cwd) };
     case "bind": return bindPlan(cwd, session, input as unknown as Parameters<typeof bindPlan>[2]);
+    case "extend": return extendPlan(cwd, session, JSON.parse(raw) as unknown);
     case "claim": return claimWriter(cwd, string("block"), session);
     case "done": return completeWriter(cwd, string("block"), session);
     case "check": return runCheck(cwd, session, string("block"), string("command"));
