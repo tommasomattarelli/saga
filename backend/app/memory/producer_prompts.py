@@ -3,11 +3,13 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import Literal
+from functools import lru_cache
+from typing import Literal, cast
 
 from pydantic import BaseModel, JsonValue, ValidationError
 
 from app.ai.prompts.loader import template
+from app.ai.response_contracts import ResponseContract
 from app.memory.batch_source_contracts import BatchInput
 from app.memory.document_contracts import GlobalPayload, SummaryPayload
 from app.memory.producer_contracts import (
@@ -31,6 +33,13 @@ OUTPUT_MODELS: dict[ProducerKind, type[BaseModel]] = {
 }
 
 
+@lru_cache
+def _response_contract(kind: ProducerKind) -> ResponseContract[BaseModel]:
+    return ResponseContract(
+        name=f"memory-{kind}", version=PRODUCER_VERSION, model_type=OUTPUT_MODELS[kind]
+    )
+
+
 def canonical(value: object) -> str:
     return json.dumps(
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
@@ -39,19 +48,6 @@ def canonical(value: object) -> str:
 
 def digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-
-def _unique_object(pairs: list[tuple[str, JsonValue]]) -> dict[str, JsonValue]:
-    result: dict[str, JsonValue] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError("Duplicate JSON key.")
-        result[key] = value
-    return result
-
-
-def _reject_constant(value: str) -> None:
-    raise ValueError("Invalid JSON constant.")
 
 
 @dataclass(frozen=True)
@@ -66,10 +62,7 @@ class PreparedMemoryRequest:
 
     def validate_output(self, raw: str) -> MemoryPayload:
         try:
-            data = json.loads(
-                raw, object_pairs_hook=_unique_object, parse_constant=_reject_constant
-            )
-            payload = OUTPUT_MODELS[self.kind].model_validate(data)
+            payload = _response_contract(self.kind).validate(raw)
             if isinstance(payload, FactsPayload):
                 validate_facts(payload, self.source, self.facts_policy)
         except (ValueError, ValidationError) as exc:
@@ -98,12 +91,16 @@ def prepare_request(
         raise ValueError("A global target policy is required.")
     if kind != "global" and (previous is not None or global_policy is not None):
         raise ValueError("Only global generation accepts a predecessor or target policy.")
-    schema = OUTPUT_MODELS[kind].model_json_schema()
+    schema = _response_contract(kind).schema
     if kind in {"batch", "facts"}:
-        schema["properties"]["facts"]["maxItems"] = facts_policy.max_per_batch
-        schema["$defs"]["FactImportance"]["properties"]["level"]["enum"] = [
-            level.name for level in facts_policy.importance_levels
-        ]
+        properties = cast(dict[str, dict[str, JsonValue]], schema["properties"])
+        facts = cast(dict[str, JsonValue], properties["facts"])
+        facts["maxItems"] = facts_policy.max_per_batch
+        definitions = cast(dict[str, dict[str, JsonValue]], schema["$defs"])
+        importance = cast(dict[str, JsonValue], definitions["FactImportance"])
+        importance_properties = cast(dict[str, dict[str, JsonValue]], importance["properties"])
+        level_schema = cast(dict[str, JsonValue], importance_properties["level"])
+        level_schema["enum"] = [level.name for level in facts_policy.importance_levels]
     sections = [template("memory_production", "system")]
     if kind in {"batch", "summary"}:
         sections.append(template("memory_summary", "instructions"))
