@@ -168,6 +168,8 @@ def classify_failure(signals: FailureSignals) -> FailureClassification:
             return _result(FailureAction.RETRY, error_type)
         if error_type:
             return _result(FailureAction.STOP, "unmapped_router_error")
+        if code == "429":
+            return _result(FailureAction.RATE_LIMIT, "rate_limited")
         if signals.http_status == 429:
             return _result(FailureAction.RATE_LIMIT, "rate_limited")
         if signals.http_status in {408, 502, 503}:

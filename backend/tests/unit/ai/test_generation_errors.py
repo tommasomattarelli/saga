@@ -140,6 +140,32 @@ def test_router_typed_error_classification_precedes_http_status() -> None:
     assert result.reason == "provider_overloaded"
 
 
+@pytest.mark.parametrize("code", [429, "429"])
+def test_router_code_only_rate_limit_is_classified_without_http_status(
+    code: str | int,
+) -> None:
+    result = classify_failure(
+        FailureSignals(adapter=Adapter.OPENROUTER, http_status=200, code=code)
+    )
+
+    assert result.action is FailureAction.RATE_LIMIT
+    assert result.reason == "rate_limited"
+
+
+def test_router_unknown_error_type_precedes_code_only_rate_limit() -> None:
+    result = classify_failure(
+        FailureSignals(
+            adapter=Adapter.OPENROUTER,
+            http_status=200,
+            code=429,
+            error_type="unrecognized",
+        )
+    )
+
+    assert result.action is FailureAction.STOP
+    assert result.reason == "unmapped_router_error"
+
+
 @pytest.mark.parametrize(
     ("error_type", "expected"),
     [

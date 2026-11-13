@@ -136,7 +136,9 @@ def get_provider(
             from app.config import settings
 
             _providers[cache_key] = LocalProvider(
-                base_url=base_url or settings.local_model_url, api_key=api_key
+                base_url=base_url or settings.local_model_url,
+                api_key=api_key,
+                provider_kind="local",
             )
         elif name == "openrouter":
             from app.ai.providers.local import LocalProvider
@@ -145,6 +147,7 @@ def get_provider(
             _providers[cache_key] = LocalProvider(
                 base_url="https://openrouter.ai/api/v1",
                 api_key=api_key or settings.openrouter_api_key,
+                provider_kind="openrouter",
             )
         else:
             raise ValueError(f"Unknown AI provider: {name}")
