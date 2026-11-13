@@ -96,6 +96,8 @@ YAML provides conservative defaults, not a second mandatory operator authorizati
 
 Tie the choices to the effective provider/model/endpoint fingerprint, including the resolved destination behind a local alias or instance default. A changed destination/model makes old opt-ins inactive and requires a new choice; a credential-only change does not reset format consent. Expose the two choices through the existing settings API/UI, with strict boolean validation and no credential disclosure. These are separate from server-key spending consents.
 
+**D3 note (2026-11-13, implementation; owner decision).** Format consent binds a versioned HMAC of the full effective endpoint URL, not a plain unkeyed digest, so URL query and userinfo contents participate without being persisted or disclosed. This corrects the credential-only sentence in this decision: rotating an API key in its dedicated setting leaves the fingerprint unchanged, while rotating a credential embedded in the endpoint URL or the instance identity secret changes it. Provider, model, mode and the resolved SDK default are part of the same identity; implicit and explicit forms of the same SDK default resolve identically.
+
 Fallback never bypasses local parsing, schema validation, contextual validation or bounded recovery. Never mask a malformed SAGA request or unsupported schema translation as a harmless capability fallback. No implicit model/provider/payment-policy switch.
 
 ### D4. Prompt and schema source
@@ -369,6 +371,8 @@ Closed settings decisions:
 - Tie opt-ins to a non-secret effective provider/model/endpoint fingerprint. A destination change, including a changed URL behind an alias or instance default, invalidates old format opt-ins; credential changes alone do not.
 - Expose the choices in the existing settings API and reusable profile editor. Do not disable them simply because YAML defaults are false. Preserve current credential and endpoint security validation.
 - Frozen jobs are not silently rewritten when settings change. Reject incompatible identity changes, while allowing current credential resolution under the existing security checks.
+
+**G4 note (2026-11-13, implementation; owner decision).** The credential-only sentence is corrected by the D3 note: URL-embedded credential rotation changes the keyed effective-endpoint identity and invalidates consent; rotating a dedicated API-key setting does not.
 
 Implementation surface: `backend/app/models/user.py`, `backend/app/schemas/settings.py`, `backend/app/api/settings.py`, existing frontend `settings-ai-profiles.tsx`/`settings-ai-panel.tsx`, relevant profile types/API tests, and English/Italian translations. Locate exact current frontend paths before editing.
 

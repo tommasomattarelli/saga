@@ -29,6 +29,9 @@ class ModelConfig:
     model: str
     max_tokens: int
     local_endpoint: str | None = None
+    allow_json_mode_fallback: bool = False
+    allow_prompt_only_fallback: bool = False
+    destination_fingerprint: str | None = None
 
 
 def _load_config() -> dict:
@@ -99,6 +102,9 @@ def validate_generation_config() -> None:
             problems.append("generation.max_output_tokens must be a positive integer")
         if not isinstance(generation.get("openrouter_session_affinity", True), bool):
             problems.append("generation.openrouter_session_affinity must be a boolean")
+        for name in ("allow_json_mode_fallback", "allow_prompt_only_fallback"):
+            if not isinstance(generation.get(name, False), bool):
+                problems.append(f"generation.{name} must be a boolean")
     for name, base_url in get_local_endpoints().items():
         if not base_url.startswith(("http://", "https://")):
             problems.append(f"providers.local_endpoints.{name}.base_url must be an http(s) URL")

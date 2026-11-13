@@ -20,6 +20,8 @@ generation:
     model: gemini-3.5-flash
   max_output_tokens: 60000
   openrouter_session_affinity: true # stable campaign ID for generation routing; cache hits remain best-effort
+  allow_json_mode_fallback: false
+  allow_prompt_only_fallback: false
 
 # ---------------------------------------------------------------------------
 # Providers — instance policy (ADR 0018 A3/A4/A5/A7)

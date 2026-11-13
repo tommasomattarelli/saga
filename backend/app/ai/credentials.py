@@ -19,7 +19,6 @@ from app.ai.router import (
     ModelConfig,
     get_allowed_providers,
     get_instance_default,
-    get_local_endpoints,
     get_server_key_fallback,
 )
 from app.config import settings
@@ -118,17 +117,27 @@ def resolve_generation(user: User) -> tuple[ModelConfig, str | None, str | None]
         raise ValidationError(f"Provider `{provider}` is not enabled on this instance.")
     if not model:
         raise ValidationError("Choose a generation model in settings.")
-    config = ModelConfig(provider=provider, model=model, max_tokens=default.max_tokens)
-    if provider == "local":
-        endpoint = (
-            user.generation_local_endpoint if user.generation_provider else default.local_endpoint
-        )
-        base_url = get_local_endpoints().get(endpoint or "")
-        if not base_url:
-            raise ValidationError("Choose a configured local endpoint in settings.")
-        return config, None, base_url
+    from app.ai.generation_profile import (
+        resolve_generation_destination,
+        resolve_generation_format_settings,
+    )
 
-    return config, _hosted_key(user, provider), None
+    format_settings = resolve_generation_format_settings(user)
+    destination = resolve_generation_destination(user)
+    if destination is None:
+        raise ValidationError("Choose a configured generation destination in settings.")
+    config = ModelConfig(
+        provider=destination.provider,
+        model=destination.model,
+        max_tokens=default.max_tokens,
+        allow_json_mode_fallback=format_settings.allow_json_mode_fallback,
+        allow_prompt_only_fallback=format_settings.allow_prompt_only_fallback,
+        destination_fingerprint=format_settings.destination_fingerprint,
+    )
+    if destination.provider == "local":
+        return config, None, destination.endpoint
+
+    return config, _hosted_key(user, destination.provider), None
 
 
 def _profile_space(user: User) -> EmbeddingSpace:

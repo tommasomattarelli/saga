@@ -13,6 +13,7 @@ from google.genai import types as genai_types
 from app.ai.exceptions import ContentPolicyError
 from app.ai.generation_attempt import generation_attempt_is_single
 from app.ai.providers.base import AIProvider
+from app.ai.providers.google_destination import resolve_google_destination
 from app.ai.providers.schemas import (
     TEXT_SIGNATURE_KEY,
     TOOL_CALL_SIGNATURES_KEY,
@@ -162,7 +163,11 @@ class GoogleProvider(AIProvider):
     """Google Gemini API provider."""
 
     def __init__(self, api_key: str | None = None) -> None:
-        self.client = genai.Client(api_key=api_key or settings.google_ai_api_key)
+        destination = resolve_google_destination()
+        self.client = genai.Client(
+            api_key=api_key or settings.google_ai_api_key,
+            http_options=destination.http_options(),
+        )
 
     async def generate(
         self,

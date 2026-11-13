@@ -36,6 +36,17 @@ selection. Prompt content, state refresh, summaries and tool availability are no
 changed to improve cache reuse. Evaluation has its own suite/model affinity;
 see [`backend/eval/README.md`](../backend/eval/README.md#session-affinity).
 
+## Structured generation fallbacks
+
+`generation.allow_json_mode_fallback` and
+`generation.allow_prompt_only_fallback` default to `false`, keeping strict native
+structured output preferred. A user may independently opt in to either fallback
+in settings. Choices are bound to a non-secret fingerprint of the effective
+provider, model and destination. Endpoint or model changes, including rotation of
+credentials embedded in the endpoint URL, invalidate them; rotating a dedicated
+API key does not. Rotating the instance identity secret also invalidates them.
+These defaults are not an operator veto.
+
 ## Memory production and action deadlines
 
 `memory.production` is validated and copied into an immutable `MemoryPolicy` when
