@@ -67,7 +67,7 @@ async def invoke_single_npc(
         with usage_scope(role="actor", npc_name=npc_name):
             raw = await logged_generate(
                 provider,
-                caller=f"npc_director:{npc_name}",
+                caller="npc_director",
                 system_prompt=build_npc_system_prompt(psychology, language),
                 messages=[{"role": "user", "content": prompt}],
                 model=model_config.model,
@@ -86,7 +86,7 @@ async def invoke_single_npc(
         return parse_actor_result(npc_name, data, get_gameplay_config().npc_max_lines)
 
     except Exception:
-        logger.warning("npc_invoke_failed", npc_name=npc_name, exc_info=True)
+        logger.warning("npc_invoke_failed")
         return NPCFailure(npc_name)
 
 
@@ -129,5 +129,5 @@ async def invoke_npcs_parallel(
         else:
             dialogues.append(NPCFailure(actor.npc_name))
 
-    logger.info("npcs_invoked", count=len(dialogues), names=[d.npc_name for d in dialogues])
+    logger.info("npcs_invoked", count=len(dialogues))
     return dialogues

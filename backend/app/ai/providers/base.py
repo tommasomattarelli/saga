@@ -67,21 +67,19 @@ async def logged_generate(
     max_tokens: int = 2000,
     json_mode: bool = False,
 ) -> str:
-    """Wrap provider.generate() with full I/O logging to llm_io.log."""
+    """Wrap provider.generate() with safe metadata logging."""
     _llm_io.info(
         json.dumps(
             {
-                "direction": "input",
+                "event": "generation_input",
                 "caller": caller,
                 "model": model,
-                "system_prompt": system_prompt,
-                "messages": messages,
+                "message_count": len(messages),
+                "max_tokens": max_tokens,
+                "json_mode": json_mode,
             },
             ensure_ascii=False,
-            indent=2,
         )
-        + "\n"
-        + ("─" * 80)
     )
 
     result = await provider.generate(
@@ -95,15 +93,12 @@ async def logged_generate(
     _llm_io.info(
         json.dumps(
             {
-                "direction": "output",
+                "event": "generation_output",
                 "caller": caller,
-                "text": result,
+                "model": model,
             },
             ensure_ascii=False,
-            indent=2,
         )
-        + "\n"
-        + ("═" * 80)
     )
 
     return result

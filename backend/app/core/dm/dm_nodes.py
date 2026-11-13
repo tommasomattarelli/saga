@@ -119,12 +119,11 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
     _llm_io.info(
         json.dumps(
             {
-                "direction": "input",
+                "event": "generation_input",
                 "step": state["step_count"],
                 "model": model_cfg.model,
-                "system_preview": system_prompt[:300],
                 "messages_count": len(messages_raw),
-                "tools": sorted(allowed_tools),
+                "tool_count": len(tool_schemas),
             },
             ensure_ascii=False,
         )
@@ -157,10 +156,10 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
     _llm_io.info(
         json.dumps(
             {
-                "direction": "output",
+                "event": "generation_output",
                 "step": state["step_count"],
-                "text_preview": text[:200],
-                "tool_calls": [{"name": tc.name, "args": tc.arguments} for tc in tool_calls_raw],
+                "model": model_cfg.model,
+                "tool_call_count": len(tool_calls_raw),
             },
             ensure_ascii=False,
         )
