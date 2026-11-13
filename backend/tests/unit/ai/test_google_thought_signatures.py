@@ -167,7 +167,12 @@ class TestSingleToolCall:
                 _response(
                     [
                         _text_part("You roll."),
-                        _fc_part("request_dice", {"stat": "DEX"}, "call-1", _SIG_1),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                            "call-1",
+                            _SIG_1,
+                        ),
                     ]
                 ),
                 _response([_text_part("The die lands.")]),
@@ -194,13 +199,23 @@ class TestSequentialSteps:
                 _response(
                     [
                         _text_part("step one"),
-                        _fc_part("request_dice", {"stat": "DEX"}, "c1", _SIG_1),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                            "c1",
+                            _SIG_1,
+                        ),
                     ]
                 ),
                 _response(
                     [
                         _text_part("step two"),
-                        _fc_part("request_dice", {"stat": "STR"}, "c2", _SIG_2),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Athletics", "stat": "STR", "difficulty": "normal"},
+                            "c2",
+                            _SIG_2,
+                        ),
                     ]
                 ),
                 _response([_text_part("done")]),
@@ -223,8 +238,17 @@ class TestParallelToolCalls:
             [
                 _response(
                     [
-                        _fc_part("request_dice", {"stat": "DEX"}, "c1", _SIG_1),
-                        _fc_part("request_dice", {"stat": "STR"}, "c2"),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                            "c1",
+                            _SIG_1,
+                        ),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Athletics", "stat": "STR", "difficulty": "normal"},
+                            "c2",
+                        ),
                     ]
                 ),
                 _response([_text_part("both resolved")]),
@@ -256,8 +280,17 @@ class TestParallelToolCalls:
             [
                 _response(
                     [
-                        _fc_part("request_dice", {"stat": "DEX"}, None, _SIG_1),
-                        _fc_part("request_dice", {"stat": "STR"}, None),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                            None,
+                            _SIG_1,
+                        ),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Athletics", "stat": "STR", "difficulty": "normal"},
+                            None,
+                        ),
                     ]
                 ),
                 _response([_text_part("both resolved")]),
@@ -284,8 +317,17 @@ class TestParallelToolCalls:
             [
                 _response(
                     [
-                        _fc_part("request_dice", {"stat": "DEX"}, "native-dex", _SIG_1),
-                        _fc_part("request_dice", {"stat": "STR"}, "native-str"),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                            "native-dex",
+                            _SIG_1,
+                        ),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Athletics", "stat": "STR", "difficulty": "normal"},
+                            "native-str",
+                        ),
                     ]
                 ),
                 _response([_text_part("both resolved")]),
@@ -312,7 +354,10 @@ class TestTextPartSignature:
                 _response(
                     [
                         _text_part("A low growl.", _SIG_1),
-                        _fc_part("request_dice", {"stat": "DEX"}),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                        ),
                     ]
                 ),
                 _response([_text_part("resolved")]),
@@ -333,7 +378,15 @@ class TestUnsignedResponse:
         provider, calls = _make_google_provider(
             monkeypatch,
             [
-                _response([_fc_part("request_dice", {"stat": "DEX"}, "c1")]),
+                _response(
+                    [
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                            "c1",
+                        )
+                    ]
+                ),
                 _response([_text_part("resolved")]),
             ],
         )

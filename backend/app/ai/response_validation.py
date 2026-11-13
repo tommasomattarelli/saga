@@ -16,6 +16,8 @@ _JSON_FENCE = re.compile(
 
 class DiagnosticCode(StrEnum):
     INVALID_JSON = "invalid_json"
+    TOOL_NOT_REGISTERED = "tool_not_registered"
+    TOOL_UNAVAILABLE = "tool_unavailable"
     MISSING = "missing"
     UNEXPECTED_FIELD = "unexpected_field"
     EXPECTED_BOOLEAN = "expected_boolean"
@@ -172,6 +174,12 @@ def _diagnostic(
     )
 
 
+def validation_diagnostics(
+    error: ValidationError, root_schema: Mapping[str, object]
+) -> tuple[ValidationDiagnostic, ...]:
+    return tuple(_diagnostic(entry, root_schema) for entry in error.errors())
+
+
 def _schema_failure[T: BaseModel](
     error: ValidationError,
     contract: ResponseContract[T],
@@ -179,7 +187,7 @@ def _schema_failure[T: BaseModel](
 ) -> ResponseValidationError:
     root_schema = contract.schema
     return ResponseValidationError(
-        tuple(_diagnostic(entry, root_schema) for entry in error.errors()),
+        validation_diagnostics(error, root_schema),
         normalization,
     )
 

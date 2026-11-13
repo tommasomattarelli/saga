@@ -1,7 +1,7 @@
 from typing import Annotated
 
 import pytest
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from app.ai.response_contracts import ResponseContract
 from app.ai.response_validation import (
@@ -9,6 +9,7 @@ from app.ai.response_validation import (
     Normalization,
     ResponseValidationError,
     validate_response,
+    validation_diagnostics,
 )
 
 
@@ -174,3 +175,28 @@ def test_custom_validator_type_error_propagates() -> None:
 
     with pytest.raises(TypeError, match="internal canary"):
         validate_response('{"text":"safe"}', broken)
+
+
+def test_validation_diagnostics_returns_allowlisted_codes_and_safe_schema_paths() -> None:
+    try:
+        NestedPayload.model_validate(
+            {
+                "summary": {"count": "bad"},
+                "records": {"credential-canary": {"count": "bad"}},
+                "extra-canary": "secret",
+            },
+            strict=True,
+        )
+    except ValidationError as error:
+        diagnostics = validation_diagnostics(error, NestedPayload.model_json_schema())
+    else:
+        pytest.fail("invalid payload unexpectedly validated")
+
+    assert [(item.code, item.path) for item in diagnostics] == [
+        (DiagnosticCode.EXPECTED_INTEGER, ("summary", "count")),
+        (DiagnosticCode.EXPECTED_INTEGER, ("records", "<unknown>", "count")),
+        (DiagnosticCode.UNEXPECTED_FIELD, ("<unknown>",)),
+    ]
+    assert "credential-canary" not in str(diagnostics)
+    assert "extra-canary" not in str(diagnostics)
+    assert "secret" not in str(diagnostics)
