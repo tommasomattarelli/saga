@@ -23,6 +23,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ### Internal
 
 - Extended owner-controlled workflow scope extensions to automatic isolated worktrees and per-worktree receipts, with fresh independent correctness and slop review before every commit.
+- Added strict response validation with exact JSON-fence normalization and schema-aware diagnostics that redact untrusted field paths (ADR 0021).
 - Added immutable generation requests, derived execution identities and lossless raw receipts with explicit output limits and signature snapshots (ADR 0021).
 - Added typed generation failure classification with explicit retry, refusal, truncation and schema-incompatibility decisions, without matching provider prose (ADR 0021).
 - Added lossless, Pydantic-derived wire DTOs for NPC update and psychology maps, preserving canonical validation and rejecting duplicate entries (ADR 0021).
