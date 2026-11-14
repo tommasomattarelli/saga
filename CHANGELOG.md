@@ -28,6 +28,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added whole-response static DM tool preflight with strict schema-safe diagnostics before effects, preserving sequential domain checks (ADR 0021).
 - Added cumulative correction requests with quoted failed outputs and schema-derived, redacted validation guidance (ADR 0021).
 - Removed prompt, response and tool-argument payloads from ordinary generation logs, retaining safe call metadata (ADR 0021).
+- Added Google typed generation sends with explicit format modes, lossless receipts, bounded SDK attempts, and offline wire tests (ADR 0021).
 - Added strict response validation with exact JSON-fence normalization and schema-aware diagnostics that redact untrusted field paths (ADR 0021).
 - Added immutable generation requests, derived execution identities and lossless raw receipts with explicit output limits and signature snapshots (ADR 0021).
 - Added typed OpenAI generation with faithful schema modes, lossless receipts, output caps and zero SDK retries (ADR 0021).
