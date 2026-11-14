@@ -8,6 +8,7 @@ import pytest
 
 from app.ai.router import (
     get_allowed_providers,
+    get_generation_recovery_policy,
     get_instance_default,
     get_local_endpoints,
     get_server_key_fallback,
@@ -85,6 +86,27 @@ class TestValidateGenerationConfig:
             pytest.raises(ValueError, match="local_endpoint"),
         ):
             validate_generation_config()
+
+    @pytest.mark.parametrize("value", [True, 0, -1, 1.5, "3", None])
+    def test_send_cap_rejects_non_positive_or_non_integer_values(self, value):
+        with (
+            patch(
+                "app.ai.router._load_config",
+                return_value={
+                    "generation": {
+                        "default": {"provider": "google", "model": "m"},
+                        "max_output_tokens": 60000,
+                        "max_sends_per_result": value,
+                    },
+                    "providers": {"allowed": ["google"]},
+                },
+            ),
+            pytest.raises(ValueError, match="max_sends_per_result"),
+        ):
+            validate_generation_config()
+
+    def test_send_cap_is_resolved_from_yaml(self):
+        assert get_generation_recovery_policy().max_sends_per_result == 3
 
     def test_repo_config_is_valid(self):
         validate_generation_config()

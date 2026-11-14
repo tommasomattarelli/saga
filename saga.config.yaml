@@ -19,6 +19,7 @@ generation:
     provider: google
     model: gemini-3.5-flash
   max_output_tokens: 60000
+  max_sends_per_result: 3
   openrouter_session_affinity: true # stable campaign ID for generation routing; cache hits remain best-effort
   allow_json_mode_fallback: false
   allow_prompt_only_fallback: false

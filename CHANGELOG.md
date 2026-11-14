@@ -26,6 +26,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added destination-bound format fallback settings with strict boolean overrides, opaque HMAC identities and a forward profile migration (ADR 0021).
 - Extended owner-controlled workflow scope extensions to automatic isolated worktrees and per-worktree receipts, with fresh independent correctness and slop review before every commit.
 - Added whole-response static DM tool preflight with strict schema-safe diagnostics before effects, preserving sequential domain checks (ADR 0021).
+- Added a shared typed generation executor with policy-frozen identities, monotonic send reservations and bounded validation recovery (ADR 0021).
 - Added cumulative correction requests with quoted failed outputs and schema-derived, redacted validation guidance (ADR 0021).
 - Removed prompt, response and tool-argument payloads from ordinary generation logs, retaining safe call metadata (ADR 0021).
 - Added Google typed generation sends with explicit format modes, lossless receipts, bounded SDK attempts, and offline wire tests (ADR 0021).

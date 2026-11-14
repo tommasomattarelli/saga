@@ -15,6 +15,16 @@ from app.ai.providers.usage import UsageMetadata
 from app.ai.response_contracts import ResponseContract
 
 
+def _validate_fallback_permissions(
+    allow_json_mode_fallback: object,
+    allow_prompt_only_fallback: object,
+) -> None:
+    if not isinstance(allow_json_mode_fallback, bool) or not isinstance(
+        allow_prompt_only_fallback, bool
+    ):
+        raise TypeError("Generation fallback permissions must be booleans.")
+
+
 def _copy_json(value: object) -> JsonValue:
     if value is None or isinstance(value, (str, bool, int)):
         return cast(JsonValue, value)
@@ -117,6 +127,11 @@ class GenerationRequest:
     _tools_json: str = field(default="[]", repr=False)
     _wire_schema_json: str = field(default="", repr=False)
     _effective_schema_json: str = field(default="", repr=False)
+
+    def __post_init__(self) -> None:
+        _validate_fallback_permissions(
+            self.allow_json_mode_fallback, self.allow_prompt_only_fallback
+        )
 
     @classmethod
     def create(
@@ -323,6 +338,11 @@ class GenerationIdentity:
     allow_json_mode_fallback: bool
     allow_prompt_only_fallback: bool
     session_affinity: str | None
+
+    def __post_init__(self) -> None:
+        _validate_fallback_permissions(
+            self.allow_json_mode_fallback, self.allow_prompt_only_fallback
+        )
 
     @property
     def snapshot_json(self) -> str:

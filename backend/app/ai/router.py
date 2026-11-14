@@ -17,6 +17,7 @@ from app.models.user import User
 
 if TYPE_CHECKING:
     from app.ai.embedding_config import EmbeddingSpace, ResolvedEmbedding
+    from app.ai.generation_execution import GenerationRecoveryPolicy
 
 PROVIDER_NAMES = ("openai", "openrouter", "google", "local")
 
@@ -53,6 +54,17 @@ def get_instance_default() -> ModelConfig:
         max_tokens=cap,
         local_endpoint=default.get("local_endpoint"),
     )
+
+
+def get_generation_recovery_policy() -> GenerationRecoveryPolicy:
+    from app.ai.generation_execution import GenerationRecoveryPolicy
+
+    value = _load_config().get("generation", {}).get("max_sends_per_result")
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(
+            "saga.config.yaml: generation.max_sends_per_result must be a positive integer"
+        )
+    return GenerationRecoveryPolicy(value)
 
 
 def get_allowed_providers() -> list[str]:
@@ -105,6 +117,9 @@ def validate_generation_config() -> None:
         for name in ("allow_json_mode_fallback", "allow_prompt_only_fallback"):
             if not isinstance(generation.get(name, False), bool):
                 problems.append(f"generation.{name} must be a boolean")
+        sends = generation.get("max_sends_per_result")
+        if isinstance(sends, bool) or not isinstance(sends, int) or sends < 1:
+            problems.append("generation.max_sends_per_result must be a positive integer")
     for name, base_url in get_local_endpoints().items():
         if not base_url.startswith(("http://", "https://")):
             problems.append(f"providers.local_endpoints.{name}.base_url must be an http(s) URL")

@@ -16,6 +16,10 @@ class Adapter(StrEnum):
     LOCAL = "local"
 
 
+class SchemaModeUnsupportedBeforeIO(Exception):  # noqa: N818
+    pass
+
+
 class FailureAction(StrEnum):
     RETRY = "retry"
     RATE_LIMIT = "rate_limit"
@@ -120,6 +124,9 @@ def classify_failure(signals: FailureSignals) -> FailureClassification:
         or signals.prompt_blocked
         or signals.finish_reason is not None
     ):
+        return _result(FailureAction.STOP, "invalid_classification_input")
+
+    if type(signals.exception) is SchemaModeUnsupportedBeforeIO:
         return _result(FailureAction.STOP, "invalid_classification_input")
 
     if signals.exception is not None:

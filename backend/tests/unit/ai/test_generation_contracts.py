@@ -84,6 +84,8 @@ def make_request(**changes: object) -> GenerationRequest:
         "role": "memory_summary",
         "logical_result_id": "result-1",
         "output_limit": OutputLimit(configured_ceiling=60000),
+        "allow_json_mode_fallback": False,
+        "allow_prompt_only_fallback": False,
     }
     values.update(changes)
     return GenerationRequest.create(
@@ -100,6 +102,8 @@ def make_request(**changes: object) -> GenerationRequest:
         wire_model=cast(type[BaseModel] | None, values.get("wire_model")),
         wire_schema=cast(dict[str, JsonValue] | None, values.get("wire_schema")),
         effective_schema=cast(dict[str, JsonValue] | None, values.get("effective_schema")),
+        allow_json_mode_fallback=cast(bool, values["allow_json_mode_fallback"]),
+        allow_prompt_only_fallback=cast(bool, values["allow_prompt_only_fallback"]),
     )
 
 
@@ -172,6 +176,63 @@ def test_identity_hashes_canonical_and_wire_schemas_and_effective_policy() -> No
     assert "WirePayload" not in base.snapshot_json
     assert base.contract_schema_hash != ""
     assert base.wire_schema_hash != ""
+
+
+@pytest.mark.parametrize(
+    "value",
+    [0, 1, "false", "true", None, [], {}],
+)
+@pytest.mark.parametrize(
+    "permission",
+    ["allow_json_mode_fallback", "allow_prompt_only_fallback"],
+)
+def test_request_rejects_non_boolean_fallback_permissions_at_factory_and_constructor(
+    permission: str, value: object
+) -> None:
+    with pytest.raises(TypeError, match="permissions must be booleans"):
+        make_request(**{permission: value})
+
+    with pytest.raises(TypeError, match="permissions must be booleans"):
+        cast(Callable[..., GenerationRequest], replace)(make_request(), **{permission: value})
+
+
+@pytest.mark.parametrize(
+    "value",
+    [0, 1, "false", "true", None, [], {}],
+)
+@pytest.mark.parametrize(
+    "permission",
+    ["allow_json_mode_fallback", "allow_prompt_only_fallback"],
+)
+def test_identity_rejects_non_boolean_fallback_permissions_at_factory_and_constructor(
+    permission: str, value: object
+) -> None:
+    with pytest.raises(TypeError, match="permissions must be booleans"):
+        make_identity(**{permission: value})
+
+    with pytest.raises(TypeError, match="permissions must be booleans"):
+        cast(Callable[..., GenerationIdentity], replace)(make_identity(), **{permission: value})
+
+
+def test_boolean_fallback_permissions_preserve_explicit_authorization() -> None:
+    authorized = make_request(
+        allow_json_mode_fallback=True,
+        allow_prompt_only_fallback=False,
+    )
+    assert authorized.identity.allow_json_mode_fallback is True
+    assert authorized.identity.allow_prompt_only_fallback is False
+    with pytest.raises(ValueError, match="not authorized"):
+        authorized.derive(
+            messages=authorized.messages,
+            format_mode=FormatMode.PROMPT_ONLY,
+        )
+    assert (
+        authorized.derive(
+            messages=authorized.messages,
+            format_mode=FormatMode.JSON_MODE,
+        ).format_mode
+        is FormatMode.JSON_MODE
+    )
 
 
 def test_output_limit_uses_known_lower_limit_only_when_provided() -> None:

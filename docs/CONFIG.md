@@ -13,6 +13,16 @@ positive finite number.
 
 ---
 
+## Generation recovery
+`generation.max_sends_per_result` is a positive integer shared by every
+generation result. It counts the initial request, transport retries, permitted
+format fallbacks and corrections together; the default is `3`.
+
+```yaml
+generation:
+  max_sends_per_result: 3
+```
+
 ## OpenRouter session affinity
 
 ```yaml
