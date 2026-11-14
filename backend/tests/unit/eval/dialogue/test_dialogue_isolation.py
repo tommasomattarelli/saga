@@ -1,5 +1,4 @@
 import asyncio
-import json
 import uuid
 from unittest.mock import AsyncMock
 
@@ -9,9 +8,14 @@ from eval.dialogue.requests import SuiteProvider
 from eval.dialogue.runtime import evaluation_dispatch
 from eval.support.ledger import RequestLedger
 
+from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
 from app.ai.providers.usage import capture_usage
 from app.ai.router import ModelConfig
-from tests.unit.eval.dialogue.typed_provider_test_support import dm_receipt, dm_tool_call
+from tests.unit.eval.dialogue.typed_provider_test_support import (
+    dm_receipt,
+    dm_tool_call,
+    npc_receipt,
+)
 
 
 async def test_overlapping_pipelines_keep_generation_actor_observation_and_metrics_local(
@@ -30,7 +34,7 @@ async def test_overlapping_pipelines_keep_generation_actor_observation_and_metri
         provider = AsyncMock()
         steps = 0
 
-        async def dm(request):
+        async def dm(request: GenerationRequest) -> RawGenerationReceipt:
             nonlocal steps
             assert request.model == model
             steps += 1
@@ -46,14 +50,14 @@ async def test_overlapping_pipelines_keep_generation_actor_observation_and_metri
             await asyncio.sleep(0)
             return dm_receipt('{"text":"[[npc:Aldric:1]]"}')
 
-        async def actor(**kwargs):
-            assert kwargs["model"] == model
-            await asyncio.sleep(0)
-            capture_usage({"id": f"{model}:actor", "usage": {"prompt_tokens": 7}}, model=model)
-            return json.dumps({"status": "speaking", "lines": [f"I speak for {model}."]})
+        async def send(request: GenerationRequest) -> RawGenerationReceipt:
+            if request.role == "actor":
+                await asyncio.sleep(0)
+                capture_usage({"id": f"{model}:actor", "usage": {"prompt_tokens": 7}}, model=model)
+                return npc_receipt([f"I speak for {model}."])
+            return await dm(request)
 
-        provider.send.side_effect = dm
-        provider.generate.side_effect = actor
+        provider.send.side_effect = send
         trace = SuiteProvider(
             provider,
             ledger,

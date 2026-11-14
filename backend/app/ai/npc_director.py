@@ -3,19 +3,26 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import uuid
 from dataclasses import dataclass
+from functools import partial
 
 import structlog
 
 from app.ai.generation_context import generation_context
-from app.ai.npc_outcomes import NPCFailure, NPCInteraction, NPCResult, parse_actor_result
+from app.ai.generation_errors import Adapter
+from app.ai.generation_execution import execute_generation
+from app.ai.generation_execution_ledger import InMemoryGenerationLedger
+from app.ai.npc_generation import build_npc_generation_request, validate_npc_response
+from app.ai.npc_outcomes import (
+    NPCFailure,
+    NPCInteraction,
+    NPCResult,
+    actor_result_from_response,
+)
 from app.ai.prompts.npc import build_npc_prompt, build_npc_system_prompt
-from app.ai.providers.base import logged_generate
 from app.ai.providers.usage import usage_scope
-from app.ai.router import get_gameplay_config, get_generation
-from app.ai.sanitizer import strip_code_fences
+from app.ai.router import get_gameplay_config, get_generation, get_generation_recovery_policy
 from app.models.psychology import PsychologyDef
 
 logger = structlog.get_logger()
@@ -64,26 +71,29 @@ async def invoke_single_npc(
 
     try:
         provider, model_config = await get_generation()
+        max_lines = get_gameplay_config().npc_max_lines
+        request = build_npc_generation_request(
+            system_prompt=build_npc_system_prompt(psychology, language),
+            prompt=prompt,
+            config=model_config,
+            logical_result_id=uuid.uuid4().hex,
+            psychology=psychology,
+        )
         with usage_scope(role="actor", npc_name=npc_name):
-            raw = await logged_generate(
+            result = await execute_generation(
+                request,
                 provider,
-                caller="npc_director",
-                system_prompt=build_npc_system_prompt(psychology, language),
-                messages=[{"role": "user", "content": prompt}],
-                model=model_config.model,
-                max_tokens=model_config.max_tokens,
-                json_mode=True,
+                InMemoryGenerationLedger(),
+                get_generation_recovery_policy(),
+                Adapter(model_config.provider),
+                validator=partial(
+                    validate_npc_response,
+                    max_lines=max_lines,
+                    psychology=psychology,
+                ),
             )
 
-        cleaned = strip_code_fences(raw)
-        try:
-            data = json.loads(cleaned)
-        except json.JSONDecodeError:
-            from json_repair import repair_json
-
-            data = json.loads(repair_json(cleaned))
-
-        return parse_actor_result(npc_name, data, get_gameplay_config().npc_max_lines)
+        return actor_result_from_response(npc_name, result.value)
 
     except Exception:
         logger.warning("npc_invoke_failed")

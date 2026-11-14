@@ -7,13 +7,18 @@ from eval.dialogue.requests import SuiteProvider
 from eval.dialogue.runtime import evaluation_dispatch
 from eval.support.ledger import RequestLedger
 
+from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
 from app.ai.router import ModelConfig
-from tests.unit.eval.dialogue.typed_provider_test_support import dm_receipt, dm_tool_call
+from tests.unit.eval.dialogue.typed_provider_test_support import (
+    dm_receipt,
+    dm_tool_call,
+    npc_receipt,
+)
 
 
 async def test_second_beat_metrics_match_the_required_actor_and_separate_languages(tmp_path):
     provider = AsyncMock()
-    provider.send.side_effect = [
+    dm_receipts = [
         dm_receipt(
             '{"text":""}',
             (
@@ -27,9 +32,13 @@ async def test_second_beat_metrics_match_the_required_actor_and_separate_languag
             '[[npc:Aldric:1]] [[npc:Mira:1]] [[npc:Mira:2]]"}'
         ),
     ]
-    provider.generate.return_value = (
-        '{"status":"speaking","lines":["Non ti conosco, non sono del villaggio."]}'
-    )
+
+    async def send(request: GenerationRequest) -> RawGenerationReceipt:
+        if request.role == "actor":
+            return npc_receipt(["Non ti conosco, non sono del villaggio."])
+        return dm_receipts.pop(0)
+
+    provider.send.side_effect = send
     trace = SuiteProvider(
         provider,
         RequestLedger(tmp_path / "requests", budget=7),
@@ -57,7 +66,7 @@ async def test_second_beat_metrics_match_the_required_actor_and_separate_languag
 
 async def test_requested_second_actor_failure_is_not_a_missing_invocation(tmp_path):
     provider = AsyncMock()
-    provider.send.side_effect = [
+    dm_receipts = [
         dm_receipt(
             '{"text":""}',
             (
@@ -70,16 +79,18 @@ async def test_requested_second_actor_failure_is_not_a_missing_invocation(tmp_pa
     ]
     seen = 0
 
-    async def generate(**kwargs):
+    async def send(request: GenerationRequest) -> RawGenerationReceipt:
         nonlocal seen
+        if request.role != "actor":
+            return dm_receipts.pop(0)
         seen += 1
         return (
-            '{"status":{},"lines":[]}'
+            RawGenerationReceipt(text='{"status":{},"lines":[]}', refusal="provider-refusal")
             if seen == 3
-            else '{"status":"speaking","lines":["Non conosco la tua storia."]}'
+            else npc_receipt(["Non conosco la tua storia."])
         )
 
-    provider.generate.side_effect = generate
+    provider.send.side_effect = send
     trace = SuiteProvider(
         provider,
         RequestLedger(tmp_path / "requests", budget=7),

@@ -62,7 +62,10 @@ def build_correction_request(
     if not failures:
         raise ValueError("A correction request requires at least one failed result.")
     messages = base.messages
-    root_schema = base.canonical_schema
+    target_mode = base.format_mode if format_mode is None else format_mode
+    root_schema = (
+        base.wire_schema if target_mode is FormatMode.STRICT_NATIVE else base.canonical_schema
+    )
     for failure in failures:
         if not isinstance(failure, CorrectionFailure):
             raise TypeError("Correction history accepts only typed failures.")
@@ -147,6 +150,18 @@ def _requirement(diagnostic: ValidationDiagnostic, root_schema: Mapping[str, obj
         expected = _type_description(schema, root_schema) or _JSON_TYPES[_TYPE_CODES[code]]
         return f"{subject} must be {expected}."
     if code is DiagnosticCode.INVALID_ENUM:
+        if schema.get("type") == "object" and schema.get("additionalProperties") is False:
+            properties = schema.get("properties")
+            if (
+                isinstance(properties, dict)
+                and properties
+                and all(isinstance(name, str) for name in properties)
+            ):
+                allowed_keys = ", ".join(
+                    json.dumps(name, ensure_ascii=False) for name in properties
+                )
+                return f"Object keys must be one of: {allowed_keys}."
+            return "Object keys must be declared by the response schema."
         allowed = _enum_values(schema)
         if allowed:
             return f"{subject} must be one of: {', '.join(allowed)}."

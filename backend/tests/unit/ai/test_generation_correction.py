@@ -7,7 +7,7 @@ from pydantic import BaseModel, JsonValue
 
 from app.ai.generation_contracts import FormatMode, GenerationRequest, OutputLimit
 from app.ai.generation_correction import CorrectionFailure, build_correction_request
-from app.ai.npc_outcomes import _ActorResponse
+from app.ai.npc_outcomes import NPC_RESPONSE_CONTRACT, NPCResponse
 from app.ai.response_contracts import ResponseContract
 from app.ai.response_validation import (
     DiagnosticCode,
@@ -16,6 +16,7 @@ from app.ai.response_validation import (
     ValidationDiagnostic,
     validate_response,
 )
+from app.core.dm.dm_generation import DMNarrative
 from app.memory.batch_source_contracts import BatchInput, BatchTurnSource
 from app.memory.document_contracts import SummaryPayload
 from app.memory.producer_contracts import FactsPayload
@@ -34,6 +35,7 @@ def request_for(
     *,
     messages: list[dict[str, object]] | None = None,
     effective_schema: dict[str, JsonValue] | None = None,
+    wire_schema: dict[str, JsonValue] | None = None,
 ) -> GenerationRequest:
     return GenerationRequest.create(
         "Keep the original request authoritative.",
@@ -46,6 +48,7 @@ def request_for(
         logical_result_id="result-1",
         output_limit=OutputLimit(60000),
         effective_schema=effective_schema,
+        wire_schema=wire_schema,
         allow_json_mode_fallback=True,
         allow_prompt_only_fallback=True,
         session_affinity="session-1",
@@ -126,7 +129,7 @@ def test_correction_appends_cumulative_quoted_history_after_the_native_prefix() 
 
 
 def test_guidance_uses_the_actual_npc_contract_and_never_echoes_input() -> None:
-    contract = contract_for(_ActorResponse, "npc-actor")
+    contract = contract_for(NPCResponse, NPC_RESPONSE_CONTRACT.name)
     raw = (
         '{"status":"flying","lines":false,"action":7,'
         '"reveals_secret":"yes","private_key_canary":"secret-value"}'
@@ -197,6 +200,78 @@ def test_guidance_uses_the_effective_memory_policy_schema_for_bounds_and_values(
     assert "major" in feedback
     assert "JSON object" in feedback
     assert "source-canary" not in feedback
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [
+        (FormatMode.STRICT_NATIVE, "JSON array"),
+        (FormatMode.JSON_MODE, "JSON object"),
+        (FormatMode.PROMPT_ONLY, "JSON object"),
+    ],
+)
+def test_correction_guidance_uses_schema_for_target_format_mode(
+    mode: FormatMode, expected: str
+) -> None:
+    contract = contract_for(NPCResponse, NPC_RESPONSE_CONTRACT.name)
+    canonical_schema: dict[str, JsonValue] = {
+        "type": "object",
+        "properties": {"axis_changes": {"type": "object"}},
+        "required": ["axis_changes"],
+        "additionalProperties": False,
+    }
+    wire_schema: dict[str, JsonValue] = {
+        "type": "object",
+        "properties": {"axis_changes": {"type": "array"}},
+        "required": ["axis_changes"],
+        "additionalProperties": False,
+    }
+    base = request_for(
+        contract,
+        effective_schema=canonical_schema,
+        wire_schema=wire_schema,
+    )
+    failure = CorrectionFailure(
+        raw_candidate='{"axis_changes":null}',
+        diagnostics=(ValidationDiagnostic(DiagnosticCode.EXPECTED_OBJECT, ("axis_changes",)),),
+        normalization=Normalization.NONE,
+    )
+
+    derivation = build_correction_request(base, (failure,), format_mode=mode)
+    feedback = content_of(derivation.request.messages[-1])
+
+    assert f"axis_changes must be a {expected}" in feedback
+    assert derivation.base_identity == base.identity.digest
+    assert derivation.request.identity.format_mode is mode
+    assert derivation.request.identity.allow_json_mode_fallback
+    assert derivation.request.identity.allow_prompt_only_fallback
+    assert base.identity.format_mode is FormatMode.STRICT_NATIVE
+    assert base.canonical_schema == canonical_schema
+    assert base.wire_schema == wire_schema
+
+
+@pytest.mark.parametrize(
+    ("model_type", "name", "expected"),
+    [
+        (SummaryPayload, "memory-summary", "JSON string"),
+        (DMNarrative, "dm-narrative", "JSON string or JSON null"),
+    ],
+)
+def test_correction_without_distinct_wire_schema_keeps_canonical_guidance(
+    model_type: type[BaseModel], name: str, expected: str
+) -> None:
+    contract = contract_for(model_type, name)
+    base = request_for(contract)
+    failure = CorrectionFailure(
+        raw_candidate='{"text":null}',
+        diagnostics=(ValidationDiagnostic(DiagnosticCode.EXPECTED_STRING, ("text",)),),
+        normalization=Normalization.NONE,
+    )
+
+    derivation = build_correction_request(base, (failure,))
+
+    assert base.wire_schema == base.canonical_schema
+    assert expected in content_of(derivation.request.messages[-1])
 
 
 def test_actual_memory_validation_errors_derive_minimum_array_guidance() -> None:

@@ -21,7 +21,18 @@ async def test_model_lanes_keep_distinct_sessions_through_budget_resume(provider
     original, requests = provider
     models = ["vendor/a:free", "vendor/b:free"]
     plan = manifest(models=models, case_names=["npc_speaks", "actor_en"], runs=2)
-    generations = {m: (original, ModelConfig("openrouter", m, 60000)) for m in models}
+    generations = {
+        m: (
+            original,
+            ModelConfig(
+                "openrouter",
+                m,
+                60000,
+                destination_fingerprint="offline-test-destination",
+            ),
+        )
+        for m in models
+    }
     ledger_path = tmp_path / "requests.jsonl"
     output = tmp_path / "trials.jsonl"
     completed = {}
@@ -67,7 +78,12 @@ async def test_smoke_cli_shares_checkpoint_model_identity_across_all_trials(
     original, requests = provider
 
     async def resolve(owner, model):
-        return original, ModelConfig("openrouter", model, 60000)
+        return original, ModelConfig(
+            "openrouter",
+            model,
+            60000,
+            destination_fingerprint="offline-test-destination",
+        )
 
     monkeypatch.setattr(model_smoke, "resolve_eval_generation", resolve)
     monkeypatch.setattr(model_smoke, "validate_free_models", AsyncMock())

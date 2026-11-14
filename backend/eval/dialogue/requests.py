@@ -137,7 +137,7 @@ class SuiteProvider(AIProvider):
 
     async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
         evidence = generation_request_evidence(request)
-        return await self._call("dm", evidence, lambda trace: trace.send(request))
+        return await self._call(request.role, evidence, lambda trace: trace.send(request))
 
     async def generate_with_tools(
         self,

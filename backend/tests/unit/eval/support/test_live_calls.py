@@ -175,23 +175,39 @@ async def test_sdk_retries_are_disabled_on_a_copy_not_the_cached_client(monkeypa
 
 
 async def test_actor_resume_identity_matches_the_actual_provider_request(tmp_path):
-    import hashlib
-    import json
     from dataclasses import replace
 
     from eval.support.live_calls import run_trial
 
+    from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
     from app.ai.router import ModelConfig
 
-    provider = AsyncMock()
-    provider.generate.return_value = '{"dialogue": "Ti ascolto, viaggiatore."}'
-    config = ModelConfig("openrouter", "model:free", 60000)
+    class TypedProvider:
+        def __init__(self):
+            self.requests: list[GenerationRequest] = []
+
+        async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
+            self.requests.append(request)
+            return RawGenerationReceipt(
+                text=(
+                    '{"status":"speaking","lines":["Ti ascolto, viaggiatore."],'
+                    '"action":null,"axis_changes":[],"reveals_secret":false}'
+                )
+            )
+
+    provider = TypedProvider()
+    config = ModelConfig(
+        "openrouter",
+        "model:free",
+        60000,
+        destination_fingerprint="offline-test-destination",
+    )
     sc = scenario.load("debug-thornhaven-it")
     ledger = RequestLedger(tmp_path / "ledger.jsonl", budget=2)
     first = await run_trial((provider, config), sc, "actor_language", 0, ledger, checkpoint="pr1")
-    assert first.key.endswith(
-        hashlib.sha256(json.dumps(first.request, sort_keys=True).encode()).hexdigest()
-    )
+    assert first.key.endswith(first.request_hash)
+    assert first.request["identity_snapshot"]["role"] == "actor"
+    assert first.request["wire_schema"]["properties"]["axis_changes"]["type"] == "array"
     assert (
         await run_trial((provider, config), sc, "actor_language", 0, ledger, checkpoint="pr1")
         is None
@@ -204,4 +220,6 @@ async def test_actor_resume_identity_matches_the_actual_provider_request(tmp_pat
         ledger,
         checkpoint="pr1",
     )
-    assert provider.generate.await_count == 2
+    assert len(provider.requests) == 2
+    assert all(request.role == "actor" for request in provider.requests)
+    assert provider.requests[0].identity.digest != provider.requests[1].identity.digest

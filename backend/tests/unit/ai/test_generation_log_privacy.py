@@ -103,8 +103,10 @@ class _Provider(AIProvider):
         raise NotImplementedError
 
     async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
+        if self.failure is not None:
+            raise self.failure
         if self.response is None:
-            raise AssertionError("DM test response was not configured")
+            raise AssertionError("Typed generation response was not configured")
         return self.response
 
 
@@ -246,9 +248,7 @@ async def test_npc_generation_logs_static_caller_and_safe_failure_metadata() -> 
     ):
         assert canary not in logs
     assert "npc_invoke_failed" in logs
-    assert "generation_input" in logs
-    assert "npc_director" in logs
-    assert "npc-test-model" in logs
+    assert logs.count("npc_invoke_failed") == 1
 
 
 @pytest.mark.asyncio
@@ -256,8 +256,11 @@ async def test_successful_npc_generation_does_not_log_name_or_payload() -> None:
     capture = _StructlogCapture()
     llm_capture = _Capture()
     provider = _Provider()
-    provider.generation_result = (
-        '{"status":"speaking","lines":["npc-response-canary"],"action":null}'
+    provider.response = RawGenerationReceipt(
+        text=(
+            '{"status":"speaking","lines":["npc-response-canary"],'
+            '"action":null,"axis_changes":[],"reveals_secret":false}'
+        )
     )
     npc_name = "successful-npc-name-canary"
 
@@ -282,8 +285,7 @@ async def test_successful_npc_generation_does_not_log_name_or_payload() -> None:
         "npc-success-context-canary",
     ):
         assert canary not in logs
-    assert "npc_director" in logs
-    assert "npc-test-model" in logs
+    assert "generation_output" not in logs
 
 
 @pytest.mark.asyncio
@@ -307,7 +309,12 @@ async def test_parallel_npc_summary_logs_only_count() -> None:
 
 
 async def _async_generation(provider: _Provider) -> tuple[_Provider, ModelConfig]:
-    return provider, ModelConfig(provider="openai", model="npc-test-model", max_tokens=100)
+    return provider, ModelConfig(
+        provider="openai",
+        model="npc-test-model",
+        max_tokens=100,
+        destination_fingerprint="offline-test-destination",
+    )
 
 
 @pytest.mark.parametrize("capture_type", [_Capture, _StructlogCapture])

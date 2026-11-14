@@ -1,4 +1,3 @@
-import json
 import uuid
 from unittest.mock import AsyncMock
 
@@ -9,8 +8,13 @@ from eval.dialogue.requests import SuiteProvider
 from eval.dialogue.runtime import evaluation_dispatch
 from eval.support.ledger import RequestLedger
 
+from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
 from app.ai.router import ModelConfig
-from tests.unit.eval.dialogue.typed_provider_test_support import dm_receipt, dm_tool_call
+from tests.unit.eval.dialogue.typed_provider_test_support import (
+    dm_receipt,
+    dm_tool_call,
+    npc_receipt,
+)
 
 
 @pytest.mark.parametrize(
@@ -21,7 +25,7 @@ async def test_real_two_beat_path_counts_dm_and_actors_without_db_or_background(
     tmp_path, case_name, semantic_review
 ):
     provider = AsyncMock()
-    provider.send.side_effect = [
+    dm_receipts = [
         dm_receipt(
             '{"text":""}',
             (
@@ -42,15 +46,20 @@ async def test_real_two_beat_path_counts_dm_and_actors_without_db_or_background(
         ),
         dm_receipt('{"text":"[[npc:Aldric:1]] [[npc:Mira:1]] [[npc:Aldric:2]]"}'),
     ]
-    actor_inputs = []
+    actor_inputs: list[str] = []
 
-    async def actor(**kwargs):
-        content = kwargs["messages"][0]["content"]
-        actor_inputs.append(content)
-        line = "Una seconda risposta." if "React to Mira." in content else "Una prima risposta."
-        return json.dumps({"status": "speaking", "lines": [line]})
+    async def send(request: GenerationRequest) -> RawGenerationReceipt:
+        if request.role == "actor":
+            content = request.messages[0]["content"]
+            assert isinstance(content, str)
+            actor_inputs.append(content)
+            line = (
+                "Una seconda risposta." if "React to Mira." in content else "Una prima risposta."
+            )
+            return npc_receipt([line])
+        return dm_receipts.pop(0)
 
-    provider.generate.side_effect = actor
+    provider.send.side_effect = send
     ledger = RequestLedger(tmp_path / "calls", budget=7)
     trace = SuiteProvider(
         provider,
@@ -98,12 +107,18 @@ async def test_real_two_beat_path_counts_dm_and_actors_without_db_or_background(
     assert data["metrics"]["accepted_marker_count"] == 3
     assert data["metrics"]["fallback_speech_parts"] == 0
     assert data["metrics"]["final_marker_count"] == 0
+    actor_attempts = [attempt for attempt in ledger.results() if attempt.probe.endswith(":actor")]
+    assert len(actor_attempts) == 3
+    assert all(
+        attempt.request["identity_snapshot"]["role"] == "actor" for attempt in actor_attempts
+    )
     requests = [
         {
             "system_prompt": request.args[0].system_prompt,
             "tools": request.args[0].tool_declarations,
         }
         for request in provider.send.await_args_list
+        if request.args[0].role == "dm"
     ]
     for request in requests:
         assert request["system_prompt"].count("DIALOGUE COMPOSITION:") == 1

@@ -7,20 +7,29 @@ from eval.dialogue.runtime import evaluation_dispatch
 from eval.dialogue.trial import run_case
 from eval.support.ledger import RequestLedger
 
+from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
 from app.ai.router import ModelConfig
-from tests.unit.eval.dialogue.typed_provider_test_support import dm_receipt, dm_tool_call
+from tests.unit.eval.dialogue.typed_provider_test_support import (
+    dm_receipt,
+    dm_tool_call,
+    npc_receipt,
+)
 
 
 async def test_two_turn_case_reuses_the_actual_transcript_and_world_state(tmp_path):
     provider = AsyncMock()
-    provider.send.side_effect = [
+    dm_receipts = [
         dm_receipt('{"text":""}', (dm_tool_call("invoke_npc", {"name": "Aldric"}),)),
         dm_receipt('{"text":"[[npc:Aldric:1]] The crowd waits."}'),
         dm_receipt('{"text":"The earlier warning still hangs over the square."}'),
     ]
-    provider.generate.return_value = (
-        '{"status":"speaking","lines":["The seal was broken yesterday."]}'
-    )
+
+    async def send(request: GenerationRequest) -> RawGenerationReceipt:
+        if request.role == "actor":
+            return npc_receipt(["The seal was broken yesterday."])
+        return dm_receipts.pop(0)
+
+    provider.send.side_effect = send
     trace = SuiteProvider(
         provider,
         RequestLedger(tmp_path / "requests", budget=14),
