@@ -23,6 +23,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Aligned memory prompts with canonical policy-enriched schemas and added an injected executor-backed consumer with safe contextual validation, leaving durable runtime cutover to W4 (ADR 0021).
 - Added destination-bound format fallback settings with strict boolean overrides, opaque HMAC identities and a forward profile migration (ADR 0021).
 - Extended owner-controlled workflow scope extensions to automatic isolated worktrees and per-worktree receipts, with fresh independent correctness and slop review before every commit.
 - Added whole-response static DM tool preflight with strict schema-safe diagnostics before effects, preserving sequential domain checks (ADR 0021).

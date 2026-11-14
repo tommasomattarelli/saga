@@ -168,9 +168,7 @@ def test_guidance_uses_the_effective_memory_policy_schema_for_bounds_and_values(
         )
     )
     prepared = prepare_request("facts", source, language="en", facts_policy=policy)
-    effective_schema = cast(
-        dict[str, JsonValue], json.loads(prepared.system_prompt.rsplit("\n\n", 1)[1])
-    )
+    effective_schema = prepared.response_schema
     contract = contract_for(cast(type[BaseModel], FactsPayload), "memory-facts")
     failure = CorrectionFailure(
         raw_candidate="failed candidate",
