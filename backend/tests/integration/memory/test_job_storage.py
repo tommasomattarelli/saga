@@ -1,3 +1,6 @@
+from collections.abc import MutableMapping
+from datetime import UTC, datetime, timedelta
+from typing import cast
 from uuid import uuid4
 
 import pytest
@@ -5,10 +8,15 @@ from sqlalchemy import select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.memory.job_contracts import MemoryJobManifest
+from app.memory.job_contracts import MemoryGenerationIdentitySnapshot, MemoryJobManifest
 from app.models.campaign import Campaign, Difficulty
 from app.models.memory_job import MemoryJob, MemoryJobAttempt
-from tests.integration.memory.job_support import job_sources, new_attempt, new_job
+from tests.integration.memory.job_support import (
+    job_sources,
+    new_attempt,
+    new_identity_job,
+    new_job,
+)
 from tests.integration.memory.storage_support import HistoryFixture
 from tests.integration.memory.test_batch_storage import batch
 
@@ -155,3 +163,133 @@ async def test_job_schema_indexes_support_scoped_claim_reads(db_session: AsyncSe
         "ix_memory_jobs_state_scope",
         "ix_memory_jobs_checkpoint_scope",
     } <= indexes
+
+
+async def test_execution_identity_is_typed_hash_checked_and_frozen(
+    history_fixture: HistoryFixture,
+) -> None:
+    f = history_fixture
+    turns, item, state = await job_sources(f)
+    job, _, identity_hash, _ = await new_identity_job(f, turns, item, state)
+
+    loaded = await f.session.get(MemoryJob, job.id)
+    assert loaded is not None
+    assert loaded.execution_identity is not None
+    assert loaded.execution_identity_version == 1
+    loaded.execution_identity.verify(loaded.execution_identity_version, identity_hash)
+    identities = cast(
+        MutableMapping[str, MemoryGenerationIdentitySnapshot],
+        loaded.execution_identity.result_identities,
+    )
+    with pytest.raises(TypeError):
+        identities["summary"] = identities["facts"]
+    loaded.execution_identity.verify(loaded.execution_identity_version, identity_hash)
+    identity_json = loaded.execution_identity.model_dump_json()
+    with pytest.raises(ValueError, match="hash"):
+        loaded.execution_identity.verify(1, "0" * 64)
+    with pytest.raises(ValueError, match="Unsupported"):
+        loaded.execution_identity.digest(2)
+
+    loaded.execution_identity_hash = "0" * 64
+    with pytest.raises(ValueError, match="does not match"):
+        await f.session.commit()
+    await f.session.rollback()
+    await f.session.refresh(loaded)
+
+    with pytest.raises(IntegrityError):
+        await f.session.execute(
+            text("UPDATE memory_jobs SET execution_identity_hash=:hash WHERE id=:id"),
+            {"id": job.id, "hash": "g" * 64},
+        )
+        await f.session.commit()
+    await f.session.rollback()
+    for source in [*turns, item, state, f.policy, f.campaign]:
+        await f.session.refresh(source)
+
+    legacy = new_job(f, turns, item, state, key="9" * 64)
+    legacy.manifest_hash = "e" * 64
+    legacy.prompt_version = "legacy-prompt"
+    f.session.add(legacy)
+    await f.session.commit()
+    with pytest.raises(IntegrityError):
+        await f.session.execute(
+            text(
+                "UPDATE memory_jobs SET execution_identity=CAST(:identity AS jsonb), "
+                "execution_identity_hash=:hash, execution_identity_version=1 WHERE id=:id"
+            ),
+            {
+                "id": legacy.id,
+                "identity": identity_json,
+                "hash": identity_hash,
+            },
+        )
+        await f.session.commit()
+    await f.session.rollback()
+
+
+async def test_manual_retry_is_nonterminal_and_definitive_terminal_time_is_once(
+    history_fixture: HistoryFixture,
+) -> None:
+    f = history_fixture
+    turns, item, state = await job_sources(f)
+    job, _, _, _ = await new_identity_job(f, turns, item, state)
+
+    await f.session.execute(
+        text(
+            "UPDATE memory_jobs SET state='blocked', claim_token=NULL, lease_expires_at=NULL "
+            "WHERE id=:id"
+        ),
+        {"id": job.id},
+    )
+    await f.session.commit()
+    await f.session.execute(
+        text("UPDATE memory_jobs SET state='manual_retry_required' WHERE id=:id"),
+        {"id": job.id},
+    )
+    await f.session.commit()
+    assert (
+        await f.session.execute(
+            text("SELECT state, terminal_at FROM memory_jobs WHERE id=:id"), {"id": job.id}
+        )
+    ).one() == ("manual_retry_required", None)
+
+    with pytest.raises(IntegrityError):
+        await f.session.execute(
+            text("UPDATE memory_jobs SET terminal_at=now() WHERE id=:id"), {"id": job.id}
+        )
+        await f.session.commit()
+    await f.session.rollback()
+    with pytest.raises(IntegrityError):
+        await f.session.execute(
+            text("UPDATE memory_jobs SET state='exhausted' WHERE id=:id"), {"id": job.id}
+        )
+        await f.session.commit()
+    await f.session.rollback()
+
+    terminal_at = datetime.now(UTC)
+    await f.session.execute(
+        text("UPDATE memory_jobs SET state='exhausted', terminal_at=:terminal_at WHERE id=:id"),
+        {"id": job.id, "terminal_at": terminal_at},
+    )
+    await f.session.commit()
+    assert (
+        await f.session.execute(
+            text("SELECT state, terminal_at FROM memory_jobs WHERE id=:id"), {"id": job.id}
+        )
+    ).one() == ("exhausted", terminal_at)
+
+    for value in (None, terminal_at + timedelta(seconds=1)):
+        with pytest.raises(IntegrityError):
+            await f.session.execute(
+                text("UPDATE memory_jobs SET terminal_at=:terminal_at WHERE id=:id"),
+                {"id": job.id, "terminal_at": value},
+            )
+            await f.session.commit()
+        await f.session.rollback()
+    with pytest.raises(IntegrityError):
+        await f.session.execute(
+            text("UPDATE memory_jobs SET state='manual_retry_required' WHERE id=:id"),
+            {"id": job.id},
+        )
+        await f.session.commit()
+    await f.session.rollback()
