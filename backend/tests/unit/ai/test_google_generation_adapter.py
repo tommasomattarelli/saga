@@ -174,3 +174,26 @@ async def test_send_encodes_native_tools_and_retains_ordered_tool_receipts() -> 
     assert candidate["content"]["parts"][2]["futurePart"]["payload"] == [1, None, False]
     assert candidate["content"]["parts"][3]["thoughtSignature"] == signature
     assert candidate["futureCandidateField"] == {"preserved": True}
+
+
+@pytest.mark.asyncio
+async def test_send_serializes_native_schema_and_tools_together() -> None:
+    requests: list[httpx.Request] = []
+
+    async def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json=response_body())
+
+    provider, client = make_provider(httpx.MockTransport(respond))
+    generation = make_tool_request()
+    try:
+        await provider.send(generation)
+    finally:
+        await client.aclose()
+
+    assert len(requests) == 1
+    body = json.loads(requests[0].content)
+    config = body["generationConfig"]
+    assert config["responseMimeType"] == "application/json"
+    assert config["responseJsonSchema"] == generation.wire_schema
+    assert body["tools"][0]["functionDeclarations"][0]["name"] == "roll"

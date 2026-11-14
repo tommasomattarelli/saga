@@ -6,29 +6,39 @@ import copy
 import json
 import logging
 from typing import Any, cast
+from uuid import uuid4
 
 import structlog
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from app.ai.context import build_context
-from app.ai.exceptions import PROVIDER_SDK_ERRORS, ContentPolicyError, provider_failure_message
+from app.ai.generation_errors import Adapter
+from app.ai.generation_execution_ledger import (
+    GenerationExecutionError,
+    GenerationOutcomeStatus,
+    InMemoryGenerationLedger,
+)
 from app.ai.prompts.dm import DMPromptContext, DMPromptState, render_dm_prompt
 from app.ai.providers.schemas import TEXT_SIGNATURE_KEY, TOOL_CALL_SIGNATURES_KEY
 from app.ai.providers.usage import usage_scope
-from app.ai.router import get_user_generation
+from app.ai.router import get_generation_recovery_policy, get_user_generation
 from app.ai.sanitizer import detect_injection, sanitize_player_input
-from app.ai.tools.dm_tools import get_tool_schemas
+from app.ai.session_affinity import campaign_session_affinity
 from app.core.death import check_player_death
 from app.core.dm.dialogue_composition import clean_narration, compose_segments, transcript
 from app.core.dm.dialogue_reminder import dialogue_reminder
+from app.core.dm.dm_generation import (
+    build_dm_generation_request,
+    canonical_tool_arguments,
+    execute_dm_generation,
+)
 from app.core.dm.dm_helpers import get_or_create_segment, messages_to_raw, raw_history_to_lc
 from app.core.dm.game_state import GameState
 from app.core.dm.loop_policy import closing_step, dm_call_limit, step_tools
 from app.core.dm.npc_context import NarrativeObservation
 from app.core.dm.npc_results import flush_interaction_history
 from app.core.dm.operation_recorder import OperationRecorder
-from app.core.engine import CONTENT_POLICY_NARRATION
 from app.core.npc_resolver import npcs_at_current_location
 from app.exceptions import AIProviderError
 from app.memory.operation_delta import OperationState
@@ -105,16 +115,32 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
     closing = closing_step(state)
     allowed_tools = step_tools(state["world_state"], closing=closing)
     system_prompt = step_system_prompt(state, allowed_tools, closing)
-    tool_schemas = get_tool_schemas(allowed=allowed_tools)
 
     logger.info(
         "dm_node_step",
         step=state["step_count"],
         tools=sorted(allowed_tools),
-        tool_count=len(tool_schemas),
+        tool_count=len(allowed_tools),
     )
 
     messages_raw = messages_to_raw(state["messages"])
+    turn_context = state.get("turn_context")
+    previous_head_turn_id = (
+        str(turn_context.head_turn_id)
+        if turn_context is not None and turn_context.head_turn_id is not None
+        else None
+    )
+    request = build_dm_generation_request(
+        system_prompt,
+        cast(list[dict[str, object]], messages_raw),
+        config=model_cfg,
+        allowed_tools=allowed_tools,
+        campaign_id=state["campaign_id"],
+        player_action=state["player_action"],
+        step=state["step_count"],
+        previous_head_turn_id=previous_head_turn_id,
+        session_affinity=campaign_session_affinity(),
+    )
 
     _llm_io.info(
         json.dumps(
@@ -123,7 +149,7 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
                 "step": state["step_count"],
                 "model": model_cfg.model,
                 "messages_count": len(messages_raw),
-                "tool_count": len(tool_schemas),
+                "tool_count": len(request.tool_declarations),
             },
             ensure_ascii=False,
         )
@@ -131,27 +157,29 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
 
     try:
         with usage_scope(role="dm", step=state["step_count"]):
-            response = await provider.generate_with_tools(
-                system_prompt=system_prompt,
-                messages=messages_raw,
-                tools=tool_schemas,
-                model=model_cfg.model,
-                max_tokens=model_cfg.max_tokens,
+            execution = await execute_dm_generation(
+                request,
+                provider,
+                InMemoryGenerationLedger(),
+                get_generation_recovery_policy(),
+                Adapter(model_cfg.provider),
             )
-    except PROVIDER_SDK_ERRORS as exc:
-        raise AIProviderError(model_cfg.provider, provider_failure_message(exc)) from exc
-    except ContentPolicyError:
-        response_text = CONTENT_POLICY_NARRATION
-        ai_msg = AIMessage(content=response_text, tool_calls=[])
-        return {
-            "messages": [ai_msg],
-            "narration": state["narration"] + response_text,
-            "step_count": state["step_count"] + 1,
-            **_record_narration(state, response_text),
-        }
+    except GenerationExecutionError as exc:
+        raise AIProviderError(model_cfg.provider, str(exc)) from exc
 
-    text = response.text or ""
-    tool_calls_raw = response.tool_calls
+    receipt = next(
+        (
+            outcome.receipt
+            for outcome in reversed(execution.sends)
+            if outcome.status is GenerationOutcomeStatus.VALID and outcome.receipt is not None
+        ),
+        None,
+    )
+    if receipt is None:
+        raise RuntimeError("Successful DM generation did not retain its raw receipt.")
+
+    text = execution.value.text or ""
+    tool_calls_raw = receipt.tool_calls
 
     _llm_io.info(
         json.dumps(
@@ -165,16 +193,45 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
         )
     )
 
-    lc_tool_calls = [
-        {"id": tc.id, "name": tc.name, "args": tc.arguments, "type": "tool_call"}
-        for tc in tool_calls_raw
-    ]
+    lc_tool_calls = []
+    wire_tool_calls = []
+    signatures: dict[str, bytes] = {}
+    for call in tool_calls_raw:
+        call_id = call.call_id if call.call_id is not None else f"saga-call-{uuid4().hex}"
+        lc_tool_calls.append(
+            {
+                "id": call_id,
+                "name": call.name or "",
+                "args": canonical_tool_arguments(call, request),
+                "type": "tool_call",
+            }
+        )
+        wire_tool_calls.append(
+            {
+                "id": call_id,
+                "type": "function",
+                "function": {
+                    "name": call.name,
+                    "arguments": (
+                        call.arguments.raw_text_value
+                        if call.arguments.kind == "raw_text"
+                        else json.dumps(call.arguments.structured_value, ensure_ascii=False)
+                    ),
+                },
+            }
+        )
+        if call.signature is not None:
+            signatures[call_id] = call.signature
+
     ai_msg = AIMessage(content=text, tool_calls=lc_tool_calls)
-    signatures = {tc.id: tc.signature for tc in tool_calls_raw if tc.signature is not None}
+    if receipt.text is not None:
+        ai_msg.additional_kwargs["generation_text"] = receipt.text
+    if wire_tool_calls:
+        ai_msg.additional_kwargs["tool_calls"] = wire_tool_calls
     if signatures:
         ai_msg.additional_kwargs[TOOL_CALL_SIGNATURES_KEY] = signatures
-    if response.text_signature is not None:
-        ai_msg.additional_kwargs[TEXT_SIGNATURE_KEY] = response.text_signature
+    if receipt.text_signature is not None:
+        ai_msg.additional_kwargs[TEXT_SIGNATURE_KEY] = receipt.text_signature
 
     public_text, removed = clean_narration(
         text, state["step_count"], state["narration_segments"], state.get("npc_lines", [])

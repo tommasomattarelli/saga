@@ -141,6 +141,24 @@ class DmTool(BaseModel):
             },
         }
 
+    @classmethod
+    def to_generation_schema(cls) -> dict[str, object]:
+        from app.ai.tools.tools_npc import UpdateNpc
+        from app.ai.tools.tools_world import ChangeNpcPsychology
+        from app.ai.wire_contracts import wire_model_for
+
+        argument_model: type[BaseModel] = (
+            wire_model_for(cls) if cls is UpdateNpc or cls is ChangeNpcPsychology else cls
+        )
+        return {
+            "type": "function",
+            "function": {
+                "name": cls.tool_name(),
+                "description": cls.tool_description(),
+                "parameters": argument_model.model_json_schema(),
+            },
+        }
+
 
 # ── Registry ─────────────────────────────────────────────────────────────────
 

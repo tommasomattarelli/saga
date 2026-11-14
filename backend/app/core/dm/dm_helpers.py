@@ -39,8 +39,13 @@ def messages_to_raw(messages: list) -> list[dict]:
         if isinstance(msg, HumanMessage):
             raw.append({"role": "user", "content": str(msg.content)})
         elif isinstance(msg, AIMessage):
-            entry: dict = {"role": "assistant", "content": msg.content or None}
-            if msg.tool_calls:
+            entry: dict = {
+                "role": "assistant",
+                "content": msg.additional_kwargs.get("generation_text", msg.content or None),
+            }
+            if "tool_calls" in msg.additional_kwargs:
+                entry["tool_calls"] = msg.additional_kwargs["tool_calls"]
+            elif msg.tool_calls:
                 entry["tool_calls"] = [
                     {
                         "id": tc["id"],

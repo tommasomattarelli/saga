@@ -7,23 +7,24 @@ from eval.dialogue.requests import SuiteProvider
 from eval.dialogue.runtime import evaluation_dispatch
 from eval.support.ledger import RequestLedger
 
-from app.ai.providers.schemas import AgentResponse, ToolCall
 from app.ai.router import ModelConfig
+from tests.unit.eval.dialogue.typed_provider_test_support import dm_receipt, dm_tool_call
 
 
 async def test_second_beat_metrics_match_the_required_actor_and_separate_languages(tmp_path):
     provider = AsyncMock()
-    provider.generate_with_tools.side_effect = [
-        AgentResponse(
-            "",
-            [
-                ToolCall("a", "invoke_npc", {"name": "Aldric"}),
-                ToolCall("m", "invoke_npc", {"name": "Mira"}),
-            ],
+    provider.send.side_effect = [
+        dm_receipt(
+            '{"text":""}',
+            (
+                dm_tool_call("invoke_npc", {"name": "Aldric"}),
+                dm_tool_call("invoke_npc", {"name": "Mira"}, "m"),
+            ),
         ),
-        AgentResponse("", [ToolCall("m2", "invoke_npc", {"name": "Mira"})]),
-        AgentResponse(
-            "The bell rings and the crowd watches you. [[npc:Aldric:1]] [[npc:Mira:1]] [[npc:Mira:2]]"
+        dm_receipt('{"text":""}', (dm_tool_call("invoke_npc", {"name": "Mira"}, "m2"),)),
+        dm_receipt(
+            '{"text":"The bell rings and the crowd watches you. '
+            '[[npc:Aldric:1]] [[npc:Mira:1]] [[npc:Mira:2]]"}'
         ),
     ]
     provider.generate.return_value = (
@@ -43,7 +44,7 @@ async def test_second_beat_metrics_match_the_required_actor_and_separate_languag
         data, _ = await run_pipeline(
             scenario_for("two_npc_two_beat"),
             trace,
-            ModelConfig("openrouter", "m:free", 60000),
+            ModelConfig("openrouter", "m:free", 60000, destination_fingerprint="test:destination"),
             uuid.uuid4(),
         )
     metrics = data["metrics"]
@@ -56,16 +57,16 @@ async def test_second_beat_metrics_match_the_required_actor_and_separate_languag
 
 async def test_requested_second_actor_failure_is_not_a_missing_invocation(tmp_path):
     provider = AsyncMock()
-    provider.generate_with_tools.side_effect = [
-        AgentResponse(
-            "",
-            [
-                ToolCall("a", "invoke_npc", {"name": "Aldric"}),
-                ToolCall("m", "invoke_npc", {"name": "Mira"}),
-            ],
+    provider.send.side_effect = [
+        dm_receipt(
+            '{"text":""}',
+            (
+                dm_tool_call("invoke_npc", {"name": "Aldric"}),
+                dm_tool_call("invoke_npc", {"name": "Mira"}, "m"),
+            ),
         ),
-        AgentResponse("", [ToolCall("a2", "invoke_npc", {"name": "Aldric"})]),
-        AgentResponse("La campana suona. [[npc:Aldric:1]] [[npc:Mira:1]]"),
+        dm_receipt('{"text":""}', (dm_tool_call("invoke_npc", {"name": "Aldric"}, "a2"),)),
+        dm_receipt('{"text":"La campana suona. [[npc:Aldric:1]] [[npc:Mira:1]]"}'),
     ]
     seen = 0
 
@@ -93,7 +94,7 @@ async def test_requested_second_actor_failure_is_not_a_missing_invocation(tmp_pa
         data, _ = await run_pipeline(
             scenario_for("two_npc_two_beat"),
             trace,
-            ModelConfig("openrouter", "m:free", 60000),
+            ModelConfig("openrouter", "m:free", 60000, destination_fingerprint="test:destination"),
             uuid.uuid4(),
         )
     metrics = data["metrics"]

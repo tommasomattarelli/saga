@@ -5,6 +5,7 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import asdict, replace
 
+from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
 from app.ai.providers.base import AIProvider
 from app.ai.providers.schemas import AgentResponse
 from app.ai.providers.usage import current_correlation
@@ -12,7 +13,7 @@ from eval.dialogue.limits import FreeRequestLimiter
 from eval.support.dialogue_affinity import provider_with_session
 from eval.support.ledger import Attempt, BudgetExhaustedError, RequestLedger
 from eval.support.live_calls import EvaluationPausedError
-from eval.support.provider_trace import ProviderTrace
+from eval.support.provider_trace import ProviderTrace, generation_request_evidence
 
 
 class SuiteProvider(AIProvider):
@@ -126,7 +127,17 @@ class SuiteProvider(AIProvider):
             max_tokens=max_tokens,
             json_mode=json_mode,
         )
-        return await self._call("actor", request, lambda trace: trace.generate(**request))
+        return await self._call(
+            "actor",
+            request,
+            lambda trace: trace.generate(
+                system_prompt, messages, model, max_tokens=max_tokens, json_mode=json_mode
+            ),
+        )
+
+    async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
+        evidence = generation_request_evidence(request)
+        return await self._call("dm", evidence, lambda trace: trace.send(request))
 
     async def generate_with_tools(
         self,
@@ -143,7 +154,13 @@ class SuiteProvider(AIProvider):
             model=model,
             max_tokens=max_tokens,
         )
-        return await self._call("dm", request, lambda trace: trace.generate_with_tools(**request))
+        return await self._call(
+            "dm",
+            request,
+            lambda trace: trace.generate_with_tools(
+                system_prompt, messages, tools, model, max_tokens=max_tokens
+            ),
+        )
 
     def stream(
         self,

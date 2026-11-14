@@ -7,24 +7,17 @@ from eval.dialogue.runtime import evaluation_dispatch
 from eval.dialogue.trial import run_case
 from eval.support.ledger import RequestLedger
 
-from app.ai.providers.schemas import AgentResponse, ToolCall
 from app.ai.router import ModelConfig
+from tests.unit.eval.dialogue.typed_provider_test_support import dm_receipt, dm_tool_call
 
 
 async def test_two_turn_case_reuses_the_actual_transcript_and_world_state(tmp_path):
     provider = AsyncMock()
-    calls = []
-    replies = [
-        AgentResponse("", [ToolCall("a", "invoke_npc", {"name": "Aldric"})]),
-        AgentResponse("[[npc:Aldric:1]] The crowd waits."),
-        AgentResponse("The earlier warning still hangs over the square."),
+    provider.send.side_effect = [
+        dm_receipt('{"text":""}', (dm_tool_call("invoke_npc", {"name": "Aldric"}),)),
+        dm_receipt('{"text":"[[npc:Aldric:1]] The crowd waits."}'),
+        dm_receipt('{"text":"The earlier warning still hangs over the square."}'),
     ]
-
-    async def generate(**kwargs):
-        calls.append(kwargs)
-        return replies.pop(0)
-
-    provider.generate_with_tools.side_effect = generate
     provider.generate.return_value = (
         '{"status":"speaking","lines":["The seal was broken yesterday."]}'
     )
@@ -43,13 +36,13 @@ async def test_two_turn_case_reuses_the_actual_transcript_and_world_state(tmp_pa
             "two_npc_conversation",
             scenario_for("two_npc_conversation"),
             trace,
-            ModelConfig("openrouter", "m:free", 60000),
+            ModelConfig("openrouter", "m:free", 60000, destination_fingerprint="test:destination"),
             uuid.uuid4(),
         )
     assert len(data["turns"]) == 2
     assert any(
         "The seal was broken yesterday." in str(message["content"])
-        for message in calls[2]["messages"]
+        for message in provider.send.await_args_list[2].args[0].messages
     )
     assert data["turns"][1]["before"] == data["turns"][0]["after"]
     assert trace.count == 4

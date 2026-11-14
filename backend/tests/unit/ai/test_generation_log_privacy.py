@@ -11,10 +11,15 @@ import structlog
 from langchain_core.messages import HumanMessage
 
 from app.ai import npc_director
+from app.ai.generation_contracts import (
+    GenerationRequest,
+    GenerationToolReceipt,
+    RawGenerationReceipt,
+    RawToolArguments,
+)
 from app.ai.npc_director import NPCInput, invoke_npcs_parallel, invoke_single_npc
 from app.ai.npc_outcomes import NPCFailure, NPCSpeaking
 from app.ai.providers.base import AIProvider, logged_generate
-from app.ai.providers.schemas import AgentResponse, ToolCall
 from app.ai.router import ModelConfig
 from app.core.dm.dm_nodes import dm_node
 from app.core.dm.game_state import GameState
@@ -79,7 +84,7 @@ class _StructlogCapture:
 
 class _Provider(AIProvider):
     failure: Exception | None = None
-    response: AgentResponse | None = None
+    response: RawGenerationReceipt | None = None
     generation_result = "raw-response-canary"
 
     async def generate(
@@ -97,14 +102,7 @@ class _Provider(AIProvider):
     def stream(self, system_prompt: str, messages: list[dict], model: str, max_tokens: int = 2000):
         raise NotImplementedError
 
-    async def generate_with_tools(
-        self,
-        system_prompt: str,
-        messages: list[dict],
-        tools: list[dict],
-        model: str,
-        max_tokens: int = 2000,
-    ) -> AgentResponse:
+    async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
         if self.response is None:
             raise AssertionError("DM test response was not configured")
         return self.response
@@ -160,22 +158,26 @@ async def test_logged_generate_does_not_log_payloads_when_provider_raises() -> N
 async def test_dm_node_does_not_log_prompt_response_or_tool_arguments() -> None:
     capture = _Capture()
     provider = _Provider()
-    tool_arguments = {"nested": {"secret": "tool-arguments-canary"}}
-    provider.response = AgentResponse(
-        text="dm-response-canary",
-        tool_calls=[
-            ToolCall(
-                id="call-1",
-                name="trusted-tool",
-                arguments=tool_arguments,
-            )
-        ],
+    provider.response = RawGenerationReceipt(
+        text='{"text":"dm-response-canary"}',
+        tool_calls=(
+            GenerationToolReceipt(
+                "call-1",
+                "request_dice",
+                RawToolArguments.raw_text(
+                    '{"check":"tool-arguments-canary","stat":"DEX","difficulty":"normal"}'
+                ),
+            ),
+        ),
     )
     state = {
         "step_count": 0,
+        "max_agent_steps": 8,
         "world_state": {},
         "messages": [HumanMessage(content="dm-user-canary")],
         "system_prompt": "dm-system-canary",
+        "campaign_id": "offline-campaign",
+        "player_action": "dm-user-canary",
         "char_data": {},
         "world_baseline": {},
         "narration": "",
@@ -186,7 +188,12 @@ async def test_dm_node_does_not_log_prompt_response_or_tool_arguments() -> None:
     }
 
     async def generation_config(_user_id: str) -> tuple[_Provider, ModelConfig]:
-        return provider, ModelConfig(provider="openai", model="dm-model", max_tokens=100)
+        return provider, ModelConfig(
+            provider="openai",
+            model="dm-model",
+            max_tokens=100,
+            destination_fingerprint="test:destination",
+        )
 
     try:
         with (
@@ -194,7 +201,6 @@ async def test_dm_node_does_not_log_prompt_response_or_tool_arguments() -> None:
                 "app.core.dm.dm_nodes.get_user_generation",
                 new=generation_config,
             ),
-            patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
         ):
             await dm_node(cast(GameState, state), config={})
     finally:
