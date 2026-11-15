@@ -8,15 +8,13 @@ from app.models.memory_document import MemoryState
 from app.models.memory_generation import MemoryGeneration
 from app.models.memory_job import MemoryJob
 from app.models.turn import Turn
+from tests.integration.memory.job_support import outputs_for
 from tests.integration.memory.storage_support import HistoryFixture
 from tests.integration.memory.test_job_publication import _claimed_job
 
 
 def outputs(generations: tuple[MemoryGeneration, ...]) -> tuple[JobOutput, ...]:
-    return (
-        JobOutput(generations[0].id, '{"text":"A shared historical memory."}'),
-        JobOutput(generations[1].id, '{"facts":[]}'),
-    )
+    return outputs_for(generations)
 
 
 async def test_ordinary_history_extension_does_not_detach_inflight_batch(

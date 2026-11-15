@@ -67,8 +67,9 @@ async def test_configured_dm_cap_filters_last_step_in_prompt_schema_and_executio
             "An attempt.",
             ToolCall(id=f"item-{i}", name="add_item", arguments={"name": f"Stone {i}"}),
         )
-        for i in range(cap)
+        for i in range(cap - 1)
     ]
+    responses.append(_reply("The scene closes."))
     captured = _script(provider, responses)
     result = await _take_turn(auth_client, campaign["id"])
     assert len(captured) == cap
@@ -98,9 +99,6 @@ async def test_repeated_rejection_forces_a_close_not_an_extra_call(
             ),
             _reply(
                 "The way remains closed.",
-                ToolCall(
-                    id="bad-3", name="attack", arguments={"attacker": "player", "target": "Lyra"}
-                ),
             ),
         ],
     )
@@ -202,11 +200,13 @@ async def test_terminal_step_cannot_invoke_an_actor_or_roll_or_hidden_tool(
                     arguments={"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
                 ),
                 ToolCall(id="unknown", name="not_a_tool", arguments={}),
-            )
+            ),
+            _reply("The scene closes without another action."),
         ],
     )
     result = await _take_turn(auth_client, campaign["id"])
-    assert len(captured) == 1
+    assert len(captured) == 2
+    assert "untrusted data" in captured[1]["messages"][-2]["content"]
     assert not [
         p for s in result["narration_segments"] for p in s["parts"] if p["type"] == "npc_speech"
     ]

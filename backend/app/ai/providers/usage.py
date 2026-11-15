@@ -109,15 +109,12 @@ def _number(value: object | None) -> float | None:
     )
 
 
-def capture_usage(response: object, *, model: str | None = None) -> UsageMetadata | None:
-    collector = _collector.get()
+def extract_usage_metadata(response: object, *, model: str | None = None) -> UsageMetadata:
     usage = _field(response, "usage")
-    if collector is None:
-        return None
     prompt = _field(usage, "prompt_tokens_details")
     completion = _field(usage, "completion_tokens_details")
-    correlation = collector.correlation
-    details = UsageMetadata(
+    correlation = current_correlation()
+    return UsageMetadata(
         response_id=_text(_field(response, "id")),
         model=_text(_field(response, "model")) or model,
         input_tokens=_integer(_field(usage, "prompt_tokens")),
@@ -133,5 +130,12 @@ def capture_usage(response: object, *, model: str | None = None) -> UsageMetadat
         npc_id=correlation.npc_id,
         npc_name=correlation.npc_name,
     )
+
+
+def capture_usage(response: object, *, model: str | None = None) -> UsageMetadata | None:
+    collector = _collector.get()
+    if collector is None:
+        return None
+    details = extract_usage_metadata(response, model=model)
     collector.items.append(details)
     return details

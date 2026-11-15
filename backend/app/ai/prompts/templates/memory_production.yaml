@@ -12,6 +12,9 @@ system: |
 output: |
   Return exactly one JSON object matching the following schema. No markdown, explanatory
   prose, additional fields, repaired fragments or omitted required fields.
+executor_output: |
+  Return exactly one JSON object matching the structured response contract. No markdown,
+  explanatory prose, additional fields, repaired fragments or omitted required fields.
 example: |
   The worked example below is illustrative only, not evidence for the current batch.
   It uses English to demonstrate the contract; write the actual output in the supplied

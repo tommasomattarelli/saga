@@ -49,7 +49,7 @@ async def retry_memory(
         await db.scalars(
             select(MemoryJob.id).where(
                 MemoryJob.id.in_(ids),
-                MemoryJob.state.in_(("blocked", "exhausted")),
+                MemoryJob.state.in_(("blocked", "manual_retry_required")),
             )
         )
     )

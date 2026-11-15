@@ -25,7 +25,9 @@ TurnReference = Annotated[str, Field(pattern=r"^t[1-9][0-9]*$")]
 
 
 class MemoryOutputError(ValueError):
-    pass
+    def __init__(self, message: str, diagnostic_path: tuple[str | int, ...] = ()) -> None:
+        super().__init__(message)
+        self.diagnostic_path = diagnostic_path
 
 
 class GeneratedEntity(_DocumentModel):
@@ -150,17 +152,37 @@ def validate_facts(
     source: BatchInput,
     policy: FactsPolicy,
 ) -> tuple[ResolvedFact, ...]:
+    validate_facts_context(payload, source, policy)
+    return resolve_facts(payload, source)
+
+
+def validate_facts_context(
+    payload: FactsPayload,
+    source: BatchInput,
+    policy: FactsPolicy,
+) -> None:
     validate_source(source)
     if len(payload.facts) > policy.max_per_batch:
-        raise MemoryOutputError("The generated facts exceed the batch limit.")
-    turns = {turn.reference: turn.turn_id for turn in source.turns}
+        raise MemoryOutputError("The generated facts exceed the batch limit.", ("facts",))
     levels = {level.name for level in policy.importance_levels}
+    source_references = {turn.reference for turn in source.turns}
+    for index, fact in enumerate(payload.facts):
+        if not set(fact.source_turns) <= source_references:
+            raise MemoryOutputError(
+                "A fact references a turn outside its batch.",
+                ("facts", index, "source_turns"),
+            )
+        if fact.importance.level not in levels:
+            raise MemoryOutputError(
+                "A fact uses an importance level outside the policy.",
+                ("facts", index, "importance", "level"),
+            )
+
+
+def resolve_facts(payload: FactsPayload, source: BatchInput) -> tuple[ResolvedFact, ...]:
+    turns = {turn.reference: turn.turn_id for turn in source.turns}
     resolved = []
     for fact in payload.facts:
-        if not set(fact.source_turns) <= turns.keys():
-            raise MemoryOutputError("A fact references a turn outside its batch.")
-        if fact.importance.level not in levels:
-            raise MemoryOutputError("A fact uses an importance level outside the policy.")
         resolved.append(
             ResolvedFact(
                 content=fact.content,

@@ -26,6 +26,13 @@ class User(Base, UUIDMixin, TimestampMixin):
     generation_provider: Mapped[str | None] = mapped_column(String(20), nullable=True)
     generation_model: Mapped[str | None] = mapped_column(String(200), nullable=True)
     generation_local_endpoint: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    generation_allow_json_mode_fallback: Mapped[bool | None] = mapped_column(
+        Boolean, nullable=True
+    )
+    generation_allow_prompt_only_fallback: Mapped[bool | None] = mapped_column(
+        Boolean, nullable=True
+    )
+    generation_format_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
     embedding_provider: Mapped[str | None] = mapped_column(String(20), nullable=True)
     embedding_model: Mapped[str | None] = mapped_column(String(200), nullable=True)
     embedding_local_endpoint: Mapped[str | None] = mapped_column(String(100), nullable=True)

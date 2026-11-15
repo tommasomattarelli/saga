@@ -84,7 +84,7 @@ async def test_quest_ledger(auth_client, db_session, generation_clients):
 async def test_tool_ledger(auth_client, db_session, generation_clients):
     campaign = await _create_campaign(auth_client)
     provider = await _openai_provider(auth_client, generation_clients)
-    _script(
+    captured = _script(
         provider,
         [
             _reply(
@@ -103,26 +103,34 @@ async def test_tool_ledger(auth_client, db_session, generation_clients):
                     arguments={"stat": "DEX", "check": "Balance", "difficulty": "normal"},
                 ),
             ),
+            _reply(
+                "",
+                ToolCall(id="mood-fixed", name="set_scene_mood", arguments={"mood": "tense"}),
+                ToolCall(id="route-fixed", name="move_to", arguments={"location": "Nowhere"}),
+                ToolCall(
+                    id="valid-dice-fixed",
+                    name="request_dice",
+                    arguments={"stat": "DEX", "check": "Balance", "difficulty": "normal"},
+                ),
+            ),
             _reply("The scene settles."),
         ],
     )
     result = await _take_turn(auth_client, campaign["id"])
+    assert len(captured) == 3
+    assert "untrusted data" in captured[1]["messages"][-2]["content"]
+    assert "ability" in captured[1]["messages"][-2]["content"]
+    assert "wrong" in captured[1]["messages"][-2]["content"]
     _, rows = await _operations(db_session, campaign["id"])
     tools = [r.payload for r in rows if r.payload.origin == "tool"]
-    assert [r.name for r in tools] == [
-        "request_dice",
-        "request_dice",
-        "set_scene_mood",
-        "move_to",
-        "move_to",
-    ]
-    assert tools[0].result.reason == "invalid_arguments" and tools[1].result.kind == "check"
+    assert [r.name for r in tools] == ["request_dice", "set_scene_mood", "move_to"]
+    assert tools[0].result.kind == "check"
+    assert tools[0].outcome == "succeeded"
+    assert tools[0].deltas == ()
+    assert isinstance(tools[0].result.checks["Balance"].success, bool)
     assert tools[1].outcome == "succeeded"
-    assert tools[1].deltas == ()
-    assert isinstance(tools[1].result.checks["Balance"].success, bool)
-    assert tools[2].outcome == "succeeded"
-    assert [tools[i].result.reason for i in (3, 4)] == ["invalid_arguments", "domain_rejection"]
-    assert all(tools[i].outcome == "rejected" for i in (3, 4))
+    assert tools[2].result.reason == "domain_rejection"
+    assert tools[2].outcome == "rejected"
     assert result["tool_events"] == []
     assert "operations" not in result
 
@@ -196,6 +204,7 @@ async def test_operation_rollback(auth_client, db_session, generation_clients):
     )
     initial_quests = campaign["quests"]
     initial_world = campaign["world_state"]
+    await db_session.commit()
 
     def fail_insert(conn, cursor, statement, parameters, context, executemany):
         if "INSERT INTO turn_operations" in statement:

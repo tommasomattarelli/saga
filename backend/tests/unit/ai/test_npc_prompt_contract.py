@@ -1,18 +1,44 @@
+import json
 from unittest.mock import AsyncMock
 
 import pytest
 
+from app.ai.generation_contracts import RawGenerationReceipt
 from app.ai.npc_director import invoke_single_npc
 from app.ai.prompts.loader import template
 from app.ai.router import GameplayConfig, ModelConfig, get_gameplay_config
+from tests.unit.eval.dialogue.typed_provider_test_support import TypedResponseProvider
 
 
 async def test_actor_instructions_are_system_and_profile_is_delimited_user_data(monkeypatch):
-    provider = AsyncMock()
-    provider.generate.return_value = '{"status":"speaking","lines":["No."]}'
+    provider = TypedResponseProvider(
+        [
+            RawGenerationReceipt(
+                text=json.dumps(
+                    {
+                        "status": "speaking",
+                        "lines": ["No."],
+                        "action": None,
+                        "axis_changes": [],
+                        "reveals_secret": False,
+                    }
+                )
+            )
+        ]
+    )
     monkeypatch.setattr(
         "app.ai.npc_director.get_generation",
-        AsyncMock(return_value=(provider, ModelConfig("local", "test", 60000))),
+        AsyncMock(
+            return_value=(
+                provider,
+                ModelConfig(
+                    "local",
+                    "test",
+                    60000,
+                    destination_fingerprint="offline-test-destination",
+                ),
+            )
+        ),
     )
     await invoke_single_npc(
         "Private Name",
@@ -23,11 +49,13 @@ async def test_actor_instructions_are_system_and_profile_is_delimited_user_data(
         scene_context="PUBLIC_SCENE",
         language="it",
     )
-    request = provider.generate.call_args.kwargs
-    system = request["system_prompt"]
-    user = request["messages"][0]
+    request = provider.requests[0]
+    system = request.system_prompt
+    user = request.messages[0]
     assert "Italian (it)" in system and '"status": "speaking"' in system
     assert "at most 4" in system
+    assert "Use only the fields status, lines, action, axis_changes and reveals_secret." in system
+    assert 'a silent result must explicitly have status "silent" and lines []' in system
     assert all(value not in system for value in ("PRIVATE_SECRET", "PLAYER_INPUT", "Private Name"))
     assert user["role"] == "user"
     assert "<actor_data>" in user["content"] and "</actor_data>" in user["content"]
@@ -36,8 +64,8 @@ async def test_actor_instructions_are_system_and_profile_is_delimited_user_data(
     assert all(
         value in user["content"] for value in ("PUBLIC_SCENE", "PUBLIC_BEAT", "PUBLIC_NARRATION")
     )
-    assert request["json_mode"] is True
-    assert provider.generate.await_count == 1
+    assert request.format_mode.value == "strict_native"
+    assert len(provider.requests) == 1
 
 
 def test_default_line_cap_is_four_in_yaml_dataclass_and_missing_config(monkeypatch):

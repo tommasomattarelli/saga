@@ -105,10 +105,15 @@ async def test_archive_exports_complete_records_from_real_memory_pipeline(
     provider = RichPipelineProvider(assert_no_db_held)
 
     async def resolve(owner):
-        return provider, ModelConfig(provider="local", model="archive-controlled", max_tokens=2000)
+        return provider, ModelConfig(
+            provider="local",
+            model="archive-controlled",
+            max_tokens=2000,
+            destination_fingerprint="archive-controlled",
+        )
 
     monkeypatch.setattr("app.core.dm.dm_nodes.get_user_generation", resolve)
-    monkeypatch.setattr("app.memory.job_execution.get_user_generation", resolve)
+    monkeypatch.setattr("app.memory.job_execution.get_provider", lambda *args, **kwargs: provider)
     created = await auth_client.post(
         "/api/campaigns",
         json={

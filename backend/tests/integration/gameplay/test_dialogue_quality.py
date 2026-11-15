@@ -1,3 +1,5 @@
+import json
+
 from app.ai.providers.schemas import AgentResponse, ToolCall
 from tests.integration.gameplay.test_npc_beats import actor, speaking
 from tests.integration.gameplay.test_quest_persistence import (
@@ -38,7 +40,9 @@ async def test_public_observation_is_clean_before_next_beat_but_provider_message
     assert "«Forse»" not in result["narration"]
     assert result["narration"].count("Forse") == 1
     original = next(
-        m for m in dm[2]["messages"] if m["role"] == "assistant" and m["content"] == raw
+        m
+        for m in dm[2]["messages"]
+        if m["role"] == "assistant" and json.loads(m.get("content") or "{}").get("text") == raw
     )
     assert original["text_thought_signature"] == b"signed"
     assert "<dialogue_state>" in dm[1]["system_prompt"]

@@ -15,6 +15,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Highlights
 
+- [UI] Generation settings expose independent format-fallback choices without carrying saved consent to another destination (ADR 0021).
 - [Gameplay] Retried actions preserve their request identity and reject stale histories instead of applying a second turn.
 - [UI] Action failures expose a memory-retry banner while preserving the pending action and its identity.
 - [World & DM] Experimental batched memory retains turn-level provenance and assembles context only from the selected history.
@@ -22,6 +23,32 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Renamed unused flush-hook bindings and restored typed-generation fixtures while preserving preflight, privacy, provenance and replay coverage.
+- Routed memory jobs through durable recovery with frozen identities, claim-cycle retries, provenance-gated publication, and faithful authored tool arguments (ADR 0021).
+- Added migration 017 with typed identity verification, Python-compatible Unicode digests and complete safe outcome codes, preserving receipt evidence on downgrade (ADR 0021).
+- Autonomously selected immutable terminal reason codes and separated integrity blocks from configuration failures within the approved recovery policy (ADR 0021).
+- Autonomously scoped configurable one-day terminal cleanup to receipt/candidate pairs, preserving hashes, send evidence, provenance, and export privacy (ADR 0021).
+- Added a claim-fenced durable generation ledger that commits reservations before provider I/O and replays persisted outcomes through the shared executor.
+- Added an owner-only ADR rebind operation that requires reviewed hash compare-and-swap and invalidates prior workflow proof.
+- Routed DM responses through shared recovery, validating before graph admission while retaining original wire text, tool arguments and signatures for provider history (ADR 0021).
+- Routed NPC dialogue through strict typed generation with bounded correction, lossless axis encoding, and per-actor send budgets (ADR 0021).
+- Aligned memory prompts with canonical policy-enriched schemas and added an injected executor-backed consumer with safe contextual validation, leaving durable runtime cutover to W4 (ADR 0021).
+- Added migration 016 for immutable generation identities, per-send request digests and modes, durable outcomes, and terminal timestamps without backfilling legacy rows.
+- Added destination-bound format fallback settings with strict boolean overrides, opaque HMAC identities and a forward profile migration (ADR 0021).
+- Extended owner-controlled workflow scope extensions to automatic isolated worktrees and per-worktree receipts, with fresh independent correctness and slop review before every commit.
+- Added whole-response static DM tool preflight with strict schema-safe diagnostics before effects, preserving sequential domain checks (ADR 0021).
+- Added a shared typed generation executor with policy-frozen identities, monotonic send reservations and bounded validation recovery (ADR 0021).
+- Added cumulative correction requests with quoted failed outputs and schema-derived, redacted validation guidance (ADR 0021).
+- Removed prompt, response and tool-argument payloads from ordinary generation logs, retaining safe call metadata (ADR 0021).
+- Added Google typed generation sends with explicit format modes, lossless receipts, bounded SDK attempts, and offline wire tests (ADR 0021).
+- Added strict response validation with exact JSON-fence normalization and schema-aware diagnostics that redact untrusted field paths (ADR 0021).
+- Added immutable generation requests, derived execution identities and lossless raw receipts with explicit output limits and signature snapshots (ADR 0021).
+- Added typed OpenAI generation with faithful schema modes, lossless receipts, output caps and zero SDK retries (ADR 0021).
+- Added typed OpenRouter/local generation with faithful schema modes, native tools, preserved request affinity and zero SDK retries (ADR 0021).
+- Added typed generation failure classification with explicit retry, refusal, truncation and schema-incompatibility decisions, without matching provider prose (ADR 0021).
+- Added lossless, Pydantic-derived wire DTOs for NPC update and psychology maps, preserving canonical validation and rejecting duplicate entries (ADR 0021).
+- Added a shared strict response contract and canonical schema snapshots, reused by memory validation without changing prompts or contextual checks (ADR 0021).
+- Recorded Proposed ADR 0021 for unified structured generation, bounded recovery and durable memory candidates, replacing ADR 0020's no-repair rule without authorizing live evaluation.
 - Reorganized backend evaluation tools and tests, indexed their guide, and clarified harness-independent skills and owner authorization for external evaluation calls.
 - Recorded ADR 0020 from the owner-interview plan for batched memory, durable production and save-aware histories, with explicit offline and live-evaluation gates.
 - Added immutable, strictly validated memory-production policy contracts without adopting campaign defaults or changing the public creation path (ADR 0020 S1).

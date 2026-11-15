@@ -1,15 +1,20 @@
 import asyncio
 import json
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
 from sqlalchemy import select
 
-from app.memory.job_worker import run_memory_pass, run_memory_worker
+from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
+from app.memory.job_worker import _campaign_intervals, run_memory_pass, run_memory_worker
 from app.models.memory_document import MemorySummary
+from app.models.memory_generation import MemoryGeneration
 from app.models.memory_job import MemoryJob
+from tests.integration.memory.job_support import configure_local_generation
 from tests.integration.memory.storage_support import HistoryFixture
 from tests.integration.memory.test_job_execution import ControlledProvider
+from tests.integration.memory.test_job_publication import _claimed_job
 from tests.integration.memory.test_job_scheduler import active_history
 
 
@@ -32,17 +37,15 @@ async def test_integrated_replay_persists_source_before_real_memory_jobs(
     campaign_id = await create_replay_campaign(auth_client)
 
     class OfflineMemoryProvider:
-        async def generate(
-            self,
-            system_prompt: str,
-            messages: list[dict[str, object]],
-            **kwargs: object,
-        ) -> str:
-            if '"story_so_far"' in system_prompt and '"resolved_threads"' in system_prompt:
-                return '{"story_so_far":"The key promise was fulfilled.","open_threads":[],"relationships":[],"resolved_threads":[]}'
-            if '"facts"' in system_prompt:
-                return '{"facts":[]}'
-            return '{"text":"The recorded events preserve the campaign history."}'
+        async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
+            raw = (
+                '{"story_so_far":"The key promise was fulfilled.","open_threads":[],"relationships":[],"resolved_threads":[]}'
+                if request.role == "global"
+                else '{"facts":[]}'
+                if request.role == "facts"
+                else '{"text":"The recorded events preserve the campaign history."}'
+            )
+            return RawGenerationReceipt(text=raw, raw_candidate=raw)
 
     from app.ai.providers import base
     from app.ai.router import get_local_endpoints
@@ -171,29 +174,30 @@ async def test_real_pipeline_cascades_original_batches_into_global(
     history_fixture: HistoryFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from app.ai.router import ModelConfig
 
     f = history_fixture
+    await configure_local_generation(f)
     state = await active_history(f, 8)
     provider = ControlledProvider([])
     calls: list[tuple[str, str]] = []
 
-    async def generate(system_prompt, messages, **kwargs):
-        prompt = messages[0]["content"]
-        calls.append((system_prompt, prompt))
-        if '"story_so_far"' in system_prompt and '"resolved_threads"' in system_prompt:
+    async def send(request: GenerationRequest) -> RawGenerationReceipt:
+        prompt = str(request.messages[0]["content"])
+        calls.append((request.system_prompt, prompt))
+        if request.role == "global":
             assert '"previous"' in prompt
             assert '"player_action":"Action"' in prompt
-            return '{"story_so_far":"The first batch.","open_threads":[],"relationships":[],"resolved_threads":[]}'
-        if '"facts"' in system_prompt:
-            return '{"facts":[]}'
-        return '{"text":"Intermediate memory."}'
+            raw = '{"story_so_far":"The first batch.","open_threads":[],"relationships":[],"resolved_threads":[]}'
+        elif request.role == "facts":
+            raw = '{"facts":[]}'
+        else:
+            raw = '{"text":"Intermediate memory."}'
+        return RawGenerationReceipt(text=raw, raw_candidate=raw)
 
-    async def resolve(owner):
-        return provider, ModelConfig(provider="local", model="test-model", max_tokens=500)
-
-    monkeypatch.setattr(provider, "generate", generate)
-    monkeypatch.setattr("app.memory.job_execution.get_user_generation", resolve)
+    monkeypatch.setattr(provider, "send", send)
+    monkeypatch.setattr(
+        "app.memory.job_execution.get_provider", lambda *_args, **_kwargs: provider
+    )
     for _ in range(5):
         await run_memory_pass(f.campaign.id)
     await f.session.refresh(state)
@@ -217,3 +221,29 @@ async def test_worker_with_no_eligible_campaigns_stops_without_provider_work(
     task = asyncio.create_task(run_memory_worker(stop, wake))
     stop.set()
     await asyncio.wait_for(task, timeout=2)
+
+
+async def test_worker_discovers_terminal_payloads_without_active_memory_state(
+    history_fixture: HistoryFixture,
+) -> None:
+    fixture = history_fixture
+    job, _, generations, _, _ = await _claimed_job(fixture)
+    job.state = "succeeded"
+    job.claim_token = None
+    job.lease_expires_at = None
+    job.terminal_at = datetime.now(UTC) - timedelta(days=1)
+    fixture.campaign.active_memory_state_id = None
+    await fixture.session.commit()
+
+    assert fixture.campaign.id in await _campaign_intervals()
+    await run_memory_pass(fixture.campaign.id)
+
+    stored = list(
+        await fixture.session.scalars(
+            select(MemoryGeneration)
+            .where(MemoryGeneration.id.in_([generation.id for generation in generations]))
+            .execution_options(populate_existing=True)
+        )
+    )
+    assert all(generation.raw_candidate is None for generation in stored)
+    assert all(generation.receipt is None for generation in stored)

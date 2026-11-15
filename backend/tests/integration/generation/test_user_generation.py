@@ -82,7 +82,9 @@ async def test_local_generation_uses_only_the_named_endpoint(auth_client: AsyncC
     )
     with patch("app.ai.providers.local.LocalProvider") as factory:
         _, config = await get_user_generation(user_id(auth_client))
-    factory.assert_called_once_with(base_url="http://localhost:11434/v1", api_key=None)
+    factory.assert_called_once_with(
+        base_url="http://localhost:11434/v1", api_key=None, provider_kind="local"
+    )
     assert config.model == "local-model"
 
 

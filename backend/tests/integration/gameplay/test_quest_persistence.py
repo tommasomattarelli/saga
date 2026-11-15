@@ -91,7 +91,9 @@ async def _stored_quests(db_session, campaign_id: str) -> dict:
         select(Campaign).where(Campaign.id == uuid.UUID(campaign_id))
     )
     assert campaign is not None
-    return campaign.quests
+    quests = campaign.quests
+    await db_session.commit()
+    return quests
 
 
 async def _autosave(db_session, campaign_id: str) -> tuple[uuid.UUID, dict]:
@@ -103,6 +105,7 @@ async def _autosave(db_session, campaign_id: str) -> tuple[uuid.UUID, dict]:
         )
     )
     save_id, snapshot = result.one()
+    await db_session.commit()
     return save_id, snapshot
 
 

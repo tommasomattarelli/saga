@@ -19,7 +19,10 @@ generation:
     provider: google
     model: gemini-3.5-flash
   max_output_tokens: 60000
+  max_sends_per_result: 3
   openrouter_session_affinity: true # stable campaign ID for generation routing; cache hits remain best-effort
+  allow_json_mode_fallback: false
+  allow_prompt_only_fallback: false
 
 # ---------------------------------------------------------------------------
 # Providers — instance policy (ADR 0018 A3/A4/A5/A7)
@@ -83,6 +86,7 @@ embedding:
 # Memory production — ADR 0020 experimental branch values; production defaults remain gated
 # ---------------------------------------------------------------------------
 memory:
+  terminal_payload_retention_days: 1 # Keep terminal raw recovery payloads for one day; provenance remains.
   production:
     # Experimental ADR 0020 branch values; not a production default before integrated evaluation.
     raw_turns: 8 # R: recent raw turns retained in full.

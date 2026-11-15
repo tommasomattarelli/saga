@@ -1,12 +1,13 @@
 from sqlalchemy import func, select, text
 
 from app.memory.job_claims import recover_jobs
-from app.memory.job_publication import JobOutput, publish_job
+from app.memory.job_publication import publish_job
 from app.memory.job_scheduler import coordinate_memory
 from app.models.memory_document import MemoryState
 from app.models.memory_generation import MemoryGeneration
 from app.models.memory_job import MemoryJob, MemoryJobAttempt
 from app.models.turn import Turn
+from tests.integration.memory.job_support import outputs_for
 from tests.integration.memory.storage_support import HistoryFixture
 from tests.integration.memory.storage_support import (
     history_fixture as history_fixture,  # noqa: F401
@@ -36,14 +37,7 @@ async def test_api_restore_reuses_late_batch_inside_saved_raw_limit_without_new_
     loaded = await auth_client.post(f"/api/saves/{fixture.campaign.id}/load/{saved.json()['id']}")
     assert loaded.status_code == 200, loaded.text
 
-    assert await publish_job(
-        fixture.session,
-        claim,
-        (
-            JobOutput(generations[0].id, '{"text":"A shared historical memory."}'),
-            JobOutput(generations[1].id, '{"facts":[]}'),
-        ),
-    )
+    assert await publish_job(fixture.session, claim, outputs_for(generations))
     await fixture.session.commit()
     await fixture.session.refresh(fixture.campaign)
     restored = await fixture.session.get(
@@ -99,14 +93,7 @@ async def test_api_restore_worker_recovery_counts_uncertain_attempt_and_fences_s
     assert job.state == "retry_wait" and job.attempt_count == 1
     assert job.claim_token is None and job.lease_expires_at is None
 
-    assert not await publish_job(
-        fixture.session,
-        old_claim,
-        (
-            JobOutput(generations[0].id, '{"text":"Must remain unpublished."}'),
-            JobOutput(generations[1].id, '{"facts":[]}'),
-        ),
-    )
+    assert not await publish_job(fixture.session, old_claim, outputs_for(generations))
     await fixture.session.commit()
     assert (
         await fixture.session.scalar(

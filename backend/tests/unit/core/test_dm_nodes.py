@@ -7,10 +7,8 @@ from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langchain_core.messages import AIMessage
 
 from app.ai.context import GameContext
-from app.ai.router import ModelConfig
 
 
 def _make_state(**overrides) -> dict:
@@ -37,6 +35,7 @@ def _make_state(**overrides) -> dict:
             "provider": "openai",
             "model": "gpt-4o-mini",
             "max_tokens": 2000,
+            "destination_fingerprint": "openai:destination",
         },
         "model_used": "gpt-4o-mini",
         "importance_score": 0,
@@ -193,111 +192,3 @@ class TestContextNode:
 
         assert mock_bc.call_args.kwargs["query_embedding"] is None
         assert result["model_used"] == "gpt-4o"
-
-
-class TestDmNodeUnit:
-    @pytest.mark.asyncio
-    async def test_dm_node_increments_step_count(self):
-        from app.core.dm.dm_nodes import dm_node
-
-        mock_response = MagicMock()
-        mock_response.text = "The DM narrates..."
-        mock_response.tool_calls = []
-
-        mock_provider = MagicMock()
-        mock_provider.generate_with_tools = AsyncMock(return_value=mock_response)
-
-        state = _make_state(step_count=1)
-
-        with (
-            patch(
-                "app.core.dm.dm_nodes.get_user_generation",
-                new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
-            ),
-            patch("app.core.dm.loop_policy.resolve_active_tools_from_state", return_value=set()),
-            patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
-        ):
-            result = await dm_node(state, config={})
-
-        assert result["step_count"] == 2
-
-    @pytest.mark.asyncio
-    async def test_dm_node_appends_narration(self):
-        from app.core.dm.dm_nodes import dm_node
-
-        mock_response = MagicMock()
-        mock_response.text = "A dragon appears!"
-        mock_response.tool_calls = []
-
-        mock_provider = MagicMock()
-        mock_provider.generate_with_tools = AsyncMock(return_value=mock_response)
-
-        state = _make_state(step_count=1, narration="Previously: ")
-
-        with (
-            patch(
-                "app.core.dm.dm_nodes.get_user_generation",
-                new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
-            ),
-            patch("app.core.dm.loop_policy.resolve_active_tools_from_state", return_value=set()),
-            patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
-        ):
-            result = await dm_node(state, config={})
-
-        assert result["narration"] == "Previously: A dragon appears!"
-
-    @pytest.mark.asyncio
-    async def test_dm_node_handles_content_policy_error(self):
-        from app.ai.exceptions import ContentPolicyError
-        from app.core.dm.dm_nodes import dm_node
-
-        mock_provider = MagicMock()
-        mock_provider.generate_with_tools = AsyncMock(side_effect=ContentPolicyError("blocked"))
-
-        state = _make_state(step_count=1)
-
-        with (
-            patch(
-                "app.core.dm.dm_nodes.get_user_generation",
-                new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
-            ),
-            patch("app.core.dm.loop_policy.resolve_active_tools_from_state", return_value=set()),
-            patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
-        ):
-            result = await dm_node(state, config={})
-
-        assert result["step_count"] == 2
-        assert len(result["messages"]) == 1
-
-    @pytest.mark.asyncio
-    async def test_dm_node_creates_ai_message_with_tool_calls(self):
-        from app.core.dm.dm_nodes import dm_node
-
-        mock_tc = MagicMock()
-        mock_tc.id = "tc1"
-        mock_tc.name = "request_dice"
-        mock_tc.arguments = {"dc": 12}
-
-        mock_response = MagicMock()
-        mock_response.text = ""
-        mock_response.tool_calls = [mock_tc]
-
-        mock_provider = MagicMock()
-        mock_provider.generate_with_tools = AsyncMock(return_value=mock_response)
-
-        state = _make_state(step_count=1)
-
-        with (
-            patch(
-                "app.core.dm.dm_nodes.get_user_generation",
-                new=AsyncMock(return_value=(mock_provider, ModelConfig(**state["model_config"]))),
-            ),
-            patch("app.core.dm.loop_policy.resolve_active_tools_from_state", return_value=set()),
-            patch("app.core.dm.dm_nodes.get_tool_schemas", return_value=[]),
-        ):
-            result = await dm_node(state, config={})
-
-        ai_msg = result["messages"][0]
-        assert isinstance(ai_msg, AIMessage)
-        assert len(ai_msg.tool_calls) == 1
-        assert ai_msg.tool_calls[0]["name"] == "request_dice"

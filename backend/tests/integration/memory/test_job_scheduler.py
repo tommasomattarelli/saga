@@ -7,6 +7,7 @@ from app.memory.job_scheduler import coordinate_memory
 from app.models.memory_batch import MemoryBatchTurn
 from app.models.memory_document import MemoryState
 from app.models.memory_job import MemoryJob
+from tests.integration.memory.job_support import configure_local_generation
 from tests.integration.memory.storage_support import HistoryFixture
 
 
@@ -59,6 +60,7 @@ async def test_restore_and_changed_templates_do_not_reset_existing_work(
     monkeypatch,
 ) -> None:
     f = history_fixture
+    await configure_local_generation(f)
     await active_history(f, 4)
     (job_id,) = await coordinate_memory(f.session, f.campaign.id)
     await f.session.commit()

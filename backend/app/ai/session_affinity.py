@@ -31,3 +31,8 @@ def campaign_provider(provider: AIProvider) -> AIProvider:
         default_headers={"x-session-id": str(campaign_id)}
     )
     return isolated
+
+
+def campaign_session_affinity() -> str | None:
+    campaign_id = _campaign.get()
+    return str(campaign_id) if campaign_id is not None else None
