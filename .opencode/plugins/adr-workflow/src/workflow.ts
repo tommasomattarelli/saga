@@ -129,6 +129,34 @@ export function bindPlan(root: string, session: string, input: { adr: string; br
   });
 }
 
+export function rebindPlan(root: string, session: string, input: { expectedHash: string; replacementHash: string }): Workflow {
+  return updateState(root, (state, actual) => {
+    if (!state || state.session !== session) throw new Error("Only the workflow owner may rebind the ADR");
+    if (state.root !== actual.root || state.gitDir !== actual.gitDir) throw new Error("Workflow registry belongs to another checkout");
+    if (state.paused) throw new Error("Resume the workflow before rebinding its ADR");
+    if (git(actual.root, "branch", "--show-current") !== state.branch) throw new Error("Current branch differs from the workflow binding");
+    if (!state.adr || !state.base || !state.boundHead) throw new Error("Workflow plan is not bound");
+    if (Object.values(state.blocks).some((item) => item.writer?.state === "active")) throw new Error("Stop all active writers before rebinding the ADR");
+    if (input.expectedHash !== state.adr.hash) throw new Error("Expected ADR hash is stale");
+    const adrPath = safeRepoPath(actual.root, state.adr.path);
+    const stat = lstatSync(adrPath);
+    if (stat.isSymbolicLink()) throw new Error("Bound ADR must not be a symbolic link");
+    if (!stat.isFile()) throw new Error("Bound ADR must be a file");
+    const currentHash = sha(readFileSync(adrPath));
+    if (currentHash !== input.replacementHash) throw new Error("Replacement ADR hash does not match the actual file");
+    if (currentHash === state.adr.hash) throw new Error("ADR is unchanged; refusing a no-op rebind");
+    const result: Workflow = {
+      ...state,
+      adr: { ...state.adr, hash: currentHash },
+      blocks: Object.fromEntries(Object.entries(state.blocks).map(([id, item]) => [
+        id,
+        { ...item, receipts: [], review: undefined },
+      ])),
+    };
+    return [result, result];
+  });
+}
+
 function validateExtensionBlock(root: string, value: unknown): Block {
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("Each extension block must be an object");
   const candidate = value as Record<string, unknown>;
