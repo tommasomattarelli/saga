@@ -59,6 +59,13 @@ These defaults are not an operator veto.
 
 ## Memory production and action deadlines
 
+`memory.terminal_payload_retention_days` is a strict positive integer, defaulting
+to `1`. After that many days from a job's immutable `terminal_at`, the worker
+clears only persisted raw candidates and receipt payloads for succeeded or
+exhausted jobs. Safe outcome metadata, hashes, send reservations, and provenance
+remain. Recoverable blocked and manual-retry jobs retain payloads; YAML changes
+take effect after restarting the backend.
+
 `memory.production` is validated and copied into an immutable `MemoryPolicy` when
 a campaign is created. YAML changes affect new campaigns only; they do not
 repartition existing histories or reset job attempts. Restart the backend after

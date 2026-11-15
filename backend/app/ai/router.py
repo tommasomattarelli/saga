@@ -67,6 +67,16 @@ def get_generation_recovery_policy() -> GenerationRecoveryPolicy:
     return GenerationRecoveryPolicy(value)
 
 
+def get_memory_terminal_payload_retention_days() -> int:
+    memory = _load_config().get("memory", {})
+    value = memory.get("terminal_payload_retention_days", 1) if isinstance(memory, dict) else None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(
+            "saga.config.yaml: memory.terminal_payload_retention_days must be a positive integer"
+        )
+    return value
+
+
 def get_allowed_providers() -> list[str]:
     """Instance allowlist shared by generation and embeddings (ADR 0018 A5)."""
     allowed = _load_config().get("providers", {}).get("allowed", list(PROVIDER_NAMES))
@@ -120,6 +130,16 @@ def validate_generation_config() -> None:
         sends = generation.get("max_sends_per_result")
         if isinstance(sends, bool) or not isinstance(sends, int) or sends < 1:
             problems.append("generation.max_sends_per_result must be a positive integer")
+    memory = _load_config().get("memory", {})
+    retention_days = (
+        memory.get("terminal_payload_retention_days", 1) if isinstance(memory, dict) else None
+    )
+    if (
+        isinstance(retention_days, bool)
+        or not isinstance(retention_days, int)
+        or retention_days < 1
+    ):
+        problems.append("memory.terminal_payload_retention_days must be a positive integer")
     for name, base_url in get_local_endpoints().items():
         if not base_url.startswith(("http://", "https://")):
             problems.append(f"providers.local_endpoints.{name}.base_url must be an http(s) URL")

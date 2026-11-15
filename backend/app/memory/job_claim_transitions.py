@@ -99,7 +99,7 @@ def inspect_role_sends(
         ):
             return None
         counts[generation.role] += 1
-        if (generation.raw_candidate is None and generation.raw_candidate_hash is not None) or (
+        if (
             generation.raw_candidate is not None
             and generation.raw_candidate_hash
             != hashlib.sha256(generation.raw_candidate.encode()).hexdigest()
@@ -134,11 +134,16 @@ def inspect_role_sends(
         except ValueError:
             return None
         if status is GenerationOutcomeStatus.VALID:
+            if generation.outcome_reason is not None:
+                return None
+            if generation.raw_candidate is None and generation.raw_candidate_hash is not None:
+                if generation.receipt is not None:
+                    return None
+                continue
             if (
                 receipt is None
                 or receipt.text is None
                 or generation.raw_candidate is None
-                or generation.outcome_reason is not None
                 or receipt.refusal is not None
                 or receipt.blocked_reason is not None
             ):

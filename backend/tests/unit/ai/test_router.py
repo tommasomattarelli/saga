@@ -11,6 +11,7 @@ from app.ai.router import (
     get_generation_recovery_policy,
     get_instance_default,
     get_local_endpoints,
+    get_memory_terminal_payload_retention_days,
     get_server_key_fallback,
     validate_generation_config,
 )
@@ -110,6 +111,24 @@ class TestValidateGenerationConfig:
 
     def test_repo_config_is_valid(self):
         validate_generation_config()
+
+    def test_terminal_payload_retention_defaults_to_one_day(self):
+        with patch("app.ai.router._load_config", return_value={"generation": {}}):
+            assert get_memory_terminal_payload_retention_days() == 1
+
+    @pytest.mark.parametrize("value", [True, 1.5, "1", 0, -1, None])
+    def test_terminal_payload_retention_rejects_invalid_values(self, value):
+        with (
+            patch(
+                "app.ai.router._load_config",
+                return_value={
+                    "generation": {},
+                    "memory": {"terminal_payload_retention_days": value},
+                },
+            ),
+            pytest.raises(ValueError, match="terminal_payload_retention_days"),
+        ):
+            validate_generation_config()
 
     def test_unknown_default_provider_is_rejected(self):
         with (

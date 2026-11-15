@@ -86,6 +86,7 @@ embedding:
 # Memory production — ADR 0020 experimental branch values; production defaults remain gated
 # ---------------------------------------------------------------------------
 memory:
+  terminal_payload_retention_days: 1 # Keep terminal raw recovery payloads for one day; provenance remains.
   production:
     # Experimental ADR 0020 branch values; not a production default before integrated evaluation.
     raw_turns: 8 # R: recent raw turns retained in full.

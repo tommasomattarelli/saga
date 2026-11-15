@@ -212,6 +212,8 @@ Raw/candidate retention defaults to one day after a definitively terminal state,
 
 **W4 note (2026-11-15, implementation; autonomous detail).** Migration 018 records `required_result_send_budget_exhausted` as an immutable terminal code while retaining `last_error` as display text; legacy exhausted rows remain unmarked because their cause is unknown.
 
+**W4 retention note (2026-11-15, implementation; autonomous detail).** A strict-positive `memory.terminal_payload_retention_days` setting defaults to one; the existing campaign worker discovers expired terminal jobs and clears only the paired receipt/candidate payloads using database time from immutable `terminal_at`. Migration 019 permits only that terminal-only clearing, retains candidate hashes and all safe evidence as non-reusable tombstones, and leaves export schemas unchanged.
+
 Persist `terminal_at` once at the definitive transition and start the one-day window from that timestamp, not from `updated_at`, the last send, or a worker wake. Cleanup removes raw/candidate/corrective-history payloads while keeping send reservations, hashes, safe reasons and provenance so cleanup cannot reopen the budget.
 
 Delete only expired raw/candidate material, not original sources, published memory, provenance or historical evidence. Ordinary campaign export does not gain raw outputs or executable request envelopes.

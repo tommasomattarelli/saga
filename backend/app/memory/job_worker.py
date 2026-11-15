@@ -3,14 +3,17 @@ import logging
 from time import monotonic
 from uuid import UUID
 
-from sqlalchemy import exists, select
+from sqlalchemy import exists, func, or_, select
 
 from app import dependencies
+from app.ai.router import get_memory_terminal_payload_retention_days
 from app.memory.job_claims import recover_jobs
 from app.memory.job_execution import execute_job
+from app.memory.job_retention import cleanup_terminal_generation_payloads
 from app.memory.job_scheduler import coordinate_memory
 from app.models.campaign import Campaign
 from app.models.history import MemoryPolicy
+from app.models.memory_generation import MemoryGeneration
 from app.models.memory_job import MemoryJob
 
 logger = logging.getLogger(__name__)
@@ -18,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 async def run_memory_pass(campaign_id: UUID) -> int:
     async with dependencies.async_session() as db:
+        await cleanup_terminal_generation_payloads(
+            db, campaign_id, get_memory_terminal_payload_retention_days()
+        )
         await recover_jobs(db, campaign_id)
         jobs = await coordinate_memory(db, campaign_id)
         await db.commit()
@@ -29,6 +35,7 @@ async def run_memory_pass(campaign_id: UUID) -> int:
 
 
 async def _campaign_intervals() -> dict[UUID, float]:
+    retention_days = get_memory_terminal_payload_retention_days()
     async with dependencies.async_session() as db:
         rows = await db.execute(
             select(Campaign.id, MemoryPolicy.payload)
@@ -37,12 +44,30 @@ async def _campaign_intervals() -> dict[UUID, float]:
                 MemoryPolicy.id == Campaign.memory_policy_id,
             )
             .where(
-                Campaign.active_memory_state_id.is_not(None)
-                | exists(
-                    select(MemoryJob.id).where(
-                        MemoryJob.campaign_id == Campaign.id,
-                        MemoryJob.state == "running",
-                    )
+                or_(
+                    Campaign.active_memory_state_id.is_not(None),
+                    exists(
+                        select(MemoryJob.id).where(
+                            MemoryJob.campaign_id == Campaign.id,
+                            MemoryJob.state == "running",
+                        )
+                    ),
+                    exists(
+                        select(MemoryGeneration.id)
+                        .join(MemoryJob, MemoryJob.id == MemoryGeneration.job_id)
+                        .where(
+                            MemoryGeneration.campaign_id == Campaign.id,
+                            MemoryJob.state.in_(("succeeded", "exhausted")),
+                            MemoryJob.terminal_at.is_not(None),
+                            MemoryJob.terminal_at
+                            <= func.clock_timestamp()
+                            - func.make_interval(0, 0, 0, retention_days),
+                            or_(
+                                MemoryGeneration.raw_candidate.is_not(None),
+                                MemoryGeneration.receipt.is_not(None),
+                            ),
+                        )
+                    ),
                 ),
             )
         )

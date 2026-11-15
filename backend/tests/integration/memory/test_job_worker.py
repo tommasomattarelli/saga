@@ -1,17 +1,20 @@
 import asyncio
 import json
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
 from sqlalchemy import select
 
 from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
-from app.memory.job_worker import run_memory_pass, run_memory_worker
+from app.memory.job_worker import _campaign_intervals, run_memory_pass, run_memory_worker
 from app.models.memory_document import MemorySummary
+from app.models.memory_generation import MemoryGeneration
 from app.models.memory_job import MemoryJob
 from tests.integration.memory.job_support import configure_local_generation
 from tests.integration.memory.storage_support import HistoryFixture
 from tests.integration.memory.test_job_execution import ControlledProvider
+from tests.integration.memory.test_job_publication import _claimed_job
 from tests.integration.memory.test_job_scheduler import active_history
 
 
@@ -218,3 +221,29 @@ async def test_worker_with_no_eligible_campaigns_stops_without_provider_work(
     task = asyncio.create_task(run_memory_worker(stop, wake))
     stop.set()
     await asyncio.wait_for(task, timeout=2)
+
+
+async def test_worker_discovers_terminal_payloads_without_active_memory_state(
+    history_fixture: HistoryFixture,
+) -> None:
+    fixture = history_fixture
+    job, _, generations, _, _ = await _claimed_job(fixture)
+    job.state = "succeeded"
+    job.claim_token = None
+    job.lease_expires_at = None
+    job.terminal_at = datetime.now(UTC) - timedelta(days=1)
+    fixture.campaign.active_memory_state_id = None
+    await fixture.session.commit()
+
+    assert fixture.campaign.id in await _campaign_intervals()
+    await run_memory_pass(fixture.campaign.id)
+
+    stored = list(
+        await fixture.session.scalars(
+            select(MemoryGeneration)
+            .where(MemoryGeneration.id.in_([generation.id for generation in generations]))
+            .execution_options(populate_existing=True)
+        )
+    )
+    assert all(generation.raw_candidate is None for generation in stored)
+    assert all(generation.receipt is None for generation in stored)

@@ -1,9 +1,20 @@
 """Export integration tests — JSON schema and ownership guard."""
 
+import json
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from httpx import AsyncClient
 
+from app.memory.job_retention import cleanup_terminal_generation_payloads
+from app.models.campaign import Campaign, Difficulty
+from app.models.history import HistoryContinuation, MemoryPolicy
 from app.models.turn import Turn
+from tests.integration.memory.storage_support import (
+    HistoryFixture,
+    production_policy,
+)
+from tests.integration.memory.test_job_publication import _claimed_job
 
 
 @pytest.mark.asyncio
@@ -112,3 +123,65 @@ async def test_export_forbidden_for_other_user(
     # User B tries to export User A's campaign
     resp = await client.get(f"/api/export/{campaign_id}")
     assert resp.status_code == 404
+
+
+async def test_campaign_export_omits_raw_generation_payloads_before_and_after_cleanup(
+    auth_client: AsyncClient,
+    db_session,
+    test_user,
+) -> None:
+    campaign = Campaign(
+        user_id=test_user["user"].id,
+        world_slug="test",
+        name="Payload export",
+        difficulty=Difficulty.MEDIUM,
+    )
+    db_session.add(campaign)
+    await db_session.flush()
+    payload = production_policy()
+    policy = MemoryPolicy(
+        campaign_id=campaign.id,
+        schema_version=1,
+        payload=payload,
+        payload_hash=payload.policy_hash(),
+    )
+    root = HistoryContinuation(campaign_id=campaign.id)
+    db_session.add_all([policy, root])
+    await db_session.flush()
+    campaign.memory_policy_id = policy.id
+    campaign.active_continuation_id = root.id
+    await db_session.commit()
+    fixture = HistoryFixture(db_session, campaign, policy, root)
+    job, _, generations, _, _ = await _claimed_job(fixture)
+    if campaign.active_head_turn_id is not None:
+        from app.models.turn import Turn
+
+        head = await db_session.get(Turn, campaign.active_head_turn_id)
+        assert head is not None
+        campaign.turn_number = head.turn_number
+    candidates = tuple(generation.raw_candidate for generation in generations)
+    job.state = "succeeded"
+    job.claim_token = None
+    job.lease_expires_at = None
+    job.terminal_at = datetime.now(UTC) - timedelta(days=1)
+    await fixture.session.commit()
+
+    before = await auth_client.get(f"/api/export/{fixture.campaign.id}")
+    assert before.status_code == 200
+    before_payload = json.dumps(before.json())
+    for candidate in candidates:
+        assert candidate is not None and candidate not in before_payload
+    assert not {"raw_candidate", "receipt", "request_identity_snapshot"} & set(
+        before.json()["generations"][0]
+    )
+
+    assert await cleanup_terminal_generation_payloads(
+        fixture.session, fixture.campaign.id, retention_days=1
+    ) == len(generations)
+    await fixture.session.commit()
+    after = await auth_client.get(f"/api/export/{fixture.campaign.id}")
+    assert after.status_code == 200
+    after_payload = json.dumps(after.json())
+    for candidate in candidates:
+        assert candidate is not None and candidate not in after_payload
+    assert job.state == "succeeded"

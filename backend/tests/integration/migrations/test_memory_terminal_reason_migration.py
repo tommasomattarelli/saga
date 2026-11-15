@@ -59,7 +59,7 @@ async def test_018_adds_reason_without_backfilling_legacy_exhaustion() -> None:
 
         await database.upgrade("017_gen_ledger_contracts")
         assert await database.version() == "017_gen_ledger_contracts"
-        await database.upgrade()
+        await database.upgrade("018_memory_terminal_reason")
 
         assert await database.version() == "018_memory_terminal_reason"
         assert await database.fetch_one(
