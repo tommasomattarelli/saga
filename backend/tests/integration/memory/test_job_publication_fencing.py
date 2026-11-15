@@ -1,10 +1,11 @@
 import pytest
 from sqlalchemy import func, select, text
 
-from app.memory.job_publication import JobOutput, PublicationLeaseExpiredError, publish_job
+from app.memory.job_publication import PublicationLeaseExpiredError, publish_job
 from app.models.memory_document import MemoryState, MemorySummary
 from app.models.memory_fact import MemoryFact
 from app.models.memory_job import MemoryJob
+from tests.integration.memory.job_support import outputs_for
 from tests.integration.memory.storage_support import HistoryFixture
 from tests.integration.memory.test_job_publication import _claimed_job
 
@@ -42,10 +43,7 @@ async def test_lease_expiring_during_publication_rolls_back_documents_and_cursor
         await publish_job(
             f.session,
             claim,
-            (
-                JobOutput(generations[0].id, '{"text":"A candidate."}'),
-                JobOutput(generations[1].id, '{"facts":[]}'),
-            ),
+            outputs_for(generations),
         )
     await f.session.rollback()
     assert await f.session.scalar(select(func.count()).select_from(MemorySummary)) == 0

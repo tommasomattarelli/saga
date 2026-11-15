@@ -1,12 +1,19 @@
+import hashlib
 from dataclasses import dataclass
-from uuid import UUID
+from typing import Literal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.generation_execution_ledger import GenerationSendKind
+from app.ai.response_validation import ResponseValidationError, validate_response
 from app.memory.batch_input import load_batch_input
+from app.memory.document_contracts import GlobalPayload
+from app.memory.generation_receipts import decode_receipt
 from app.memory.job_activation import activate_artifact
 from app.memory.job_claims import JobClaim, load_claim
+from app.memory.job_contracts import MemoryGenerationRequestIdentitySnapshot
+from app.memory.job_identity import config_from_identity
 from app.memory.job_requests import restore_job_requests
 from app.memory.producer_contracts import (
     FactsPayload,
@@ -15,6 +22,8 @@ from app.memory.producer_contracts import (
     SummaryPayload,
     validate_facts,
 )
+from app.memory.producer_prompts import PreparedMemoryRequest, response_contract
+from app.memory.producers import build_generation_request
 from app.models.campaign import Campaign
 from app.models.history import MemoryPolicy
 from app.models.memory_batch import MemoryBatch
@@ -27,12 +36,117 @@ from app.models.source_embedding import EmbeddingSourceType
 
 @dataclass(frozen=True)
 class JobOutput:
-    generation_id: UUID
-    raw: str
+    role: Literal["summary", "facts", "global"]
+    send_number: int
 
 
 class PublicationLeaseExpiredError(Exception):
     pass
+
+
+async def _validated_payload(
+    db: AsyncSession,
+    job: MemoryJob,
+    output: JobOutput,
+    request: PreparedMemoryRequest,
+) -> tuple[MemoryGeneration, object, tuple[ResolvedFact, ...]]:
+    identity = job.execution_identity
+    if identity is None or output.send_number < 1:
+        raise MemoryOutputError("Memory generation identity is unavailable.")
+    frozen = identity.result_identities.get(output.role)
+    if frozen is None:
+        raise MemoryOutputError("Memory generation role is not frozen.")
+
+    base = build_generation_request(
+        request,
+        config_from_identity(frozen),
+        session_affinity=frozen.session_affinity,
+    )
+    if base.identity.digest != frozen.request_identity_hash:
+        raise MemoryOutputError("Memory generation request identity changed.")
+
+    generation = await db.scalar(
+        select(MemoryGeneration)
+        .where(
+            MemoryGeneration.job_id == job.id,
+            MemoryGeneration.campaign_id == job.campaign_id,
+            MemoryGeneration.policy_id == job.policy_id,
+            MemoryGeneration.batch_id == job.batch_id,
+            MemoryGeneration.role == output.role,
+            MemoryGeneration.send_number == output.send_number,
+        )
+        .with_for_update()
+    )
+    if (
+        generation is None
+        or generation.status != "valid"
+        or generation.receipt is None
+        or generation.request_identity_hash is None
+        or generation.request_identity_snapshot is None
+        or generation.send_kind is None
+        or generation.format_mode is None
+    ):
+        raise MemoryOutputError("A persisted valid memory receipt is unavailable.")
+
+    try:
+        stored_request = MemoryGenerationRequestIdentitySnapshot.model_validate_json(
+            generation.request_identity_snapshot
+        )
+        send_kind = GenerationSendKind(generation.send_kind)
+        receipt = decode_receipt(generation.receipt, generation.raw_candidate)
+    except ValueError:
+        raise MemoryOutputError("A persisted memory receipt is invalid.") from None
+    fixed_fields = frozen.model_dump(mode="json", exclude={"request_identity_hash", "format_mode"})
+    stored_fields = stored_request.model_dump(mode="json", exclude={"format_mode"})
+    if (
+        stored_request.digest != generation.request_identity_hash
+        or stored_request.snapshot_json != generation.request_identity_snapshot
+        or stored_fields != fixed_fields
+        or stored_request.format_mode != generation.format_mode
+        or generation.provider != frozen.provider
+        or generation.model != frozen.model
+        or (
+            send_kind is GenerationSendKind.INITIAL
+            and (
+                generation.request_identity_hash != frozen.request_identity_hash
+                or stored_request.format_mode != frozen.format_mode
+            )
+        )
+        or (
+            generation.raw_candidate is not None
+            and generation.raw_candidate_hash
+            != hashlib.sha256(generation.raw_candidate.encode()).hexdigest()
+        )
+    ):
+        raise MemoryOutputError("Memory generation provenance does not match its frozen identity.")
+    if (
+        receipt.text is None
+        or receipt.refusal is not None
+        or receipt.blocked_reason is not None
+        or (receipt.finish_reason or "").upper()
+        in {
+            "CONTENT_FILTER",
+            "LENGTH",
+            "MAX_TOKENS",
+            "SAFETY",
+            "RECITATION",
+            "BLOCKLIST",
+            "PROHIBITED_CONTENT",
+            "SPII",
+            "LANGUAGE",
+        }
+    ):
+        raise MemoryOutputError("A persisted valid memory receipt is not publishable.")
+    try:
+        payload = validate_response(receipt.text, response_contract(request.kind)).model
+        resolved = (
+            validate_facts(payload, request.source, request.facts_policy)
+            if isinstance(payload, FactsPayload)
+            else ()
+        )
+    except (ResponseValidationError, ValueError, TypeError):
+        raise MemoryOutputError("A persisted valid memory receipt no longer validates.") from None
+    return generation, payload, resolved
 
 
 async def publish_job(db: AsyncSession, claim: JobClaim, outputs: tuple[JobOutput, ...]) -> bool:
@@ -41,8 +155,24 @@ async def publish_job(db: AsyncSession, claim: JobClaim, outputs: tuple[JobOutpu
         return False
     job, attempt, _ = loaded
     roles = ("summary", "facts") if job.kind == "batch" else ("global",)
-    if len(outputs) != len(roles):
+    if (
+        job.execution_contract_version != 1
+        or job.execution_identity is None
+        or job.execution_identity_hash is None
+        or job.execution_identity_version is None
+    ):
+        raise MemoryOutputError("This memory job has no supported execution identity.")
+    try:
+        job.execution_identity.verify(job.execution_identity_version, job.execution_identity_hash)
+    except ValueError:
+        raise MemoryOutputError("This memory job has no supported execution identity.") from None
+    if (
+        len(outputs) != len(roles)
+        or tuple(output.role for output in outputs) != roles
+        or set(job.execution_identity.result_identities) != set(roles)
+    ):
         raise MemoryOutputError("Memory generation output roles are incomplete.")
+
     source = await load_batch_input(db, job.campaign_id, job.batch_id)
     policy = await db.get(MemoryPolicy, job.policy_id)
     if policy is None:
@@ -51,27 +181,14 @@ async def publish_job(db: AsyncSession, claim: JobClaim, outputs: tuple[JobOutpu
     if tuple(request.kind for request in requests) != roles:
         raise MemoryOutputError("Frozen memory requests do not match job roles.")
 
-    generations: list[MemoryGeneration] = []
+    generations = []
     payloads = []
-    for output, role, request in zip(outputs, roles, requests, strict=True):
-        generation = await db.scalar(
-            select(MemoryGeneration).where(
-                MemoryGeneration.id == output.generation_id,
-                MemoryGeneration.job_id == job.id,
-                MemoryGeneration.attempt_id == attempt.id,
-                MemoryGeneration.campaign_id == job.campaign_id,
-                MemoryGeneration.batch_id == job.batch_id,
-                MemoryGeneration.policy_id == job.policy_id,
-                MemoryGeneration.role == role,
-            )
-        )
-        if generation is None:
-            raise MemoryOutputError("Memory generation provenance does not match this attempt.")
-        payload = request.validate_output(output.raw)
-        if isinstance(payload, FactsPayload):
-            validate_facts(payload, source, claim.policy.facts)
+    resolved_facts: list[tuple[ResolvedFact, ...]] = []
+    for output, request in zip(outputs, requests, strict=True):
+        generation, payload, resolved = await _validated_payload(db, job, output, request)
         generations.append(generation)
         payloads.append(payload)
+        resolved_facts.append(resolved)
 
     campaign = await db.get(Campaign, job.campaign_id, populate_existing=True)
     batch = await db.get(MemoryBatch, job.batch_id, populate_existing=True)
@@ -91,8 +208,7 @@ async def publish_job(db: AsyncSession, claim: JobClaim, outputs: tuple[JobOutpu
                 generation_id=generations[0].id,
             )
         )
-        resolved = validate_facts(facts_payload, source, claim.policy.facts)
-        await _store_facts(db, job, generations[1], resolved)
+        await _store_facts(db, job, generations[1], resolved_facts[1])
         activated = (
             await activate_artifact(db, campaign, state, batch)
             if state.context_epoch == job.context_epoch
@@ -100,8 +216,6 @@ async def publish_job(db: AsyncSession, claim: JobClaim, outputs: tuple[JobOutpu
         )
     else:
         global_payload = payloads[0]
-        from app.memory.document_contracts import GlobalPayload
-
         assert isinstance(global_payload, GlobalPayload)
         checkpoint = MemoryGlobalCheckpoint(
             campaign_id=job.campaign_id,
@@ -133,6 +247,7 @@ async def publish_job(db: AsyncSession, claim: JobClaim, outputs: tuple[JobOutpu
     job.claim_token = None
     job.lease_expires_at = None
     job.activation_state = "active" if activated else "detached"
+    job.terminal_at = finished_at
     attempt.state = "succeeded"
     attempt.finished_at = finished_at
     attempt.error = None

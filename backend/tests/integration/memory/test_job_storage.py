@@ -249,9 +249,10 @@ async def test_manual_retry_is_nonterminal_and_definitive_terminal_time_is_once(
     await f.session.commit()
     assert (
         await f.session.execute(
-            text("SELECT state, terminal_at FROM memory_jobs WHERE id=:id"), {"id": job.id}
+            text("SELECT state, terminal_at, terminal_reason FROM memory_jobs WHERE id=:id"),
+            {"id": job.id},
         )
-    ).one() == ("manual_retry_required", None)
+    ).one() == ("manual_retry_required", None, None)
 
     with pytest.raises(IntegrityError):
         await f.session.execute(
@@ -268,15 +269,19 @@ async def test_manual_retry_is_nonterminal_and_definitive_terminal_time_is_once(
 
     terminal_at = datetime.now(UTC)
     await f.session.execute(
-        text("UPDATE memory_jobs SET state='exhausted', terminal_at=:terminal_at WHERE id=:id"),
+        text(
+            "UPDATE memory_jobs SET state='exhausted', terminal_at=:terminal_at, "
+            "terminal_reason='required_result_send_budget_exhausted' WHERE id=:id"
+        ),
         {"id": job.id, "terminal_at": terminal_at},
     )
     await f.session.commit()
     assert (
         await f.session.execute(
-            text("SELECT state, terminal_at FROM memory_jobs WHERE id=:id"), {"id": job.id}
+            text("SELECT state, terminal_at, terminal_reason FROM memory_jobs WHERE id=:id"),
+            {"id": job.id},
         )
-    ).one() == ("exhausted", terminal_at)
+    ).one() == ("exhausted", terminal_at, "required_result_send_budget_exhausted")
 
     for value in (None, terminal_at + timedelta(seconds=1)):
         with pytest.raises(IntegrityError):
@@ -290,6 +295,12 @@ async def test_manual_retry_is_nonterminal_and_definitive_terminal_time_is_once(
         await f.session.execute(
             text("UPDATE memory_jobs SET state='manual_retry_required' WHERE id=:id"),
             {"id": job.id},
+        )
+        await f.session.commit()
+    await f.session.rollback()
+    with pytest.raises(IntegrityError):
+        await f.session.execute(
+            text("UPDATE memory_jobs SET terminal_reason=NULL WHERE id=:id"), {"id": job.id}
         )
         await f.session.commit()
     await f.session.rollback()

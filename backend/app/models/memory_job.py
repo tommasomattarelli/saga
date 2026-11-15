@@ -13,6 +13,9 @@ from sqlalchemy import (
     UniqueConstraint,
     event,
 )
+from sqlalchemy import (
+    Enum as SAEnum,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
@@ -29,6 +32,14 @@ class MemoryJobState(StrEnum):
     MANUAL_RETRY_REQUIRED = "manual_retry_required"
     EXHAUSTED = "exhausted"
     SUCCEEDED = "succeeded"
+
+
+class MemoryJobTerminalReason(StrEnum):
+    REQUIRED_RESULT_SEND_BUDGET_EXHAUSTED = "required_result_send_budget_exhausted"
+
+
+def _terminal_reason_values(enum_cls: type[StrEnum]) -> list[str]:
+    return [member.value for member in enum_cls]
 
 
 class MemoryJobActivation(StrEnum):
@@ -110,6 +121,12 @@ class MemoryJob(Base, UUIDMixin, TimestampMixin):
         CheckConstraint(
             "terminal_at IS NULL OR state IN ('succeeded', 'exhausted')",
             name="ck_memory_jobs_terminal_state",
+        ),
+        CheckConstraint(
+            "terminal_reason IS NULL OR "
+            "(state = 'exhausted' AND terminal_reason = "
+            "'required_result_send_budget_exhausted')",
+            name="ck_memory_jobs_terminal_reason",
         ),
         CheckConstraint(
             "execution_identity IS NOT NULL OR terminal_at IS NULL",
@@ -203,6 +220,16 @@ class MemoryJob(Base, UUIDMixin, TimestampMixin):
     last_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
     activation_state: Mapped[str] = mapped_column(String(16))
     terminal_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    terminal_reason: Mapped[MemoryJobTerminalReason | None] = mapped_column(
+        SAEnum(
+            MemoryJobTerminalReason,
+            values_callable=_terminal_reason_values,
+            native_enum=False,
+            create_constraint=False,
+            length=64,
+        ),
+        nullable=True,
+    )
 
 
 @event.listens_for(Session, "before_flush")

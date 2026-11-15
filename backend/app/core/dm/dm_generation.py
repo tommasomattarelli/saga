@@ -188,7 +188,8 @@ def canonical_tool_arguments(
                 (ValidationDiagnostic(DiagnosticCode.INVALID_JSON, ()),)
             ) from None
 
-    return cast(dict[str, object], canonical.model_dump(mode="json"))
+    canonical_arguments = cast(dict[str, object], canonical.model_dump(mode="json"))
+    return {name: canonical_arguments[name] for name in cast(dict[str, object], payload)}
 
 
 def _selected_tool_names(request: GenerationRequest) -> set[str]:

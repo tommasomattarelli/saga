@@ -17,7 +17,7 @@ from app.ai.generation_execution_ledger import (
     SendOutcome,
 )
 from app.memory.generation_ledger import DurableMemoryGenerationLedger
-from app.memory.job_claims import claim_job, fail_claim, retry_job
+from app.memory.job_claims import claim_job, fail_claim
 from app.memory.job_contracts import MemoryGenerationRequestIdentitySnapshot
 from app.models.memory_generation import MemoryGeneration
 from tests.integration.memory.generation_ledger_support import (
@@ -238,7 +238,7 @@ async def test_real_network_failure_reason_persists_before_executor_retries(
 async def test_successful_candidate_replays_under_a_new_real_job_claim(
     history_fixture: HistoryFixture,
 ) -> None:
-    fixture = await create_ledger_fixture(history_fixture)
+    fixture = await create_ledger_fixture(history_fixture, roles=("summary", "facts"))
     first_provider = CorrectionProvider(fixture.job_id)
     first_result = await execute_generation(
         fixture.request,
@@ -251,10 +251,10 @@ async def test_successful_candidate_replays_under_a_new_real_job_claim(
     assert first_result.value.value == "corrected"
     old_claim_ledger = DurableMemoryGenerationLedger(fixture.claim)
     async with dependencies.async_session() as db:
-        assert await fail_claim(db, fixture.claim, configuration_required=True)
+        assert await fail_claim(db, fixture.claim)
         await db.commit()
-        assert await retry_job(db, fixture.claim.campaign_id, fixture.claim.job_id)
-        await db.commit()
+    await asyncio.sleep(fixture.claim.policy.jobs.retry_backoff_seconds[0] + 0.1)
+    async with dependencies.async_session() as db:
         second_claim = await claim_job(db, fixture.claim.campaign_id, fixture.claim.job_id)
         assert second_claim is not None
         await db.commit()

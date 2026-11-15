@@ -12,6 +12,7 @@ from app.models.memory_document import MemoryGlobalCheckpoint, MemoryState, Memo
 from app.models.memory_job import MemoryJob
 from app.models.source_embedding import SourceEmbedding
 from app.models.turn import Turn
+from tests.integration.typed_generation_support import send_from_legacy
 
 pytestmark = pytest.mark.usefixtures("configured_generation")
 
@@ -39,6 +40,9 @@ class PipelineProvider(AIProvider):
         self.dm_prompts.append(system_prompt)
         return AgentResponse(text="The courier waits beside the gate.")
 
+    async def send(self, request):
+        return await send_from_legacy(self, request, self.check)
+
     async def stream(self, system_prompt, messages, model, max_tokens=2000) -> AsyncIterator[str]:
         raise AssertionError("This test must not stream provider requests")
         yield ""
@@ -55,11 +59,14 @@ async def test_real_api_graph_worker_and_prompt_use_three_disjoint_levels(
 
     async def resolve(owner):
         return provider, ModelConfig(
-            provider="local", model="controlled-pipeline", max_tokens=2000
+            provider="local",
+            model="controlled-pipeline",
+            max_tokens=2000,
+            destination_fingerprint="controlled-pipeline",
         )
 
     monkeypatch.setattr("app.core.dm.dm_nodes.get_user_generation", resolve)
-    monkeypatch.setattr("app.memory.job_execution.get_user_generation", resolve)
+    monkeypatch.setattr("app.memory.job_execution.get_provider", lambda *args, **kwargs: provider)
     created = await auth_client.post(
         "/api/campaigns",
         json={

@@ -15,7 +15,6 @@ from app.ai.generation_execution_ledger import (
     GenerationOutcomeStatus,
     GenerationRecoveryPolicy,
 )
-from app.ai.providers.base import logged_generate
 from app.ai.response_validation import (
     DiagnosticCode,
     ResponseValidationError,
@@ -24,7 +23,7 @@ from app.ai.response_validation import (
     safe_path,
     validate_response,
 )
-from app.ai.router import ModelConfig, get_generation
+from app.ai.router import ModelConfig
 from app.ai.session_affinity import campaign_session_affinity
 from app.memory.document_contracts import GlobalPayload, SummaryPayload
 from app.memory.producer_contracts import (
@@ -33,7 +32,6 @@ from app.memory.producer_contracts import (
     MemoryOutputError,
     ResolvedFact,
     resolve_facts,
-    validate_facts,
     validate_facts_context,
 )
 from app.memory.producer_prompts import (
@@ -45,6 +43,13 @@ from app.memory.producer_prompts import (
 )
 
 
+class _UseCampaignAffinity:
+    pass
+
+
+_USE_CAMPAIGN_AFFINITY = _UseCampaignAffinity()
+
+
 @dataclass(frozen=True)
 class MemoryGeneration:
     payload: MemoryPayload
@@ -52,15 +57,16 @@ class MemoryGeneration:
     provider: str
     model: str
     raw: str
+    send_number: int
 
 
 def build_generation_request(
     prepared: PreparedMemoryRequest,
     config: ModelConfig,
     *,
-    session_affinity: str | None = None,
+    session_affinity: str | None | _UseCampaignAffinity = _USE_CAMPAIGN_AFFINITY,
 ) -> GenerationRequest:
-    if session_affinity is None:
+    if isinstance(session_affinity, _UseCampaignAffinity):
         session_affinity = campaign_session_affinity()
     destination = config.destination_fingerprint
     if not destination:
@@ -180,8 +186,9 @@ async def execute_memory_generation(
     config: ModelConfig,
     policy: GenerationRecoveryPolicy,
     adapter: Adapter,
+    session_affinity: str | None | _UseCampaignAffinity = _USE_CAMPAIGN_AFFINITY,
 ) -> MemoryGeneration:
-    base = build_generation_request(prepared, config)
+    base = build_generation_request(prepared, config, session_affinity=session_affinity)
     result = await execute_generation(
         base,
         provider,
@@ -212,26 +219,5 @@ async def execute_memory_generation(
         provider=config.provider,
         model=config.model,
         raw=successful.receipt.raw_candidate,
-    )
-
-
-async def generate_memory(request: PreparedMemoryRequest) -> MemoryGeneration:
-    provider, config = await get_generation()
-    raw = await logged_generate(
-        provider,
-        caller=f"memory_{request.kind}",
-        system_prompt=request.system_prompt,
-        messages=[{"role": "user", "content": request.user_prompt}],
-        model=config.model,
-        max_tokens=config.max_tokens,
-        json_mode=True,
-    )
-    payload = request.validate_output(raw)
-    facts = (
-        validate_facts(payload, request.source, request.facts_policy)
-        if isinstance(payload, FactsPayload)
-        else ()
-    )
-    return MemoryGeneration(
-        payload=payload, facts=facts, provider=config.provider, model=config.model, raw=raw
+        send_number=successful.reservation.number,
     )

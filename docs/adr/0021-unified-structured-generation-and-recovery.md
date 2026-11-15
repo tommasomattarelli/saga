@@ -210,6 +210,8 @@ Remove raw prompts and outputs from ordinary runtime logs, including equivalent 
 
 Raw/candidate retention defaults to one day after a definitively terminal state, configurable in YAML. Still-recoverable blocked jobs keep required candidates. Add an explicit `manual_retry_required` state when the claim cycle is exhausted but a required result still has send budget. This state and recoverable `blocked` do not start cleanup. `exhausted` is definitive, with a structured terminal reason; a manual retry cannot reopen it. `succeeded` becomes terminal only after atomic publication commits.
 
+**W4 note (2026-11-15, implementation; autonomous detail).** Migration 018 records `required_result_send_budget_exhausted` as an immutable terminal code while retaining `last_error` as display text; legacy exhausted rows remain unmarked because their cause is unknown.
+
 Persist `terminal_at` once at the definitive transition and start the one-day window from that timestamp, not from `updated_at`, the last send, or a worker wake. Cleanup removes raw/candidate/corrective-history payloads while keeping send reservations, hashes, safe reasons and provenance so cleanup cannot reopen the budget.
 
 Delete only expired raw/candidate material, not original sources, published memory, provenance or historical evidence. Ordinary campaign export does not gain raw outputs or executable request envelopes.

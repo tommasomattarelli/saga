@@ -9,12 +9,14 @@ import pytest
 from httpx import AsyncClient
 
 from app.ai.generation_context import generation_context
+from app.ai.generation_errors import Adapter
+from app.ai.generation_execution_ledger import InMemoryGenerationLedger
 from app.ai.providers import base
 from app.ai.providers.local import LocalProvider
-from app.ai.router import get_generation, get_user_generation
+from app.ai.router import get_generation, get_generation_recovery_policy, get_user_generation
 from app.memory.batch_source_contracts import BatchInput
 from app.memory.producer_prompts import prepare_request
-from app.memory.producers import generate_memory
+from app.memory.producers import execute_memory_generation
 from app.memory.production_policy import FactsPolicy
 from app.security.auth import decode_token
 from tests.action_support import action_body
@@ -42,12 +44,22 @@ async def affinity_client(
             ),
         }
         if "response_format" in body:
-            message["content"] = '{"facts":[]}'
+            schema = body["response_format"].get("json_schema", {}).get("schema", {})
+            properties = schema.get("properties", {})
+            if "status" in properties:
+                message["content"] = (
+                    '{"status":"speaking","lines":["Welcome!"],"action":null,'
+                    '"axis_changes":[],"reveals_secret":false}'
+                )
+            elif "facts" in properties:
+                message["content"] = '{"facts":[]}'
+            else:
+                message["content"] = '{"text":"The square is quiet."}'
         if "tools" in body:
             if body["messages"][-1]["role"] == "user":
                 message = {
                     "role": "assistant",
-                    "content": "",
+                    "content": '{"text":null}',
                     "tool_calls": [
                         {
                             "id": "ask",
@@ -60,7 +72,10 @@ async def affinity_client(
                     ],
                 }
             else:
-                message = {"role": "assistant", "content": "[[npc:Lyra:1]] The clearing is quiet."}
+                message = {
+                    "role": "assistant",
+                    "content": '{"text":"[[npc:Lyra:1]] The clearing is quiet."}',
+                }
         return httpx.Response(
             200,
             json={
@@ -78,7 +93,9 @@ async def affinity_client(
             },
         )
 
-    provider = LocalProvider("https://openrouter.ai/api/v1", "shared-key")
+    provider = LocalProvider(
+        "https://openrouter.ai/api/v1", "shared-key", provider_kind="openrouter"
+    )
     await provider.client.close()
     provider.client = openai.AsyncOpenAI(
         base_url="https://openrouter.ai/api/v1",
@@ -145,7 +162,15 @@ async def generate_test_facts(action: str, narration: str) -> None:
             ],
         }
     )
-    await generate_memory(prepare_request("facts", source, language="en", facts_policy=policy))
+    provider, config = await get_generation()
+    await execute_memory_generation(
+        prepare_request("facts", source, language="en", facts_policy=policy),
+        provider=provider,
+        ledger=InMemoryGenerationLedger(),
+        config=config,
+        policy=get_generation_recovery_policy(),
+        adapter=Adapter(config.provider),
+    )
 
 
 async def test_real_concurrent_campaigns_bind_dm_actors_without_client_mutation(
@@ -166,7 +191,7 @@ async def test_real_concurrent_campaigns_bind_dm_actors_without_client_mutation(
     for campaign in campaigns:
         bodies = [json.loads(r.content) for r in requests if r.headers["x-session-id"] == campaign]
         assert len([b for b in bodies if "tools" in b]) == 2
-        assert len([b for b in bodies if "response_format" in b]) == 1
+        assert len([b for b in bodies if "response_format" in b]) == 3
         assert len([b for b in bodies if "tools" not in b and "response_format" not in b]) == 0
     before = len(requests)
     assert (
@@ -257,10 +282,12 @@ async def test_non_openrouter_generation_never_receives_campaign_header(
     auth_client: AsyncClient,
     affinity_client: tuple[LocalProvider, list[httpx.Request]],
     provider_name: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from app.ai.session_affinity import campaign_session
 
     provider, requests = affinity_client
+    monkeypatch.setattr(provider, "provider_kind", provider_name)
     owner, campaigns = await configure(auth_client)
     if provider_name != "local":
         assert (

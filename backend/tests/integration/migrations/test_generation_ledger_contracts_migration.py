@@ -25,19 +25,27 @@ async def test_017_preserves_legacy_unmarked_rows_and_matches_models() -> None:
         await database.upgrade("015_gen_format_prefs")
         await _seed_legacy_job(database)
         await database.upgrade("016_gen_recovery_storage")
-        await database.upgrade()
+        await database.upgrade("017_gen_ledger_contracts")
 
         assert await database.version() == "017_gen_ledger_contracts"
-        await database.require_model_schema()
         assert await database.fetch_one(
             "SELECT execution_contract_version, execution_identity FROM memory_jobs WHERE id=:id",
             {"id": JOB_ID},
         ) == (None, None)
+        assert (
+            await database.fetch_all(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name='memory_jobs' AND column_name='terminal_reason'"
+            )
+            == []
+        )
+        await database.upgrade()
+        await database.require_model_schema()
 
 
 async def test_017_downgrade_removes_generation_ledger_helpers() -> None:
     async with DisposableDatabase() as database:
-        await database.upgrade()
+        await database.upgrade("017_gen_ledger_contracts")
 
         result = await database.run_alembic("downgrade", "016_gen_recovery_storage")
 
@@ -58,7 +66,7 @@ async def test_017_downgrade_removes_generation_ledger_helpers() -> None:
 
 async def test_017_downgrade_refuses_to_discard_receipt_or_contract_marker() -> None:
     async with DisposableDatabase() as database:
-        await database.upgrade()
+        await database.upgrade("017_gen_ledger_contracts")
         await _seed_legacy_job(database)
         await database.execute(
             "INSERT INTO memory_jobs "
@@ -81,7 +89,7 @@ async def test_017_downgrade_refuses_to_discard_receipt_or_contract_marker() -> 
 
 async def test_017_legacy_generation_cannot_gain_receipt_before_typed_reservation() -> None:
     async with DisposableDatabase() as database:
-        await database.upgrade()
+        await database.upgrade("017_gen_ledger_contracts")
         await _seed_legacy_job(database)
 
         with pytest.raises(IntegrityError):
@@ -96,7 +104,7 @@ async def test_017_legacy_generation_cannot_gain_receipt_before_typed_reservatio
 
 async def test_017_downgrade_refuses_receipt_evidence_without_contract_marker() -> None:
     async with DisposableDatabase() as database:
-        await database.upgrade()
+        await database.upgrade("017_gen_ledger_contracts")
         await _seed_legacy_job(database)
 
         job_id = str(uuid4())

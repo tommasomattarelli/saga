@@ -20,6 +20,7 @@ from app.core.dm.dm_generation import (
     DM_NARRATIVE_CONTRACT,
     DMNarrative,
     build_dm_generation_request,
+    canonical_tool_arguments,
     generation_tool_declarations,
     validate_dm_narrative,
 )
@@ -69,6 +70,73 @@ def _tool_call(arguments: RawToolArguments | None = None) -> GenerationToolRecei
         name="request_dice",
         arguments=arguments or RawToolArguments.structured({"stat": "DEX"}),
     )
+
+
+def test_canonical_nonwire_tool_arguments_keep_presence_and_explicit_defaults() -> None:
+    request = _request(allowed_tools={"update_quest"})
+    omitted = GenerationToolReceipt(
+        call_id="omitted",
+        name="update_quest",
+        arguments=RawToolArguments.structured({"quest_id": "sealed_key", "status": "completed"}),
+    )
+    explicit = GenerationToolReceipt(
+        call_id="explicit",
+        name="update_quest",
+        arguments=RawToolArguments.structured(
+            {
+                "quest_id": "sealed_key",
+                "status": "completed",
+                "name": "",
+                "description": None,
+            }
+        ),
+    )
+
+    assert canonical_tool_arguments(omitted, request) == {
+        "quest_id": "sealed_key",
+        "status": "completed",
+    }
+    assert canonical_tool_arguments(explicit, request) == {
+        "quest_id": "sealed_key",
+        "status": "completed",
+        "name": "",
+        "description": None,
+    }
+
+
+def test_canonical_wire_tool_arguments_keep_presence_and_canonical_map_values() -> None:
+    request = _request(allowed_tools={"update_npc"})
+    omitted = GenerationToolReceipt(
+        call_id="omitted",
+        name="update_npc",
+        arguments=RawToolArguments.structured(
+            {
+                "name": "Mira",
+                "updates": [{"key": "condition", "value": "wounded"}],
+            }
+        ),
+    )
+    explicit = GenerationToolReceipt(
+        call_id="explicit",
+        name="update_npc",
+        arguments=RawToolArguments.structured(
+            {
+                "name": "Mira",
+                "updates": [{"key": "condition", "value": "wounded"}],
+                "create": False,
+            }
+        ),
+    )
+
+    assert canonical_tool_arguments(omitted, request) == {
+        "name": "Mira",
+        "updates": {"condition": "wounded"},
+    }
+    assert canonical_tool_arguments(explicit, request) == {
+        "name": "Mira",
+        "updates": {"condition": "wounded"},
+        "create": False,
+    }
 
 
 def test_generation_tool_declarations_are_selected_and_sorted() -> None:

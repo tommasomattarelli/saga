@@ -14,6 +14,7 @@ from sqlalchemy import select
 
 from app.core.dice import DiceOutcome, resolve_check
 from app.core.dm.dm_tools_executor import tools_node
+from app.core.dm.tool_preflight import ToolPreflightError
 from app.models.campaign import Campaign
 
 pytestmark = pytest.mark.usefixtures("configured_generation")
@@ -186,7 +187,7 @@ async def test_the_removed_combat_tools_are_gone(auth_client, db_session):
     campaign = await _load(db_session, await _create_campaign(auth_client))
 
     for tool in ("start_combat", "end_combat", "apply_damage", "update_hp"):
-        result = await tools_node(_state(campaign, _call(tool, enemies=[], amount=99, change=99)))
-        assert "unknown tool" in result["messages"][0].content.lower()
+        with pytest.raises(ToolPreflightError):
+            await tools_node(_state(campaign, _call(tool, enemies=[], amount=99, change=99)))
 
     assert "combat_state" not in campaign.world_state

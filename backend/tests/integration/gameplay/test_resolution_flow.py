@@ -13,6 +13,7 @@ from langchain_core.messages import AIMessage
 from sqlalchemy import select
 
 from app.core.dm.dm_tools_executor import tools_node
+from app.core.dm.tool_preflight import ToolPreflightError
 from app.models.campaign import Campaign
 
 pytestmark = pytest.mark.usefixtures("configured_generation")
@@ -155,7 +156,7 @@ async def test_no_removed_tool_can_write_a_free_hp_number(auth_client, db_sessio
     campaign = await _load(db_session, await _create_campaign(auth_client))
     campaign.character_data["hp"]["current"] = 4
 
-    result = await tools_node(_state(campaign, _call("update_hp", change=999, reason="jailbreak")))
+    with pytest.raises(ToolPreflightError):
+        await tools_node(_state(campaign, _call("update_hp", change=999, reason="jailbreak")))
 
-    assert result["char_data"]["hp"]["current"] == 4
-    assert "unknown tool" in result["messages"][0].content.lower()
+    assert campaign.character_data["hp"]["current"] == 4

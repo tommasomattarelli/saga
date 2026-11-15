@@ -4,10 +4,15 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.credentials import resolve_generation
+from app.ai.router import get_generation_recovery_policy
+from app.config_loader import load_saga_config
+from app.exceptions import ValidationError
 from app.memory.batch_input import load_batch_input, load_turn_input
 from app.memory.job_activation import activate_artifact
 from app.memory.job_claims import lock_campaign
 from app.memory.job_coverage import MemoryCoverage, load_coverage
+from app.memory.job_identity import build_execution_identity, current_memory_job_session_scope
 from app.memory.job_requests import build_job_manifest, job_manifest_hash
 from app.memory.producer_prompts import PRODUCER_VERSION, canonical, digest
 from app.memory.production_policy import MemoryProductionPolicy
@@ -16,6 +21,7 @@ from app.models.history import MemoryPolicy
 from app.models.memory_batch import MemoryBatch, MemoryBatchTurn
 from app.models.memory_document import MemoryGlobalCheckpoint, MemoryState, MemorySummary
 from app.models.memory_job import MemoryJob
+from app.models.user import User
 
 
 async def _existing_batch(
@@ -73,6 +79,7 @@ async def _ensure_job(
     policy: MemoryProductionPolicy,
     batch: MemoryBatch,
     kind: Literal["batch", "global"],
+    session_scope: str,
 ) -> UUID:
     previous_id = state.global_checkpoint_id if kind == "global" else None
     existing = await db.scalar(
@@ -112,6 +119,29 @@ async def _ensure_job(
             }
         )
     )
+    user = await db.get(User, campaign.user_id)
+    identity = None
+    blocked_error = None
+    if user is None:
+        blocked_error = "Memory generation requires updated provider configuration."
+    else:
+        try:
+            config, _, _ = resolve_generation(user)
+        except ValidationError:
+            blocked_error = "Memory generation requires updated provider configuration."
+        else:
+            generation_config = load_saga_config().get("generation", {})
+            affinity_enabled = generation_config.get("openrouter_session_affinity", True)
+            identity = build_execution_identity(
+                manifest,
+                source,
+                policy.facts,
+                config,
+                get_generation_recovery_policy().max_sends_per_result,
+                campaign.id,
+                session_scope=session_scope,
+                openrouter_affinity_enabled=affinity_enabled,
+            )
     job = MemoryJob(
         id=uuid4(),
         campaign_id=campaign.id,
@@ -126,11 +156,16 @@ async def _ensure_job(
         manifest_hash=manifest_hash,
         producer_version=PRODUCER_VERSION,
         prompt_version=manifest.instruction_version,
-        state="queued",
+        state="blocked" if blocked_error else "queued",
         attempt_count=0,
         retry_cycle=0,
         cycle_attempt_count=0,
         activation_state="pending",
+        execution_contract_version=1,
+        execution_identity=identity,
+        execution_identity_hash=identity.digest(1) if identity else None,
+        execution_identity_version=1 if identity else None,
+        last_error=blocked_error,
     )
     db.add(job)
     await db.flush()
@@ -178,7 +213,10 @@ async def _reconcile_one(
     return False
 
 
-async def coordinate_memory(db: AsyncSession, campaign_id: UUID) -> tuple[UUID, ...]:
+async def coordinate_memory(
+    db: AsyncSession, campaign_id: UUID, *, session_scope: str | None = None
+) -> tuple[UUID, ...]:
+    session_scope = session_scope or current_memory_job_session_scope() or str(campaign_id)
     campaign = await lock_campaign(db, campaign_id)
     if campaign is None or campaign.active_memory_state_id is None:
         return ()
@@ -209,7 +247,17 @@ async def coordinate_memory(db: AsyncSession, campaign_id: UUID) -> tuple[UUID, 
         batch = await _reserve_batch(
             db, campaign, state, coverage.raw_turn_ids[: policy.batch_turns]
         )
-        jobs.append(await _ensure_job(db, campaign, state, policy, batch, "batch"))
+        jobs.append(
+            await _ensure_job(
+                db,
+                campaign,
+                state,
+                policy,
+                batch,
+                "batch",
+                session_scope,
+            )
+        )
     if (
         coverage.projected_intermediates(policy) > policy.intermediate_limit
         and coverage.intermediates
@@ -222,6 +270,7 @@ async def coordinate_memory(db: AsyncSession, campaign_id: UUID) -> tuple[UUID, 
                 policy,
                 coverage.batches[coverage.global_batches],
                 "global",
+                session_scope,
             )
         )
     return tuple(jobs)

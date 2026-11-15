@@ -186,7 +186,7 @@ async def test_dm_node_appends_narration() -> None:
                 "name": "Mara",
                 "updates": [{"key": "condition", "value": "wounded"}],
             },
-            {"name": "Mara", "updates": {"condition": "wounded"}, "create": False},
+            {"name": "Mara", "updates": {"condition": "wounded"}},
         ),
         (
             "change_npc_psychology",
@@ -194,7 +194,7 @@ async def test_dm_node_appends_narration() -> None:
                 "npc": "Mara",
                 "changes": [{"key": "trust", "value": 5}],
             },
-            {"npc": "Mara", "changes": {"trust": 5}, "reason": ""},
+            {"npc": "Mara", "changes": {"trust": 5}},
         ),
     ],
 )

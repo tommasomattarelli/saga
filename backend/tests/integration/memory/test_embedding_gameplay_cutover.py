@@ -9,11 +9,12 @@ from sqlalchemy import select
 
 from app.memory import embedding_worker
 from app.memory.embedding_lifecycle import ensure_campaign_embedding_index
-from app.memory.job_publication import JobOutput, publish_job
+from app.memory.job_publication import publish_job
 from app.models.embedding_index import EmbeddingIndex, EmbeddingRebuildState
 from app.models.memory_fact import MemoryFact
 from app.models.source_embedding import EmbeddingWorkState, SourceEmbedding
 from tests.integration.memory.embedding_support import install_provider
+from tests.integration.memory.job_support import outputs_for
 from tests.integration.memory.storage_support import HistoryFixture
 from tests.integration.memory.test_job_publication import _claimed_job
 
@@ -40,7 +41,6 @@ async def test_real_publication_during_cutover_is_caught_up_before_activation(
     work = asyncio.create_task(embedding_worker.process_campaign_once(f.campaign.id))
     await asyncio.wait_for(entered.wait(), timeout=10)
 
-    _job, claim, generations, item, _state = await _claimed_job(f)
     fact_payload = {
         "content": "Rook opened the gate.",
         "category": "event",
@@ -51,14 +51,14 @@ async def test_real_publication_during_cutover_is_caught_up_before_activation(
         "temporal_references": [],
         "importance": {"level": "ordinary", "reason": "A witnessed event."},
     }
-    assert await publish_job(
-        f.session,
-        claim,
-        (
-            JobOutput(generations[0].id, '{"text":"Rook opened the gate."}'),
-            JobOutput(generations[1].id, json.dumps({"facts": [fact_payload]})),
-        ),
+    _job, claim, generations, item, _state = await _claimed_job(
+        f,
+        raw_by_role={
+            "summary": '{"text":"Rook opened the gate."}',
+            "facts": json.dumps({"facts": [fact_payload]}),
+        },
     )
+    assert await publish_job(f.session, claim, outputs_for(generations))
     await f.session.commit()
 
     target = await f.session.scalar(

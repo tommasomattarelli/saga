@@ -11,9 +11,11 @@ from app.ai.generation_context import Generation
 from app.ai.providers.local import LocalProvider
 from app.ai.router import get_user_embedding
 from app.ai.session_affinity import campaign_session
+from app.config_loader import load_saga_config
 from app.main import create_app
 from app.memory.context_snapshot import capture_turn_context
 from app.memory.embedding_lifecycle import new_index
+from app.memory.job_identity import effective_session_affinity, memory_job_session_scope
 from app.models.campaign import Campaign
 from app.models.memory_generation import MemoryGeneration
 from app.models.memory_job import MemoryJob
@@ -64,7 +66,12 @@ async def execute_plan(plan: IntegratedPlan, directory: Path, owner: UUID) -> No
             raise ValueError("integrated generation requires the guarded OpenRouter adapter")
         if config.max_tokens != plan.output_cap:
             raise ValueError("resolved output cap differs from the frozen manifest")
-        session_provider = provider_with_session(provider, session_id)
+        generation_config = load_saga_config().get("generation", {})
+        affinity_enabled = generation_config.get("openrouter_session_affinity", True)
+        if not isinstance(affinity_enabled, bool):
+            raise ValueError("generation session affinity configuration is invalid")
+        affinity = effective_session_affinity(config.provider, session_id, affinity_enabled)
+        session_provider = provider_with_session(provider, affinity)
         if not isinstance(session_provider, LocalProvider):
             raise ValueError("evaluation session binding changed the guarded adapter")
         return guard_generation(session_provider, ledger, limiter=limiter), config
@@ -89,7 +96,7 @@ async def execute_plan(plan: IntegratedPlan, directory: Path, owner: UUID) -> No
                     db.add(new_index(campaign_id, plan.embedding_space))
                     await db.commit()
                 driver = MemoryDriver(plan, ledger, campaign_id, directory, resolve)
-                with campaign_session(campaign_id):
+                with campaign_session(campaign_id), memory_job_session_scope(session_id):
                     turns = await replay_sources(
                         client,
                         campaign_id,

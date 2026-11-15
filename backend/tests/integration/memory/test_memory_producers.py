@@ -1,4 +1,5 @@
 import json
+from typing import cast
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -7,13 +8,20 @@ from langchain_core.messages import AIMessage
 from sqlalchemy import func, select
 
 from app.ai.generation_context import generation_context
+from app.ai.generation_contracts import RawGenerationReceipt
+from app.ai.generation_errors import Adapter
+from app.ai.generation_execution_ledger import (
+    GenerationExecutionError,
+    GenerationRecoveryPolicy,
+    InMemoryGenerationLedger,
+)
 from app.ai.router import ModelConfig
 from app.core.dm.dm_nodes import post_process_node
 from app.core.dm.dm_tools_executor import tools_node
+from app.core.dm.game_state import GameState
 from app.memory.batch_input import load_batch_input
-from app.memory.producer_contracts import MemoryOutputError
 from app.memory.producer_prompts import prepare_request
-from app.memory.producers import generate_memory
+from app.memory.producers import execute_memory_generation
 from app.models.memory_document import MemoryGlobalCheckpoint, MemorySummary
 from app.models.memory_fact import MemoryFact
 from app.models.quest import QuestRegistry
@@ -47,7 +55,7 @@ def tool_state(*, user_id: str, calls: list[dict]) -> dict:
         "narration_segments": [],
         "operations": [],
         "closing_step": False,
-        "allowed_tools": ["invoke_npc", "update_quest"],
+        "allowed_tools": ["invoke_npc", "move_to", "update_quest"],
         "difficulty": "medium",
         "world_baseline": {},
         "narrative_observations": [],
@@ -85,7 +93,12 @@ def memory_output(npc_name: str, *, facts: list[dict] | None = None) -> str:
 
 async def recorded_batch(f: HistoryFixture, provider: AsyncMock, monkeypatch: pytest.MonkeyPatch):
     user_id = str(f.campaign.user_id)
-    config = ModelConfig(provider="test", model="test-model", max_tokens=1000)
+    config = ModelConfig(
+        provider="local",
+        model="test-model",
+        max_tokens=1000,
+        destination_fingerprint="f" * 64,
+    )
 
     async def user_generation(_user_id):
         return provider, config
@@ -118,9 +131,11 @@ async def recorded_batch(f: HistoryFixture, provider: AsyncMock, monkeypatch: py
         ],
     )
     with generation_context((provider, config)):
-        generated = await tools_node(state)
+        generated = await tools_node(cast(GameState, state))
+    assert provider.send.await_count == 1
+    assert provider.send.await_args.args[0].role == "actor"
     state.update(generated)
-    state.update(post_process_node(state))
+    state.update(post_process_node(cast(GameState, state)))
     ops = state["operations"]
     npc_id = next(op.payload.result.npc_id for op in ops if op.payload.name == "invoke_npc")
     assert any(op.payload.name == "update_quest" for op in ops)
@@ -153,6 +168,17 @@ async def recorded_batch(f: HistoryFixture, provider: AsyncMock, monkeypatch: py
     return item, source, request, npc_id
 
 
+async def execute_test_request(request, provider: AsyncMock, config: ModelConfig):
+    return await execute_memory_generation(
+        request,
+        provider=provider,
+        ledger=InMemoryGenerationLedger(),
+        config=config,
+        policy=GenerationRecoveryPolicy(3),
+        adapter=Adapter(config.provider),
+    )
+
+
 @pytest.mark.parametrize("empty_facts", [False, True])
 async def test_handlers_recorded_history_generates_resolved_memory_without_db_during_provider(
     history_fixture: HistoryFixture,
@@ -162,22 +188,25 @@ async def test_handlers_recorded_history_generates_resolved_memory_without_db_du
 ) -> None:
     f = history_fixture
     provider = AsyncMock()
-    calls = 0
+    generated = memory_output("Mira", facts=[] if empty_facts else None)
+    npc = (
+        '{"status":"speaking","lines":["I hid the key beneath the altar."],'
+        '"action":null,"axis_changes":[],"reveals_secret":false}'
+    )
 
-    async def generate(**_kwargs):
-        nonlocal calls
-        calls += 1
+    async def send(request):
         assert_no_db_held()
-        if calls == 1:
-            return '{"status":"speaking","lines":["I hid the key beneath the altar."]}'
-        return memory_output("Mira", facts=[] if empty_facts else None)
+        raw = npc if request.role == "actor" else generated
+        return RawGenerationReceipt(text=raw, raw_candidate=raw)
 
-    provider.generate.side_effect = generate
+    provider.send.side_effect = send
     _, source, request, npc_id = await recorded_batch(f, provider, monkeypatch)
-
-    with generation_context((provider, ModelConfig("test", "test-model", 1000))):
-        result = await generate_memory(request)
-        assert_no_db_held()
+    result = await execute_test_request(
+        request,
+        provider,
+        ModelConfig("local", "test-model", 1000, destination_fingerprint="f" * 64),
+    )
+    assert_no_db_held()
 
     assert [turn.reference for turn in source.turns] == ["t1", "t2"]
     speech = "I hid the key beneath the altar."
@@ -198,7 +227,7 @@ async def test_handlers_recorded_history_generates_resolved_memory_without_db_du
     else:
         assert result.facts[0].source_turn_ids == (source.turns[0].turn_id,)
         assert result.facts[0].metadata.entities[0].canonical_ref.id == npc_id
-    assert provider.generate.await_count == 2
+    assert provider.send.await_count == 2
 
 
 @pytest.mark.parametrize(
@@ -227,22 +256,27 @@ async def test_invalid_or_over_cap_generation_writes_no_memory_documents(
 ) -> None:
     f = history_fixture
     provider = AsyncMock()
-    calls = 0
+    raw = memory_output("Mira", facts=bad_facts)
 
-    async def generate(**_kwargs):
-        nonlocal calls
-        calls += 1
-        if calls == 1:
-            return '{"status":"speaking","lines":["I hid it."]}'
-        return memory_output("Mira", facts=bad_facts)
+    async def send(request):
+        text = (
+            '{"status":"speaking","lines":["I hid it."],"action":null,'
+            '"axis_changes":[],"reveals_secret":false}'
+            if request.role == "actor"
+            else raw
+        )
+        return RawGenerationReceipt(text=text, raw_candidate=text)
 
-    provider.generate.side_effect = generate
+    provider.send.side_effect = send
     _, _, request, _ = await recorded_batch(f, provider, monkeypatch)
     with (
-        generation_context((provider, ModelConfig("test", "test-model", 1000))),
-        pytest.raises(MemoryOutputError),
+        pytest.raises(GenerationExecutionError),
     ):
-        await generate_memory(request)
+        await execute_test_request(
+            request,
+            provider,
+            ModelConfig("local", "test-model", 1000, destination_fingerprint="f" * 64),
+        )
 
     assert (
         await f.session.scalar(

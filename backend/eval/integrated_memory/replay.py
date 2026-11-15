@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import random
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -13,8 +14,15 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from app import dependencies
+from app.ai.destination_identity import destination_fingerprint
+from app.ai.generation_contracts import (
+    GenerationRequest,
+    GenerationToolReceipt,
+    RawGenerationReceipt,
+    RawToolArguments,
+)
 from app.ai.providers.base import AIProvider
-from app.ai.providers.schemas import AgentResponse, ToolCall
+from app.ai.providers.schemas import ToolCall
 from app.ai.router import ModelConfig
 from app.memory.batch_source_contracts import BatchInput
 from app.models.memory_job import MemoryJob
@@ -59,9 +67,8 @@ async def create_replay_campaign(
 
 @asynccontextmanager
 async def authored_boundaries(sources: BatchInput) -> AsyncIterator[None]:
-    from app.ai.npc_outcomes import NPCSilent, NPCSpeaking
     from app.api.rate_limit import limiter
-    from app.core.dm import dm_graph, dm_nodes, npc_beat
+    from app.core.dm import dm_graph, dm_nodes
     from app.memory import embedding_worker, job_lifecycle, recall
 
     if any(
@@ -97,47 +104,89 @@ async def authored_boundaries(sources: BatchInput) -> AsyncIterator[None]:
     class OfflineProvider:
         calls_by_index: dict[int, int] = {}
 
-        async def generate_with_tools(self, **kwargs: object) -> AgentResponse:
-            select_action(cast(list[dict[str, object]], kwargs["messages"]))
+        async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
+            if request.role == "actor":
+                chapter = CHAPTERS[current_index]
+                silent = chapter is not None and chapter.npc == "silent"
+                text = {
+                    "status": "silent" if silent else "speaking",
+                    "lines": [] if silent else ["The original was kept beneath the ferry ledger."],
+                    "action": None,
+                    "axis_changes": [],
+                    "reveals_secret": False,
+                }
+                raw = json.dumps(text)
+                return RawGenerationReceipt(text=raw, raw_candidate=raw)
+            if request.role != "dm":
+                raise ValueError("Integrated replay only serves DM and actor requests.")
+
+            select_action(request.messages)
             index = current_index
             count = self.calls_by_index.get(index, 0)
             self.calls_by_index[index] = count + 1
-            if count:
-                return AgentResponse(text="")
             chapter = CHAPTERS[index]
             npc = npc_name
-            calls = [
-                ToolCall(
-                    id=f"replay-{index + 1}-{ordinal}",
-                    name=call.name,
-                    arguments={
+            calls = []
+            if count == 0:
+                for ordinal, call in enumerate(chapter.calls, start=1):
+                    arguments = {
                         key: value.format(npc=npc, player=PLAYER_NAME)
                         if isinstance(value, str)
                         else value
                         for key, value in call.arguments.items()
-                    },
-                )
-                for ordinal, call in enumerate(chapter.calls, start=1)
-            ]
-            return AgentResponse(
-                text=chapter.narration.format(npc=npc, player=PLAYER_NAME), tool_calls=calls
+                    }
+                    if call.name == "change_npc_psychology":
+                        changes = arguments["changes"]
+                        if not isinstance(changes, dict):
+                            raise TypeError("The authored psychology change must be an object.")
+                        arguments["changes"] = [
+                            {"key": key, "value": value} for key, value in changes.items()
+                        ]
+                    calls.append(
+                        ToolCall(
+                            id=f"replay-{index + 1}-{ordinal}",
+                            name=call.name,
+                            arguments=arguments,
+                        )
+                    )
+            response_text = (
+                None if calls else chapter.narration.format(npc=npc, player=PLAYER_NAME)
+            )
+            raw = json.dumps({"text": response_text})
+            return RawGenerationReceipt(
+                text=raw,
+                tool_calls=tuple(
+                    GenerationToolReceipt(
+                        call_id=call.id,
+                        name=call.name,
+                        arguments=RawToolArguments.structured(call.arguments),
+                    )
+                    for call in calls
+                ),
+                finish_reason="tool_calls" if calls else "stop",
+                raw_candidate=raw,
             )
 
     provider = OfflineProvider()
-    model = ModelConfig(provider="local", model="integrated-replay", max_tokens=500)
+    fingerprint = destination_fingerprint(
+        provider="local",
+        model="integrated-replay",
+        endpoint="offline://integrated-replay",
+        mode=None,
+    )
+    model = ModelConfig(
+        provider="local",
+        model="integrated-replay",
+        max_tokens=500,
+        local_endpoint="offline://integrated-replay",
+        destination_fingerprint=fingerprint,
+    )
 
     async def resolve(_: object) -> tuple[AIProvider, ModelConfig]:
         return cast(AIProvider, provider), model
 
     async def no_recall(*_: object, **__: object) -> None:
         return None
-
-    async def npc_result(actors: list[object], *_: object) -> list[object]:
-        speaking = NPCSpeaking(npc_name, ("The original was kept beneath the ferry ledger.",))
-        silent = NPCSilent(npc_name, ())
-        chapter = CHAPTERS[current_index]
-        result = silent if chapter is not None and chapter.npc == "silent" else speaking
-        return [result for _ in actors]
 
     tools_callable = dm_graph.dm_graph.nodes["tools_node"].bound
     original_tools = tools_callable.afunc
@@ -148,7 +197,7 @@ async def authored_boundaries(sources: BatchInput) -> AsyncIterator[None]:
 
     with (
         patch.object(dm_nodes, "get_user_generation", resolve),
-        patch.object(npc_beat, "invoke_npcs_parallel", npc_result),
+        patch("app.ai.generation_context.get_user_generation", resolve),
         patch.object(recall, "embed_recall_query", no_recall),
         patch.object(tools_callable, "afunc", seeded_tools),
         patch.object(limiter, "enabled", False),
@@ -204,7 +253,8 @@ async def replay_sources(
                 persisted = (await load_turn_input(db, campaign_id, (turn.turn_id,))).turns[0]
             if persisted.narration != source.narration:
                 raise AssertionError(
-                    f"persisted narration diverged at source turn {source.turn_id}"
+                    f"persisted narration diverged at source turn {source.turn_id}: "
+                    f"expected={source.narration!r}; actual={persisted.narration!r}"
                 )
             expected_ops = tuple(
                 operation.model_dump(mode="json", exclude={"id"})

@@ -23,7 +23,10 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Internal
 
+- Renamed unused flush-hook bindings and restored typed-generation fixtures while preserving preflight, privacy, provenance and replay coverage.
+- Routed memory jobs through durable recovery with frozen identities, claim-cycle retries, provenance-gated publication, and faithful authored tool arguments (ADR 0021).
 - Added migration 017 with typed identity verification, Python-compatible Unicode digests and complete safe outcome codes, preserving receipt evidence on downgrade (ADR 0021).
+- Autonomously selected immutable terminal reason codes and separated integrity blocks from configuration failures within the approved recovery policy (ADR 0021).
 - Added a claim-fenced durable generation ledger that commits reservations before provider I/O and replays persisted outcomes through the shared executor.
 - Added an owner-only ADR rebind operation that requires reviewed hash compare-and-swap and invalidates prior workflow proof.
 - Routed DM responses through shared recovery, validating before graph admission while retaining original wire text, tool arguments and signatures for provider history (ADR 0021).

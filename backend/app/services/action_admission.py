@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.memory.job_claim_transitions import is_integrity_block_reason
 from app.memory.job_coverage import load_coverage
 from app.memory.job_scheduler import coordinate_memory
 from app.memory.production_policy import MemoryProductionPolicy
@@ -48,20 +49,35 @@ async def check_action_capacity(
             select(MemoryJob).where(
                 MemoryJob.id.in_(jobs),
                 MemoryJob.kind.in_(required),
-                MemoryJob.state.in_(("blocked", "exhausted")),
+                MemoryJob.state.in_(("blocked", "manual_retry_required", "exhausted")),
             )
         )
     )
+    if any(
+        job.state == "blocked" and is_integrity_block_reason(job.last_error) for job in blocked
+    ):
+        return policy, ActionError(
+            "memory_retry_required",
+            "Saved memory contracts or history are incompatible; provider changes or retries "
+            "cannot repair this job.",
+            status_code=503,
+        )
     if any(job.state == "blocked" for job in blocked):
         return policy, ActionError(
             "memory_configuration_required",
             "Update your provider settings, then retry memory processing.",
             status_code=503,
         )
-    if blocked:
+    if any(job.state == "manual_retry_required" for job in blocked):
         return policy, ActionError(
             "memory_retry_required",
-            "Memory processing exhausted its attempts; retry it explicitly.",
+            "Memory processing needs an explicit retry to continue.",
+            status_code=503,
+        )
+    if blocked:
+        return policy, ActionError(
+            "memory_busy",
+            "Memory processing exhausted its generation budget and cannot be retried.",
             status_code=503,
         )
     return policy, ActionError(

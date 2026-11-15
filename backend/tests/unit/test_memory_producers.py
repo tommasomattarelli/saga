@@ -4,12 +4,18 @@ from uuid import uuid4
 
 import pytest
 
+from app.ai.generation_contracts import RawGenerationReceipt
+from app.ai.generation_errors import Adapter
+from app.ai.generation_execution_ledger import (
+    GenerationExecutionError,
+    GenerationRecoveryPolicy,
+    InMemoryGenerationLedger,
+)
 from app.ai.router import ModelConfig
 from app.memory.batch_source_contracts import BatchInput
 from app.memory.document_contracts import GlobalPayload
-from app.memory.producer_contracts import MemoryOutputError
 from app.memory.producer_prompts import PreparedMemoryRequest, ProducerKind, prepare_request
-from app.memory.producers import generate_memory
+from app.memory.producers import execute_memory_generation
 from app.memory.production_policy import FactsPolicy, GlobalPolicy
 
 
@@ -211,35 +217,52 @@ def test_global_request_rejects_duplicate_source_references() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generation_uses_one_plain_generate_with_router_config_and_propagates_errors(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from app.memory import producers
-    from app.memory.producer_prompts import canonical
-
+async def test_generation_uses_typed_executor_with_router_config_and_propagates_errors() -> None:
     provider = Mock()
-    config = ModelConfig(provider="local", model="unit-model", max_tokens=731)
-    get_generation = AsyncMock(return_value=(provider, config))
-    logged_generate = AsyncMock(return_value='{"text":"A short summary."}')
-    monkeypatch.setattr(producers, "get_generation", get_generation)
-    monkeypatch.setattr(producers, "logged_generate", logged_generate)
+    provider.send = AsyncMock(
+        return_value=RawGenerationReceipt(
+            text='{"text":"A short summary."}',
+            raw_candidate='{"text":"A short summary."}',
+        )
+    )
+    config = ModelConfig(
+        provider="local",
+        model="unit-model",
+        max_tokens=731,
+        destination_fingerprint="f" * 64,
+    )
     prepared = request("summary")
-    result = await generate_memory(prepared)
-    get_generation.assert_awaited_once_with()
-    logged_generate.assert_awaited_once()
-    args = logged_generate.await_args
-    assert args is not None
-    assert args.kwargs["system_prompt"] == prepared.system_prompt
-    assert canonical(prepared.response_schema) in args.kwargs["system_prompt"]
-    assert args.kwargs["model"] == "unit-model"
-    assert args.kwargs["max_tokens"] == 731
-    assert args.kwargs["json_mode"] is True
+    result = await execute_memory_generation(
+        prepared,
+        provider=provider,
+        ledger=InMemoryGenerationLedger(),
+        config=config,
+        policy=GenerationRecoveryPolicy(3),
+        adapter=Adapter.LOCAL,
+    )
+    provider.send.assert_awaited_once()
+    sent_request = provider.send.await_args.args[0]
+    assert sent_request.system_prompt == prepared.executor_system_prompt
+    assert sent_request.canonical_schema == prepared.response_schema
+    assert sent_request.model == "unit-model"
+    assert sent_request.output_limit.effective == 731
+    assert sent_request.format_mode.value == "strict_native"
     assert result.provider == "local"
     assert result.model == "unit-model"
     assert result.raw == '{"text":"A short summary."}'
+    assert result.send_number == 1
 
-    logged_generate.reset_mock()
-    logged_generate.return_value = '{"unexpected":true}'
-    with pytest.raises(MemoryOutputError):
-        await generate_memory(request("summary"))
-    logged_generate.assert_awaited_once()
+    provider.send.reset_mock()
+    provider.send.return_value = RawGenerationReceipt(
+        text='{"unexpected":true}', raw_candidate='{"unexpected":true}'
+    )
+    with pytest.raises(GenerationExecutionError):
+        await execute_memory_generation(
+            request("summary"),
+            provider=provider,
+            ledger=InMemoryGenerationLedger(),
+            config=config,
+            policy=GenerationRecoveryPolicy(1),
+            adapter=Adapter.LOCAL,
+        )
+    provider.send.assert_awaited_once()

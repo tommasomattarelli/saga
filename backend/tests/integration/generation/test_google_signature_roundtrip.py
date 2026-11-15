@@ -7,6 +7,9 @@ the second generate_content call of the same turn.
 
 from __future__ import annotations
 
+import base64
+import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,7 +22,10 @@ _SIG = b"\x00\xffintegration-signature"
 
 
 def _text_part(text: str, signature: bytes | None = None) -> genai_types.Part:
-    return genai_types.Part(text=text, thought_signature=signature)
+    return genai_types.Part(
+        text=json.dumps({"text": text}, ensure_ascii=False),
+        thought_signature=signature,
+    )
 
 
 def _fc_part(
@@ -62,7 +68,17 @@ async def _run_turn(
     class _Models:
         async def generate_content(self, **kwargs):
             calls.append(kwargs)
-            return responses[len(calls) - 1]
+            response = responses[len(calls) - 1]
+            body = response.model_dump(by_alias=True, exclude_none=True)
+            for candidate in body.get("candidates", []):
+                content = candidate.get("content", {})
+                for part in content.get("parts", []):
+                    signature = part.get("thoughtSignature")
+                    if isinstance(signature, bytes):
+                        part["thoughtSignature"] = base64.b64encode(signature).decode("ascii")
+            return SimpleNamespace(
+                sdk_http_response=SimpleNamespace(body=json.dumps(body, separators=(",", ":")))
+            )
 
     client = MagicMock()
     client.aio.models = _Models()
@@ -95,8 +111,17 @@ async def test_real_turn_echoes_signature_for_idless_parallel_calls(auth_client)
             _response(
                 [
                     _text_part("You look around."),
-                    _fc_part("request_dice", {"stat": "DEX"}, None, _SIG),
-                    _fc_part("request_dice", {"stat": "STR"}, None),
+                    _fc_part(
+                        "request_dice",
+                        {"check": "look for danger", "stat": "DEX", "difficulty": "normal"},
+                        None,
+                        _SIG,
+                    ),
+                    _fc_part(
+                        "request_dice",
+                        {"check": "notice clues", "stat": "STR", "difficulty": "easy"},
+                        None,
+                    ),
                 ]
             ),
             _response([_text_part("The dice settle.")]),
@@ -120,8 +145,16 @@ async def test_real_turn_echoes_native_ids_on_calls_and_results(auth_client) -> 
             _response(
                 [
                     _text_part("You look around."),
-                    _fc_part("request_dice", {"stat": "DEX"}, "native-dex"),
-                    _fc_part("request_dice", {"stat": "STR"}, "native-str"),
+                    _fc_part(
+                        "request_dice",
+                        {"check": "look for danger", "stat": "DEX", "difficulty": "normal"},
+                        "native-dex",
+                    ),
+                    _fc_part(
+                        "request_dice",
+                        {"check": "notice clues", "stat": "STR", "difficulty": "easy"},
+                        "native-str",
+                    ),
                 ]
             ),
             _response([_text_part("The dice settle.")]),

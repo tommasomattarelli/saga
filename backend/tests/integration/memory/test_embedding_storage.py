@@ -177,11 +177,12 @@ async def test_recall_stays_on_snapshotted_index_with_vectors_after_cutover(
 ) -> None:
     from app.ai.embedding_config import EmbeddingBatch
     from app.memory.history import history_path
-    from app.memory.job_publication import JobOutput, publish_job
+    from app.memory.job_publication import publish_job
     from app.memory.recall import embed_recall_query, snapshot_recall_query
     from app.memory.semantic import search_similar_facts
     from app.models.embedding_index import text_hash
     from app.models.source_embedding import EmbeddingWorkState
+    from tests.integration.memory.job_support import outputs_for
     from tests.integration.memory.test_job_publication import _claimed_job
 
     db_session = history_fixture.session
@@ -201,7 +202,6 @@ async def test_recall_stays_on_snapshotted_index_with_vectors_after_cutover(
     )
     db_session.add(old_index)
     await db_session.commit()
-    _job, claim, generations, batch, _state = await _claimed_job(history_fixture)
     payload = {
         "facts": [
             {
@@ -216,14 +216,14 @@ async def test_recall_stays_on_snapshotted_index_with_vectors_after_cutover(
             }
         ]
     }
-    assert await publish_job(
-        db_session,
-        claim,
-        (
-            JobOutput(generations[0].id, '{"text":"Rook guarded the northern gate."}'),
-            JobOutput(generations[1].id, json.dumps(payload)),
-        ),
+    _job, claim, generations, batch, _state = await _claimed_job(
+        history_fixture,
+        raw_by_role={
+            "summary": '{"text":"Rook guarded the northern gate."}',
+            "facts": json.dumps(payload),
+        },
     )
+    assert await publish_job(db_session, claim, outputs_for(generations))
     await db_session.commit()
     fact = await db_session.scalar(select(MemoryFact).where(MemoryFact.batch_id == batch.id))
     assert fact is not None
@@ -670,6 +670,7 @@ async def test_text_hash_is_the_sha256_of_the_embedded_text(
     indexed_pair: tuple[EmbeddingIndex, Turn, MemoryFact], db_session
 ) -> None:
     idx, turn, _ = indexed_pair
+    assert turn.summary is not None
     expected = hashlib.sha256(turn.summary.encode()).hexdigest()
     db_session.add(
         _source(
@@ -904,6 +905,7 @@ async def test_required_indexes_and_constraints_exist(db_session) -> None:
 async def test_legacy_vector_columns_untouched_at_the_prechange_checkpoint() -> None:
     """Checkpoint contract: Turn/MemoryFact keep the 384-dim legacy column until
     the callers are rewired; the new table's vector is dimensionless."""
-    assert Turn.__table__.c["embedding"].type.dim == 384
-    assert MemoryFact.__table__.c["embedding"].type.dim == 384
-    assert SourceEmbedding.__table__.c["embedding"].type.dim is None
+    dim_attribute = "dim"
+    assert getattr(Turn.__table__.c["embedding"].type, dim_attribute) == 384
+    assert getattr(MemoryFact.__table__.c["embedding"].type, dim_attribute) == 384
+    assert getattr(SourceEmbedding.__table__.c["embedding"].type, dim_attribute) is None

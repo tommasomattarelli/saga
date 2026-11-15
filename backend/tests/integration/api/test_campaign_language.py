@@ -210,6 +210,7 @@ async def test_language_reaches_real_dm_and_actor_and_survives_autosave_restore(
     )
     save_id, snapshot = await _autosave(db_session, campaign_id)
     assert "language" not in snapshot
+    await db_session.commit()
     await auth_client.patch(f"/api/campaigns/{campaign_id}", json={"language": "en"})
     assert (await auth_client.post(f"/api/saves/{campaign_id}/load/{save_id}")).status_code == 200
     await _take_turn(auth_client, campaign_id, "Aspetto.")
