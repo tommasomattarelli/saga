@@ -99,6 +99,15 @@ class MemoryJob(Base, UUIDMixin, TimestampMixin):
             name="ck_memory_jobs_execution_identity",
         ),
         CheckConstraint(
+            "execution_contract_version IS NULL OR execution_contract_version = 1",
+            name="ck_memory_jobs_execution_contract_version",
+        ),
+        CheckConstraint(
+            "execution_contract_version IS NULL OR execution_identity IS NOT NULL "
+            "OR state = 'blocked'",
+            name="ck_memory_jobs_marked_identity_state",
+        ),
+        CheckConstraint(
             "terminal_at IS NULL OR state IN ('succeeded', 'exhausted')",
             name="ck_memory_jobs_terminal_state",
         ),
@@ -176,6 +185,7 @@ class MemoryJob(Base, UUIDMixin, TimestampMixin):
     )
     execution_identity_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     execution_identity_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    execution_contract_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     manifest_hash: Mapped[str] = mapped_column(String(64))
     producer_version: Mapped[str] = mapped_column(String(100))
     prompt_version: Mapped[str] = mapped_column(String(100))

@@ -146,6 +146,8 @@ Resolve credentials using current security controls; never persist secrets in re
 
 Changed incompatible configuration requires a distinct production rather than silently reinterpreting an existing result. The public mechanism for creating a distinct production is not specified or authorized as a new feature here.
 
+**D7 owner refinement (2026-11-15).** Freeze non-secret execution identity when a new job is created. If configuration or identity resolution fails, preserve that new-contract job as blocked without consuming a send. After configuration is repaired, only an explicit retry may bind identity once, before the job becomes executable; identity is immutable thereafter. Never attach identity to or backfill historical jobs. First-send identity freezing and automatic binding/retry of unresolved jobs are rejected.
+
 ### D8. Send budget
 
 Maximum three application sends per typed logical result, initial send included. Transport retries, correction sends and fallback sends all consume the same budget.
@@ -373,6 +375,12 @@ Closed settings decisions:
 - Frozen jobs are not silently rewritten when settings change. Reject incompatible identity changes, while allowing current credential resolution under the existing security checks.
 
 **G4 note (2026-11-13, implementation; owner decision).** The credential-only sentence is corrected by the D3 note: URL-embedded credential rotation changes the keyed effective-endpoint identity and invalidates consent; rotating a dedicated API-key setting does not.
+
+**G4 owner refinement (2026-11-15).** New jobs carry an immutable nullable current-contract marker distinct from identity-snapshot versioning. Unmarked historical jobs remain unbound; only a marked blocked job may bind once during explicit retry before becoming executable. Owner delegated implementation blocker decisions through W5, requiring autonomous decisions to be recorded here and in the changelog, then stopping before merge. Avoid live calls unless necessary, and use exclusively free models if needed; no paid-model calls are authorized. W5 delegates checks and subtraction reviews to independent agents; the orchestrator verifies critical points and fixes belong in the owning commit.
+
+**G4 note (2026-11-15, implementation).** Migration 016 binds each send digest to its frozen role digest, but corrections and fallbacks have distinct derived request identities; migration 017 preserves the base snapshot and verifies each derived snapshot against its exact digest. Existing outcome columns also cannot reconstruct `RawGenerationReceipt`, so durable storage needs a versioned lossless receipt envelope separate from the candidate column.
+
+**G4 note (2026-11-15, implementation; autonomous details).** Migration 017 uses nullable marker version 1, separate from snapshot version, so old rows remain identifiable without backfill. A schema-specific SQL serializer validates typed fields and emits sorted, compact UTF-8 JSON matching the shared `MemoryGenerationRequestIdentitySnapshot.snapshot_json`; both SQL and ORM compare the explicit format column. The base job digest retains Python's existing `ensure_ascii=True` contract: SQL validates the complete typed Pydantic shape, then emits sorted compact JSON with ASCII escapes, including surrogate pairs for astral code points. Job binding verifies the versioned identity digest before the blocked-to-queued transition. Safe outcome reasons cover classifier and executor codes, remain separate from diagnostics, and survive payload clearing. Receipt JSON uses strict versioned fields and base64 for opaque signatures; its candidate is referenced from the existing hash-bound column to avoid a second mutable copy. Downgrade refuses to discard markers or receipt evidence, including reachable receipt-only rows from unmarked pre-contract jobs. These autonomous guard and encoding choices preserve owner policy and add no runtime retry behavior.
 
 Implementation surface: `backend/app/models/user.py`, `backend/app/schemas/settings.py`, `backend/app/api/settings.py`, existing frontend `settings-ai-profiles.tsx`/`settings-ai-panel.tsx`, relevant profile types/API tests, and English/Italian translations. Locate exact current frontend paths before editing.
 

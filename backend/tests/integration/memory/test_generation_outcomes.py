@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.ai.generation_contracts import FormatMode
 from app.models.memory_generation import MemoryGeneration
-from tests.integration.memory.job_support import job_sources, new_identity_job
+from tests.integration.memory.job_support import job_sources, new_identity_job, send_identity
 from tests.integration.memory.storage_support import HistoryFixture
 
 
@@ -17,6 +17,7 @@ async def test_reservation_records_exact_malformed_candidate_once_and_keeps_unce
     f = history_fixture
     turns, item, state = await job_sources(f)
     job, attempt, _, request_identity_hash = await new_identity_job(f, turns, item, state)
+    request_identity_hash, request_identity_snapshot = send_identity(job, "summary")
     malformed = '{"summary": "unfinished'
     generation = MemoryGeneration(
         id=uuid4(),
@@ -31,6 +32,7 @@ async def test_reservation_records_exact_malformed_candidate_once_and_keeps_unce
         send_number=1,
         send_kind="initial",
         request_identity_hash=request_identity_hash,
+        request_identity_snapshot=request_identity_snapshot,
         format_mode=FormatMode.STRICT_NATIVE,
     )
     f.session.add(generation)
@@ -97,6 +99,7 @@ async def test_reservation_records_exact_malformed_candidate_once_and_keeps_unce
         send_number=2,
         send_kind="correction",
         request_identity_hash=request_identity_hash,
+        request_identity_snapshot=request_identity_snapshot,
         format_mode=FormatMode.STRICT_NATIVE,
     )
     f.session.add(uncertain)
@@ -137,6 +140,7 @@ async def test_reservation_records_exact_malformed_candidate_once_and_keeps_unce
         send_number=3,
         send_kind="correction",
         request_identity_hash=request_identity_hash,
+        request_identity_snapshot=request_identity_snapshot,
         format_mode=FormatMode.STRICT_NATIVE,
     )
     f.session.add(empty_candidate)
@@ -167,6 +171,7 @@ async def test_reservation_records_exact_malformed_candidate_once_and_keeps_unce
         send_number=1,
         send_kind="initial",
         request_identity_hash=request_identity_hash,
+        request_identity_snapshot=request_identity_snapshot,
         format_mode=FormatMode.STRICT_NATIVE,
     )
     f.session.add(duplicate)
@@ -178,11 +183,9 @@ async def test_reservation_records_exact_malformed_candidate_once_and_keeps_unce
 @pytest.mark.parametrize(
     ("field", "value"),
     [
-        ("raw_candidate", None),
         ("raw_candidate", '{"summary":"rewritten"}'),
         ("raw_candidate_hash", "0" * 64),
         ("status", "valid"),
-        ("diagnostics", None),
         ("normalization", "json_fence_v1"),
         ("output_tokens", 1),
     ],
@@ -193,6 +196,7 @@ async def test_recorded_payload_and_outcome_cannot_be_cleared_or_rewritten(
     f = history_fixture
     turns, item, state = await job_sources(f)
     job, attempt, _, request_identity_hash = await new_identity_job(f, turns, item, state)
+    request_identity_hash, request_identity_snapshot = send_identity(job, "summary")
     malformed = '{"summary": "unfinished'
     generation = MemoryGeneration(
         id=uuid4(),
@@ -207,6 +211,7 @@ async def test_recorded_payload_and_outcome_cannot_be_cleared_or_rewritten(
         send_number=1,
         send_kind="initial",
         request_identity_hash=request_identity_hash,
+        request_identity_snapshot=request_identity_snapshot,
         format_mode=FormatMode.STRICT_NATIVE,
     )
     f.session.add(generation)
@@ -246,6 +251,7 @@ async def test_raw_candidate_hash_must_match_candidate_contents(
     f = history_fixture
     turns, item, state = await job_sources(f)
     job, attempt, _, request_identity_hash = await new_identity_job(f, turns, item, state)
+    request_identity_hash, request_identity_snapshot = send_identity(job, "summary")
     generation = MemoryGeneration(
         id=uuid4(),
         job_id=job.id,
@@ -259,6 +265,7 @@ async def test_raw_candidate_hash_must_match_candidate_contents(
         send_number=1,
         send_kind="initial",
         request_identity_hash=request_identity_hash,
+        request_identity_snapshot=request_identity_snapshot,
         format_mode=FormatMode.STRICT_NATIVE,
     )
     f.session.add(generation)

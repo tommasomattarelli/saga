@@ -30,7 +30,7 @@ from app.models.base import Base
 
 BACKEND_DIR = Path(__file__).resolve().parents[3]
 REPO_ROOT = BACKEND_DIR.parent
-HEAD_REVISION = "016_gen_recovery_storage"
+HEAD_REVISION = "017_gen_ledger_contracts"
 _HEAD_SCHEMA_SNAPSHOT: SchemaSnapshot | None = None
 TEST_DATABASE_URL = make_url(
     os.getenv(

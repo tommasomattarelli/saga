@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app.ai.generation_contracts import FormatMode, GenerationIdentity, OutputLimit
 from app.memory.job_contracts import (
     MemoryGenerationIdentitySnapshot,
+    MemoryGenerationRequestIdentitySnapshot,
     MemoryJobExecutionIdentity,
     MemoryJobManifest,
 )
@@ -81,6 +82,21 @@ def new_attempt(job: MemoryJob, number: int, *, cycle: int = 0) -> MemoryJobAtte
     )
 
 
+def send_identity(job: MemoryJob, role: str) -> tuple[str, str]:
+    if job.execution_identity is None:
+        raise ValueError("The test job must have a frozen execution identity.")
+    identity = job.execution_identity.result_identities[role]
+    snapshot = MemoryGenerationRequestIdentitySnapshot.model_validate_json(
+        json.dumps(
+            identity.model_dump(mode="json", exclude={"request_identity_hash"}),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    )
+    return snapshot.digest, snapshot.snapshot_json
+
+
 def new_generation(job: MemoryJob, attempt: MemoryJobAttempt) -> MemoryGeneration:
     return MemoryGeneration(
         id=uuid4(),
@@ -102,6 +118,8 @@ async def new_identity_job(
     state: MemoryState,
     *,
     role: str = "summary",
+    allow_json_mode_fallback: bool = False,
+    unicode_identity: bool = False,
 ) -> tuple[MemoryJob, MemoryJobAttempt, str, str]:
     job = new_job(f, turns, item, state, key=uuid4().hex + "0" * 32)
     token = uuid4()
@@ -129,14 +147,14 @@ async def new_identity_job(
             wire_schema_hash="d" * 64,
             tool_declarations_hash="e" * 64,
             contextual_validator_version="context-v1",
-            provider="local",
-            model="test-model",
+            provider="local" if not unicode_identity else 'provider-β"\\\n',
+            model="test-model" if not unicode_identity else "mødel/🧙\t",
             destination_fingerprint="f" * 64,
             output_limit=OutputLimit(configured_ceiling=1024),
             format_mode=FormatMode.STRICT_NATIVE,
-            allow_json_mode_fallback=False,
+            allow_json_mode_fallback=allow_json_mode_fallback,
             allow_prompt_only_fallback=False,
-            session_affinity=None,
+            session_affinity='session-β\nquote"' if unicode_identity else None,
         )
         return MemoryGenerationIdentitySnapshot.model_validate(
             {
@@ -153,6 +171,10 @@ async def new_identity_job(
         max_sends_per_result=5,
     )
     identity_hash = execution_identity.digest(version)
+    job.execution_identity = execution_identity
+    job.execution_identity_hash = identity_hash
+    job.execution_identity_version = version
+    job.execution_contract_version = 1
     request_identity_hash = snapshots[role].request_identity_hash
     await f.session.execute(
         text(
@@ -161,10 +183,10 @@ async def new_identity_job(
             "previous_checkpoint_id, logical_key, manifest, manifest_hash, producer_version, "
             "prompt_version, state, attempt_count, retry_cycle, cycle_attempt_count, "
             "claim_token, lease_expires_at, activation_state, execution_identity, "
-            "execution_identity_hash, execution_identity_version) "
+            "execution_identity_hash, execution_identity_version, execution_contract_version) "
             "VALUES (:id, :campaign, :policy, :batch, :state_id, 0, 'batch', NULL, :key, "
             "CAST(:manifest AS jsonb), :manifest_hash, :producer, :prompt, 'running', 1, 0, 1, "
-            ":claim_token, :lease, 'pending', CAST(:identity AS jsonb), :identity_hash, :version)"
+            ":claim_token, :lease, 'pending', CAST(:identity AS jsonb), :identity_hash, :version, 1)"
         ),
         {
             "id": job.id,

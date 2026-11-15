@@ -74,6 +74,51 @@ class MemoryGenerationIdentitySnapshot(BaseModel):
         return value
 
 
+class MemoryGenerationRequestIdentitySnapshot(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    format_version: StrictInt = Field(gt=0)
+    role: StrictStr = Field(min_length=1)
+    logical_result_id: StrictStr = Field(min_length=1)
+    initial_prefix_hash: StrictStr = Field(pattern=_HASH_PATTERN)
+    contract_name: StrictStr = Field(min_length=1)
+    contract_version: StrictStr = Field(min_length=1)
+    contract_schema_hash: StrictStr = Field(pattern=_HASH_PATTERN)
+    effective_schema_hash: StrictStr = Field(pattern=_HASH_PATTERN)
+    wire_encoding_version: StrictStr = Field(min_length=1)
+    wire_schema_hash: StrictStr = Field(pattern=_HASH_PATTERN)
+    tool_declarations_hash: StrictStr = Field(pattern=_HASH_PATTERN)
+    contextual_validator_version: StrictStr = Field(min_length=1)
+    provider: StrictStr = Field(min_length=1)
+    model: StrictStr = Field(min_length=1)
+    destination_fingerprint: StrictStr = Field(min_length=1)
+    output_limit: MemoryOutputLimitSnapshot
+    format_mode: FormatMode
+    allow_json_mode_fallback: StrictBool
+    allow_prompt_only_fallback: StrictBool
+    session_affinity: StrictStr | None
+
+    @field_validator("session_affinity")
+    @classmethod
+    def require_nonempty_affinity(cls, value: str | None) -> str | None:
+        if value == "":
+            raise ValueError("Session affinity cannot be empty.")
+        return value
+
+    @property
+    def snapshot_json(self) -> str:
+        return json.dumps(
+            self.model_dump(mode="json"),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+
+    @property
+    def digest(self) -> str:
+        return hashlib.sha256(self.snapshot_json.encode()).hexdigest()
+
+
 class MemoryJobExecutionIdentity(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
