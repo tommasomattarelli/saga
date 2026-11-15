@@ -84,6 +84,7 @@ async def execute_generation[T: BaseModel](
     while True:
         attempt = GenerationAttempt(
             request.identity.digest,
+            request.identity.snapshot_json,
             request.format_mode,
             send_kind,
         )

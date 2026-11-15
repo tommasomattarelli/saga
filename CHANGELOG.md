@@ -24,6 +24,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ### Internal
 
 - Added migration 017 with typed identity verification, Python-compatible Unicode digests and complete safe outcome codes, preserving receipt evidence on downgrade (ADR 0021).
+- Added a claim-fenced durable generation ledger that commits reservations before provider I/O and replays persisted outcomes through the shared executor.
 - Added an owner-only ADR rebind operation that requires reviewed hash compare-and-swap and invalidates prior workflow proof.
 - Routed DM responses through shared recovery, validating before graph admission while retaining original wire text, tool arguments and signatures for provider history (ADR 0021).
 - Routed NPC dialogue through strict typed generation with bounded correction, lossless axis encoding, and per-actor send budgets (ADR 0021).

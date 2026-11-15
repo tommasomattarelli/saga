@@ -58,6 +58,7 @@ class GenerationExecutionIdentity:
 @dataclass(frozen=True)
 class GenerationAttempt:
     request_identity: str
+    request_identity_snapshot: str
     format_mode: FormatMode
     send_kind: GenerationSendKind
 

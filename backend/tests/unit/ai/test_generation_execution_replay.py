@@ -163,6 +163,7 @@ async def test_unresolved_reservation_is_uncertain_and_never_resends_base() -> N
     ledger = InMemoryGenerationLedger()
     attempt = GenerationAttempt(
         base.identity.digest,
+        base.identity.snapshot_json,
         base.format_mode,
         GenerationSendKind.INITIAL,
     )

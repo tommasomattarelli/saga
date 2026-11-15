@@ -91,6 +91,7 @@ async def test_preused_send_is_not_refunded_or_reset() -> None:
         1,
         GenerationAttempt(
             base.identity.digest,
+            base.identity.snapshot_json,
             base.format_mode,
             GenerationSendKind.INITIAL,
         ),
