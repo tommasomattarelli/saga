@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 from uuid import UUID
 
@@ -142,6 +143,19 @@ async def execute_plan(plan: IntegratedPlan, directory: Path, owner: UUID) -> No
         raise
 
 
+def _valid_generation_results(rows: Iterable[MemoryGeneration]) -> set[tuple[UUID, str]]:
+    return {(row.job_id, row.role) for row in rows if row.status == "valid"}
+
+
+def _verify_generation_counts(
+    plan: IntegratedPlan, calls: Iterable[MemoryGeneration], ledger: IntegratedLedger
+) -> None:
+    rows = tuple(calls)
+    results = _valid_generation_results(rows)
+    if len(results) != plan.generation_baseline or ledger.counts["generation"] != len(rows):
+        raise ValueError("persisted generations and outbound ledger do not agree")
+
+
 async def verify_pipeline(
     plan: IntegratedPlan, campaign_id: UUID, ledger: IntegratedLedger
 ) -> None:
@@ -161,8 +175,7 @@ async def verify_pipeline(
                 select(MemoryGeneration).where(MemoryGeneration.campaign_id == campaign_id)
             )
         )
-        if len(calls) != plan.generation_baseline or ledger.counts["generation"] != len(calls):
-            raise ValueError("persisted generations and outbound ledger do not agree")
+        _verify_generation_counts(plan, calls, ledger)
         campaign = await db.get(Campaign, campaign_id)
         if campaign is None:
             raise ValueError("integrated evaluation campaign is missing")

@@ -2,6 +2,7 @@ import os
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -149,3 +150,102 @@ async def test_frozen_retry_limit_counts_attempts_and_stops_before_a_third(
             with pytest.raises(LedgerBlockedError):
                 ledger.ensure_healthy()
     assert calls == ledger.counts["embedding"] == ledger.counts["texts"] == 2
+
+
+@pytest.mark.asyncio
+async def test_eval_ledger_allows_a_second_send_after_recoverable_error(tmp_path) -> None:
+    from eval.integrated_memory.job_driver import _EvalGenerationProvider
+
+    from app.ai.generation_contracts import GenerationRequest, OutputLimit, RawGenerationReceipt
+    from app.ai.providers.local import LocalProvider, OpenAICompatibleResponseError
+    from app.ai.response_contracts import ResponseContract
+    from app.memory.document_contracts import SummaryPayload
+
+    class FlakyProvider:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.client = SimpleNamespace(
+                default_headers={"x-session-id": "session"},
+                _client=httpx.AsyncClient(),
+            )
+
+        async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
+            self.calls += 1
+            if self.calls == 1:
+                raise OpenAICompatibleResponseError(
+                    "openrouter", code=429, status=None, error_type=None
+                )
+            for hook in self.client._client.event_hooks["request"]:
+                await hook(
+                    httpx.Request(
+                        "POST",
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={"x-session-id": "session"},
+                    )
+                )
+            return RawGenerationReceipt(text='{"text":"recovered"}')
+
+    contract = ResponseContract("summary", "v1", SummaryPayload)
+    request = GenerationRequest.create(
+        "instructions",
+        [{"role": "user", "content": "prompt"}],
+        contract=contract,
+        provider="openrouter",
+        model="model",
+        destination_fingerprint="destination",
+        role="summary",
+        logical_result_id="result",
+        output_limit=OutputLimit(100),
+        wire_schema=contract.schema,
+        session_affinity="session",
+    )
+    scope = AttemptScope(
+        run_id="run",
+        campaign_id=uuid4(),
+        source_turn_ids=(),
+        input_hash="hash",
+        role="summary",
+        provider="openrouter",
+        model="model",
+    )
+    ledger = IntegratedLedger(
+        tmp_path / "requests.jsonl",
+        generation_cap=2,
+        embedding_cap=0,
+        text_cap=0,
+        run_seal="seal",
+    )
+    provider = FlakyProvider()
+    guard = _EvalGenerationProvider(
+        cast(LocalProvider, provider), ledger, None, scope_for=lambda _: scope
+    )
+    try:
+        with pytest.raises(OpenAICompatibleResponseError):
+            await guard.send(request)
+        await guard.send(request)
+        ledger.ensure_healthy()
+        assert ledger.counts["generation"] == 2
+    finally:
+        await provider.client._client.aclose()
+
+
+def test_generation_result_count_ignores_recovery_sends() -> None:
+    from eval.integrated_memory.execution import _verify_generation_counts
+
+    campaign = uuid4()
+    job = uuid4()
+    rows = [
+        SimpleNamespace(campaign_id=campaign, job_id=job, role="facts", status="invalid"),
+        SimpleNamespace(campaign_id=campaign, job_id=job, role="facts", status="valid"),
+    ]
+    _verify_generation_counts(
+        SimpleNamespace(generation_baseline=1),
+        rows,
+        SimpleNamespace(counts={"generation": len(rows)}),
+    )
+    with pytest.raises(ValueError, match="outbound ledger"):
+        _verify_generation_counts(
+            SimpleNamespace(generation_baseline=1),
+            rows,
+            SimpleNamespace(counts={"generation": 1}),
+        )

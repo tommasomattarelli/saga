@@ -131,7 +131,7 @@ class _EvalGenerationProvider:
                     self.ledger.cancel()
                     raise
                 except BaseException:
-                    self.ledger.fail()
+                    self.ledger.fail(retrying=True)
                     raise
                 else:
                     self.ledger.complete()

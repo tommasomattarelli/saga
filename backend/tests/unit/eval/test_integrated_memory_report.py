@@ -11,7 +11,7 @@ def test_integrated_report_marks_code_drift_and_excludes_player_generation(tmp_p
     write_integrated_plan(plan, tmp_path)
     write_integrated_report(tmp_path)
     report = (tmp_path / "report.md").read_text()
-    assert "31 requests" in report and "42" in report
+    assert "Logical generation results: 31" in report and "42" in report
     assert "66" in report and "submitted-text attempt cap" in report
     assert "implementation drift: no" in report
     assert "DM generation, NPC generation, recall and probes are excluded" in report

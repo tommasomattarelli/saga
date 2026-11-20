@@ -2,7 +2,7 @@
 
 Date: 2026-11-13
 
-Status: **Proposed**, confirmed by the owner on 2026-11-13; G1-G5 closed at design level by owner answers on 2026-11-13. Implementation tests and endpoint enforcement remain unverified. This is not an accepted ADR. The owner separately authorized the implementation worktree, document promotion and offline implementation; commits, push, merge and live execution remain unauthorized.
+Status: **Accepted** — owner confirmed W5 completion on 2026-11-20; implementation and offline checks are complete. Live evaluation, S6 return and main merge remain separate gates.
 
 ## 1. Purpose and reading instructions
 
@@ -12,7 +12,7 @@ The estimate, absence of a commit ceiling, and three checkpoints in section 14 a
 
 The architectural record is ADR 0021, written in English, with an implementation plan. It is separate from [ADR 0020](0020-batched-memory-and-history-checkpoints.md), which remains Proposed. This ADR changes ADR 0020 §20.6's no-repair/single-generation rule: full validation may be followed by wrapper-only normalization and bounded LLM correction, but never field repair, slicing or content reconstruction. It also replaces §20.5's reopenable exhausted lifecycle with distinct claim cycles, monotonic per-result send budgets and definitive exhaustion. Existing publication atomicity and contextual validation remain authoritative. No implementation or status transition is authorized through this document alone.
 
-Owner instruction (2026-11-13): this document was copied in full from the completed design plan into `docs/adr/0021-unified-structured-generation-and-recovery.md`, with only ADR/header and obsolete temporary/session wording normalization and the explicit ADR 0020 relationship above. `docs/adr/README.md` is updated in the same documentation change. This repository ADR is now the authoritative source; the original preparation file is a historical input, not a maintained competing version. Design decisions are closed; implementation evidence and actual endpoint enforcement remain unverified and must stay labeled accordingly. Proposed status was owner-confirmed; Accepted still requires owner confirmation.
+Owner instruction (2026-11-13): this document was copied in full from the completed design plan into `docs/adr/0021-unified-structured-generation-and-recovery.md`, with only ADR/header and obsolete temporary/session wording normalization and the explicit ADR 0020 relationship above. `docs/adr/README.md` is updated in the same documentation change. This repository ADR is now the authoritative source; the original preparation file is a historical input, not a maintained competing version. Design decisions are closed; implementation evidence is complete, while actual endpoint enforcement remains unverified and must stay labeled accordingly. Proposed status was owner-confirmed on 2026-11-13; Accepted followed W5 completion on 2026-11-20.
 
 The numbered work packages below are dependency groups, not approved sprints. The earlier use of five sprint labels was incorrect: no five-sprint or automatically thirty-commit program was agreed. The owner approved a realistic baseline of 16-17 logical units, a working estimate of 16-20 commits, and no hard commit ceiling. Do not mechanically allocate commits per work package or compress this scope into seven oversized commits. Eighteen readable units are better than seven enormous ones.
 
@@ -466,6 +466,8 @@ These are work packages, not fixed sprints or commit counts. Design readiness, P
 - Run full backend and frontend gates, migration/integration tests and a final independent review before declaring implementation complete.
 - Return to S6 only through an owner-approved integration and a newly authorized run.
 
+**W5 note (2026-11-20, completion).** Independent reviews found two S6 harness gaps: an exception during a typed send latched the outer ledger before an authorized retry, and final verification equated logical results with physical sends. Both are fixed in the evaluation harness; runtime contracts are unchanged. No live run was performed.
+
 ## 8. Required acceptance and regression cases
 
 ### Request/schema contracts
@@ -586,9 +588,9 @@ No catalog lookup or inference probe established current Nemotron/OpenRouter com
 
 The two technical-gate investigations completed, the owner answered all ten resulting questions, and this ADR incorporates those answers. No architecture/policy decision from G1-G5 is intentionally deferred to a fresh implementation session.
 
-Remaining work is implementation evidence: actual SDK request tests, wire/canonical round-trip tests, database migration/state/race tests, settings UI/API tests and full checks. These are not authority to change the chosen design. External endpoint enforcement remains unverified without a separately authorized live invocation; documented/offline qualification is the agreed prerequisite, not mandatory live certification.
+Implementation evidence was completed through SDK request tests, wire/canonical round-trip tests, database migration/state/race tests, settings UI/API tests and full checks. External endpoint enforcement remains unverified without a separately authorized live invocation; documented/offline qualification is the agreed prerequisite, not mandatory live certification.
 
-Formal Proposed status and delivery-branch names were owner-confirmed when promoting this document and starting implementation on 2026-11-13. Do not promote to Accepted without implementation and owner acceptance. Repository doc promotion, feature implementation, commits, live execution, push and merge remain distinct authorizations.
+Formal Proposed status and delivery-branch names were owner-confirmed when promoting this document and starting implementation on 2026-11-13. Accepted followed implementation and W5 completion on 2026-11-20. Feature implementation, live execution, push and merge remain distinct authorizations.
 
 ## 13. Alternatives explicitly not selected
 

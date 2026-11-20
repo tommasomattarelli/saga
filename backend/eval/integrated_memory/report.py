@@ -24,7 +24,7 @@ def render_report(
         "",
         "## Planned bounds",
         f"- Batches: {batches}; global updates: {plan.global_count}.",
-        f"- Generation baseline: {plan.generation_baseline} requests; with unified sidecar: {plan.generation_with_sidecar}.",
+        f"- Logical generation results: {plan.generation_baseline}; with unified sidecar: {plan.generation_with_sidecar}.",
         f"- Per-model planned generation calls (one repetition): {plan.generation_call_counts_by_model or 'no model selected'}.",
         f"- Generation request cap: {plan.generation_request_cap if plan.generation_request_cap is not None else 'unset'}.",
         f"- Per-request output cap: {plan.output_cap if plan.output_cap is not None else 'unset'}.",
