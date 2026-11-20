@@ -21,7 +21,7 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 
 [ ] **harness modelli (`backend/eval/`) — completamenti aperti**:
     [ ] **baseline satura dalla pipeline ADR 0020**: produrre evidenza revisionata della pipeline collegata; i vecchi fixture generati e il derivatore per-turno sono ritirati, ogni generazione live richiede autorizzazione.
-    [ ] **probe canarino di memoria**: verificare l'uso di un fatto controllato che il modello non puo' inventare, distinguendo recall autorato da recupero effettivo nella pipeline collegata.
+    [ ] **probe canarino — consumo del globale**: verificare con fatto controllato presente solo nel checkpoint attivo che il turno DM successivo lo riceva nel contesto e lo usi senza recall autorato; il run 2026-11-20 genera 9 globali ma non dimostra il consumo.
     [ ] varianti entropia in piu' (`rename`, `death`, `abandoned`, `language`): attendere evidenza della pipeline integrata prima di progettare nuove varianti; i vecchi fixture `bloat`/`contradiction` sono ritirati, la traduzione controllata resta una possibile misura di #51.
     NB: non aggiungere probe sulla disciplina combat, ADR 0003 ha rimosso `start_combat`.
     **`npc_followup` resta necessario anche con ADR 0017**: i marker non impediscono parafrasi nella prosa libera.

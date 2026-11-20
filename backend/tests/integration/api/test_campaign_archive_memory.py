@@ -147,6 +147,14 @@ async def test_archive_exports_complete_records_from_real_memory_pipeline(
     assert response.status_code == 200, response.text
     archive = response.json()
     assert len(archive["global_checkpoints"]) >= 2
+    checkpoint_times = [row["created_at"] for row in archive["global_checkpoints"]]
+    assert checkpoint_times == sorted(checkpoint_times)
+    assert all(
+        current["previous_checkpoint_id"] == previous["id"]
+        for previous, current in zip(
+            archive["global_checkpoints"], archive["global_checkpoints"][1:], strict=False
+        )
+    )
     first_checkpoint = next(
         row for row in archive["global_checkpoints"] if row["previous_checkpoint_id"] is None
     )

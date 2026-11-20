@@ -640,6 +640,8 @@ provider o worker viene avviato come effetto collaterale della preparazione.
 Qualità, recall effettivo, playtest, variante/default e accettazione owner
 continuano a impedire il merge in main; ADR ancora **Proposed**.
 
+**S6 note (2026-11-20, implementation).** Il run integrato autorizzato ha generato 9 checkpoint globali concatenati su t1–t36, con la risoluzione di t34 nel nono globale e il warning di t38 escluso. `campaign.global_summary` resta però `null` e il replay non esegue un turno DM successivo: il run dimostra generazione e pubblicazione, non che il checkpoint attivo venga iniettato nel contesto né che influenzi una risposta. Il TODO `probe canarino — consumo del globale` copre il probe dedicato, con fatto controllato presente solo nel globale e recall-query reale. La qualità dei risultati resta su una sola ripetizione; variante e default non sono ancora scelti.
+
 I riferimenti di riga del rilievo S0 descrivono il codice del 9 novembre,
 non quello dopo il cutover: claim e pubblicazione sono ora in
 `services/action_claims.py` e `services/action_persistence.py`; la memoria

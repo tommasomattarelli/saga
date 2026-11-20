@@ -249,3 +249,121 @@ def test_generation_result_count_ignores_recovery_sends() -> None:
             rows,
             SimpleNamespace(counts={"generation": 1}),
         )
+
+
+@pytest.mark.asyncio
+async def test_integrated_fault_injection_recovers_invalid_facts(tmp_path) -> None:
+    import json
+
+    from eval.integrated_memory.job_driver import _EvalGenerationProvider
+
+    from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
+    from app.ai.generation_errors import Adapter
+    from app.ai.generation_execution_ledger import (
+        GenerationRecoveryPolicy,
+        InMemoryGenerationLedger,
+    )
+    from app.ai.providers.local import LocalProvider
+    from app.ai.router import ModelConfig
+    from app.memory.batch_source_contracts import BatchInput
+    from app.memory.producer_prompts import prepare_request
+    from app.memory.producers import execute_memory_generation
+    from app.memory.production_policy import FactsPolicy
+
+    invalid = '{"facts":[{"content":"broken"}]}'
+    fact = {
+        "content": "Mira hid the key.",
+        "category": "information",
+        "assertion_type": "occurrence",
+        "entities": [],
+        "attribution": [],
+        "source_turns": ["t1"],
+        "temporal_references": [],
+        "importance": {"level": "ordinary", "reason": "A key matters."},
+    }
+    valid = json.dumps({"facts": [fact]})
+
+    class FaultInjectingProvider:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.client = SimpleNamespace(
+                default_headers={"x-session-id": "session"},
+                _client=httpx.AsyncClient(),
+            )
+
+        async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
+            self.calls += 1
+            for hook in self.client._client.event_hooks["request"]:
+                await hook(
+                    httpx.Request(
+                        "POST",
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={"x-session-id": "session"},
+                    )
+                )
+            text = invalid if self.calls == 1 else valid
+            return RawGenerationReceipt(text=text, raw_candidate=text)
+
+    batch = BatchInput.model_validate(
+        {
+            "turns": (
+                {
+                    "reference": "t1",
+                    "turn_id": uuid4(),
+                    "player_action": "Ask Mira about the key",
+                    "narration": "Mira hid the key.",
+                    "operations": (),
+                },
+            )
+        }
+    )
+    policy = FactsPolicy.model_validate(
+        {
+            "max_per_batch": 6,
+            "importance_levels": [
+                {"name": "ordinary", "criteria": "Useful detail.", "examples": "A clue."}
+            ],
+        }
+    )
+    prepared = prepare_request("facts", batch, language="en", facts_policy=policy)
+    scope = AttemptScope(
+        run_id="fault-injection",
+        campaign_id=uuid4(),
+        source_turn_ids=(batch.turns[0].turn_id,),
+        input_hash=prepared.source_hash,
+        role="facts",
+        provider="openrouter",
+        model="model",
+    )
+    ledger = IntegratedLedger(
+        tmp_path / "requests.jsonl",
+        generation_cap=2,
+        embedding_cap=0,
+        text_cap=0,
+        run_seal="seal",
+    )
+    provider = FaultInjectingProvider()
+    guard = _EvalGenerationProvider(
+        cast(LocalProvider, provider), ledger, None, scope_for=lambda _: scope
+    )
+    config = ModelConfig(
+        provider="openrouter",
+        model="model",
+        max_tokens=512,
+        destination_fingerprint="destination",
+    )
+    try:
+        result = await execute_memory_generation(
+            prepared,
+            provider=guard,
+            ledger=InMemoryGenerationLedger(),
+            config=config,
+            policy=GenerationRecoveryPolicy(2),
+            adapter=Adapter.OPENROUTER,
+            session_affinity="session",
+        )
+        assert len(result.facts) == 1
+        assert ledger.counts["generation"] == 2
+        ledger.ensure_healthy()
+    finally:
+        await provider.client._client.aclose()

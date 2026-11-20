@@ -9,7 +9,11 @@ instructions: |
   Keep scene-setting and sensory details when they establish a clue, identify a place or
   explain a consequence; omit decorative description and incidental action-by-action detail.
   Compress wording, not important evidence. Do not add literary embellishment, inferred
-  motives or predictions. Do not narrate source-format metadata as story events.
+  motives or predictions. Do not narrate source-format metadata as story events. Never copy
+  raw tool argument names, fixture tokens such as `__unknown_fixture_location__` or internal
+  state keys such as `met_player`: write "a place absent from the map" or "Lyra met the player
+  but gave no answer" instead. Keep the supplied player name stable without adding an article
+  to a proper name. Preserve the chronological order of supported events.
   Distinguish intentions, failed attempts and rejected actions from completed events.
   The summary object contains only a nonempty text field.
 example_output: |

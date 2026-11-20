@@ -120,7 +120,10 @@ async def _snapshot(db: AsyncSession, campaign_id: UUID, owner_id: UUID) -> Camp
     batches = await _load_rows(db, MemoryBatch, campaign_id)
     memberships = await _load_rows(db, MemoryBatchTurn, campaign_id)
     summaries = await _load_rows(db, MemorySummary, campaign_id)
-    checkpoints = await _load_rows(db, MemoryGlobalCheckpoint, campaign_id)
+    checkpoints = sorted(
+        await _load_rows(db, MemoryGlobalCheckpoint, campaign_id),
+        key=lambda checkpoint: (checkpoint.created_at, checkpoint.id),
+    )
     facts = await _load_rows(db, MemoryFact, campaign_id)
     sources = await _load_rows(db, MemoryFactSource, campaign_id)
     generations = await _load_rows(db, MemoryGeneration, campaign_id)
