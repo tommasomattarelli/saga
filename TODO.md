@@ -17,14 +17,25 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 
 [ ] **playtest su `v0.3.0`**
 
-[ ] **re-eval memoria ADR 0020 prima del merge in main**: preparare nuove evidenze offline con Nemotron free, sidecar (42 generation), OpenRouter text-embedding-3-small, un retry embedding e cap 6 richieste/132 testi inviati; autorizzare separatamente quel run, poi valutare qualità, recall e playtest e confermare variante/default.
-
 [ ] **harness modelli (`backend/eval/`) — completamenti aperti**:
-    [ ] **baseline satura dalla pipeline ADR 0020**: produrre evidenza revisionata della pipeline collegata; i vecchi fixture generati e il derivatore per-turno sono ritirati, ogni generazione live richiede autorizzazione.
-    [ ] **probe canarino — consumo del globale**: verificare con fatto controllato presente solo nel checkpoint attivo che il turno DM successivo lo riceva nel contesto e lo usi senza recall autorato; il run 2026-11-20 genera 9 globali ma non dimostra il consumo.
+    [ ] **probe canarino — consumo del globale**: verificare con fatto controllato presente solo nel checkpoint attivo che il turno DM successivo lo riceva nel contesto e lo usi senza recall autorato; il run 2026-11-20 genera 9 globali ma non dimostra il consumo (issue #115).
     [ ] varianti entropia in piu' (`rename`, `death`, `abandoned`, `language`): attendere evidenza della pipeline integrata prima di progettare nuove varianti; i vecchi fixture `bloat`/`contradiction` sono ritirati, la traduzione controllata resta una possibile misura di #51.
     NB: non aggiungere probe sulla disciplina combat, ADR 0003 ha rimosso `start_combat`.
     **`npc_followup` resta necessario anche con ADR 0017**: i marker non impediscono parafrasi nella prosa libera.
+
+## follow-up qualità memoria ADR 0020 S6 — baseline n=3 (2026-11-20)
+
+[ ] **calibrazione `critical`**: dopo il tuning compaiono 1/2/1 fatti `critical` nei tre run, sempre su t34/quest della chiave, ma il cambiamento di fiducia `-20 → -12` e' `critical` solo in run-2; rendere stabile la regola "promessa centrale risolta + quest + relazione" senza alzare tutto a `critical`.
+
+[ ] **copertura t3/t4 nei facts**: il movimento rifiutato di t3 e il `hard_failure` di t4 sono nei summary 3/3 ma nei facts specialistici solo in run-1 (`rec1` F3/F4); run-2 e run-3 restano a 2 fatti su t1/t2. Decidere se i fallimenti significativi devono essere fatti ricercabili, non solo prosa del summary.
+
+[ ] **attribution instabile**: t19 (venditore) e' `statement` con `attribution:[0]` in run-1/2 ma `occurrence` senza attribuzione in run-3; t42 (warning) e' l'inverso. Il testo dice spesso "attributed to Lyra", ma il campo strutturato non e' costante da run a run.
+
+[ ] **boilerplate identico nei globali**: l'incipit della promessa e' byte-identico in 8/9 checkpoint in run-1 e run-2 e in 9/9 in run-3; variare la formulazione mantenendo i fatti, per ridurre rumore e token.
+
+[ ] **ordine cronologico dei globali**: run-1 e run-2 presentano inversioni minori (eventi di t3/t4 in coda, t5 prima di t3) nelle liste; run-3 e' piu' ordinato. Il prompt gia' chiede l'ordine cronologico, ma non e' stabile su n=3.
+
+[ ] **contesto identitario nel sidecar**: lo specialistico conserva `who_am_i`/Shrine of First Light/Thornhaven in tutte e 3 le run, il sidecar mai (0/3). Dato che il contesto e' presente nei delta `before` delle fonti, valutare se aggiungerlo al contratto unified prima di riconsiderare la variante.
 
 [ ] **normalizzazione `character_data.abilities`** (residuo di 80fe1ec, owner: `0010-F1`): restano **tre convenzioni divergenti** sulle stesse chiavi — il FE salva nomi pieni lowercase (`{strength, dexterity, …}`, `class-presets.ts`), `core/attack.py:50` e `core/dm/dm_tools_executor.py:191` mappano `"DEX"` → `"dexterity"`, `prompts/dm.py:57` legge flat `char_data["dex"]` che **non e' mai popolato** (il blocco `<abilities>` non compare mai nel prompt reale). Il dado e' stato allineato; il resto no. Normalizzare a un punto unico quando 0010-F1 ritipizza `character_data` con Pydantic.
 [ ] **lo stato di runtime non e' tipizzato da nessuna parte, e ogni chiave morta sta li'** (audit 2026-08-04). La linea esiste gia' nel repo: il **contenuto autorato** e' Pydantic (`world.py`, `npc.py`, `npc_class.py`, `npc_fields.py`, `psychology.py`) e non ha una sola chiave morta; lo **stato di runtime** (`character_data`, `world_state`) e' dict libero e le ha tutte. Candidati, in ordine: (1) **`character_data`** — lo schema esiste gia' ma scritto in TypeScript (`types/index.ts:25`) e non applicato in Python, cioe' un contratto che una sola sponda rispetta; owner `0010-F1`. (2) **`world_state` al confine, non nella scala** — le rung lavorano per definizione su forme vecchie, quindi si tipizza l'ingresso/uscita sostituendo `ALLOWED_WORLD_STATE_KEYS` (oggi controlla i nomi e non i tipi, e infatti non ha fermato niente). **NON** tipizzare `traits` e gli assi `psychology`: sono aperti per progetto (tassonomia autorata dal mondo, 0005/0009).

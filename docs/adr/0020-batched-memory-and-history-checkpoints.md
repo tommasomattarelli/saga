@@ -1,6 +1,6 @@
 # ADR 0020 — Rifacimento della produzione della memoria
 
-- **Status**: **Proposed** — intervista owner 2026-11-08/09 e contratti tecnici S0 documentati; implementazione, valori e variante production subordinati alle verifiche e ai gate dell'eval (§11, §20–22).
+- **Status**: **Accepted** — owner acceptance 2026-11-21 after S6 integration; implementation and integrated evaluation are complete. Remaining quality follow-ups and the checkpoint canary are tracked outside this decision.
 - **Date**: 2026-11-09.
 - **Context items / sources**: issue [#79](https://github.com/tommasomattarelli/saga/issues/79), [#80](https://github.com/tommasomattarelli/saga/issues/80); intervista owner; ADR 0001, 0002, 0017, 0018 e 0019.
 
@@ -639,6 +639,8 @@ e `--authorized`, dopo un consenso esplicito per quel run. Nessun catalogo,
 provider o worker viene avviato come effetto collaterale della preparazione.
 Qualità, recall effettivo, playtest, variante/default e accettazione owner
 continuano a impedire il merge in main; ADR ancora **Proposed**.
+
+**S6 acceptance note (2026-11-21).** PR #116 ha integrato S6 nel branch ADR 0020; l'owner ha accettato la decisione dopo il run integrato e i tre run post-tuning. ADR 0021 resta Accepted. Canarino del globale e follow-up qualità restano aperti nei rispettivi tracker; questa accettazione non autorizza merge in main, playtest o scelta della variante production.
 
 **S6 note (2026-11-20, implementation).** Il run integrato autorizzato ha generato 9 checkpoint globali concatenati su t1–t36, con la risoluzione di t34 nel nono globale e il warning di t38 escluso. `campaign.global_summary` resta però `null` e il replay non esegue un turno DM successivo: il run dimostra generazione e pubblicazione, non che il checkpoint attivo venga iniettato nel contesto né che influenzi una risposta. Il TODO `probe canarino — consumo del globale` copre il probe dedicato, con fatto controllato presente solo nel globale e recall-query reale. La qualità dei risultati resta su una sola ripetizione; variante e default non sono ancora scelti.
 
