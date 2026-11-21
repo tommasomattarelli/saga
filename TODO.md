@@ -17,12 +17,12 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 
 [ ] **playtest su `v0.3.0`**
 
-[ ] **re-eval memoria ADR 0020 prima del merge in main**: rivalutare la pipeline integrata con scenario lungo/globale e playtest; confrontare specialisti (preferenza provvisoria) e unified per fedeltà, utilità dei fatti, importanza e recall effettivo, poi confermare variante/default; ogni run live richiede nuova autorizzazione.
+[ ] **re-eval memoria ADR 0020 prima del merge in main**: preparare nuove evidenze offline con Nemotron free, sidecar (42 generation), OpenRouter text-embedding-3-small, un retry embedding e cap 6 richieste/132 testi inviati; autorizzare separatamente quel run, poi valutare qualità, recall e playtest e confermare variante/default.
 
 [ ] **harness modelli (`backend/eval/`) — completamenti aperti**:
     [ ] **baseline satura dalla pipeline ADR 0020**: produrre evidenza revisionata della pipeline collegata; i vecchi fixture generati e il derivatore per-turno sono ritirati, ogni generazione live richiede autorizzazione.
-    [ ] **probe canarino di memoria**: verificare l'uso di un fatto controllato che il modello non puo' inventare, distinguendo recall autorato da recupero effettivo nella pipeline collegata.
-    [ ] varianti entropia in piu' (`rename`, `death`, `abandoned`, `language`): NON farle finche' `bloat`/`contradiction` non dicono qualcosa. `language` sarebbe la traduzione degli stessi 25 turni — l'unico modo controllato di mettere un numero su #51.
+    [ ] **probe canarino — consumo del globale**: verificare con fatto controllato presente solo nel checkpoint attivo che il turno DM successivo lo riceva nel contesto e lo usi senza recall autorato; il run 2026-11-20 genera 9 globali ma non dimostra il consumo.
+    [ ] varianti entropia in piu' (`rename`, `death`, `abandoned`, `language`): attendere evidenza della pipeline integrata prima di progettare nuove varianti; i vecchi fixture `bloat`/`contradiction` sono ritirati, la traduzione controllata resta una possibile misura di #51.
     NB: non aggiungere probe sulla disciplina combat, ADR 0003 ha rimosso `start_combat`.
     **`npc_followup` resta necessario anche con ADR 0017**: i marker non impediscono parafrasi nella prosa libera.
 
@@ -46,6 +46,13 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 ## avvertimenti operativi
 <!-- Cose che non stanno in nessun ADR e che ci si dimentica. -->
 [!] **vulture**: e' euristico. Se un falso positivo blocca una PR (route FastAPI, fixture pytest, `relationship` SQLAlchemy, attributi dinamici) **NON abbassare la soglia** — aggiungere un file whitelist (equivalente di `knip.json`). NB: a `--min-confidence 80` NON ha intercettato `decrypt_api_key`, funzione pubblica mai chiamata (vedi #65) — la soglia lascia passare proprio il caso che sarebbe servito.
+
+## follow-up fuori scope ADR 0020 (owner, 2026-11-12)
+
+[ ] **contratti API e pulizia locale**: valutare un formato errore comune per `detail` stringa e `{code,message}`, il rate limit di `/memory/retry`, la risposta tipizzata del journal e le docstring descrittive rimaste in journal/saves, senza allargare S6.
+[ ] **provider e recall**: riesaminare i default di metodo `gemini-2.5-pro`/`gpt-4o`, lo scope dei retry fra `generate`/`generate_with_tools`, il wrapper `validate_user_generation` e l'osservabilita' degli errori recall oggi convertiti in lista vuota.
+[ ] **compatibilita' dati e schema**: distinguere campi legacy esportati (`scene_summary`, `global_summary`, colonne di `MemoryFact`) da veri orfani prima di rimuoverli; verificare FK `saves.campaign_id`/ondelete, evoluzione di `SNAPSHOT_FORMAT` e conformita' SQL/ORM delle migrazioni memoria.
+[ ] **config e strumenti operatore**: valutare CORS configurabile, ritiro di `memory_capture.py` quando non serve piu' catturare sorgenti legacy e separazione degli import offline dalla lettura delle impostazioni applicative.
 
 ## infra / distribuzione
 [ ] debug con docker
@@ -89,9 +96,6 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 [ ] **import campagne — futuro, non prioritario**: l'endpoint non esiste; distinto dall'import dei mondi, resta fuori dalle due PR di ADR 0019 e dal fix di #86.
 [ ] upload PDF lore homebrew → chunking + embedding su pgvector, associato a campagna, recuperato nel recall (riusa pgvector, non LanceDB) [dnd-llm-game]
 [ ] formalizzare lo schema "pacchetto campagna" export/import (aree/NPC/mostri/plot): estende export.py + pillar data-sovereignty [NEQ moduli drop-in]
-
-## concorrenza (minore)
-[ ] advisory lock per campagna sul turn handler: turn_number e' gia' atomico ma world_state ha una race last-writer-wins su turni concorrenti (stretta: e' single-user REST) [aidm]
 
 # ============================================================
 # SECONDARI / deferred — bassa priorita', alcuni legati a versioni future.

@@ -11,18 +11,17 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    event,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, Session, mapped_column
 
-from app.memory.job_contracts import MemoryJobManifest
+from app.memory.job_contracts import MemoryJobExecutionIdentity, MemoryJobManifest
 from app.models.base import Base, TimestampMixin, UUIDMixin
 from app.models.validated_json import ValidatedJSON
-
-
-class MemoryJobKind(StrEnum):
-    BATCH = "batch"
-    GLOBAL = "global"
 
 
 class MemoryJobState(StrEnum):
@@ -30,8 +29,17 @@ class MemoryJobState(StrEnum):
     RUNNING = "running"
     RETRY_WAIT = "retry_wait"
     BLOCKED = "blocked"
+    MANUAL_RETRY_REQUIRED = "manual_retry_required"
     EXHAUSTED = "exhausted"
     SUCCEEDED = "succeeded"
+
+
+class MemoryJobTerminalReason(StrEnum):
+    REQUIRED_RESULT_SEND_BUDGET_EXHAUSTED = "required_result_send_budget_exhausted"
+
+
+def _terminal_reason_values(enum_cls: type[StrEnum]) -> list[str]:
+    return [member.value for member in enum_cls]
 
 
 class MemoryJobActivation(StrEnum):
@@ -82,8 +90,52 @@ class MemoryJob(Base, UUIDMixin, TimestampMixin):
         ),
         CheckConstraint("kind IN ('batch', 'global')", name="ck_memory_jobs_kind"),
         CheckConstraint(
-            "state IN ('queued', 'running', 'retry_wait', 'blocked', 'exhausted', 'succeeded')",
+            "state IN ('queued', 'running', 'retry_wait', 'blocked', 'manual_retry_required', "
+            "'exhausted', 'succeeded')",
             name="ck_memory_jobs_state",
+        ),
+        CheckConstraint(
+            "(execution_identity IS NULL AND execution_identity_hash IS NULL "
+            "AND execution_identity_version IS NULL) OR "
+            "(execution_identity IS NOT NULL AND jsonb_typeof(execution_identity) = 'object' "
+            "AND execution_identity_hash IS NOT NULL "
+            "AND execution_identity_hash ~ '^[0-9a-f]{64}$' "
+            "AND execution_identity_version IS NOT NULL AND execution_identity_version > 0 "
+            "AND jsonb_typeof(execution_identity->'result_identities') = 'object' "
+            "AND execution_identity->'max_sends_per_result' IS NOT NULL "
+            "AND jsonb_typeof(execution_identity->'max_sends_per_result') = 'number' "
+            "AND execution_identity->>'max_sends_per_result' IS NOT NULL "
+            "AND execution_identity->>'max_sends_per_result' ~ '^[1-9][0-9]*$' "
+            "AND execution_identity->'result_identities' <> '{}'::jsonb)",
+            name="ck_memory_jobs_execution_identity",
+        ),
+        CheckConstraint(
+            "execution_contract_version IS NULL OR execution_contract_version = 1",
+            name="ck_memory_jobs_execution_contract_version",
+        ),
+        CheckConstraint(
+            "execution_contract_version IS NULL OR execution_identity IS NOT NULL "
+            "OR state = 'blocked'",
+            name="ck_memory_jobs_marked_identity_state",
+        ),
+        CheckConstraint(
+            "terminal_at IS NULL OR state IN ('succeeded', 'exhausted')",
+            name="ck_memory_jobs_terminal_state",
+        ),
+        CheckConstraint(
+            "terminal_reason IS NULL OR "
+            "(state = 'exhausted' AND terminal_reason = "
+            "'required_result_send_budget_exhausted')",
+            name="ck_memory_jobs_terminal_reason",
+        ),
+        CheckConstraint(
+            "execution_identity IS NOT NULL OR terminal_at IS NULL",
+            name="ck_memory_jobs_terminal_identity",
+        ),
+        CheckConstraint(
+            "execution_identity IS NULL OR "
+            "((state IN ('succeeded', 'exhausted')) = (terminal_at IS NOT NULL))",
+            name="ck_memory_jobs_terminal_time",
         ),
         CheckConstraint(
             "activation_state IN ('pending', 'active', 'detached')",
@@ -145,10 +197,16 @@ class MemoryJob(Base, UUIDMixin, TimestampMixin):
     )
     logical_key: Mapped[str] = mapped_column(String(64))
     manifest: Mapped[MemoryJobManifest] = mapped_column(ValidatedJSON(MemoryJobManifest))
+    execution_identity: Mapped[MemoryJobExecutionIdentity | None] = mapped_column(
+        ValidatedJSON(MemoryJobExecutionIdentity), nullable=True
+    )
+    execution_identity_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    execution_identity_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    execution_contract_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     manifest_hash: Mapped[str] = mapped_column(String(64))
     producer_version: Mapped[str] = mapped_column(String(100))
     prompt_version: Mapped[str] = mapped_column(String(100))
-    state: Mapped[str] = mapped_column(String(16))
+    state: Mapped[str] = mapped_column(String(32))
     attempt_count: Mapped[int] = mapped_column(Integer)
     retry_cycle: Mapped[int] = mapped_column(Integer)
     cycle_attempt_count: Mapped[int] = mapped_column(Integer)
@@ -161,6 +219,30 @@ class MemoryJob(Base, UUIDMixin, TimestampMixin):
     )
     last_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
     activation_state: Mapped[str] = mapped_column(String(16))
+    terminal_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    terminal_reason: Mapped[MemoryJobTerminalReason | None] = mapped_column(
+        SAEnum(
+            MemoryJobTerminalReason,
+            values_callable=_terminal_reason_values,
+            native_enum=False,
+            create_constraint=False,
+            length=64,
+        ),
+        nullable=True,
+    )
+
+
+@event.listens_for(Session, "before_flush")
+def verify_execution_identity_hashes(
+    session: Session, _flush_context: object, _instances: object
+) -> None:
+    for job in session.new.union(session.dirty):
+        if isinstance(job, MemoryJob) and job.execution_identity is not None:
+            if job.execution_identity_hash is None or job.execution_identity_version is None:
+                raise ValueError("Memory job execution identity metadata is incomplete.")
+            job.execution_identity.verify(
+                job.execution_identity_version, job.execution_identity_hash
+            )
 
 
 class MemoryJobAttempt(Base, UUIDMixin, TimestampMixin):

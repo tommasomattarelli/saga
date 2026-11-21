@@ -50,24 +50,31 @@ async def test_quest_ledger(auth_client, db_session, generation_clients):
         return ToolCall(
             id=ident,
             name="update_quest",
-            arguments={"quest_id": "who_am_i", "status": status},
+            arguments={"quest_id": "lead", "status": status, "name": "A lead"},
         )
 
     _script(
         provider,
         [
-            _reply("", tool("complete", "completed"), tool("restore", "active")),
+            _reply(
+                "",
+                tool("open", "active"),
+                tool("complete", "completed"),
+                tool("restore", "active"),
+            ),
             _reply("A clue."),
             _reply("Morning."),
         ],
     )
 
     result = await _take_turn(auth_client, campaign["id"])
-    assert result["quests"]["active"][0]["id"] == "who_am_i"
+    assert any(quest["id"] == "lead" for quest in result["quests"]["active"])
     turn, rows = await _operations(db_session, campaign["id"])
     assert turn.operations_version == 1 and turn.operation_count == len(rows)
+    assert [row.ordinal for row in rows] == list(range(1, len(rows) + 1))
+    assert len({row.id for row in rows}) == len(rows)
     changes = [r.payload for r in rows if r.payload.name == "update_quest"]
-    assert [r.outcome for r in changes] == ["succeeded", "succeeded"]
+    assert [r.outcome for r in changes] == ["succeeded"] * 3
     assert all(r.deltas for r in changes)
     assert all(change.deltas[0].before != change.deltas[0].after for change in changes)
     assert any(r.payload.origin == "finalization" for r in rows)
@@ -77,7 +84,7 @@ async def test_quest_ledger(auth_client, db_session, generation_clients):
 async def test_tool_ledger(auth_client, db_session, generation_clients):
     campaign = await _create_campaign(auth_client)
     provider = await _openai_provider(auth_client, generation_clients)
-    _script(
+    captured = _script(
         provider,
         [
             _reply(
@@ -96,24 +103,34 @@ async def test_tool_ledger(auth_client, db_session, generation_clients):
                     arguments={"stat": "DEX", "check": "Balance", "difficulty": "normal"},
                 ),
             ),
+            _reply(
+                "",
+                ToolCall(id="mood-fixed", name="set_scene_mood", arguments={"mood": "tense"}),
+                ToolCall(id="route-fixed", name="move_to", arguments={"location": "Nowhere"}),
+                ToolCall(
+                    id="valid-dice-fixed",
+                    name="request_dice",
+                    arguments={"stat": "DEX", "check": "Balance", "difficulty": "normal"},
+                ),
+            ),
             _reply("The scene settles."),
         ],
     )
     result = await _take_turn(auth_client, campaign["id"])
+    assert len(captured) == 3
+    assert "untrusted data" in captured[1]["messages"][-2]["content"]
+    assert "ability" in captured[1]["messages"][-2]["content"]
+    assert "wrong" in captured[1]["messages"][-2]["content"]
     _, rows = await _operations(db_session, campaign["id"])
     tools = [r.payload for r in rows if r.payload.origin == "tool"]
-    assert [r.name for r in tools] == [
-        "request_dice",
-        "request_dice",
-        "set_scene_mood",
-        "move_to",
-        "move_to",
-    ]
-    assert tools[0].result.reason == "invalid_arguments" and tools[1].result.kind == "check"
+    assert [r.name for r in tools] == ["request_dice", "set_scene_mood", "move_to"]
+    assert tools[0].result.kind == "check"
+    assert tools[0].outcome == "succeeded"
+    assert tools[0].deltas == ()
+    assert isinstance(tools[0].result.checks["Balance"].success, bool)
     assert tools[1].outcome == "succeeded"
-    assert tools[1].deltas == ()
-    assert tools[2].outcome == "succeeded"
-    assert [tools[i].result.reason for i in (3, 4)] == ["invalid_arguments", "domain_rejection"]
+    assert tools[2].result.reason == "domain_rejection"
+    assert tools[2].outcome == "rejected"
     assert result["tool_events"] == []
     assert "operations" not in result
 
@@ -133,6 +150,8 @@ async def test_npc_failure_ledger(auth_client, db_session, generation_clients):
         ("invoke_npc", "failed"),
     ]
     assert npc[0].result.kind == "npc" and npc[0].deltas
+    assert npc[0].deltas[0].before.presence == "absent"
+    assert npc[0].result.npc_id == npc[1].result.npc_id
     assert npc[1].result.reason == "npc_failed" and npc[1].deltas == ()
     assert result["narration"].count("The farmer waits.") == 1
 
@@ -185,6 +204,7 @@ async def test_operation_rollback(auth_client, db_session, generation_clients):
     )
     initial_quests = campaign["quests"]
     initial_world = campaign["world_state"]
+    await db_session.commit()
 
     def fail_insert(conn, cursor, statement, parameters, context, executemany):
         if "INSERT INTO turn_operations" in statement:

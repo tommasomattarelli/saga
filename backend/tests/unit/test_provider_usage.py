@@ -5,7 +5,12 @@ import pytest
 from eval.support.provider_trace import ProviderTrace
 
 from app.ai.providers.base import AIProvider
-from app.ai.providers.usage import UsageMetadata, capture_usage, usage_scope
+from app.ai.providers.usage import (
+    UsageMetadata,
+    capture_usage,
+    extract_usage_metadata,
+    usage_scope,
+)
 
 
 def test_usage_scope_captures_partial_fields_and_correlation() -> None:
@@ -66,6 +71,17 @@ def test_response_id_is_kept_when_token_usage_is_absent() -> None:
     assert sink.items[0].response_id == "response-only"
     assert sink.items[0].input_tokens is None
     assert sink.items[0].cost is None
+
+
+def test_extracted_usage_is_available_without_changing_capture_scope_behavior() -> None:
+    response = {"id": "response-1", "usage": {"prompt_tokens": 2}}
+
+    assert capture_usage(response, model="m") is None
+    assert extract_usage_metadata(response, model="m") == UsageMetadata(
+        response_id="response-1",
+        model="m",
+        input_tokens=2,
+    )
 
 
 def test_inner_scope_preserves_outer_correlation() -> None:

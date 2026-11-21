@@ -93,7 +93,10 @@ One per area. Do not add more until these produce something actionable.
   For a no-tool turn, expect narration, one turn, one new immutable auto-save and unchanged quests.
 - **Watch**: the `<instructions>`, `<character>`, `<scene>`, `<history>` and
   `<quests>` blocks actually rendered — empty or duplicated blocks are a tuning
-  finding, not a bug. Then `turn_number` before/after in `turns.py:82-88`.
+  finding, not a bug. Follow `request_id` through `claim_action` in
+  `services/action_claims.py` (reserved `turn_number`) and `publish_action` in
+  `services/action_persistence.py` (committed turn/head); a replay must return
+  the same turn rather than advance the campaign again.
 
 ### 4.2 Attack
 

@@ -7,6 +7,8 @@ the next Google request verbatim, without ever reaching OpenAI-compatible payloa
 
 from __future__ import annotations
 
+import base64
+import json
 from contextlib import asynccontextmanager, contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
@@ -27,7 +29,7 @@ _SIG_2 = b"\xfe\xffopaque-signature-two"
 
 
 def _text_part(text: str, signature: bytes | None = None) -> genai_types.Part:
-    return genai_types.Part(text=text, thought_signature=signature)
+    return genai_types.Part(text=json.dumps({"text": text}), thought_signature=signature)
 
 
 def _fc_part(
@@ -40,9 +42,29 @@ def _fc_part(
 
 
 def _response(parts: list[genai_types.Part]) -> genai_types.GenerateContentResponse:
-    return genai_types.GenerateContentResponse(
+    response = genai_types.GenerateContentResponse(
         candidates=[genai_types.Candidate(content=genai_types.Content(role="model", parts=parts))]
     )
+    raw_parts: list[dict[str, object]] = []
+    for part in parts:
+        raw_part: dict[str, object] = {}
+        if part.text is not None:
+            raw_part["text"] = part.text
+        if part.function_call is not None:
+            function_call: dict[str, object] = {
+                "name": part.function_call.name,
+                "args": part.function_call.args or {},
+            }
+            if part.function_call.id is not None:
+                function_call["id"] = part.function_call.id
+            raw_part["functionCall"] = function_call
+        if part.thought_signature is not None:
+            raw_part["thoughtSignature"] = base64.b64encode(part.thought_signature).decode("ascii")
+        raw_parts.append(raw_part)
+    response.sdk_http_response = genai_types.HttpResponse(
+        body=json.dumps({"candidates": [{"content": {"role": "model", "parts": raw_parts}}]})
+    )
+    return response
 
 
 def _make_google_provider(monkeypatch, responses):
@@ -122,7 +144,12 @@ def _graph_env(provider):
         yield mock_db
 
     game_ctx = GameContext(messages=[], importance_score=1, system_prompt="sys")
-    model_cfg = ModelConfig(provider="google", model="gemini-3.5-flash", max_tokens=1000)
+    model_cfg = ModelConfig(
+        provider="google",
+        model="gemini-3.5-flash",
+        max_tokens=1000,
+        destination_fingerprint="google:test",
+    )
 
     with (
         patch(
@@ -167,7 +194,12 @@ class TestSingleToolCall:
                 _response(
                     [
                         _text_part("You roll."),
-                        _fc_part("request_dice", {"stat": "DEX"}, "call-1", _SIG_1),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                            "call-1",
+                            _SIG_1,
+                        ),
                     ]
                 ),
                 _response([_text_part("The die lands.")]),
@@ -194,13 +226,23 @@ class TestSequentialSteps:
                 _response(
                     [
                         _text_part("step one"),
-                        _fc_part("request_dice", {"stat": "DEX"}, "c1", _SIG_1),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                            "c1",
+                            _SIG_1,
+                        ),
                     ]
                 ),
                 _response(
                     [
                         _text_part("step two"),
-                        _fc_part("request_dice", {"stat": "STR"}, "c2", _SIG_2),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Athletics", "stat": "STR", "difficulty": "normal"},
+                            "c2",
+                            _SIG_2,
+                        ),
                     ]
                 ),
                 _response([_text_part("done")]),
@@ -223,8 +265,17 @@ class TestParallelToolCalls:
             [
                 _response(
                     [
-                        _fc_part("request_dice", {"stat": "DEX"}, "c1", _SIG_1),
-                        _fc_part("request_dice", {"stat": "STR"}, "c2"),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                            "c1",
+                            _SIG_1,
+                        ),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Athletics", "stat": "STR", "difficulty": "normal"},
+                            "c2",
+                        ),
                     ]
                 ),
                 _response([_text_part("both resolved")]),
@@ -256,8 +307,17 @@ class TestParallelToolCalls:
             [
                 _response(
                     [
-                        _fc_part("request_dice", {"stat": "DEX"}, None, _SIG_1),
-                        _fc_part("request_dice", {"stat": "STR"}, None),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                            None,
+                            _SIG_1,
+                        ),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Athletics", "stat": "STR", "difficulty": "normal"},
+                            None,
+                        ),
                     ]
                 ),
                 _response([_text_part("both resolved")]),
@@ -284,8 +344,17 @@ class TestParallelToolCalls:
             [
                 _response(
                     [
-                        _fc_part("request_dice", {"stat": "DEX"}, "native-dex", _SIG_1),
-                        _fc_part("request_dice", {"stat": "STR"}, "native-str"),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                            "native-dex",
+                            _SIG_1,
+                        ),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Athletics", "stat": "STR", "difficulty": "normal"},
+                            "native-str",
+                        ),
                     ]
                 ),
                 _response([_text_part("both resolved")]),
@@ -312,7 +381,10 @@ class TestTextPartSignature:
                 _response(
                     [
                         _text_part("A low growl.", _SIG_1),
-                        _fc_part("request_dice", {"stat": "DEX"}),
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                        ),
                     ]
                 ),
                 _response([_text_part("resolved")]),
@@ -333,7 +405,15 @@ class TestUnsignedResponse:
         provider, calls = _make_google_provider(
             monkeypatch,
             [
-                _response([_fc_part("request_dice", {"stat": "DEX"}, "c1")]),
+                _response(
+                    [
+                        _fc_part(
+                            "request_dice",
+                            {"check": "Stealth", "stat": "DEX", "difficulty": "normal"},
+                            "c1",
+                        )
+                    ]
+                ),
                 _response([_text_part("resolved")]),
             ],
         )

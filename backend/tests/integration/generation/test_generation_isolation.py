@@ -124,13 +124,12 @@ async def test_fallback_requires_both_consents_and_an_absent_personal_key(
         assert payload["credential_source"] == "missing"
 
 
-@pytest.mark.parametrize(("status_code", "message"), [(401, "key"), (429, "quota")])
+@pytest.mark.parametrize("status_code", [401, 429])
 async def test_rejected_personal_key_never_retries_on_the_server_key(
     auth_client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
     generation_clients: dict[str, list[AsyncMock]],
     status_code: int,
-    message: str,
 ) -> None:
     monkeypatch.setattr("app.ai.credentials.settings.openai_api_key", "server-key")
     monkeypatch.setattr("app.ai.credentials.get_server_key_fallback", lambda: {"openai": True})
@@ -150,7 +149,10 @@ async def test_rejected_personal_key_never_retries_on_the_server_key(
         json=await action_body(auth_client, campaign, "look"),
     )
     assert response.status_code == 502
-    assert message in response.json()["detail"]
+    assert (
+        response.json()["detail"]
+        == "AI provider 'openai' error: Generation failed and must not be retried automatically."
+    )
     assert "private-provider-payload" not in response.text
     assert "rejected-key" not in response.text
     assert set(generation_clients) == {"rejected-key"}

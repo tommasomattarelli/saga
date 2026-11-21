@@ -82,7 +82,9 @@ async def generation(
         provider="local",
         model="test-model",
     )
-    f.session.add_all([state, job, attempt, result])
+    f.session.add_all([state, job, attempt])
+    await f.session.flush()
+    f.session.add(result)
     await f.session.flush()
     return result
 

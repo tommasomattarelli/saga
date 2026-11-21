@@ -9,6 +9,11 @@ instructions: |
   relationships preserves important relationships, motives and the events explaining them.
   resolved_threads keeps concise traces of completed matters; consolidate older resolved
   details rather than appending every detail forever. Do not invent an arc or quest system.
+  Do not repeat an identical opening sentence in every rewrite; vary wording while keeping
+  established facts. Keep open_threads compact, one clause per unresolved question, merging
+  related clauses instead of long multi-sentence bullets. List events in chronological order.
+  When an apparent resolution is overturned, state explicitly in later checkpoints which
+  object or claim was false and what remained unresolved until the real resolution.
   Honour the indicative target_words as a compression goal, never by cutting off text.
   Return all four fields; lists may be empty, story_so_far must be nonempty.
 example: |

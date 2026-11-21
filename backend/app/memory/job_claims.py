@@ -2,15 +2,35 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
+from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import raiseload
 
+from app.ai.credentials import resolve_generation
+from app.ai.router import get_generation_recovery_policy
+from app.config_loader import load_saga_config
+from app.exceptions import ValidationError
+from app.memory.batch_input import load_batch_input
+from app.memory.job_claim_transitions import (
+    CANNOT_BIND_IDENTITY_REASON,
+    INCOMPATIBLE_JOB_REASON,
+    UNSUPPORTED_HISTORY_REASON,
+    UNSUPPORTED_IDENTITY_REASON,
+    apply_claim_limit_transition,
+    fail_claim_transition,
+    inspect_role_sends,
+    is_integrity_block_reason,
+)
 from app.memory.job_contracts import MemoryJobManifest
-from app.memory.production_policy import JobsPolicy, MemoryProductionPolicy
+from app.memory.job_identity import build_execution_identity
+from app.memory.job_requests import restore_job_requests
+from app.memory.production_policy import MemoryProductionPolicy
 from app.models.campaign import Campaign
 from app.models.history import MemoryPolicy
+from app.models.memory_generation import MemoryGeneration
 from app.models.memory_job import MemoryJob, MemoryJobAttempt
+from app.models.user import User
 
 
 @dataclass(frozen=True)
@@ -67,13 +87,30 @@ async def claim_job(db: AsyncSession, campaign_id: UUID, job_id: UUID) -> JobCla
             )
         )
         if attempt is not None:
-            _failure(job, attempt, policy.payload.jobs, now, uncertain=True)
+            await fail_claim_transition(db, job, attempt, policy.payload.jobs, now, uncertain=True)
     if job.state not in {"queued", "retry_wait"}:
+        return None
+    if (
+        job.execution_contract_version != 1
+        or job.execution_identity is None
+        or job.execution_identity_hash is None
+        or job.execution_identity_version is None
+    ):
+        _block_unsupported_identity(job)
+        return None
+    try:
+        job.execution_identity.verify(job.execution_identity_version, job.execution_identity_hash)
+    except ValueError:
+        _block_unsupported_identity(job)
+        return None
+    expected_roles = {"summary", "facts"} if job.kind == "batch" else {"global"}
+    if set(job.execution_identity.result_identities) != expected_roles:
+        _block_unsupported_identity(job)
         return None
     if job.next_attempt_at is not None and job.next_attempt_at > now:
         return None
     if job.cycle_attempt_count >= policy.payload.jobs.max_attempts:
-        job.state = "exhausted"
+        await apply_claim_limit_transition(db, job, now)
         return None
     other = await db.scalar(
         select(MemoryJob.id).where(
@@ -144,55 +181,27 @@ async def load_claim(
     return job, attempt, now
 
 
-def _failure(
-    job: MemoryJob,
-    attempt: MemoryJobAttempt,
-    policy: JobsPolicy,
-    now: datetime,
-    *,
-    uncertain: bool = False,
-    configuration_required: bool = False,
-) -> None:
-    reason = (
-        "Memory generation requires a configuration update."
-        if configuration_required
-        else "Memory generation was interrupted."
-        if uncertain
-        else "Memory generation did not produce a valid result."
-    )
-    attempt.state = "uncertain" if uncertain else "failed"
-    attempt.finished_at, attempt.error = now, reason
-    job.claim_token, job.lease_expires_at = None, None
-    job.last_error, job.next_attempt_at = reason, None
-    if configuration_required:
-        job.state = "blocked"
-    elif job.cycle_attempt_count >= policy.max_attempts:
-        job.state = "exhausted"
-    else:
-        job.state = "retry_wait"
-        job.next_attempt_at = now + timedelta(
-            seconds=policy.retry_backoff_seconds[job.cycle_attempt_count - 1]
-        )
-
-
 async def fail_claim(
     db: AsyncSession,
     claim: JobClaim,
     *,
     configuration_required: bool = False,
     uncertain: bool = False,
+    blocked_reason: str | None = None,
 ) -> bool:
     loaded = await load_claim(db, claim)
     if loaded is None:
         return False
     job, attempt, now = loaded
-    _failure(
+    await fail_claim_transition(
+        db,
         job,
         attempt,
         claim.policy.jobs,
         now,
         configuration_required=configuration_required,
         uncertain=uncertain,
+        blocked_reason=blocked_reason,
     )
     return True
 
@@ -201,12 +210,136 @@ async def retry_job(db: AsyncSession, campaign_id: UUID, job_id: UUID) -> bool:
     if await lock_campaign(db, campaign_id) is None:
         return False
     job = await _lock_job(db, campaign_id, job_id)
-    if job is None or job.state not in {"blocked", "exhausted"}:
+    if (
+        job is None
+        or job.state not in {"blocked", "manual_retry_required"}
+        or job.execution_contract_version != 1
+    ):
         return False
+    if job.state == "blocked" and is_integrity_block_reason(job.last_error):
+        return False
+    campaign = await db.get(Campaign, campaign_id)
+    policy = await db.get(MemoryPolicy, job.policy_id)
+    user = await db.get(User, campaign.user_id) if campaign is not None else None
+    if campaign is None or policy is None or user is None:
+        job.state = "blocked"
+        job.last_error = "Memory generation requires updated provider configuration."
+        return False
+    try:
+        config, _, _ = resolve_generation(user)
+    except ValidationError:
+        job.state = "blocked"
+        job.last_error = "Memory generation requires updated provider configuration."
+        return False
+    try:
+        source = await load_batch_input(db, campaign_id, job.batch_id)
+        requests = restore_job_requests(job.manifest, source, policy.payload.facts)
+    except (PydanticValidationError, ValueError):
+        job.state = "blocked"
+        job.last_error = INCOMPATIBLE_JOB_REASON
+        return False
+    cap = (
+        job.execution_identity.max_sends_per_result
+        if job.execution_identity
+        else (get_generation_recovery_policy().max_sends_per_result)
+    )
+    generation_config = load_saga_config().get("generation", {})
+    affinity_setting = generation_config.get("openrouter_session_affinity", True)
+    if not isinstance(affinity_setting, bool):
+        job.state = "blocked"
+        job.last_error = "Memory generation requires updated provider configuration."
+        return False
+    try:
+        identity = build_execution_identity(
+            job.manifest,
+            source,
+            policy.payload.facts,
+            config,
+            cap,
+            campaign_id,
+            openrouter_affinity_enabled=affinity_setting,
+        )
+    except (PydanticValidationError, ValueError):
+        job.state = "blocked"
+        job.last_error = INCOMPATIBLE_JOB_REASON
+        return False
+    if job.execution_identity is None:
+        if job.attempt_count != 0:
+            job.last_error = CANNOT_BIND_IDENTITY_REASON
+            return False
+        rows = list(
+            await db.scalars(select(MemoryGeneration).where(MemoryGeneration.job_id == job.id))
+        )
+        if rows:
+            job.last_error = CANNOT_BIND_IDENTITY_REASON
+            return False
+    else:
+        try:
+            if (
+                job.execution_identity_hash is None
+                or job.execution_identity_version is None
+                or identity.model_dump(mode="json")
+                != job.execution_identity.model_dump(mode="json")
+            ):
+                job.state = "blocked"
+                job.last_error = (
+                    "Memory generation settings differ from this job's frozen identity."
+                )
+                return False
+            job.execution_identity.verify(
+                job.execution_identity_version, job.execution_identity_hash
+            )
+        except ValueError:
+            job.state = "blocked"
+            job.last_error = INCOMPATIBLE_JOB_REASON
+            return False
+        if set(job.execution_identity.result_identities) != {request.kind for request in requests}:
+            job.state = "blocked"
+            job.last_error = UNSUPPORTED_IDENTITY_REASON
+            return False
+    if tuple(request.kind for request in requests) != (
+        ("summary", "facts") if job.kind == "batch" else ("global",)
+    ):
+        job.state = "blocked"
+        job.last_error = UNSUPPORTED_IDENTITY_REASON
+        return False
+
+    rows = list(
+        await db.scalars(
+            select(MemoryGeneration)
+            .where(MemoryGeneration.job_id == job.id)
+            .order_by(MemoryGeneration.role, MemoryGeneration.send_number)
+        )
+    )
+    required_roles = tuple(request.kind for request in requests)
+    if any(row.role not in required_roles or row.send_number is None for row in rows):
+        job.state = "blocked"
+        job.last_error = UNSUPPORTED_HISTORY_REASON
+        return False
+    role_sends = inspect_role_sends(tuple(rows), required_roles, identity)
+    if role_sends is None:
+        job.state = "blocked"
+        job.last_error = UNSUPPORTED_HISTORY_REASON
+        return False
+    for role in required_roles:
+        sends = role_sends[role]
+        if sends.send_count > cap or (sends.send_count >= cap and not sends.reusable_candidate):
+            job.last_error = "No memory generation sends remain for a required result."
+            return False
+
+    if job.execution_identity is None:
+        job.execution_identity = identity
+        job.execution_identity_hash = identity.digest(1)
+        job.execution_identity_version = 1
     job.retry_cycle += 1
     job.cycle_attempt_count = 0
     job.state, job.next_attempt_at, job.last_error = "queued", None, None
     return True
+
+
+def _block_unsupported_identity(job: MemoryJob) -> None:
+    job.state = "blocked"
+    job.last_error = UNSUPPORTED_IDENTITY_REASON
 
 
 async def recover_jobs(db: AsyncSession, campaign_id: UUID) -> int:
@@ -237,6 +370,6 @@ async def recover_jobs(db: AsyncSession, campaign_id: UUID) -> int:
             )
         )
         if policy is not None and attempt is not None:
-            _failure(job, attempt, policy.payload.jobs, now, uncertain=True)
+            await fail_claim_transition(db, job, attempt, policy.payload.jobs, now, uncertain=True)
             recovered += 1
     return recovered

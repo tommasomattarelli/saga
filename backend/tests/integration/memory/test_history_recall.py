@@ -4,19 +4,25 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import select
 
+from app.ai.router import ModelConfig
 from app.memory.history import history_path
 from app.memory.job_claims import claim_job
-from app.memory.job_publication import JobOutput, publish_job
-from app.memory.job_requests import build_job_manifest, job_manifest_hash
+from app.memory.job_identity import build_execution_identity
+from app.memory.job_publication import publish_job
+from app.memory.job_requests import build_job_manifest, job_manifest_hash, restore_job_requests
 from app.memory.producer_prompts import PRODUCER_VERSION
 from app.models.embedding_index import EmbeddingIndex, EmbeddingRebuildState
 from app.models.memory_batch import MemoryBatch, MemoryBatchTurn
 from app.models.memory_document import MemoryState
 from app.models.memory_fact import MemoryFact
-from app.models.memory_generation import MemoryGeneration
-from app.models.memory_job import MemoryJob
+from app.models.memory_job import MemoryJob, MemoryJobAttempt
 from app.models.source_embedding import EmbeddingWorkState, SourceEmbedding
 from app.models.turn import Turn
+from tests.integration.memory.job_support import (
+    _durable_generation,
+    outputs_for,
+    persist_durable_generations,
+)
 from tests.integration.memory.storage_support import HistoryFixture
 from tests.integration.memory.test_job_publication import _claimed_job
 
@@ -84,6 +90,10 @@ async def _publish_alternate_batch(
     manifest = build_job_manifest(
         "batch", source, language="en", facts_policy=fixture.policy.payload.facts
     )
+    config = ModelConfig("local", "test-model", 500, destination_fingerprint="f" * 64)
+    identity = build_execution_identity(
+        manifest, source, fixture.policy.payload.facts, config, 3, campaign.id
+    )
     job = MemoryJob(
         id=uuid4(),
         campaign_id=campaign.id,
@@ -102,35 +112,33 @@ async def _publish_alternate_batch(
         retry_cycle=0,
         cycle_attempt_count=0,
         activation_state="pending",
+        execution_contract_version=1,
+        execution_identity=identity,
+        execution_identity_hash=identity.digest(1),
+        execution_identity_version=1,
     )
     db.add(job)
     await db.commit()
     claim = await claim_job(db, campaign.id, job.id)
     assert claim is not None
+    attempt = await db.get(MemoryJobAttempt, claim.attempt_id)
+    assert attempt is not None
+    requests = restore_job_requests(manifest, source, fixture.policy.payload.facts)
     generations = tuple(
-        MemoryGeneration(
-            id=uuid4(),
-            job_id=job.id,
-            attempt_id=claim.attempt_id,
-            campaign_id=campaign.id,
-            policy_id=fixture.policy.id,
-            batch_id=batch.id,
-            role=role,
-            provider="test",
-            model="test",
+        _durable_generation(
+            job,
+            attempt,
+            request,
+            config,
+            '{"text":"A branch memory summary."}'
+            if request.kind == "summary"
+            else _fact_payload(content),
         )
-        for role in ("summary", "facts")
+        for request in requests
     )
-    db.add_all(generations)
+    await persist_durable_generations(db, generations)
     await db.commit()
-    assert await publish_job(
-        db,
-        claim,
-        (
-            JobOutput(generations[0].id, '{"text":"A branch memory summary."}'),
-            JobOutput(generations[1].id, _fact_payload(content)),
-        ),
-    )
+    assert await publish_job(db, claim, outputs_for(generations))
     await db.commit()
     fact = await db.scalar(select(MemoryFact).where(MemoryFact.batch_id == batch.id))
     assert fact is not None
@@ -183,16 +191,12 @@ async def test_recall_rejects_cross_fork_batch_even_when_fact_cites_shared_turn(
     fixture = history_fixture
     fixture.session.add(_index(fixture))
     await fixture.session.commit()
-    _job, claim, generations, batch, _state = await _claimed_job(fixture)
     fact_payload = _fact_payload("A future-branch event.", "t1")
-    assert await publish_job(
-        fixture.session,
-        claim,
-        (
-            JobOutput(generations[0].id, '{"text":"Future branch summary."}'),
-            JobOutput(generations[1].id, fact_payload),
-        ),
+    _job, claim, generations, batch, _state = await _claimed_job(
+        fixture,
+        raw_by_role={"summary": '{"text":"Future branch summary."}', "facts": fact_payload},
     )
+    assert await publish_job(fixture.session, claim, outputs_for(generations))
     await fixture.session.commit()
     fact = await fixture.session.scalar(select(MemoryFact).where(MemoryFact.batch_id == batch.id))
     assert fact is not None
@@ -222,15 +226,14 @@ async def test_recall_accepts_batch_wholly_shared_by_selected_history(
     fixture = history_fixture
     fixture.session.add(_index(fixture))
     await fixture.session.commit()
-    _job, claim, generations, batch, _state = await _claimed_job(fixture)
-    assert await publish_job(
-        fixture.session,
-        claim,
-        (
-            JobOutput(generations[0].id, '{"text":"Shared history summary."}'),
-            JobOutput(generations[1].id, _fact_payload("A shared event.")),
-        ),
+    _job, claim, generations, batch, _state = await _claimed_job(
+        fixture,
+        raw_by_role={
+            "summary": '{"text":"Shared history summary."}',
+            "facts": _fact_payload("A shared event."),
+        },
     )
+    assert await publish_job(fixture.session, claim, outputs_for(generations))
     await fixture.session.commit()
     fact = await fixture.session.scalar(select(MemoryFact).where(MemoryFact.batch_id == batch.id))
     assert fact is not None
@@ -258,15 +261,14 @@ async def test_recall_filters_future_batch_before_similarity_top_k(
     fixture = history_fixture
     fixture.session.add(_index(fixture))
     await fixture.session.commit()
-    _job, claim, generations, crossing_batch, _state = await _claimed_job(fixture)
-    assert await publish_job(
-        fixture.session,
-        claim,
-        (
-            JobOutput(generations[0].id, '{"text":"Crossing summary."}'),
-            JobOutput(generations[1].id, _fact_payload("Near but future.")),
-        ),
+    _job, claim, generations, crossing_batch, _state = await _claimed_job(
+        fixture,
+        raw_by_role={
+            "summary": '{"text":"Crossing summary."}',
+            "facts": _fact_payload("Near but future."),
+        },
     )
+    assert await publish_job(fixture.session, claim, outputs_for(generations))
     await fixture.session.commit()
     crossing_fact = await fixture.session.scalar(
         select(MemoryFact).where(MemoryFact.batch_id == crossing_batch.id)

@@ -18,6 +18,7 @@ from app.core.dm.loop_policy import dm_call_limit, needs_followup, step_tools
 from app.core.dm.npc_beat import execute_npc_beat
 from app.core.dm.operation_recorder import OperationRecorder, capture_state
 from app.core.dm.progress import StepProgress
+from app.core.dm.tool_preflight import preflight_tool_calls
 from app.memory.operation_contracts import OperationResult
 from app.memory.operation_results import AttackResult, CheckResult, ErrorResult, MessageResult
 from app.models.quest import QuestRegistry
@@ -50,20 +51,21 @@ async def tools_node(state: GameState) -> dict[str, Any]:
     if not ai_msg:
         return {}
 
-    original_calls = [
-        {**call, "_position": index}
-        for index, call in enumerate(tool_calls_from_ai_message(ai_msg))
-    ]
-    tool_calls = _sort_tool_calls(original_calls)
-    if not tool_calls:
+    calls = tool_calls_from_ai_message(ai_msg)
+    if not calls:
         return {}
+
+    closing = state.get("closing_step", state["step_count"] >= dm_call_limit(state))
+    allowed = set(state.get("allowed_tools", step_tools(state["world_state"], closing=closing)))
+    preflight_tool_calls(calls, allowed)
+
+    original_calls = [{**call, "_position": index} for index, call in enumerate(calls)]
+    tool_calls = _sort_tool_calls(original_calls)
 
     world_state = copy.deepcopy(state["world_state"])
     char_data = copy.deepcopy(state["char_data"])
     quests = state.get("quests") or QuestRegistry()
     progress = StepProgress(world_state, char_data, quests, state.get("progress_fingerprints", []))
-    closing = state.get("closing_step", state["step_count"] >= dm_call_limit(state))
-    allowed = set(state.get("allowed_tools", step_tools(world_state, closing=closing)))
     tool_events = list(state["tool_events"])
     operations = OperationRecorder(state.get("operations", []))
     dice_results = list(state["dice_results"])

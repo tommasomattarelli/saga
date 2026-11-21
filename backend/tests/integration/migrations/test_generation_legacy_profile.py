@@ -20,7 +20,7 @@ async def test_generation_profile_does_not_load_legacy_campaign_columns(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async with DisposableDatabase() as database:
-        await database.run_alembic("upgrade", "009_campaign_language")
+        await database.run_alembic("upgrade", "head")
         user_id, campaign_id = str(uuid4()), str(uuid4())
         await _insert_user(database, user_id)
         await _insert_campaign(
@@ -89,7 +89,7 @@ async def test_generation_profile_does_not_load_legacy_campaign_columns(
         assert not any("from campaigns" in sql for sql in statements)
         assert (await database.fetch_one("SELECT version_num FROM alembic_version"))[
             0
-        ] == "009_campaign_language"
+        ] == "019_memory_payload_retention"
         assert (
             str(
                 (

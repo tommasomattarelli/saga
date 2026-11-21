@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictBool, field_validator
 
 
 class SettingsPatch(BaseModel):
@@ -10,9 +10,22 @@ class SettingsPatch(BaseModel):
     generation_provider: str | None = None
     generation_model: str | None = None
     generation_local_endpoint: str | None = None
+    generation_allow_json_mode_fallback: StrictBool | None = None
+    generation_allow_prompt_only_fallback: StrictBool | None = None
     embedding_provider: str | None = None
     embedding_model: str | None = None
     embedding_local_endpoint: str | None = None
+
+    @field_validator(
+        "generation_allow_json_mode_fallback",
+        "generation_allow_prompt_only_fallback",
+        mode="before",
+    )
+    @classmethod
+    def require_explicit_boolean(cls, value: object) -> object:
+        if value is None:
+            raise ValueError("A boolean value is required")
+        return value
 
 
 class ApiKeysUpdate(BaseModel):

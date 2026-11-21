@@ -148,13 +148,7 @@ def _batch(turns: tuple[BatchTurnSource, ...]) -> BatchInput:
     return BatchInput(turns=local)
 
 
-def build_scenario(
-    *,
-    batch_size: int,
-    plan: tuple[int, int, int] | None = None,
-) -> BuiltScenario:
-    if batch_size < 1:
-        raise ValueError("batch_size must be positive")
+def initial_world() -> tuple[dict[str, object], dict[str, object], dict[str, object], str]:
     asset = load_world(ROOT / "worlds" / "the-awakening")
     counter = 0
 
@@ -169,6 +163,17 @@ def build_scenario(
     npc_name = next(
         npc["name"] for npc in world_state["npcs"].values() if npc.get("location") == start
     )
+    return baseline, world_state, quest_data, npc_name
+
+
+async def build_scenario_async(
+    *,
+    batch_size: int,
+    plan: tuple[int, int, int] | None = None,
+) -> BuiltScenario:
+    if batch_size < 1:
+        raise ValueError("batch_size must be positive")
+    baseline, world_state, quest_data, npc_name = initial_world()
     char_data: dict[str, object] = {
         "name": PLAYER_NAME,
         "hp": {"current": 20, "max": 20},
@@ -179,16 +184,14 @@ def build_scenario(
     turns: list[BatchTurnSource] = []
     annotations: list[JsonValue] = []
     for index, chapter in enumerate(CHAPTERS, start=1):
-        state, operations = asyncio.run(
-            _run_turn(
-                index=index,
-                chapter=chapter,
-                world_state=world_state,
-                char_data=char_data,
-                quests=quests,
-                baseline=baseline,
-                npc_name=npc_name,
-            )
+        state, operations = await _run_turn(
+            index=index,
+            chapter=chapter,
+            world_state=world_state,
+            char_data=char_data,
+            quests=quests,
+            baseline=baseline,
+            npc_name=npc_name,
         )
         world_state = state["world_state"]
         char_data = state["char_data"]
@@ -239,6 +242,10 @@ def build_scenario(
         tail=tail,
         plan=measured,
     )
+
+
+def build_scenario(*, batch_size: int, plan: tuple[int, int, int] | None = None) -> BuiltScenario:
+    return asyncio.run(build_scenario_async(batch_size=batch_size, plan=plan))
 
 
 def main() -> None:

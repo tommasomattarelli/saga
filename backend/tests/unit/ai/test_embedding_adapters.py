@@ -11,10 +11,13 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import httpx
 import openai
 import pytest
+from eval.integrated_memory.ledger import AttemptScope, IntegratedLedger, LedgerBlockedError
+from eval.integrated_memory.provider_guard import guard_embedding_attempts
 
 from app.ai.embedding_config import EmbeddingPolicy, build_space
 from app.ai.providers.embeddings_google import GoogleEmbeddingAdapter
@@ -182,6 +185,90 @@ class TestOpenAICompatAdapter:
         assert len(attempts) == 3  # 1 + max_retries, at the HTTP boundary
         assert [call.args[0] for call in sleep.await_args_list] == [1, 3]
         assert vectors == [[0.1, 0.2]]
+
+    async def test_guard_reserves_every_finite_retry_and_latches_budget_exhaustion(self, tmp_path):
+        calls = 0
+
+        async def always_transient(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            raise openai.APIConnectionError(request=httpx.Request("POST", "https://provider.test"))
+
+        ledger = IntegratedLedger(
+            tmp_path / "ledger.jsonl",
+            generation_cap=0,
+            embedding_cap=1,
+            text_cap=4,
+            run_seal="plan",
+        )
+        with (
+            patch(
+                "openai.resources.embeddings.AsyncEmbeddings.create", side_effect=always_transient
+            ),
+            patch("app.ai.embedding_validation.asyncio.sleep", new=AsyncMock()),
+            ledger.scope(
+                AttemptScope(
+                    run_id="r",
+                    campaign_id=uuid4(),
+                    source_turn_ids=(),
+                    input_hash="scope",
+                    role="embedding",
+                    provider="openrouter",
+                    model="m",
+                )
+            ),
+            guard_embedding_attempts(
+                ledger, model="m", provider="openrouter", texts=["text", "next"]
+            ),
+            pytest.raises(LedgerBlockedError),
+        ):
+            await adapter(policy=policy(max_retries=2)).embed("m", ["text", "next"])
+        assert calls == 1
+        assert ledger.counts == {"generation": 0, "embedding": 1, "texts": 2}
+
+    async def test_guard_accounts_finite_retries_and_provider_metadata(self, tmp_path):
+        calls = 0
+
+        async def once_transient(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise openai.APIConnectionError(
+                    request=httpx.Request("POST", "https://provider.test")
+                )
+            return openai_response([(0, [0.1, 0.2])])
+
+        path = tmp_path / "ledger.jsonl"
+        ledger = IntegratedLedger(
+            path, generation_cap=0, embedding_cap=2, text_cap=4, run_seal="plan"
+        )
+        with (
+            patch(
+                "openai.resources.embeddings.AsyncEmbeddings.create", side_effect=once_transient
+            ),
+            patch("app.ai.embedding_validation.asyncio.sleep", new=AsyncMock()),
+            ledger.scope(
+                AttemptScope(
+                    run_id="r",
+                    campaign_id=uuid4(),
+                    source_turn_ids=(),
+                    input_hash="scope",
+                    role="embedding",
+                    provider="openrouter",
+                    model="model-x",
+                )
+            ),
+            guard_embedding_attempts(
+                ledger, model="model-x", provider="openrouter", texts=["text"]
+            ),
+        ):
+            await adapter().embed("model-x", ["text"])
+        assert calls == 2
+        assert ledger.counts == {"generation": 0, "embedding": 2, "texts": 2}
+        rows = [__import__("json").loads(line) for line in path.read_text().splitlines()]
+        reservations = [row for row in rows if row["event"] == "reserve"]
+        assert all(row["metadata"]["model"] == "model-x" for row in reservations)
+        assert all(row["metadata"]["provider"] == "openrouter" for row in reservations)
 
     @pytest.mark.asyncio
     async def test_auth_and_quota_never_retry_and_never_leak(self):

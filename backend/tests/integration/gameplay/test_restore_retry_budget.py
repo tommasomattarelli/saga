@@ -139,7 +139,7 @@ async def test_repeated_restore_preserves_blocked_job_budget_until_explicit_retr
     )
 
 
-async def test_repeated_restore_preserves_exhausted_job_budget_until_explicit_retry(
+async def test_repeated_restore_preserves_manual_retry_job_and_candidate_budget(
     auth_client, history_fixture: HistoryFixture
 ) -> None:
     fixture = history_fixture
@@ -160,7 +160,8 @@ async def test_repeated_restore_preserves_exhausted_job_budget_until_explicit_re
     assert await fail_claim(fixture.session, second)
     await fixture.session.commit()
     await fixture.session.refresh(job)
-    assert job.state == "exhausted" and job.attempt_count == 2
+    assert job.state == "manual_retry_required" and job.attempt_count == 2
+    assert job.terminal_at is None
     attempt_ids = set(
         await fixture.session.scalars(
             select(MemoryJobAttempt.id).where(MemoryJobAttempt.job_id == job_id)
@@ -171,7 +172,7 @@ async def test_repeated_restore_preserves_exhausted_job_budget_until_explicit_re
     await _assert_retry_budget_unchanged(fixture, job)
     await fixture.session.refresh(job)
     assert job.id == job_id
-    assert (job.state, job.attempt_count, job.retry_cycle) == ("exhausted", 2, 0)
+    assert (job.state, job.attempt_count, job.retry_cycle) == ("manual_retry_required", 2, 0)
     assert (
         set(
             await fixture.session.scalars(
@@ -190,6 +191,8 @@ async def test_repeated_restore_preserves_exhausted_job_budget_until_explicit_re
         1,
         0,
     )
+    assert job.terminal_at is None
+    await _assert_retry_budget_unchanged(fixture, job)
     next_claim = await claim_job(fixture.session, fixture.campaign.id, job_id)
     assert next_claim is not None
     await fixture.session.commit()
@@ -199,4 +202,12 @@ async def test_repeated_restore_preserves_exhausted_job_budget_until_explicit_re
         3,
         1,
         1,
+    )
+    assert (
+        await fixture.session.scalar(
+            select(func.count())
+            .select_from(MemoryGeneration)
+            .where(MemoryGeneration.job_id == job.id)
+        )
+        == 2
     )

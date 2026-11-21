@@ -26,7 +26,23 @@ instructions: |
   source_turns lists the supplied local turn references that actually support the fact.
   Preserve explicit temporal expressions and deadlines as text, without inventing dates.
   Use only the configured importance levels and justify each from evidence; ordinary
-  importance never makes an insignificant decorative action worth extracting.
+  importance never makes an insignificant decorative action worth extracting. Reserve
+  critical for a supported campaign-defining fact: a revelation that redefines a central
+  unresolved mystery, even before any decision or action follows, or the resolution of a
+  defining obligation or threat, including a binding promise fulfilled with lasting
+  consequences and the durable relationship change caused by that resolution. For example,
+  a supported revelation about the central key's true location is critical before recovery;
+  returning that key after a delayed promise, completing its defining quest and changing
+  trust because of that resolution are critical together. A useful clue or a first meeting
+  is ordinary.
+  Set `type` from what the entity is, not from its narrative role. Places use `location`,
+  documents and keys use `item`, the player uses `player`, named NPCs use `npc` and quests
+  use `quest`; never label a place or document as `player`. For example, an "old landing"
+  described as the place where marks narrow the search is `location`, not `player`.
+  Never copy raw tool argument names, fixture tokens such as `__unknown_fixture_location__`,
+  internal state keys such as `met_player`, or dice internals into `content`; translate them
+  into story-level language, such as "a place absent from the map" or "Lyra met the player
+  but gave no answer". Preserve source chronology when a batch supports several turns.
   Do not generate IDs, canonical references, world entities, or links to earlier facts.
 example: |
   This example illustrates structure only; classify current-batch facts using the actual criteria,

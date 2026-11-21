@@ -8,9 +8,11 @@ from sqlalchemy import event
 from sqlalchemy.pool import ConnectionPoolEntry
 
 from app import dependencies
+from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
 from app.ai.providers import base
 from app.ai.providers.base import AIProvider
 from app.ai.providers.schemas import AgentResponse
+from tests.integration.typed_generation_support import send_from_legacy
 
 
 @pytest.fixture
@@ -49,10 +51,7 @@ def generation_clients(
 
     async def generate(*args: object, **kwargs: object) -> str:
         assert_no_db_held()
-        return (
-            '{"summary":"The inn is closed.","status":"speaking","lines":["Welcome!"],'
-            '"facts":[{"entity_name":"Inn","content":"The inn is closed."}]}'
-        )
+        return '{"status":"speaking","lines":["Welcome!"],"axis_changes":{}}'
 
     async def generate_with_tools(*args: object, **kwargs: object) -> AgentResponse:
         assert_no_db_held()
@@ -63,6 +62,11 @@ def generation_clients(
         provider = AsyncMock(spec=AIProvider)
         provider.generate.side_effect = generate
         provider.generate_with_tools.side_effect = generate_with_tools
+
+        async def send(request: GenerationRequest) -> RawGenerationReceipt:
+            return await send_from_legacy(provider, request, assert_no_db_held)
+
+        provider.send.side_effect = send
         clients.setdefault(api_key, []).append(provider)
         return cast(AIProvider, provider)
 

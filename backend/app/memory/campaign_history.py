@@ -14,17 +14,6 @@ class HistoryContractError(ValueError):
     pass
 
 
-def require_campaign_history(campaign: Campaign) -> None:
-    if (
-        campaign.memory_policy_id is None
-        or campaign.active_continuation_id is None
-        or campaign.active_memory_state_id is None
-    ):
-        raise HistoryContractError(
-            "Campaign history is not initialized for the current memory contract."
-        )
-
-
 async def initialize_campaign_history(db: AsyncSession, campaign: Campaign) -> None:
     if any(
         value is not None

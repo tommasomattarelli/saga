@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
 from pydantic import Field, field_validator, model_validator
 
-from app.memory.batch_source_contracts import BatchInput
+from app.memory.batch_source_contracts import BatchInput, NPCSourceResult
 from app.memory.document_contracts import (
+    CanonicalReference,
     EntityType,
+    FactEntity,
     FactImportance,
     FactMetadata,
     NonEmptyText,
@@ -22,7 +25,9 @@ TurnReference = Annotated[str, Field(pattern=r"^t[1-9][0-9]*$")]
 
 
 class MemoryOutputError(ValueError):
-    pass
+    def __init__(self, message: str, diagnostic_path: tuple[str | int, ...] = ()) -> None:
+        super().__init__(message)
+        self.diagnostic_path = diagnostic_path
 
 
 class GeneratedEntity(_DocumentModel):
@@ -106,24 +111,78 @@ def validate_source(source: BatchInput) -> None:
         raise MemoryOutputError("Batch source identities and references must be unique.")
 
 
+def resolve_entities(fact: GeneratedFact, source: BatchInput) -> tuple[FactEntity, ...]:
+    candidates: dict[tuple[str, str], set[str]] = defaultdict(set)
+    for turn in source.turns:
+        if turn.reference not in fact.source_turns:
+            continue
+        for operation in turn.operations or ():
+            payload = operation.payload
+            if payload.outcome != "succeeded":
+                continue
+            if (
+                payload.origin == "npc"
+                and payload.name in {"create_npc", "invoke_npc"}
+                and isinstance(payload.result, NPCSourceResult)
+            ):
+                name = payload.arguments.get("name")
+                if isinstance(name, str) and name.strip():
+                    candidates[("npc", name.strip().casefold())].add(payload.result.npc_id)
+            if payload.origin == "tool" and payload.name == "update_quest":
+                name, quest_id = payload.arguments.get("name"), payload.arguments.get("quest_id")
+                if (
+                    isinstance(name, str)
+                    and name.strip()
+                    and isinstance(quest_id, str)
+                    and quest_id
+                ):
+                    candidates[("quest", name.strip().casefold())].add(quest_id)
+    entities = []
+    for entity in fact.entities:
+        ids = candidates[(entity.type, entity.name.strip().casefold())]
+        canonical_ref = (
+            CanonicalReference(type=entity.type, id=next(iter(ids))) if len(ids) == 1 else None
+        )
+        entities.append(FactEntity(**entity.model_dump(), canonical_ref=canonical_ref))
+    return tuple(entities)
+
+
 def validate_facts(
     payload: FactsPayload,
     source: BatchInput,
     policy: FactsPolicy,
 ) -> tuple[ResolvedFact, ...]:
-    from app.memory.producer_entities import resolve_entities
+    validate_facts_context(payload, source, policy)
+    return resolve_facts(payload, source)
 
+
+def validate_facts_context(
+    payload: FactsPayload,
+    source: BatchInput,
+    policy: FactsPolicy,
+) -> None:
     validate_source(source)
     if len(payload.facts) > policy.max_per_batch:
-        raise MemoryOutputError("The generated facts exceed the batch limit.")
-    turns = {turn.reference: turn.turn_id for turn in source.turns}
+        raise MemoryOutputError("The generated facts exceed the batch limit.", ("facts",))
     levels = {level.name for level in policy.importance_levels}
+    source_references = {turn.reference for turn in source.turns}
+    for index, fact in enumerate(payload.facts):
+        if not set(fact.source_turns) <= source_references:
+            raise MemoryOutputError(
+                "A fact references a turn outside its batch.",
+                ("facts", index, "source_turns"),
+            )
+        if fact.importance.level not in levels:
+            raise MemoryOutputError(
+                "A fact uses an importance level outside the policy.",
+                ("facts", index, "importance", "level"),
+            )
+
+
+def resolve_facts(payload: FactsPayload, source: BatchInput) -> tuple[ResolvedFact, ...]:
+    turns = {turn.reference: turn.turn_id for turn in source.turns}
     resolved = []
     for fact in payload.facts:
-        if not set(fact.source_turns) <= turns.keys():
-            raise MemoryOutputError("A fact references a turn outside its batch.")
-        if fact.importance.level not in levels:
-            raise MemoryOutputError("A fact uses an importance level outside the policy.")
         resolved.append(
             ResolvedFact(
                 content=fact.content,

@@ -591,6 +591,64 @@ controlli grafici di save/load o download e senza anticipare il redesign.
 - Full check entrambi gli stack e integrazioni pertinenti; docs/CHANGELOG/TODO riconciliati; stato ADR aggiornato secondo accettazione effettiva.
 - Una sola PR finale, merge commit. Nessun merge verso main prima dei gate e della review.
 
+**S6 note (2026-11-12, implementation offline).** Il runner integrato usa API,
+graph e job reali con confini DM/NPC controllati, senza lifespan o worker autonomi;
+la strumentazione dei tentativi resta interamente nell'eval, senza modifiche al runtime.
+Le identità autorate sono collegate ai turni e alle operazioni persistite prima di
+avviare i job, con membership e input congelati verificati e provenienza conservata
+anche sui prefissi interrotti. Il profilo personale non viene modificato dal replay.
+
+Il limite persistente di quattro tentativi per job non è un budget esterno: questo
+runner si ferma prima del retry del job, disabilita i retry SDK della generazione e
+contabilizza ogni tentativo embedding, inclusi quelli della policy finita esistente.
+I cap separati per generazioni, embedding e testi reinviati sono congelati nel ledger;
+un run interrotto o già esistente richiede revisione, non riparte automaticamente.
+Il sidecar unico è separato e usa gli stessi batch persistiti, senza pubblicarli.
+
+I test PostgreSQL con trasporto SDK simulato verificano 31 generazioni baseline,
+42 con sidecar e la coda fattuale; non sono evidenza live o accettazione della qualità.
+La preparazione conserva selezione modello/spazio e budget nulli, `executable=false`
+e `approved=false`; credenziali/cataloghi/provider non vengono risolti offline.
+Restano i gate owner per modello, spazio, cap, retry, sidecar e singola autorizzazione
+live, poi qualità, recall effettivo, playtest, variante/default e accettazione prima di main.
+
+Verifiche: **1.896 test backend passati, tre casi junction Windows saltati su Linux,
+284 frontend passati**, gate statici/coverage/build passati; unico errore iniziale di
+formato nel builder, corretto e riverificato su 571 file senza ripetere il full su
+richiesta owner. Nessuna chiamata live o modifica a `backend/app/`.
+
+**S6 note (2026-11-12, subtraction review e decisioni owner).** La seconda
+passata ritira anche l'interfaccia di confronto dei produttori S3, estraendo
+digest e lock condivisi senza perdere i test del runner integrato; il capture
+legacy resta uno strumento esplicito, non un secondo writer. Annotazioni,
+diagnostica e fencing a confini diversi restano contratti, non codice morto
+per il solo fatto di non avere un consumer automatico.
+
+Per la prossima preparazione offline l'owner ha scelto
+`nvidia/nemotron-3.5-super-vl:free`, sidecar incluso e cap di **42 generazioni**;
+embedding OpenRouter `openai/text-embedding-3-small`, spazio `embed-v1` nativo,
+**un retry**, cap di **6 richieste / 132 testi inviati** per al massimo 66
+contenuti distinti. Il costo minimo degli embedding è ammesso per quel futuro
+run, non costituisce autorizzazione ad eseguirlo. La riduzione dei retry è
+congelata nel manifest eval, non cambia il profilo utente o i default runtime.
+
+Il vecchio manifest resta immutato; la nuova preparazione ha fingerprint/seal
+nuovi e può essere `executable=true`, ma non è autorizzata. `approved=false`
+è una dichiarazione, non un gate aggiuntivo: restano i controlli `executable`
+e `--authorized`, dopo un consenso esplicito per quel run. Nessun catalogo,
+provider o worker viene avviato come effetto collaterale della preparazione.
+Qualità, recall effettivo, playtest, variante/default e accettazione owner
+continuano a impedire il merge in main; ADR ancora **Proposed**.
+
+**S6 note (2026-11-20, implementation).** Il run integrato autorizzato ha generato 9 checkpoint globali concatenati su t1–t36, con la risoluzione di t34 nel nono globale e il warning di t38 escluso. `campaign.global_summary` resta però `null` e il replay non esegue un turno DM successivo: il run dimostra generazione e pubblicazione, non che il checkpoint attivo venga iniettato nel contesto né che influenzi una risposta. Il TODO `probe canarino — consumo del globale` copre il probe dedicato, con fatto controllato presente solo nel globale e recall-query reale. La qualità dei risultati resta su una sola ripetizione; variante e default non sono ancora scelti.
+
+I riferimenti di riga del rilievo S0 descrivono il codice del 9 novembre,
+non quello dopo il cutover: claim e pubblicazione sono ora in
+`services/action_claims.py` e `services/action_persistence.py`; la memoria
+vive in `job_scheduler`/`job_execution`/`job_publication`, non nei produttori
+per-turno ritirati. Il full check cumulativo si esegue una sola volta dopo
+i sette commit, su richiesta owner; durante restano test mirati e hook.
+
 ## 15. Riferimento OpenCode /compact
 
 L'owner ha chiesto di studiarlo per ispirare il globale. Analisi Luna e verifica diretta del prompt, senza clone o file nel repo.
@@ -885,6 +943,12 @@ sono offline, con fonti/policy/istruzioni congelate e budget per tentativo; ripr
 invalidi non autorizzano nuove chiamate implicite. Revisione umana e qualità di summary,
 fatti e globale restano separate. Il codice non collega ancora scheduler, copertura o
 contesto pubblico: i gate S4a/S4b e la verifica integrata S6 rimangono invariati.
+
+**S6 note (2026-11-12, implementation).** Il contratto del wrapper di §20.6
+non cambia: le quattro sezioni sono rese prima del framing e
+`ai/prompts/dm.py` aggiunge `<global_summary>`, come già chiarito dalla nota
+S3; il renderer non deve aggiungere un secondo wrapper. I riferimenti
+all'harness S3 sopra restano evidenza storica, non istruzioni per un run nuovo.
 
 ### 20.7 Operazioni e delta
 

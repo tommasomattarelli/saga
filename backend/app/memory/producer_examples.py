@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -18,10 +17,6 @@ from app.memory.production_policy import FactsPolicy
 
 if TYPE_CHECKING:
     from app.memory.producer_prompts import ProducerKind
-
-
-def _json(value: object) -> str:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _payload(kind: ProducerKind, raw: str, facts_policy: FactsPolicy) -> BaseModel:
@@ -62,6 +57,8 @@ def _source(kind: ProducerKind) -> BatchInput:
 
 
 def worked_example(kind: ProducerKind, facts_policy: FactsPolicy) -> str:
+    from app.memory.producer_prompts import canonical
+
     source_name = "memory_global" if kind == "global" else "memory_production"
     source = _source(kind)
     validate_source(source)
@@ -79,4 +76,4 @@ def worked_example(kind: ProducerKind, facts_policy: FactsPolicy) -> str:
     if kind == "global":
         previous = GlobalPayload.model_validate_json(template(source_name, "previous"))
         bundle["previous"] = previous.model_dump(mode="json")
-    return f"<worked_example>{_json(bundle)}</worked_example>"
+    return f"<worked_example>{canonical(bundle)}</worked_example>"

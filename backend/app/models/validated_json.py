@@ -19,7 +19,7 @@ class ValidatedJSON(TypeDecorator[T]):
     def process_bind_param(self, value: T | None, _dialect: Dialect) -> object:
         if value is None:
             return None
-        payload = self.model.model_validate(value).model_dump_json(by_alias=True)
+        payload = value.model_dump_json(by_alias=True)
         return self.model.model_validate_json(payload).model_dump(mode="json", by_alias=True)
 
     def process_result_value(self, value: object, _dialect: Dialect) -> T | None:

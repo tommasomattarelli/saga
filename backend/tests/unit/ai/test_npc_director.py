@@ -1,11 +1,14 @@
 """Tests for the NPC Actor-Director system."""
 
 import asyncio
+import json
 import uuid
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
+from app.ai.generation_execution import GenerationProvider
 from app.ai.npc_director import (
     NPCInput,
     invoke_npcs_parallel,
@@ -13,25 +16,45 @@ from app.ai.npc_director import (
 )
 from app.ai.npc_outcomes import NPCSpeaking
 from app.ai.router import ModelConfig
+from tests.unit.eval.dialogue.typed_provider_test_support import TypedResponseProvider
+
+
+def configured_provider(provider: GenerationProvider) -> tuple[GenerationProvider, ModelConfig]:
+    return provider, ModelConfig(
+        provider="openai",
+        model="gpt-4o-mini",
+        max_tokens=300,
+        destination_fingerprint="offline-test-destination",
+    )
 
 
 class TestInvokeSingleNPC:
     @pytest.mark.asyncio
     async def test_invoke_returns_dialogue(self):
-        mock_provider = AsyncMock()
-        mock_provider.generate.return_value = (
-            '{"status":"speaking","lines": ["Well met!"], "action": null,'
-            ' "axis_changes": {"trust": 5, "fear": -2}, "reveals_secret": false}'
+        mock_provider = TypedResponseProvider(
+            [
+                RawGenerationReceipt(
+                    text=json.dumps(
+                        {
+                            "status": "speaking",
+                            "lines": ["Well met!"],
+                            "action": None,
+                            "axis_changes": [
+                                {"key": "trust", "value": 5},
+                                {"key": "fear", "value": -2},
+                            ],
+                            "reveals_secret": False,
+                        }
+                    )
+                )
+            ]
         )
 
         with (
             patch(
                 "app.ai.npc_director.get_generation",
                 new_callable=AsyncMock,
-                return_value=(
-                    mock_provider,
-                    ModelConfig(provider="openai", model="gpt-4o-mini", max_tokens=300),
-                ),
+                return_value=configured_provider(mock_provider),
             ),
         ):
             result = await invoke_single_npc(
@@ -46,18 +69,22 @@ class TestInvokeSingleNPC:
             assert result.axis_changes == {"trust": 5, "fear": -2}
 
     @pytest.mark.asyncio
-    async def test_malformed_axis_changes_dropped(self):
-        mock_provider = AsyncMock()
-        mock_provider.generate.return_value = '{"status":"speaking","lines": ["Hm."], "axis_changes": {"trust": "lots", "fear": 3.7, "respect": true}}'
+    async def test_malformed_axis_changes_fail_the_response(self):
+        mock_provider = TypedResponseProvider(
+            [
+                RawGenerationReceipt(
+                    text='{"status":"speaking","lines":["Hm."],"action":null,'
+                    '"axis_changes":[{"key":"trust","value":"lots"}],'
+                    '"reveals_secret":false}'
+                )
+            ]
+        )
 
         with (
             patch(
                 "app.ai.npc_director.get_generation",
                 new_callable=AsyncMock,
-                return_value=(
-                    mock_provider,
-                    ModelConfig(provider="openai", model="gpt-4o-mini", max_tokens=300),
-                ),
+                return_value=configured_provider(mock_provider),
             ),
         ):
             result = await invoke_single_npc(
@@ -67,21 +94,19 @@ class TestInvokeSingleNPC:
                 dm_narration="You approach.",
             )
 
-            assert result.axis_changes == {"fear": 3}
+            assert result.status == "failure"
 
     @pytest.mark.asyncio
     async def test_invoke_fallback_on_error(self):
-        mock_provider = AsyncMock()
-        mock_provider.generate.side_effect = Exception("API error")
+        class FailingProvider:
+            async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
+                raise RuntimeError("provider failure")
 
         with (
             patch(
                 "app.ai.npc_director.get_generation",
                 new_callable=AsyncMock,
-                return_value=(
-                    mock_provider,
-                    ModelConfig(provider="openai", model="gpt-4o-mini", max_tokens=300),
-                ),
+                return_value=configured_provider(FailingProvider()),
             ),
         ):
             result = await invoke_single_npc(

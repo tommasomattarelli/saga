@@ -8,6 +8,7 @@ import {
   type KeyProvider,
   type ProfilePatch,
   type SettingsErrorKind,
+  type SettingsResponse,
 } from "../api/settings-api";
 import {
   settingsQueryKey,
@@ -60,10 +61,18 @@ export default function SettingsAiPanel({ open }: { open: boolean }) {
 
   const settings = settingsQuery.data;
 
-  const handleSave = (kind: "generation" | "embedding", patch: ProfilePatch) => {
+  const handleSave = (
+    kind: "generation" | "embedding",
+    patch: ProfilePatch,
+  ): Promise<SettingsResponse> => {
     const scopeUserId = userId;
     const mutation = kind === "generation" ? saveGeneration : saveEmbedding;
-    mutation.mutate({ patch, scopeUserId });
+    return mutation
+      .mutateAsync({ patch, scopeUserId })
+      .then(
+        (response) =>
+          queryClient.getQueryData<SettingsResponse>(settingsQueryKey(scopeUserId)) ?? response,
+      );
   };
 
   const generationError = scopedError(saveGeneration, userId);
@@ -109,6 +118,7 @@ export default function SettingsAiPanel({ open }: { open: boolean }) {
   return (
     <div>
       <ProfileEditor
+        key={`generation-${userId}`}
         kind="generation"
         title={t("settings.ai.generation_title")}
         provider={settings.generation_provider}
@@ -119,12 +129,14 @@ export default function SettingsAiPanel({ open }: { open: boolean }) {
         inUseProvider={generationInUse.provider}
         inUseModel={generationInUse.model}
         credentialSource={settings.credential_source}
+        settingsResponse={settings}
         saving={saveGeneration.isPending}
         errorMessage={generationError ? t(`settings.ai.error_${generationError}`) : null}
         onSave={(patch) => handleSave("generation", patch)}
       />
 
       <ProfileEditor
+        key={`embedding-${userId}`}
         kind="embedding"
         title={t("settings.ai.embedding_title")}
         provider={settings.embedding_provider}
@@ -135,6 +147,7 @@ export default function SettingsAiPanel({ open }: { open: boolean }) {
         inUseProvider={embeddingInUse.provider}
         inUseModel={embeddingInUse.model}
         credentialSource={settings.embedding_credential_source}
+        settingsResponse={settings}
         saving={saveEmbedding.isPending}
         errorMessage={embeddingError ? t(`settings.ai.error_${embeddingError}`) : null}
         onSave={(patch) => handleSave("embedding", patch)}
