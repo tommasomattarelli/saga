@@ -13,6 +13,39 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ## [Unreleased]
 
+### Highlights
+
+- [Memory & AI] Structured responses now get bounded in-app correction, with format fallbacks bound to the effective provider destination (ADR 0021).
+- [Memory & AI] Memory prompts now mark defining resolutions as critical and translate internal metadata into story language.
+- [Gameplay] Retried actions preserve their request identity and reject stale histories instead of applying a second turn.
+- [UI] Action failures expose a memory-retry banner while preserving the pending action and its identity.
+- [World & DM] Experimental batched memory retains turn-level provenance and assembles context only from the selected history.
+- [Infra] Campaign exports include a versioned archive of histories and memory records with an offline integrity validator.
+
 ### Internal
 
+- Introduced ADR 0021's shared strict generation contracts, typed provider sends, cumulative correction, DM tool preflight and safe failure classification across DM, NPC and memory (ADR 0021).
+- Made memory jobs durable with per-result send budgets, receipt/candidate persistence, atomic publication, terminal states and one-day payload cleanup (ADR 0021).
+- Added migrations 016-019 and destination-bound format fallbacks; kept raw generation payloads out of ordinary logs (ADR 0021).
+- Renamed unused flush-hook bindings and restored typed-generation fixtures while preserving preflight, privacy and replay coverage.
+- Added an owner-only ADR rebind operation with reviewed hash compare-and-swap that invalidates prior workflow proof.
+- Extended owner-controlled workflow scope to isolated worktrees and per-worktree review receipts.
+- Added offline fault-injection recovery coverage and ordered global checkpoints in campaign exports.
+- Recorded the unproven runtime consumption of global checkpoints as a memory-canary follow-up.
 - Reorganized backend evaluation tools and tests, indexed their guide, and clarified harness-independent skills and owner authorization for external evaluation calls.
+- Recorded ADR 0020 from the owner-interview plan for batched memory, durable production and save-aware histories, with explicit offline and live-evaluation gates.
+- Added immutable, strictly validated memory-production policy contracts without adopting campaign defaults or changing the public creation path (ADR 0020 S1).
+- Stabilized Ruff source discovery after evaluation-tool relocation without reformatting existing modules.
+- Added immutable campaign histories, frozen save references and ancestry queries through a forward-only, migration-tested schema without converting existing turns (ADR 0020 S1).
+- Added ordered memory batches, typed documents, rich fact provenance and coverage cursors with PostgreSQL integrity constraints (ADR 0020 S1).
+- Recorded per-operation outcomes and deltas atomically with turns, adding immutable provenance and canonical batch inputs without converting historical sources (ADR 0020 S2).
+- Prepared strict memory producers, validated prompt examples and reproducible offline evaluations; live evidence, production defaults and variant selection remain owner-gated (ADR 0020 S3).
+- Isolated generation-profile reads from campaign relationships so memory evaluations can preserve legacy databases without migrations (ADR 0020 S3).
+- Added stable per-model memory-evaluation sessions, recorded request headers and parallel model workers with sequential requests and quota-safe stopping.
+- Refined candidate memory prompts toward concise third-person DM summaries, future-useful facts and importance calibration for central unresolved revelations (ADR 0020 S3).
+- Added durable memory jobs with frozen requests, bounded retries, atomic publication and history-safe artifact reuse, without activating the public pipeline (ADR 0020 S4a).
+- Connected idempotent actions, three-level memory, bounded admission and history-safe restore/recall, with YAML-derived client deadlines and explicit blocking retries (ADR 0020 S4b).
+- Delivered versioned campaign archives with full memory provenance, offline reference validation, and recoverable save/retry behavior under repeatable-read isolation (ADR 0020 S5).
+- Retired legacy memory producers, harnesses, unused fixtures, TURN indexing and obsolete settings while preserving historical archives (ADR 0020 S6).
+- Prepared guarded integrated memory evaluation with persisted-source provenance, bounded generation/embedding ledgers and offline manifests, leaving live runs and production decisions owner-gated (ADR 0020 S6).
+- Simplified ADR 0020 S6 memory and archive paths, retired the isolated producer harness and overlapping coverage, and bounded offline evaluation preparation without authorizing live calls.

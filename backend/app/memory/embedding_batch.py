@@ -30,12 +30,11 @@ if TYPE_CHECKING:
     )
 
 _PENDING_ROWS = """
-    SELECT se.id, COALESCE(t.summary, mf.content), se.text_hash
+    SELECT se.id, mf.content, se.text_hash
     FROM source_embeddings se
-    LEFT JOIN turns t ON t.id = se.turn_id
     LEFT JOIN memory_facts mf ON mf.id = se.memory_fact_id
-    WHERE se.index_id = :iid AND se.work_state = 'pending'
-      AND COALESCE(t.summary, mf.content) IS NOT NULL
+    WHERE se.index_id = :iid AND se.source_type = 'memory_fact'
+      AND se.work_state = 'pending' AND mf.content IS NOT NULL
     ORDER BY se.created_at, se.id
     LIMIT :limit
 """
@@ -284,7 +283,8 @@ async def _has_pending(db: AsyncSession, index_id: uuid.UUID) -> bool:
     row = await db.execute(
         text(
             "SELECT 1 FROM source_embeddings"
-            " WHERE index_id = :iid AND work_state = 'pending' LIMIT 1"
+            " WHERE index_id = :iid AND source_type = 'memory_fact'"
+            " AND work_state = 'pending' LIMIT 1"
         ),
         {"iid": index_id},
     )
@@ -295,11 +295,10 @@ async def _current_hashes(db: AsyncSession, row_ids: list[uuid.UUID]) -> dict[uu
     if not row_ids:
         return {}
     statement = text(
-        "SELECT se.id, encode(sha256(convert_to(COALESCE(t.summary, mf.content), 'UTF8')), 'hex')"
+        "SELECT se.id, encode(sha256(convert_to(mf.content, 'UTF8')), 'hex')"
         " FROM source_embeddings se"
-        " LEFT JOIN turns t ON t.id = se.turn_id"
         " LEFT JOIN memory_facts mf ON mf.id = se.memory_fact_id"
-        " WHERE se.id IN :ids"
+        " WHERE se.id IN :ids AND se.source_type = 'memory_fact'"
     ).bindparams(bindparam("ids", expanding=True))
     rows = await db.execute(statement, {"ids": row_ids})
     return {row_id: digest for row_id, digest in rows.fetchall()}

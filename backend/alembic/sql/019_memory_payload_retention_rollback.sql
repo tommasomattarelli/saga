@@ -1,0 +1,3 @@
+DROP TRIGGER trg_memory_generation_retention_guard ON memory_generations;
+
+DROP FUNCTION saga_memory_generation_retention_guard();

@@ -22,6 +22,9 @@ export interface SettingsResponse {
   embedding_provider: string | null;
   embedding_model: string | null;
   embedding_local_endpoint: string | null;
+  generation_allow_json_mode_fallback: boolean;
+  generation_allow_prompt_only_fallback: boolean;
+  generation_format_fingerprint: string | null;
   server_key_consents: Record<string, boolean>;
   has_openai_key: boolean;
   has_openrouter_key: boolean;
@@ -37,6 +40,8 @@ export type ProfilePatch = {
   generation_provider?: string | null;
   generation_model?: string | null;
   generation_local_endpoint?: string | null;
+  generation_allow_json_mode_fallback?: boolean;
+  generation_allow_prompt_only_fallback?: boolean;
   embedding_provider?: string | null;
   embedding_model?: string | null;
   embedding_local_endpoint?: string | null;

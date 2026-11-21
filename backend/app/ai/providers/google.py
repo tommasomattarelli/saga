@@ -11,7 +11,15 @@ from google import genai
 from google.genai import types as genai_types
 
 from app.ai.exceptions import ContentPolicyError
+from app.ai.generation_attempt import generation_attempt_is_single
+from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
 from app.ai.providers.base import AIProvider
+from app.ai.providers.google_destination import resolve_google_destination
+from app.ai.providers.google_generation import (
+    SYNTHETIC_CALL_ID_PREFIX,
+    _native_call_id,
+    send_generation,
+)
 from app.ai.providers.schemas import (
     TEXT_SIGNATURE_KEY,
     TOOL_CALL_SIGNATURES_KEY,
@@ -23,9 +31,6 @@ from app.config import settings
 logger = structlog.get_logger()
 
 _RETRY_DELAYS = [5, 15, 30]  # seconds between retries on 503
-# Google may omit the call id; we then mint an internal one for signature bookkeeping
-# only, and this prefix keeps it out of the payload (Gemini must see its own ids, not ours).
-_SYNTHETIC_CALL_ID_PREFIX = "saga-call-"
 
 
 async def _with_retry(coro_fn, *args, **kwargs):
@@ -126,18 +131,11 @@ def _to_contents(messages: list[dict]) -> list[dict]:
 
 
 def _call_id(fc: genai_types.FunctionCall) -> str:
-    # Google may omit the id; falling back to the name collides across parallel calls
-    # and smears one signature onto every same-named one, so mint a unique internal id.
+    # Google may omit IDs; don't invent colliding provider IDs for parallel calls.
+    # Keep synthetic signature-bookkeeping IDs off-wire.
     if getattr(fc, "id", None):
         return str(fc.id)
-    return f"{_SYNTHETIC_CALL_ID_PREFIX}{uuid.uuid4().hex}"
-
-
-def _native_call_id(value: object) -> str | None:
-    """The id to echo to Gemini: its own, never the internal synthetic one."""
-    if value and not str(value).startswith(_SYNTHETIC_CALL_ID_PREFIX):
-        return str(value)
-    return None
+    return f"{SYNTHETIC_CALL_ID_PREFIX}{uuid.uuid4().hex}"
 
 
 def _openai_tool_to_google(tool: dict) -> dict:
@@ -161,7 +159,14 @@ class GoogleProvider(AIProvider):
     """Google Gemini API provider."""
 
     def __init__(self, api_key: str | None = None) -> None:
-        self.client = genai.Client(api_key=api_key or settings.google_ai_api_key)
+        destination = resolve_google_destination()
+        self.client = genai.Client(
+            api_key=api_key or settings.google_ai_api_key,
+            http_options=destination.http_options(),
+        )
+
+    async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
+        return await send_generation(self.client, request)
 
     async def generate(
         self,
@@ -171,18 +176,24 @@ class GoogleProvider(AIProvider):
         max_tokens: int = 2000,
         json_mode: bool = False,
     ) -> str:
-        config: dict = {
-            "system_instruction": system_prompt,
-            "max_output_tokens": max_tokens,
-        }
-        if json_mode:
-            config["response_mime_type"] = "application/json"
-        response = await _with_retry(
-            self.client.aio.models.generate_content,
-            model=model,
-            contents=_to_contents(messages),
-            config=config,
+        single_attempt = generation_attempt_is_single()
+        config = genai_types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            max_output_tokens=max_tokens,
+            response_mime_type="application/json" if json_mode else None,
+            http_options=(
+                genai_types.HttpOptions(retry_options=genai_types.HttpRetryOptions(attempts=1))
+                if single_attempt
+                else None
+            ),
         )
+        call = self.client.aio.models.generate_content
+        if single_attempt:
+            response = await call(model=model, contents=_to_contents(messages), config=config)
+        else:
+            response = await _with_retry(
+                call, model=model, contents=_to_contents(messages), config=config
+            )
         _check_safety(response)
         return response.text or ""
 

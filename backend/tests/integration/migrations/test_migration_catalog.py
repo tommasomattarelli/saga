@@ -8,9 +8,12 @@ from pathlib import Path
 import pytest
 
 from app.migrations.profiles import diff_schema, load_profile, require_profile_match
-from tests.integration.migrations.migration_db import DisposableDatabase
+from tests.integration.migrations.migration_db import (
+    HEAD_REVISION,
+    DisposableDatabase,
+)
 
-BACKEND_DIR = Path(__file__).resolve().parents[2]
+BACKEND_DIR = Path(__file__).resolve().parents[3]
 PRE_001_FIXTURE = BACKEND_DIR / "tests" / "fixtures" / "schema_pre_001.json"
 
 CURRENT_COMMIT = "5e9206da28a0be1d8e669dcc72ed0af6a3525eac"
@@ -44,8 +47,29 @@ async def test_pre_001_fixture_matches_frozen_create_all() -> None:
 async def test_empty_database_chain_converges_on_current_profile() -> None:
     async with DisposableDatabase() as database:
         await database.upgrade()
-        assert await database.version() == "009_campaign_language"
+        assert await database.version() == HEAD_REVISION
+        await database.require_model_schema()
         await database.require_head_schema()
+
+
+async def test_008_migrates_from_the_frozen_current_profile() -> None:
+    async with DisposableDatabase() as database:
+        await database.build_frozen_schema(CURRENT_COMMIT)
+        profile = load_profile("current_post_pr1")
+        require_profile_match(profile, await database.snapshot())
+        await database.adopt("current_post_pr1")
+        await database.upgrade("008_schema_reconciliation")
+
+        assert await database.version() == "008_schema_reconciliation"
+        assert not await database.table_exists("achievements")
+        assert not await database.table_exists("profile_stats")
+        assert (
+            await database.fetch_one(
+                "SELECT column_default FROM information_schema.columns"
+                " WHERE table_schema='public' AND table_name='campaigns'"
+                " AND column_name='global_summary'"
+            )
+        )[0] is None
 
 
 async def test_pre_001_revision_matches_its_fixture() -> None:

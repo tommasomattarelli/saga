@@ -1,5 +1,4 @@
-"""Coverage for the player-action endpoint's error path, dice flattening,
-and the fire-and-forget background helpers (turns.py)."""
+"""Action endpoint failure, response and memory-cutover regressions."""
 
 import uuid
 from unittest.mock import AsyncMock, patch
@@ -7,12 +6,12 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy import func, select
 
-from app.api.turns import _background_compression, _background_global_summary
 from app.exceptions import AIProviderError
 from app.models.campaign import Campaign, CampaignStatus
-from app.models.embedding_index import EmbeddingIndex, EmbeddingRebuildState
-from app.models.source_embedding import EmbeddingSourceType, EmbeddingWorkState, SourceEmbedding
+from app.models.source_embedding import SourceEmbedding
 from app.models.turn import Turn
+from app.models.turn_request import TurnRequest
+from tests.action_support import action_body
 
 pytestmark = pytest.mark.usefixtures("configured_generation")
 
@@ -21,12 +20,12 @@ def _fake_state(**overrides) -> dict:
     base = {
         "world_state": {"meta": {"current_location": "Town"}},
         "char_data": {"name": "Eron", "hp": 20, "max_hp": 20},
+        "quests": {"active": [], "completed": [], "failed": [], "abandoned": []},
         "narration": "The dust settles.",
         "narration_segments": None,
         "dice_results": [],
         "scene_mood": "neutral",
         "tool_events": [],
-        "npc_dialogues": [],
         "death_event": None,
         "model_used": "test-model",
         "importance_score": 5,
@@ -52,113 +51,86 @@ async def _create_campaign(auth_client) -> str:
 
 @pytest.mark.asyncio
 async def test_dm_graph_failure_returns_500_without_persisting_turn(auth_client, db_session):
-    """A graph crash yields a clean 500 and leaves no half-written turn — the
-    claimed turn_number is simply skipped (gap is harmless)."""
     campaign_id = await _create_campaign(auth_client)
+    body = await action_body(auth_client, campaign_id, "do something")
 
-    with (
-        patch(
-            "app.api.turns.dm_graph.ainvoke",
-            new=AsyncMock(side_effect=RuntimeError("graph boom")),
-        ),
-        patch("app.memory.embedding_worker.wake_embedding_worker") as wake,
+    with patch(
+        "app.api.turns.dm_graph.ainvoke", new=AsyncMock(side_effect=RuntimeError("graph boom"))
     ):
-        resp = await auth_client.post(
-            f"/api/campaigns/{campaign_id}/action",
-            json={"action": "do something"},
+        response = await auth_client.post(f"/api/campaigns/{campaign_id}/action", json=body)
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "DM processing failed"
+    assert (
+        await db_session.scalar(
+            select(func.count()).select_from(Turn).where(Turn.campaign_id == campaign_id)
         )
-
-    assert resp.status_code == 500
-    assert resp.json()["detail"] == "DM processing failed"
-
-    turn_count = await db_session.scalar(
-        select(func.count()).select_from(Turn).where(Turn.campaign_id == campaign_id)
+        == 0
     )
-    assert turn_count == 0
-
-    # turn_number was claimed (incremented) before the crash — the gap is harmless.
-    claimed = await db_session.scalar(
-        select(Campaign.turn_number).where(Campaign.id == uuid.UUID(campaign_id))
-    )
-    assert claimed == 1
-    wake.assert_not_called()
+    campaign = await db_session.get(Campaign, uuid.UUID(campaign_id), populate_existing=True)
+    assert campaign is not None and campaign.turn_number == 1
+    request = await db_session.get(TurnRequest, uuid.UUID(body["request_id"]))
+    assert request is not None and request.state == "interrupted"
 
 
 @pytest.mark.asyncio
-async def test_action_enqueues_turn_summary_for_active_index(auth_client, db_session):
+async def test_action_does_not_write_per_turn_summary_or_turn_embedding(auth_client, db_session):
     campaign_id = await _create_campaign(auth_client)
-    campaign_uuid = uuid.UUID(campaign_id)
-    index = EmbeddingIndex(
-        campaign_id=campaign_uuid,
-        provider="openrouter",
-        model="test-model",
-        pipeline_version="embed-v1",
-        dimension=1536,
-        is_active=True,
-        rebuild_state=EmbeddingRebuildState.COMPLETED,
-    )
-    db_session.add(index)
-    await db_session.commit()
+    body = await action_body(auth_client, campaign_id, "look around")
 
-    with (
-        patch("app.api.turns.dm_graph.ainvoke", new=AsyncMock(return_value=_fake_state())),
-        patch("app.api.turns.compress_turn_to_summary", new=AsyncMock(return_value="A summary.")),
-        patch("app.api.turns.extract_and_store_facts", new=AsyncMock()),
-        patch("app.api.turns._background_compression", new=AsyncMock()),
-        patch("app.memory.embedding_worker.wake_embedding_worker") as wake,
-    ):
-        response = await auth_client.post(
-            f"/api/campaigns/{campaign_id}/action", json={"action": "look around"}
-        )
+    with patch("app.api.turns.dm_graph.ainvoke", new=AsyncMock(return_value=_fake_state())):
+        response = await auth_client.post(f"/api/campaigns/{campaign_id}/action", json=body)
 
-    assert response.status_code == 200
-    turn = await db_session.scalar(select(Turn).where(Turn.campaign_id == campaign_uuid))
+    assert response.status_code == 200, response.text
+    turn = await db_session.scalar(select(Turn).where(Turn.campaign_id == campaign_id))
     assert turn is not None
-    queued = await db_session.scalar(
-        select(SourceEmbedding).where(SourceEmbedding.index_id == index.id)
+    assert turn.summary is None
+    assert (
+        await db_session.scalar(
+            select(SourceEmbedding.id).where(SourceEmbedding.campaign_id == campaign_id)
+        )
+        is None
     )
-    assert queued is not None
-    assert queued.turn_id == turn.id
-    assert queued.text_hash
-    assert queued.work_state == EmbeddingWorkState.PENDING
-    assert queued.source_type == EmbeddingSourceType.TURN
-    wake.assert_called_once_with()
+    assert response.json()["request_id"] == body["request_id"]
+    assert response.json()["turn_id"] == response.json()["head_turn_id"]
 
 
 @pytest.mark.asyncio
-async def test_provider_failure_returns_502_with_the_upstream_reason(auth_client, db_session):
-    """An upstream failure is not our bug: it gets a 502 carrying the real reason,
-    not the generic 500 that hid it (#50)."""
+async def test_provider_failure_returns_502_without_persisting_turn(auth_client, db_session):
     campaign_id = await _create_campaign(auth_client)
-
+    body = await action_body(auth_client, campaign_id, "do something")
     with patch(
         "app.api.turns.dm_graph.ainvoke",
         new=AsyncMock(
             side_effect=AIProviderError("local", "Rate limit exceeded: free-models-per-day")
         ),
     ):
-        resp = await auth_client.post(
-            f"/api/campaigns/{campaign_id}/action",
-            json={"action": "do something"},
+        response = await auth_client.post(f"/api/campaigns/{campaign_id}/action", json=body)
+
+    assert response.status_code == 502
+    assert "free-models-per-day" in response.json()["detail"]
+    assert (
+        await db_session.scalar(
+            select(func.count()).select_from(Turn).where(Turn.campaign_id == campaign_id)
         )
-
-    assert resp.status_code == 502
-    assert "free-models-per-day" in resp.json()["detail"]
-
-    turn_count = await db_session.scalar(
-        select(func.count()).select_from(Turn).where(Turn.campaign_id == campaign_id)
+        == 0
     )
-    assert turn_count == 0
 
 
 @pytest.mark.asyncio
 async def test_action_on_missing_campaign_returns_404(auth_client):
-    resp = await auth_client.post(
-        f"/api/campaigns/{uuid.uuid4()}/action",
-        json={"action": "do something"},
+    campaign_id = str(uuid.uuid4())
+    response = await auth_client.post(
+        f"/api/campaigns/{campaign_id}/action",
+        json={
+            "action": "do something",
+            "request_id": str(uuid.uuid4()),
+            "expected_head_turn_id": None,
+            "expected_context_epoch": 0,
+        },
     )
-    assert resp.status_code == 404
-    assert resp.json()["detail"] == "Campaign not found"
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "campaign_not_found"
 
 
 @pytest.mark.asyncio
@@ -167,66 +139,22 @@ async def test_action_on_inactive_campaign_returns_400(auth_client, db_session):
     campaign = await db_session.get(Campaign, uuid.UUID(campaign_id))
     campaign.status = CampaignStatus.COMPLETED
     await db_session.commit()
+    body = await action_body(auth_client, campaign_id, "do something")
 
-    resp = await auth_client.post(
-        f"/api/campaigns/{campaign_id}/action",
-        json={"action": "do something"},
-    )
-    assert resp.status_code == 400
-    assert resp.json()["detail"] == "Campaign is not active"
+    response = await auth_client.post(f"/api/campaigns/{campaign_id}/action", json=body)
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "campaign_inactive"
 
 
 @pytest.mark.asyncio
 async def test_dice_results_are_flattened_into_dice_rolls(auth_client):
-    """dice_results' per-roll dicts are merged into the legacy flat dice_rolls map."""
     campaign_id = await _create_campaign(auth_client)
-    state = _fake_state(
-        dice_results=[{"rolls": {"d20": 15}}, {"rolls": {"d6": 4}}],
-    )
+    body = await action_body(auth_client, campaign_id, "roll some dice")
+    state = _fake_state(dice_results=[{"rolls": {"d20": 15}}, {"rolls": {"d6": 4}}])
 
-    with (
-        patch("app.api.turns.dm_graph.ainvoke", new=AsyncMock(return_value=state)),
-        patch("app.api.turns.compress_turn_to_summary", new=AsyncMock(return_value="summary")),
-        patch("app.api.turns.extract_and_store_facts", new=AsyncMock(return_value=None)),
-        patch("app.api.turns._background_compression", new=AsyncMock(return_value=None)),
-        patch("app.api.turns._background_global_summary", new=AsyncMock(return_value=None)),
-    ):
-        resp = await auth_client.post(
-            f"/api/campaigns/{campaign_id}/action",
-            json={"action": "roll some dice"},
-        )
+    with patch("app.api.turns.dm_graph.ainvoke", new=AsyncMock(return_value=state)):
+        response = await auth_client.post(f"/api/campaigns/{campaign_id}/action", json=body)
 
-    assert resp.status_code == 200
-    assert resp.json()["dice_rolls"] == {"d20": 15, "d6": 4}
-
-
-@pytest.mark.asyncio
-async def test_background_compression_commits_then_returns():
-    with patch("app.api.turns.ensure_compression", new=AsyncMock(return_value=None)) as inner:
-        await _background_compression(uuid.uuid4(), 5)
-    inner.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_background_compression_swallows_errors():
-    with patch(
-        "app.api.turns.ensure_compression",
-        new=AsyncMock(side_effect=RuntimeError("boom")),
-    ):
-        await _background_compression(uuid.uuid4(), 5)  # must not raise
-
-
-@pytest.mark.asyncio
-async def test_background_global_summary_commits_then_returns():
-    with patch("app.api.turns.update_global_summary", new=AsyncMock(return_value=None)) as inner:
-        await _background_global_summary(uuid.uuid4(), 10)
-    inner.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_background_global_summary_swallows_errors():
-    with patch(
-        "app.api.turns.update_global_summary",
-        new=AsyncMock(side_effect=RuntimeError("boom")),
-    ):
-        await _background_global_summary(uuid.uuid4(), 10)  # must not raise
+    assert response.status_code == 200, response.text
+    assert response.json()["dice_rolls"] == {"d20": 15, "d6": 4}

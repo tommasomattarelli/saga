@@ -7,7 +7,46 @@ import pytest
 from eval.dialogue.requests import SuiteProvider
 from eval.support.ledger import BudgetExhaustedError, RequestLedger
 
+from app.ai.generation_contracts import GenerationRequest, OutputLimit, RawGenerationReceipt
 from app.ai.providers.schemas import AgentResponse
+from app.ai.response_contracts import ResponseContract
+from app.core.dm.dm_generation import DMNarrative
+
+
+def _generation_request() -> GenerationRequest:
+    return GenerationRequest.create(
+        "DM prompt",
+        [{"role": "user", "content": "Player action"}],
+        contract=ResponseContract("dm-narrative", "v1", DMNarrative),
+        provider="openrouter",
+        model="m:free",
+        destination_fingerprint="test:destination",
+        role="dm",
+        logical_result_id="result-1",
+        output_limit=OutputLimit(500),
+    )
+
+
+@pytest.mark.asyncio
+async def test_typed_dm_send_is_reserved_traced_and_counted_once(tmp_path) -> None:
+    provider = AsyncMock()
+    receipt = RawGenerationReceipt(text='{"text":"The square is quiet."}')
+    provider.send.return_value = receipt
+    ledger = RequestLedger(tmp_path / "typed.jsonl", budget=1)
+    trace = SuiteProvider(
+        provider, ledger, key="trial", case="dm", model="m:free", run=0, commit="commit", ceiling=1
+    )
+    request = _generation_request()
+
+    result = await trace.send(request)
+
+    assert result is receipt
+    assert provider.send.await_count == trace.count == ledger.spent == 1
+    row = ledger.results()[0]
+    assert row.status == "ok"
+    assert row.request["identity"] == request.identity.digest
+    assert row.request["session_affinity"] is None
+    assert row.response["text"] == receipt.text
 
 
 async def test_parallel_actor_requests_are_reserved_and_captured_individually(tmp_path):

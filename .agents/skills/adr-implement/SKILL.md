@@ -1,122 +1,173 @@
 ---
 name: adr-implement
 description: >-
-  Implement an already-designed ADR for SAGA — the half that starts where $adr stops. Runs the S0 pre-code design pass, sets up the sprint branch topology, drives each sprint TDD-first, and reconciles the ADR against what the code actually forced. Use when the owner says "implement ADR 0003", "let's do S2 of 0010", "start the 0012 sprints". NOT for designing: an undecided fork goes back to $adr.
+  Implement an owner-approved, Proposed SAGA ADR using a bounded, reviewable,
+  evidence-driven workflow. Use when asked to implement or continue an ADR.
+  Design decisions belong to $adr; stop and ask the owner if implementation
+  evidence genuinely forces a new decision.
 ---
 
-# $adr-implement — build what an ADR decided
+# $adr-implement — implement the decision
 
-`$adr` ends at "propose a commit `docs(adr): add NNNN`". Everything after that lived only in
-three branches of git history and nowhere in writing. This skill is that half.
+This workflow starts after `$adr` has closed the design. The source ADR remains
+the sole authority for decisions. Implementation may reveal that a premise or
+contract is wrong; record evidence, but do not silently redesign.
 
-The mode is the **opposite** of `$adr`: there the owner decides everything and the skill never
-picks; here the skill decides constantly and writes code. The line between them is sharp — **if
-you hit a genuine design fork, stop and hand it back to `$adr`**, don't resolve it in an
-implementation commit.
+## 1. Preconditions and startup
 
-## 0. Preconditions
+- Read the complete Proposed ADR and its row in `docs/adr/README.md`. Check
+  status, gates, dependencies, and the relationship to other ADRs. WIP is not
+  implementable; Accepted is not reopened—propose a superseding ADR instead.
+- Read `AGENTS.md`, run the catchup workflow, and inspect the complete
+  authoritative source of every contract or behavior being changed. Summaries,
+  previous agent notes, and generated ledgers are not substitutes for source.
+- Require explicit owner authorization for this implementation and any
+  separately authorized activity. Do not infer approval for external-provider
+  calls, catalog or environment probes, evaluations, pushing, merging, or
+  rebasing.
+- Before edits, establish the actual worktree, branch, last ten commits, status,
+  and baseline checks. Preserve pre-existing user changes; do not claim a clean
+  baseline if it was not verified.
+- The startup hook prints the actual worktree and branch, `git log -10
+  --oneline`, and `git status -sb`. Otherwise take that Git snapshot manually.
+  Never imply a hook or other enforcement exists when it does not.
+- Follow project branch rules by default. An implementation plan or explicit
+  owner instruction may override base, topology, commit heuristic, or check
+  cadence; do not hardcode a branch count, commit ceiling, or topology.
 
-- Status must be **Proposed** (design closed). **WIP** → not implementable, run `$adr` first.
-  **Accepted** → already done; a change needs a superseding ADR.
-- Check the ADR index for `Blocked by`. A gate that isn't met is a stop, not a warning.
-- Read the ADR **in full**, not just its §7 plan — the plan omits constraints stated in the
-  decisions.
+## 2. S0 — ground the plan in code
 
-## 1. S0 — the pre-code design pass
+Do not start implementation from the plan alone. Verify its claims against
+current code, schemas, tests, and consumers. Identify seams, affected contracts,
+risks, dependencies, and the checks each logical block needs. Resolve only
+unresolved configuration values or premises required to proceed, using the
+ADR's stated constraints and owner input; do not invent gameplay values.
 
-Never open an editor first. S0 is one commit and it pays for itself every time.
+Protect existing work and establish a baseline before changing files. Re-size
+the plan where repository evidence requires it, without revisiting closed
+design choices. If evidence forces a real design fork, stop and ask the owner;
+do not turn S0 into a second design interview.
 
-- **Ground the plan against live code.** The ADR was written before the code existed, so every
-  "today the engine does X" in it is a *prediction*. Verify each one with grep/Read. In ADR 0003
-  the plan called for rewiring an importance signal that turned out to read a key nothing ever
-  writes — there was no behaviour to port, and the sprint shrank to a deletion.
-- **Close the config-value TODOs.** Most Proposed ADRs defer numbers. Derive them where the ADR
-  gives you the means (0003's difficulty ladder was solved backwards from three spreads §A3
-  already declared verified), then put them to the owner with the **available Codex question
-  tool**, showing the actual YAML and trade-offs. Wait for the answer before proceeding.
-  Never invent a gameplay number silently.
-- **Resize the sprints.** §7 plans are written at design time and routinely undershoot. Measure
-  each sprint against the repo rule (a branch lands in six or seven commits at most) and **split
-  along a seam**, not by count — 0003's S2 split into S2a (data layer, no new tool) and S2b
-  (behaviour + removals). Say why in the ADR.
-- **Commit**: `docs(adr): NNNN S0 design pass — <what it fixed>`, touching the ADR, `TODO.md`
-  and `CHANGELOG.md` `### Internal`.
+## 3. Roles, coordination, and concurrency
 
-## 2. Branch topology
+Keep logical roles distinct: an orchestrator coordinates and reviews; a mapper
+traces contracts and consumers; an implementer changes code; an independent
+reviewer checks the result read-only. The orchestrator delegates ordinary
+implementation work and works directly only on unusually high-effort work.
+Resolve role availability and depth intent from the active harness and
+user-configured options for each run. Do not hardcode agent identifiers,
+model/provider names, or proprietary effort labels. Surface actual selections
+through the workflow controller; never silently substitute a default.
 
-The convention, one long-lived integration branch, one sub-branch
-per sprint, **one PR at the end**:
+Use adaptive, bounded parallelism within each worktree: start with two concurrent
+writers; allow up to three only for genuinely disjoint scopes and within the
+limit approved for this run. Mapping and review remain read-only. Serialize
+migrations and database tests unless they use genuinely disposable, isolated
+infrastructure.
 
-```
-main
- └── adr/NNNN-slug                     ← integration branch, off main
-      ├── adr/NNNN-s1-<slug>  ──▸ merge: sprint-1 <title> (ADR NNNN)
-      ├── adr/NNNN-s2-<slug>  ──▸ merge: sprint-2 <title> (ADR NNNN)
-      └── …
- ◂── one PR → main (merge commit, never squash)
-     then: docs(adr): flip NNNN to accepted on merge to main
-```
+Create isolated worktrees and private controllers automatically when independently
+implementable units need separate indexes or hook barriers; do not request
+repeated owner approval for that setup. Keep dependency interfaces and file
+ownership explicit, and integrate reviewed commits through verified local
+cherry-picks without inferring push, merge, rebase, or live-run authorization.
+Before any commit or hook, freeze every writer in that worktree; hooks may run
+its whole unit collection. Unrelated isolated worktrees may continue working.
+Each worktree records its own actual checks and receipts. Correctness and slop
+must be reviewed by a fresh, independent subagent that reads the source and
+requirements; the implementer must never review or approve its own changes.
 
-Sprint merges are **local `--no-ff`**, no PR each. Commit subjects carry `(ADR NNNN Sn)`.
-Sprints run **serially** unless two genuinely touch disjoint trees (a frontend-only sprint may
-run alongside a backend one) — parallelism on a solo repo buys nothing and costs conflicts.
+Keep reviews in the conversation and use concise tool verdicts, not repository
+review reports or handoff documents. The workflow controller maintains a
+minimal machine ledger at `<absolute-git-dir>/saga-workflow/state.json`
+(resolve the private Git directory; do not create a source-tree state file):
+block identifier and content hash, actual check command and exit status,
+reviewer session/verdict, and writer states. Reuse real chat/session references
+for finding details; the ledger supplements operational state only and never
+replaces or overrides the ADR or authoritative source evidence.
 
-## 3. Per sprint
+On resume, read the ADR, controller state, and actual Git state. Reconcile
+claims, content hashes, checks, and review freshness before writing. A prior
+summary is not proof. Do not create Markdown reports, scratch notes, or
+temporary handoff files.
 
-TDD first (std 1): the failing test before the implementation, integration on a real DB for core
-flows (std 5/11). Then, before merging the sprint:
+## 4. Implement each logical block
 
-- **Green *and* playable.** Each sprint must leave the suite green **and the game runnable** —
-  these are not the same check. ADR 0003's S1 was specified "backend, self-contained", but
-  changing the dice payload broke a required Zod field in the frontend: the suite stayed green
-  and the app would have rejected every turn. Grep the other stack for anything reading a
-  contract you changed.
-- **Run the suite repeatedly when randomness is involved.** A seeded engine hides order-dependent
-  flakes. 0003's exchange test failed ~1 run in 5 because a drawn-HP mook sometimes died to the
-  opening blow and so could not strike back — correct engine behaviour, wrong assumption in the
-  test.
-- **Run the full check, not the tests.** `mypy` and `knip` are CI gates that a passing suite
-  says nothing about. The commands are in AGENTS.md's Essential Commands; use them before every push.
-- **A migration is only verified against real data.** Test fixtures build the schema with
-  `create_all`, so no migration in this repo is exercised by the suite. A hand-built fixture reproduces your
-  assumption, not the database. Run it against a real dev database, and make the migration
-  fail loudly on anything it cannot map.
-- **Don't force a cleanup commit.** If the sprint's own removals *are* the dead code, deleting
-  them separately would leave the tree half-broken. Run the tools (`vulture`, `knip`), report
-  honestly when they find nothing, and say where the real dead code went.
+For each block:
 
-## 4. Reconcile the ADR — the step that only exists here
+1. For behavior or executable-code changes, write a focused failing test first.
+   Do not invent tests for documentation-only edits: review their source and
+   diff instead. Exercise real PostgreSQL for core flows and migrations only
+   with explicitly authorized, disposable infrastructure.
+2. Implement the minimum change that satisfies the test and ADR.
+3. Run pertinent tests, lint, and type checks. If related authored content or
+   fixtures changed, verify it is not stale and that consumers use the
+   authoritative contract.
+4. Review correctness and slop before accepting the block. For every addition,
+   identify its actual requirement or reader/consumer and a distinct regression
+   test. Reject duplicated fixtures with conflicting contracts, vacuous tests
+    of typed fields/defaults, speculative framework paths, unnecessary guards,
+    silent coercions, data loss, or inventions used to accept invalid outputs,
+    and duplicate validation. Do not reject intentional domain rules authorized
+    by the ADR. Ground exact official machine vocabulary in authoritative
+    sources where relevant.
+5. Review the exact frozen content, not an earlier snapshot. If review finds a
+   defect or slop, fix it and rerun pertinent checks and review.
 
-An ADR is a prediction about a codebase. Implementation is the only thing that tests it, and the
-findings are worthless in your head: **0003 gates six other ADRs**, whose authors will read its
-contracts as fact.
+Correctness and slop are semantic judgments, not guaranteed by procedure.
+Fresh content hashes, actual check receipts, and independent review improve
+traceability but do not prove quality. Seek independent review when another
+perspective could materially change the outcome.
 
-At the end of each sprint, run this checklist. Every one of these caught something real in 0003:
+Run checks appropriate to each block; do not run both stacks' full suites for
+every commit by default unless the owner explicitly requests them. At branch
+completion, run the full checks for both stacks and all applicable gates from
+`AGENTS.md`, including `mypy`, `knip`, coverage, or build checks when required.
+Required failures or unverified checks mean the branch is not green. Focused
+checks are not a substitute for full gates at completion.
 
-1. **Contract** — did a signature/field/shape in the ADR survive contact? (`heal(target, …)`
-   could not express its own §B7b scene guard; it needed a `healer`.)
-2. **False premise** — did an "already exists / already does X" claim turn out untrue? (the
-   importance combat bonus reads a key nothing writes.)
-3. **Vocabulary collision** — does a term mean something different in the code than in the ADR?
-   (§B3 said the statblock is "mutable"; in this codebase that set means *writable by the LLM's
-   `update_npc`* — the opposite of what the ADR wanted.)
-4. **Missing guarantee** — did a mechanism the ADR leaned on actually provide what it assumed?
-   (the 0009 F2 resolver alone can't do §B4's typo guard; it reports a misspelling exactly as it
-   reports a new name.)
-5. **Cross-ADR spill** — did the sprint touch a surface another ADR is gated on, or contradict
-   one? Record it **there** (or in `TODO.md`), not only here.
+## 5. Commit and safety boundaries
 
-Write the findings as a **dated implementation note** inside the ADR, next to the decision they
-correct: `**Sn note (YYYY-MM-DD, implementation).** …`. State what the code forced and why —
-a note records a constraint discovered, never a new decision. A design change found mid-sprint
-is a `$adr` question, not a note.
+Keep each commit one logical change with its relevant tests and a concise
+`CHANGELOG.md` `[Unreleased]` entry, following `AGENTS.md`. Avoid filler
+commits and do not compress unrelated work into a large commit to satisfy a
+heuristic. Amendments, branch topology, and cadence follow the project rules
+unless the authorized plan explicitly says otherwise.
 
-Commit separately: `docs(adr): NNNN Sn note — <one line>` (precedent: `0d06660`).
+Do not bypass existing hooks. Freeze writers and review the exact staged
+content before committing. Every commit requires explicit correctness and slop
+verdicts for its exact staged scope. The gate verifies fresh proof for that
+scope and the writer barrier; it cannot guarantee semantic quality. No
+automatic push, merge, or rebase. A pause is not
+branch completion: record machine-verifiable state, known failures, and
+unverified work. A safe checkpoint may remain uncommitted; do not force a WIP
+commit or promise a green result.
 
-## 5. Close out
+## 6. Reconcile the ADR
 
-- Owner playtest in a clean chat; fixes land on the integration branch.
-- One PR → `main`, **merge commit** (the commit series is the point — never squash).
-- `docs(adr): flip NNNN to accepted on merge to main`, and update the row in
-  `docs/adr/README.md` (Status, Last movement).
-- Prune the `TODO.md` items the ADR closed; leave what it opened.
+At meaningful implementation checkpoints, compare evidence with the ADR for:
+
+1. Contract or signature changes forced by code.
+2. False premises about existing behavior or data.
+3. Vocabulary collisions with established code or official machine terms.
+4. Missing guarantees assumed by the design.
+5. Cross-ADR effects or gates.
+
+Only actual findings justify documentation changes. Add a dated implementation
+note next to the affected decision, in the form
+`**Sn note (YYYY-MM-DD, implementation).** …`, and update the index row when
+its status or last movement changes. A note records what implementation forced
+and why; it is not a new decision. Do not edit an Accepted ADR. If no finding
+forces documentation change, leave the ADR and index untouched.
+
+## 7. Completion and delivery
+
+Distinguish implementation completion from owner acceptance. Owner playtest,
+acceptance, and any live evaluation are separate activities requiring their
+own authorization; do not infer or perform them.
+
+Before declaring the branch complete, close all in-scope work, review the exact
+final frozen state, and pass required full gates. Record provenance
+and actual check results in controller state. Delivery, push, or merge occurs
+only when explicitly authorized and project workflow permits it. A partial
+checkpoint must state what is done, what remains, and what is red or
+unverified—never imply full completion.

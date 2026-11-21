@@ -9,6 +9,7 @@ from app.ai.credentials import (
     server_key_present,
 )
 from app.ai.embedding_config import get_embedding_default_space
+from app.ai.generation_profile import resolve_generation_format_settings
 from app.ai.router import (
     PROVIDER_NAMES,
     get_allowed_providers,
@@ -65,6 +66,7 @@ def _policy_payload() -> SettingsPolicy:
 
 def _settings_payload(user: User) -> dict:
     provider = effective_generation_provider(user)
+    generation_formats = resolve_generation_format_settings(user)
     return {
         "preferred_language": user.preferred_language,
         "generation_provider": user.generation_provider,
@@ -78,6 +80,9 @@ def _settings_payload(user: User) -> dict:
         "has_openrouter_key": has_personal_key(user, "openrouter"),
         "has_google_key": has_personal_key(user, "google"),
         "effective_provider": provider,
+        "generation_allow_json_mode_fallback": generation_formats.allow_json_mode_fallback,
+        "generation_allow_prompt_only_fallback": generation_formats.allow_prompt_only_fallback,
+        "generation_format_fingerprint": generation_formats.destination_fingerprint,
         "credential_source": credential_source(user, provider),
         "effective_embedding_provider": effective_embedding_provider(user),
         "embedding_credential_source": credential_source(user, effective_embedding_provider(user)),
@@ -100,6 +105,10 @@ async def update_settings(
     fields = updates.model_dump(exclude_unset=True)
     await guard_embedding_profile_change(db, user, fields)
 
+    profile_fields = {"generation_provider", "generation_model", "generation_local_endpoint"}
+    old_fingerprint = user.generation_format_fingerprint
+    profile_changed = any(field in fields for field in profile_fields)
+
     if fields.get("preferred_language"):
         user.preferred_language = fields["preferred_language"]
 
@@ -119,8 +128,32 @@ async def update_settings(
                 detail=f"Local endpoint `{endpoint}` is not configured on this instance",
             )
     for field, value in fields.items():
-        if field != "preferred_language":
+        if field not in {
+            "preferred_language",
+            "generation_allow_json_mode_fallback",
+            "generation_allow_prompt_only_fallback",
+        }:
             setattr(user, field, (value or "").strip() or None)
+
+    format_fields = {
+        "generation_allow_json_mode_fallback",
+        "generation_allow_prompt_only_fallback",
+    }
+    if profile_changed or format_fields.intersection(fields):
+        destination = resolve_generation_format_settings(user).destination_fingerprint
+        same_destination = destination is not None and old_fingerprint == destination
+        if not same_destination:
+            user.generation_allow_json_mode_fallback = None
+            user.generation_allow_prompt_only_fallback = None
+        if "generation_allow_json_mode_fallback" in fields:
+            user.generation_allow_json_mode_fallback = fields[
+                "generation_allow_json_mode_fallback"
+            ]
+        if "generation_allow_prompt_only_fallback" in fields:
+            user.generation_allow_prompt_only_fallback = fields[
+                "generation_allow_prompt_only_fallback"
+            ]
+        user.generation_format_fingerprint = destination
 
     await db.commit()
     return _settings_payload(user)

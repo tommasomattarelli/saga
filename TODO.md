@@ -17,17 +17,26 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 
 [ ] **playtest su `v0.3.0`**
 
-[~] **harness modelli (`backend/eval/`)**: fatto — 5 probe, scenari `empty`/`gold`/`bloat`/`contradiction`, colonna Δ, `--dry-run` per validare i prompt senza consumare quota. Il trascritto gold e' 25 turni ancorati al world reale, con lunghezza calibrata su produzione (1375 char/turno, misurati dal DB dev) e stato derivato replayando gli update negli handler veri. RESTA:
-    [ ] **sistemare cartella**: annidare sottocartella per comprensione, potare e sistemare dove serve
-    [ ] **ri-derivare `gold`** (34 chiamate, `uv run python eval/derive.py gold`): la prima derivazione e' CONTAMINATA — girata prima del fix di #77, il `global_summary` e' il ragionamento del modello troncato a meta' parola, e il fixture e' stato rimesso a `derived: false` finche' non si rifa'. Da rifare dopo **#78**, non prima: #77 toglie il troncamento ma il ragionamento puo' ancora finire dentro la risposta.
-    [ ] **`derive.py` — persistere tutto e riemettere senza chiamate**: oggi cancella il checkpoint a fine run, quindi i riassunti dei batch che il lettore non raggiunge (vedi #79) sono persi. Salvare batch summary + corpus completo e poter riscrivere il fixture dallo stato salvato: quando ADR 0017 cambiera' le probe, il fixture si aggiorna a costo zero invece che a 34 chiamate.
-    [ ] **probe canarino di memoria**: pianta un fatto nei `recalled_memories` che il modello non puo' inventare e verifica che lo usi. I tre canary sono gia' nel trascritto e il recall e' gia' autorato per probe; manca solo il check in `probes.py`. NB: il harness inietta il recall direttamente, quindi si puo' testare anche con #55 aperto.
-    [ ] varianti entropia in piu' (`rename`, `death`, `abandoned`, `language`): NON farle finche' `bloat`/`contradiction` non dicono qualcosa. `language` sarebbe la traduzione degli stessi 25 turni — l'unico modo controllato di mettere un numero su #51.
+[ ] **harness modelli (`backend/eval/`) — completamenti aperti**:
+    [ ] **probe canarino — consumo del globale**: verificare con fatto controllato presente solo nel checkpoint attivo che il turno DM successivo lo riceva nel contesto e lo usi senza recall autorato; il run 2026-11-20 genera 9 globali ma non dimostra il consumo (issue #115).
+    [ ] varianti entropia in piu' (`rename`, `death`, `abandoned`, `language`): attendere evidenza della pipeline integrata prima di progettare nuove varianti; i vecchi fixture `bloat`/`contradiction` sono ritirati, la traduzione controllata resta una possibile misura di #51.
     NB: non aggiungere probe sulla disciplina combat, ADR 0003 ha rimosso `start_combat`.
-    **Ripreso in PR 1 (2026-10-27)**: scenari catturati/ricostruiti separati dal `gold` contaminato, ledger giornaliero e checkpoint before/after; `npc_followup` resta necessario anche con 0017, perche' i marker non impediscono parafrasi nella prosa libera.
+    **`npc_followup` resta necessario anche con ADR 0017**: i marker non impediscono parafrasi nella prosa libera.
 
-[ ] **granularita' dei knob di memoria**: gli hardcode di `max_tokens` sono andati con #77, ma resta che compressione, estrazione fatti e global summary condividono un solo `memory_compression` pur avendo output di taglia molto diversa. Splittare quando ci sara' una ragione misurata, non prima — oggi il tetto e' generoso per tutti e tre e `finish_reason` intercetta chi lo sfonda. --> VERIFICARE
-[ ] **estrazione fatti a batch invece che per turno** (feature, non ADR — e' una manopola, non uno sprint): oggi ogni turno viene *spremuto* anche quando non e' successo niente, da cui fatti-rumore tipo "Lyra stops pretending to watch the tree line". Una chiamata ogni N turni sui turni grezzi lascia al modello lo spazio di scegliere cosa merita, e costa 3 chiamate invece di 25. N configurabile, cap dei fatti idem (std 14). NB: cambia *quando* gira l'estrazione in produzione (oggi e' fire-and-forget dopo ogni turno), e i fatti perdono l'attribuzione precisa al turno. Imparentata con "summarization per scena" piu' sotto.
+## follow-up qualità memoria ADR 0020 S6 — baseline n=3 (2026-11-20)
+
+[ ] **calibrazione `critical`**: dopo il tuning compaiono 1/2/1 fatti `critical` nei tre run, sempre su t34/quest della chiave, ma il cambiamento di fiducia `-20 → -12` e' `critical` solo in run-2; rendere stabile la regola "promessa centrale risolta + quest + relazione" senza alzare tutto a `critical`.
+
+[ ] **copertura t3/t4 nei facts**: il movimento rifiutato di t3 e il `hard_failure` di t4 sono nei summary 3/3 ma nei facts specialistici solo in run-1 (`rec1` F3/F4); run-2 e run-3 restano a 2 fatti su t1/t2. Decidere se i fallimenti significativi devono essere fatti ricercabili, non solo prosa del summary.
+
+[ ] **attribution instabile**: t19 (venditore) e' `statement` con `attribution:[0]` in run-1/2 ma `occurrence` senza attribuzione in run-3; t42 (warning) e' l'inverso. Il testo dice spesso "attributed to Lyra", ma il campo strutturato non e' costante da run a run.
+
+[ ] **boilerplate identico nei globali**: l'incipit della promessa e' byte-identico in 8/9 checkpoint in run-1 e run-2 e in 9/9 in run-3; variare la formulazione mantenendo i fatti, per ridurre rumore e token.
+
+[ ] **ordine cronologico dei globali**: run-1 e run-2 presentano inversioni minori (eventi di t3/t4 in coda, t5 prima di t3) nelle liste; run-3 e' piu' ordinato. Il prompt gia' chiede l'ordine cronologico, ma non e' stabile su n=3.
+
+[ ] **contesto identitario nel sidecar**: lo specialistico conserva `who_am_i`/Shrine of First Light/Thornhaven in tutte e 3 le run, il sidecar mai (0/3). Dato che il contesto e' presente nei delta `before` delle fonti, valutare se aggiungerlo al contratto unified prima di riconsiderare la variante.
+
 [ ] **normalizzazione `character_data.abilities`** (residuo di 80fe1ec, owner: `0010-F1`): restano **tre convenzioni divergenti** sulle stesse chiavi — il FE salva nomi pieni lowercase (`{strength, dexterity, …}`, `class-presets.ts`), `core/attack.py:50` e `core/dm/dm_tools_executor.py:191` mappano `"DEX"` → `"dexterity"`, `prompts/dm.py:57` legge flat `char_data["dex"]` che **non e' mai popolato** (il blocco `<abilities>` non compare mai nel prompt reale). Il dado e' stato allineato; il resto no. Normalizzare a un punto unico quando 0010-F1 ritipizza `character_data` con Pydantic.
 [ ] **lo stato di runtime non e' tipizzato da nessuna parte, e ogni chiave morta sta li'** (audit 2026-08-04). La linea esiste gia' nel repo: il **contenuto autorato** e' Pydantic (`world.py`, `npc.py`, `npc_class.py`, `npc_fields.py`, `psychology.py`) e non ha una sola chiave morta; lo **stato di runtime** (`character_data`, `world_state`) e' dict libero e le ha tutte. Candidati, in ordine: (1) **`character_data`** — lo schema esiste gia' ma scritto in TypeScript (`types/index.ts:25`) e non applicato in Python, cioe' un contratto che una sola sponda rispetta; owner `0010-F1`. (2) **`world_state` al confine, non nella scala** — le rung lavorano per definizione su forme vecchie, quindi si tipizza l'ingresso/uscita sostituendo `ALLOWED_WORLD_STATE_KEYS` (oggi controlla i nomi e non i tipi, e infatti non ha fermato niente). **NON** tipizzare `traits` e gli assi `psychology`: sono aperti per progetto (tassonomia autorata dal mondo, 0005/0009).
 [ ] **le fixture scritte a mano certificano bachi (VERIFICARE, non ricordo cosa fosse)** (audit 2026-08-04, deciso: si fa DOPO la scelta sulla tipizzazione qui sopra, cosi' il registro si progetta una volta sola). Il pattern: il test si costruisce lo stato di input E asserisce sulla resa in output, quindi la fixture e' una **seconda definizione dello schema** che nessuno confronta col produttore; quando divergono il test pinna la forma sbagliata. `test_dm_prompt_xml.py` scriveva `{"hp": 12, "max_hp": 20}` e asseriva `hp="12/20"`: verde, mentre la produzione (`{current, max}`) rendeva un repr di dict. Il rimedio scelto e' un **conformance check fixture↔seed**, non fixture derivate: derivarle toglie la possibilita' di *vedere* lo stato sotto test in ~30 file, per un difetto che ne colpisce pochi. NB decisivo per scriverlo: e' un check di **forma, non di uguaglianza** — una fixture deve poter avere valori diversi (eroe ferito, NPC morto, e' il suo scopo), non percorsi di chiave e tipi diversi. Entrambi i bachi erano violazioni di forma. Buco noto: copre solo le fixture registrate, e chi scrive un test puo' non registrarla — la tipizzazione quel buco non ce l'ha, quindi i due rimedi sono complementari e non alternativi. Stessa malattia dell'alembic qui sotto: il test fabbrica l'artefatto invece di esercitare il produttore. Gli standard 1 e 5 lo dicevano gia'.
@@ -43,11 +52,18 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 ## decisioni e direzioni dal punto 5 (2026-10-26)
 [ ] **dado in UI per attacchi e azioni del giocatore**: decidere se e come mostrare i tiri per attacchi, sneak, persuasione, arrampicata e altre prove; oggi `request_dice` espone il tiro, `attack` no, pur calcolandolo. Opzioni aperte: reveal, dettaglio espandibile o nessun dado visibile.
 [ ] **default e fallback sempre su OpenRouter**: direzione decisa dall'owner; scegliere gli ID dei modelli e precisare il comportamento del fallback prima di implementare, senza introdurre implicitamente una catena di modelli o il consenso alla server key.
-[ ] **estrazione fatti e input del recall, lavoro collegato**: preferenza per una sola PR con due branch consecutivi, prima estrazione a batch (voce gia' sopra), poi input/selezione del recall. Tenere separati commit e verifiche dei due passaggi; criteri e parametri restano da progettare.
+[ ] **input e selezione del recall dopo ADR 0020**: produzione a batch consegnata; query arricchita e ranking restano da progettare separatamente, senza anticiparli nel cutover della memoria.
 
 ## avvertimenti operativi
 <!-- Cose che non stanno in nessun ADR e che ci si dimentica. -->
 [!] **vulture**: e' euristico. Se un falso positivo blocca una PR (route FastAPI, fixture pytest, `relationship` SQLAlchemy, attributi dinamici) **NON abbassare la soglia** — aggiungere un file whitelist (equivalente di `knip.json`). NB: a `--min-confidence 80` NON ha intercettato `decrypt_api_key`, funzione pubblica mai chiamata (vedi #65) — la soglia lascia passare proprio il caso che sarebbe servito.
+
+## follow-up fuori scope ADR 0020 (owner, 2026-11-12)
+
+[ ] **contratti API e pulizia locale**: valutare un formato errore comune per `detail` stringa e `{code,message}`, il rate limit di `/memory/retry`, la risposta tipizzata del journal e le docstring descrittive rimaste in journal/saves, senza allargare S6.
+[ ] **provider e recall**: riesaminare i default di metodo `gemini-2.5-pro`/`gpt-4o`, lo scope dei retry fra `generate`/`generate_with_tools`, il wrapper `validate_user_generation` e l'osservabilita' degli errori recall oggi convertiti in lista vuota.
+[ ] **compatibilita' dati e schema**: distinguere campi legacy esportati (`scene_summary`, `global_summary`, colonne di `MemoryFact`) da veri orfani prima di rimuoverli; verificare FK `saves.campaign_id`/ondelete, evoluzione di `SNAPSHOT_FORMAT` e conformita' SQL/ORM delle migrazioni memoria.
+[ ] **config e strumenti operatore**: valutare CORS configurabile, ritiro di `memory_capture.py` quando non serve piu' catturare sorgenti legacy e separazione degli import offline dalla lettura delle impostazioni applicative.
 
 ## infra / distribuzione
 [ ] debug con docker
@@ -68,7 +84,6 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 
 ## memoria
 [ ] summarization per "scena" (cambio location/combat) invece che a finestra fissa di turni; conservare i quotes[] dei dialoghi chiave [ai_rpg]
-[ ] idempotency guard sui background task (turns.py): campo chronicled_at su Turn per non rieseguire fact-extraction/compression [aidm]
 [ ] continuity_checklist: flag booleani machine-readable per NPC/location ("vivo: true", "sa_di_X: false") accanto alla prosa, per coerenza multi-sessione [aidm]
 
 ## combat
@@ -92,9 +107,6 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 [ ] **import campagne — futuro, non prioritario**: l'endpoint non esiste; distinto dall'import dei mondi, resta fuori dalle due PR di ADR 0019 e dal fix di #86.
 [ ] upload PDF lore homebrew → chunking + embedding su pgvector, associato a campagna, recuperato nel recall (riusa pgvector, non LanceDB) [dnd-llm-game]
 [ ] formalizzare lo schema "pacchetto campagna" export/import (aree/NPC/mostri/plot): estende export.py + pillar data-sovereignty [NEQ moduli drop-in]
-
-## concorrenza (minore)
-[ ] advisory lock per campagna sul turn handler: turn_number e' gia' atomico ma world_state ha una race last-writer-wins su turni concorrenti (stretta: e' single-user REST) [aidm]
 
 # ============================================================
 # SECONDARI / deferred — bassa priorita', alcuni legati a versioni future.

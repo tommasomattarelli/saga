@@ -74,7 +74,10 @@ class Attack(DmTool):
         )
         if result.error:
             return ToolResult(
-                description=result.error, world_state=world_state, char_data=char_data
+                description=result.error,
+                world_state=world_state,
+                char_data=char_data,
+                outcome="rejected",
             )
 
         if result.damage:
@@ -144,6 +147,7 @@ class Heal(DmTool):
                 description=f"{self.target} has no health the engine can track yet.",
                 world_state=world_state,
                 char_data=char_data,
+                outcome="rejected",
             )
 
         if not self._healer_is_in_scene(world_state, player_name):
@@ -151,6 +155,7 @@ class Heal(DmTool):
                 description=f"{self.healer} is not present in this scene and cannot heal.",
                 world_state=world_state,
                 char_data=char_data,
+                outcome="rejected",
             )
 
         if dm_heal_budget_left(world_state) <= 0:
@@ -158,6 +163,7 @@ class Heal(DmTool):
                 description="No more healing can be given today — narrate the wound instead.",
                 world_state=world_state,
                 char_data=char_data,
+                outcome="rejected",
             )
 
         hp = char_data.get("hp", {})

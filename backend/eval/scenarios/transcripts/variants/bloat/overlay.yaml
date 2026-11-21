@@ -19,24 +19,10 @@ base: gold
 kind: build-override
 
 description: >
-  The gold transcript rendered into a much larger prompt: a wider active window,
-  a longer global summary, less aggressive compression of older turns, and the
-  full recall set retained instead of the top few.
+  The gold transcript rendered with a wider active window, keeping more raw turns
+  in the prompt history.
 
 build:
-  # Raw turns kept in the message history instead of the production window.
   active_window_turns: 20
-
-  # Recalled memories injected. Production caps this hard (ADR 0002 moves the
-  # hardcoded limit=3 into config); here we keep everything the corpus offers.
-  recall_limit: 12
-
-  # Target length for the rolling global summary, in words. The production
-  # summariser is asked for something far terser.
-  global_summary_target_words: 600
-
-  # Batch size the older-turn summariser compresses over. Smaller batches mean
-  # more summaries, each less compressed, so more total text survives.
-  summary_batch_size: 2
 
 replace: []

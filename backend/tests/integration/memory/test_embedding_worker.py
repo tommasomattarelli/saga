@@ -11,6 +11,7 @@ from sqlalchemy import select
 from app import dependencies
 from app.memory import embedding_queue, embedding_worker
 from app.memory.embedding_lifecycle import ensure_campaign_embedding_index
+from app.memory.embedding_status import campaign_embedding_status
 from app.models.embedding_index import EmbeddingIndex, text_hash
 from app.models.embedding_index import EmbeddingRebuildState as State
 from app.models.memory_fact import MemoryFact
@@ -19,7 +20,6 @@ from app.models.source_embedding import (
     EmbeddingWorkState,
     SourceEmbedding,
 )
-from app.models.turn import Turn
 from tests.integration.memory.embedding_support import (
     DIMENSION,
     add_fact,
@@ -90,7 +90,7 @@ async def test_worker_embeds_and_activates_the_target(db_session, monkeypatch) -
     assert index.dimension == DIMENSION
     assert provider.calls["embed"] == 1
     rows = await _sources(db_session, index.id)
-    assert len(rows) == 2
+    assert len(rows) == 1
     assert all(row.work_state is EmbeddingWorkState.EMBEDDED for row in rows)
 
 
@@ -124,7 +124,7 @@ async def test_new_source_after_cutover_uses_the_active_completed_index(
     assert refreshed is not None and refreshed.id == active_id
     assert refreshed.rebuild_state is State.COMPLETED
     rows = await _sources(db_session, active_id)
-    assert len(rows) == 2
+    assert len(rows) == 1
     assert all(row.work_state is EmbeddingWorkState.EMBEDDED for row in rows)
 
 
@@ -136,7 +136,7 @@ async def test_provider_failure_stops_the_job_without_false_progress(
 
     install_provider(monkeypatch, embed=explode)
     user, campaign = await create_user_campaign(db_session)
-    await add_turn(db_session, campaign, 1, "A quiet road.")
+    await add_fact(db_session, campaign, 1, "A quiet road.")
     await db_session.commit()
     await ensure_campaign_embedding_index(db_session, user_id=user.id, campaign_id=campaign.id)
 
@@ -158,7 +158,7 @@ async def test_provider_failure_stops_the_job_without_false_progress(
 
 async def test_stolen_claim_discards_the_late_result(db_session, monkeypatch) -> None:
     user, campaign = await create_user_campaign(db_session)
-    await add_turn(db_session, campaign, 1, "A quiet road.")
+    await add_fact(db_session, campaign, 1, "A quiet road.")
     await db_session.commit()
     install_provider(monkeypatch)
     await ensure_campaign_embedding_index(db_session, user_id=user.id, campaign_id=campaign.id)
@@ -195,7 +195,7 @@ async def test_stolen_claim_discards_the_late_result(db_session, monkeypatch) ->
 async def test_expired_lease_is_resumed_by_the_scan(db_session, monkeypatch) -> None:
     install_provider(monkeypatch)
     user, campaign = await create_user_campaign(db_session)
-    turn = await add_turn(db_session, campaign, 1, "A quiet road.")
+    fact = await add_fact(db_session, campaign, 1, "A quiet road.")
     index = _manual_index(campaign.id, rebuild_state=State.RUNNING)
     index.claim_token = uuid.uuid4()
     index.claimed_at = datetime.now(UTC) - timedelta(hours=1)
@@ -205,9 +205,9 @@ async def test_expired_lease_is_resumed_by_the_scan(db_session, monkeypatch) -> 
         SourceEmbedding(
             index_id=index.id,
             campaign_id=campaign.id,
-            source_type=EmbeddingSourceType.TURN,
-            turn_id=turn.id,
-            text_hash=text_hash(turn.summary or ""),
+            source_type=EmbeddingSourceType.MEMORY_FACT,
+            memory_fact_id=fact.id,
+            text_hash=text_hash(fact.content),
             work_state=EmbeddingWorkState.PENDING,
         )
     )
@@ -222,7 +222,7 @@ async def test_expired_lease_is_resumed_by_the_scan(db_session, monkeypatch) -> 
 
 async def test_changed_text_discards_the_stale_vector(db_session, monkeypatch) -> None:
     user, campaign = await create_user_campaign(db_session)
-    turn = await add_turn(db_session, campaign, 1, "Original text.")
+    fact = await add_fact(db_session, campaign, 1, "Original text.")
     await db_session.commit()
     calls = {"count": 0}
 
@@ -230,8 +230,8 @@ async def test_changed_text_discards_the_stale_vector(db_session, monkeypatch) -
         calls["count"] += 1
         if calls["count"] == 1:
             async with dependencies.async_session() as db:
-                stored = await db.get(Turn, turn.id)
-                stored.summary = "Changed text."
+                stored = await db.get(MemoryFact, fact.id)
+                stored.content = "Changed text."
                 await db.commit()
             return SimpleNamespace(vectors=[[1.0] * DIMENSION for _ in texts], dimension=DIMENSION)
         return SimpleNamespace(vectors=[[2.0] * DIMENSION for _ in texts], dimension=DIMENSION)
@@ -251,7 +251,7 @@ async def test_changed_text_discards_the_stale_vector(db_session, monkeypatch) -
 
 async def test_late_fact_is_embedded_before_cutover(db_session, monkeypatch) -> None:
     user, campaign = await create_user_campaign(db_session)
-    await add_turn(db_session, campaign, 1, "A quiet road.")
+    await add_fact(db_session, campaign, 1, "A quiet road.")
     await db_session.commit()
     observed: dict[str, object] = {"inserted": False, "active_during_call": "unset"}
 
@@ -294,7 +294,7 @@ async def test_late_fact_is_embedded_before_cutover(db_session, monkeypatch) -> 
 
 async def test_cancel_during_the_call_fences_the_result(db_session, monkeypatch) -> None:
     user, campaign = await create_user_campaign(db_session)
-    await add_turn(db_session, campaign, 1, "A quiet road.")
+    await add_fact(db_session, campaign, 1, "A quiet road.")
     await db_session.commit()
     install_provider(monkeypatch)
     await ensure_campaign_embedding_index(db_session, user_id=user.id, campaign_id=campaign.id)
@@ -334,7 +334,7 @@ async def test_deleting_the_campaign_during_the_call_leaves_no_orphans(
     db_session, monkeypatch
 ) -> None:
     user, campaign = await create_user_campaign(db_session)
-    await add_turn(db_session, campaign, 1, "A quiet road.")
+    await add_fact(db_session, campaign, 1, "A quiet road.")
     await db_session.commit()
     install_provider(monkeypatch)
     await ensure_campaign_embedding_index(db_session, user_id=user.id, campaign_id=campaign.id)
@@ -367,7 +367,7 @@ async def test_no_db_session_spans_a_provider_call(
     db_session, monkeypatch, assert_no_db_held
 ) -> None:
     user, campaign = await create_user_campaign(db_session)
-    await add_turn(db_session, campaign, 1, "A quiet road.")
+    await add_fact(db_session, campaign, 1, "A quiet road.")
     await db_session.commit()
 
     async def embed(texts, resolved):
@@ -395,3 +395,49 @@ async def test_empty_campaign_activates_without_a_paid_probe(db_session, monkeyp
     assert index.rebuild_state is State.COMPLETED
     assert index.dimension is None
     assert provider.calls["embed"] == 0
+
+
+async def test_historical_pending_turn_does_not_block_cutover_or_provider(db_session, monkeypatch):
+    provider = install_provider(monkeypatch)
+    user, campaign = await create_user_campaign(db_session)
+    turn = await add_turn(db_session, campaign, 1, "Historical turn summary.")
+    index = _manual_index(campaign.id, rebuild_state=State.RUNNING)
+    db_session.add(index)
+    await db_session.flush()
+    historical = SourceEmbedding(
+        index_id=index.id,
+        campaign_id=campaign.id,
+        source_type=EmbeddingSourceType.TURN,
+        turn_id=turn.id,
+        text_hash=text_hash(turn.summary or ""),
+        work_state=EmbeddingWorkState.PENDING,
+    )
+    db_session.add(historical)
+    await db_session.commit()
+
+    await embedding_worker.process_campaign_once(campaign.id)
+
+    active = await _active(db_session, campaign.id)
+    assert active is not None and active.id == index.id
+    assert active.rebuild_state is State.COMPLETED
+    assert historical.work_state is EmbeddingWorkState.PENDING
+    assert provider.calls["embed"] == 0
+    assert (
+        await embedding_queue.enqueue_source_embedding(
+            db_session,
+            campaign_id=campaign.id,
+            source_type=EmbeddingSourceType.TURN,
+            source_id=turn.id,
+            source_text=turn.summary,
+        )
+        == []
+    )
+    status = await campaign_embedding_status(db_session, user_id=user.id, campaign_id=campaign.id)
+    assert status["progress"] == {
+        "total": 0,
+        "embedded": 0,
+        "pending": 0,
+        "failed": 0,
+        "turn_total": 0,
+        "fact_total": 0,
+    }

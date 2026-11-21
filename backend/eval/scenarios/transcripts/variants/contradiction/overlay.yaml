@@ -13,9 +13,8 @@
 #
 # In each turn the player asserts something the transcript has already
 # established otherwise, and the recorded DM lets part of it stand. The
-# contradictions therefore survive into the derived summaries and the fact
-# corpus — which is the point. Production contradictions are not in the raw turns
-# a probe sees; they are baked into the compressed context underneath.
+# The final turn remains inside the active window and carries one contradiction
+# into the prompt history; earlier changes remain part of the authored source arc.
 
 name: contradiction
 base: gold
@@ -82,7 +81,7 @@ replace:
 
   # Gold t25: boards levered off from inside, nails drawn and stacked. Here the
   # player asserts the opposite reading mid-sentence and the recorded narration
-  # accommodates it, so the wrong version is what reaches the summary.
+  # accommodates it, so the prompt history contains the wrong version.
   - n: 25
     player: "Something broke out through these boards from the inside — no, from outside, someone smashed their way in. I look at the splinters."
     dm: >

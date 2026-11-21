@@ -5,7 +5,6 @@ saves and export are the production ones.
 """
 
 import uuid
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import select, update
@@ -15,6 +14,7 @@ from app.ai.router import get_user_generation
 from app.models.campaign import Campaign
 from app.models.save import Save
 from app.security.auth import decode_token
+from tests.action_support import action_body
 
 pytestmark = pytest.mark.asyncio
 
@@ -76,14 +76,10 @@ async def _create_campaign(auth_client, name: str = "Quest Campaign") -> dict:
 
 
 async def _take_turn(auth_client, campaign_id: str, action: str = "I look around") -> dict:
-    with (
-        patch("app.api.turns.extract_and_store_facts", new=AsyncMock()),
-        patch("app.api.turns._background_compression", new=AsyncMock()),
-        patch("app.api.turns._background_global_summary", new=AsyncMock()),
-    ):
-        response = await auth_client.post(
-            f"/api/campaigns/{campaign_id}/action", json={"action": action}
-        )
+    response = await auth_client.post(
+        f"/api/campaigns/{campaign_id}/action",
+        json=await action_body(auth_client, campaign_id, action),
+    )
     assert response.status_code == 200, response.text
     return response.json()
 
@@ -95,7 +91,9 @@ async def _stored_quests(db_session, campaign_id: str) -> dict:
         select(Campaign).where(Campaign.id == uuid.UUID(campaign_id))
     )
     assert campaign is not None
-    return campaign.quests
+    quests = campaign.quests
+    await db_session.commit()
+    return quests
 
 
 async def _autosave(db_session, campaign_id: str) -> tuple[uuid.UUID, dict]:
@@ -107,6 +105,7 @@ async def _autosave(db_session, campaign_id: str) -> tuple[uuid.UUID, dict]:
         )
     )
     save_id, snapshot = result.one()
+    await db_session.commit()
     return save_id, snapshot
 
 

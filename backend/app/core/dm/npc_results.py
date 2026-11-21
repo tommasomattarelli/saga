@@ -1,6 +1,9 @@
 from app.ai.npc_outcomes import NPCInteraction
 from app.ai.router import get_gameplay_config
 from app.core.dm.npc_context import NPCBeat
+from app.core.dm.operation_recorder import OperationRecorder
+from app.memory.operation_delta import OperationState
+from app.memory.operation_results import MessageResult
 from app.memory.updater import apply_typed_updates
 
 
@@ -22,7 +25,13 @@ def apply_actor_effects(
     return apply_typed_updates(world_state, char_data, [update])
 
 
-def flush_interaction_history(world_state: dict, beats: list[NPCBeat]) -> None:
+def flush_interaction_history(
+    world_state: dict,
+    beats: list[NPCBeat],
+    operations: OperationRecorder | None = None,
+    *,
+    step: int | None = None,
+) -> None:
     entries: dict[str, list[str]] = {}
     for beat in beats:
         for result in beat.results:
@@ -34,5 +43,17 @@ def flush_interaction_history(world_state: dict, beats: list[NPCBeat]) -> None:
     for npc_id, interactions in entries.items():
         npc = world_state.get("npcs", {}).get(npc_id)
         if npc is not None:
+            before = OperationState.capture(world_state, {}, {})
             history = [*npc.get("last_interactions", []), "\n".join(interactions)]
             npc["last_interactions"] = history[-kept:] if kept > 0 else []
+            if operations is not None:
+                operations.append(
+                    origin="finalization",
+                    name="record_interactions",
+                    arguments={"npc_id": npc_id},
+                    outcome="succeeded",
+                    step=step,
+                    before=before,
+                    after=OperationState.capture(world_state, {}, {}),
+                    result=MessageResult(description="Stored NPC interaction history."),
+                )
