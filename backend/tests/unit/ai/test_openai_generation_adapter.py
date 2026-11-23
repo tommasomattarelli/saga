@@ -200,6 +200,20 @@ async def test_send_serializes_each_explicit_format_without_fallback(
 
 
 @pytest.mark.asyncio
+async def test_send_with_prompt_only_and_tools_emits_tools_without_response_format() -> None:
+    request = make_request(FormatMode.PROMPT_ONLY, tools=_TOOLS)
+
+    async with provider_with_response(completion()) as (provider, calls, _):
+        await provider.send(request)
+
+    body = json.loads(calls[0].content)
+    assert body["tools"] == _TOOLS
+    assert body["tool_choice"] == "auto"
+    assert "response_format" not in body
+    assert "schema" in body["messages"][0]["content"]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("payload", "expected"),
     [

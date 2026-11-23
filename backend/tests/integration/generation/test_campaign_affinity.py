@@ -191,7 +191,7 @@ async def test_real_concurrent_campaigns_bind_dm_actors_without_client_mutation(
     for campaign in campaigns:
         bodies = [json.loads(r.content) for r in requests if r.headers["x-session-id"] == campaign]
         assert len([b for b in bodies if "tools" in b]) == 2
-        assert len([b for b in bodies if "response_format" in b]) == 3
+        assert len([b for b in bodies if "response_format" in b]) == 1
         assert len([b for b in bodies if "tools" not in b and "response_format" not in b]) == 0
     before = len(requests)
     assert (

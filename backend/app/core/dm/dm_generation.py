@@ -77,6 +77,7 @@ def build_dm_generation_request(
             separators=(",", ":"),
         ).encode()
     ).hexdigest()
+    declarations = generation_tool_declarations(allowed_tools)
     return GenerationRequest.create(
         system_prompt,
         messages,
@@ -87,8 +88,8 @@ def build_dm_generation_request(
         role="dm",
         logical_result_id=logical_result_id,
         output_limit=OutputLimit(configured_ceiling=config.max_tokens),
-        tool_declarations=generation_tool_declarations(allowed_tools),
-        format_mode=FormatMode.STRICT_NATIVE,
+        tool_declarations=declarations,
+        format_mode=FormatMode.PROMPT_ONLY if declarations else FormatMode.STRICT_NATIVE,
         allow_json_mode_fallback=config.allow_json_mode_fallback,
         allow_prompt_only_fallback=config.allow_prompt_only_fallback,
         session_affinity=session_affinity,
@@ -106,13 +107,25 @@ def generation_tool_declarations(allowed_tools: set[str]) -> list[dict[str, obje
 
 def validate_dm_narrative(
     receipt: RawGenerationReceipt,
+    *,
+    allow_plain_prose: bool = False,
 ) -> ValidatedResponse[DMNarrative]:
     if receipt.text is None or not receipt.text.strip():
         if receipt.tool_calls:
             return ValidatedResponse(DMNarrative(text=None), Normalization.NONE)
         raise ResponseValidationError((ValidationDiagnostic(DiagnosticCode.MISSING, ("text",)),))
 
-    result = validate_response(receipt.text, DM_NARRATIVE_CONTRACT)
+    try:
+        result = validate_response(receipt.text, DM_NARRATIVE_CONTRACT)
+    except ResponseValidationError as error:
+        if (
+            not allow_plain_prose
+            or not any(item.code == DiagnosticCode.INVALID_JSON for item in error.diagnostics)
+            or error.normalization is not Normalization.NONE
+            or receipt.text.lstrip().startswith(("{", "["))
+        ):
+            raise
+        result = ValidatedResponse(DMNarrative(text=receipt.text.strip()), Normalization.NONE)
     if not receipt.tool_calls and not (result.model.text or "").strip():
         raise ResponseValidationError(
             (ValidationDiagnostic(DiagnosticCode.MISSING, ("text",)),),
@@ -130,7 +143,12 @@ def dm_response_validator(
         or request.contract.schema_hash != DM_NARRATIVE_CONTRACT.schema_hash
     ):
         raise ResponseValidationError((ValidationDiagnostic(DiagnosticCode.INVALID_JSON, ()),))
-    validated = validate_dm_narrative(receipt)
+    validated = validate_dm_narrative(
+        receipt,
+        allow_plain_prose=(
+            request.format_mode is FormatMode.PROMPT_ONLY and bool(request.tool_declarations)
+        ),
+    )
     for call in receipt.tool_calls:
         canonical_tool_arguments(call, request)
     return validated
