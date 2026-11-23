@@ -72,3 +72,5 @@ playwright-report/
 
 # OpenCode local dev plugin state
 .opencode/state/
+
+.env.debug

@@ -322,6 +322,10 @@ Verified evidence and limits:
 
 Implementation checks: serialize actual mixed/tool-only/text-only bodies for each pinned SDK; validate missing/empty/present narrative cases and verify no extra model generation or hidden fallback. Record runtime incompatibilities truthfully. Endpoint metadata and live enforcement checks still require their own authorization; none are authorized here.
 
+**Owner decision note (2026-11-23).** Live playtest on OpenRouter with `nvidia/nemotron-3.5-super-vl:free` showed that a strict `response_format` JSON schema sent together with native tool declarations suppresses every tool call: the response carries `{"text": ""}` with `finish_reason: stop` while the model's reasoning explicitly plans a tool call. `provider.require_parameters: true` filters endpoint capabilities, not schema/tool interaction, so it did not prevent this. The owner decided that tool-enabled DM steps select `FormatMode.PROMPT_ONLY` unconditionally, regardless of `allow_prompt_only_fallback` (YAML default false): the canonical schema stays in the system prompt, tool declarations stay on the wire, and the request omits `response_format`. No provider-native strict enforcement is claimed for these steps.
+
+This relaxes G1's "no prose exception implicitly" and D3's explicit-permission rule for this callsite only: when the JSON envelope fails to parse, plain non-empty prose is accepted as the narrative after a local non-emptiness check, not as a contract-validated `DMNarrative`. Malformed envelopes (JSON objects, arrays, code fences) remain rejected, and tool calls are still preflight-validated. The typed contract and full validation remain authoritative on every other generative path, including tool-free DM steps, NPC and memory. `derive()` now permits same-mode re-derivation without fallback consent, which the correction loop needs once the base mode is prompt-only.
+
 ### G2. Schema fidelity and local constraints
 
 Closed decisions:
