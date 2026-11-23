@@ -15,6 +15,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 ### Highlights
 
+- [Gameplay] DM tool calls work again: tool-enabled turns emit prose and tools in one response and accept plain prose (ADR 0021) (#118).
 - [Memory & AI] Structured responses now get bounded in-app correction, with format fallbacks bound to the effective provider destination (ADR 0021).
 - [Memory & AI] Memory prompts now mark defining resolutions as critical and translate internal metadata into story language.
 - [Gameplay] Retried actions preserve their request identity and reject stale histories instead of applying a second turn.

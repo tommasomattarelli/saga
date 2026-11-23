@@ -104,6 +104,7 @@ def make_request(**changes: object) -> GenerationRequest:
         effective_schema=cast(dict[str, JsonValue] | None, values.get("effective_schema")),
         allow_json_mode_fallback=cast(bool, values["allow_json_mode_fallback"]),
         allow_prompt_only_fallback=cast(bool, values["allow_prompt_only_fallback"]),
+        format_mode=cast(FormatMode | None, values.get("format_mode")),
     )
 
 
@@ -233,6 +234,19 @@ def test_boolean_fallback_permissions_preserve_explicit_authorization() -> None:
         ).format_mode
         is FormatMode.JSON_MODE
     )
+
+
+def test_same_mode_rederivation_does_not_require_fallback_authorization() -> None:
+    request = make_request(
+        format_mode=FormatMode.PROMPT_ONLY,
+        allow_prompt_only_fallback=False,
+    )
+
+    derived = request.derive(messages=request.messages, format_mode=FormatMode.PROMPT_ONLY)
+
+    assert derived.format_mode is FormatMode.PROMPT_ONLY
+    with pytest.raises(ValueError, match="not authorized"):
+        request.derive(messages=request.messages, format_mode=FormatMode.JSON_MODE)
 
 
 def test_output_limit_uses_known_lower_limit_only_when_provided() -> None:

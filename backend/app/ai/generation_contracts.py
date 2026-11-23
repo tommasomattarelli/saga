@@ -204,10 +204,11 @@ class GenerationRequest:
     ) -> GenerationRequest:
         if format_mode is not None and not isinstance(format_mode, FormatMode):
             raise TypeError("A derived request requires an explicit format mode.")
-        if format_mode is FormatMode.JSON_MODE and not self.allow_json_mode_fallback:
-            raise ValueError("JSON mode fallback is not authorized.")
-        if format_mode is FormatMode.PROMPT_ONLY and not self.allow_prompt_only_fallback:
-            raise ValueError("Prompt-only fallback is not authorized.")
+        if format_mode is not None and format_mode is not self.format_mode:
+            if format_mode is FormatMode.JSON_MODE and not self.allow_json_mode_fallback:
+                raise ValueError("JSON mode fallback is not authorized.")
+            if format_mode is FormatMode.PROMPT_ONLY and not self.allow_prompt_only_fallback:
+                raise ValueError("Prompt-only fallback is not authorized.")
         return replace(
             self,
             _messages_json=_snapshot_messages(messages),
