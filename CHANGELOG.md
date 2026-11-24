@@ -32,7 +32,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Added an owner-only ADR rebind operation with reviewed hash compare-and-swap that invalidates prior workflow proof.
 - Extended owner-controlled workflow scope to isolated worktrees and per-worktree review receipts.
 - Added offline fault-injection recovery coverage and ordered global checkpoints in campaign exports.
-- Recorded the unproven runtime consumption of global checkpoints as a memory-canary follow-up.
+- Verified global memory checkpoint consumption on a 21-turn playtest; the canary survived into the global document and was used by a later DM turn.
+- Raised the memory producer claim deadline to 300 seconds and lease to 360 seconds so reasoning-heavy fact extraction no longer ends in uncertain sends.
 - Reorganized backend evaluation tools and tests, indexed their guide, and clarified harness-independent skills and owner authorization for external evaluation calls.
 - Recorded ADR 0020 from the owner-interview plan for batched memory, durable production and save-aware histories, with explicit offline and live-evaluation gates.
 - Added immutable, strictly validated memory-production policy contracts without adopting campaign defaults or changing the public creation path (ADR 0020 S1).

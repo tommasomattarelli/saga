@@ -11,31 +11,23 @@
 
 Ordine di ripresa concordato (2026-10-20), prima di nuove funzionalita':
 
-[ ] **analisi prompt e cache — blocchi fissi/variabili**: mappare istruzioni, tool, stato, summary globale, summary precedenti, recall, dialogo e conversazione per massimizzare il prefisso riutilizzabile; valutare ordine dei blocchi e sliding window/compattazione senza congelare il mondo o rendere obsoleti i dati; misurare costi e qualità prima di modificare la produzione.
+[ ] **analisi prompt e cache — blocchi fissi/variabili + reasoning retention (F13/F15)**: mappare istruzioni, tool, stato, summary globale, summary precedenti, recall, dialogo e conversazione per massimizzare il prefisso riutilizzabile; valutare ordine dei blocchi e sliding window/compattazione senza congelare il mondo o rendere obsoleti i dati; misurare costi e qualità prima di modificare la produzione. Il reasoning del provider arriva nella raw response ma `raw_response.parse()` lo scarta e la history non ha un campo dedicato: valutare di conservare **solo il reasoning dello step corrente, per la durata del turno**, poi buttarlo, con toggle in config per debug, così il modello vede perché ha prodotto l'output nello step precedente invece di ripartire da zero. Verificare prima come fanno gli harness (OpenCode e simili).
 
 GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimangono i dettagli del backlog esistente.
 
-[ ] **playtest su `v0.3.0`**
-
 [ ] **harness modelli (`backend/eval/`) — completamenti aperti**:
-    [ ] **probe canarino — consumo del globale**: verificare con fatto controllato presente solo nel checkpoint attivo che il turno DM successivo lo riceva nel contesto e lo usi senza recall autorato; il run 2026-11-20 genera 9 globali ma non dimostra il consumo (issue #115).
     [ ] varianti entropia in piu' (`rename`, `death`, `abandoned`, `language`): attendere evidenza della pipeline integrata prima di progettare nuove varianti; i vecchi fixture `bloat`/`contradiction` sono ritirati, la traduzione controllata resta una possibile misura di #51.
-    NB: non aggiungere probe sulla disciplina combat, ADR 0003 ha rimosso `start_combat`.
     **`npc_followup` resta necessario anche con ADR 0017**: i marker non impediscono parafrasi nella prosa libera.
 
-## follow-up qualità memoria ADR 0020 S6 — baseline n=3 (2026-11-20)
-
-[ ] **calibrazione `critical`**: dopo il tuning compaiono 1/2/1 fatti `critical` nei tre run, sempre su t34/quest della chiave, ma il cambiamento di fiducia `-20 → -12` e' `critical` solo in run-2; rendere stabile la regola "promessa centrale risolta + quest + relazione" senza alzare tutto a `critical`.
-
-[ ] **copertura t3/t4 nei facts**: il movimento rifiutato di t3 e il `hard_failure` di t4 sono nei summary 3/3 ma nei facts specialistici solo in run-1 (`rec1` F3/F4); run-2 e run-3 restano a 2 fatti su t1/t2. Decidere se i fallimenti significativi devono essere fatti ricercabili, non solo prosa del summary.
-
-[ ] **attribution instabile**: t19 (venditore) e' `statement` con `attribution:[0]` in run-1/2 ma `occurrence` senza attribuzione in run-3; t42 (warning) e' l'inverso. Il testo dice spesso "attributed to Lyra", ma il campo strutturato non e' costante da run a run.
+## follow-up qualità memoria(2026-11-20)
 
 [ ] **boilerplate identico nei globali**: l'incipit della promessa e' byte-identico in 8/9 checkpoint in run-1 e run-2 e in 9/9 in run-3; variare la formulazione mantenendo i fatti, per ridurre rumore e token.
 
 [ ] **ordine cronologico dei globali**: run-1 e run-2 presentano inversioni minori (eventi di t3/t4 in coda, t5 prima di t3) nelle liste; run-3 e' piu' ordinato. Il prompt gia' chiede l'ordine cronologico, ma non e' stabile su n=3.
 
 [ ] **contesto identitario nel sidecar**: lo specialistico conserva `who_am_i`/Shrine of First Light/Thornhaven in tutte e 3 le run, il sidecar mai (0/3). Dato che il contesto e' presente nei delta `before` delle fonti, valutare se aggiungerlo al contratto unified prima di riconsiderare la variante.
+
+[ ] **volume fatti e deadline producer (playtest ADR 0020, F8/F9)**: con R8/B4/K2 e `facts.max_per_batch=6` sono usciti 6 fatti su 4 turni, di cui micro-delta di trust (±1), primo incontro e branch snap atmosferico — troppo rumore per batch cosi' corti. Valutare B=8, o max=3-4, o combinazione B=6/max=4, misurando con l'eval. Inoltre il deadline condiviso `jobs.request_timeout_seconds` copre summary+facts nella stessa claim: con questo modello free summary 25s + facts 95s sforano, i facts finiscono `uncertain` e la pubblicazione atomica non avviene (summary #2 generato ma mai nel prompt). Misurare la latenza per ruolo; il valore di config e' stato alzato a 300s (lease 360s) per le nuove campagne, ma le campagne gia' avviate hanno policy congelata e restano a 120s.
 
 [ ] **normalizzazione `character_data.abilities`** (residuo di 80fe1ec, owner: `0010-F1`): restano **tre convenzioni divergenti** sulle stesse chiavi — il FE salva nomi pieni lowercase (`{strength, dexterity, …}`, `class-presets.ts`), `core/attack.py:50` e `core/dm/dm_tools_executor.py:191` mappano `"DEX"` → `"dexterity"`, `prompts/dm.py:57` legge flat `char_data["dex"]` che **non e' mai popolato** (il blocco `<abilities>` non compare mai nel prompt reale). Il dado e' stato allineato; il resto no. Normalizzare a un punto unico quando 0010-F1 ritipizza `character_data` con Pydantic.
 [ ] **lo stato di runtime non e' tipizzato da nessuna parte, e ogni chiave morta sta li'** (audit 2026-08-04). La linea esiste gia' nel repo: il **contenuto autorato** e' Pydantic (`world.py`, `npc.py`, `npc_class.py`, `npc_fields.py`, `psychology.py`) e non ha una sola chiave morta; lo **stato di runtime** (`character_data`, `world_state`) e' dict libero e le ha tutte. Candidati, in ordine: (1) **`character_data`** — lo schema esiste gia' ma scritto in TypeScript (`types/index.ts:25`) e non applicato in Python, cioe' un contratto che una sola sponda rispetta; owner `0010-F1`. (2) **`world_state` al confine, non nella scala** — le rung lavorano per definizione su forme vecchie, quindi si tipizza l'ingresso/uscita sostituendo `ALLOWED_WORLD_STATE_KEYS` (oggi controlla i nomi e non i tipi, e infatti non ha fermato niente). **NON** tipizzare `traits` e gli assi `psychology`: sono aperti per progetto (tassonomia autorata dal mondo, 0005/0009).
@@ -90,8 +82,8 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 [ ] timeout esplicito per singola tool-call LLM in combat (oltre al recursion cap), con fallback "il turno prosegue" [llm-rpg] — NB ridimensionato da ADR 0003 B1: il combat non fa piu' chiamate LLM per le azioni nemiche; resta il timeout generico per tool-call
 
 ## prosa / output
-[ ] **formattazione della narrazione** (punto 5, 2026-10-26): l'owner segnala markdown e frammenti elencati poco leggibili (turno 9); verificare testo grezzo e rendering, poi decidere le convenzioni e se intervenire nel prompt, nel renderer o in uscita.
-[ ] **prompt tuning pass dedicato**: rivedere e calibrare i prompt DM/NPC. Ora ha una base empirica — `model_smoke.py` misura la compliance, e le issue #51/#52/#53 hanno i numeri. Include la qualita' di `axis_changes` (ADR 0005). Da fare col factoring di ADR 0004, non prima.
+[ ] **formattazione della narrazione** (punto 5, 2026-10-26): l'owner segnala markdown e frammenti elencati poco leggibili (turno 9); verificare testo grezzo e rendering, poi decidere le convenzioni e se intervenire nel prompt, nel renderer o in uscita. **Aggiunta F14 (bassa priorita')**: i nomi generati dal modello per entita' nuove escono in minuscolo (`pale stalker` invece di `Pale Stalker`); valutare normalizzazione in uscita o nel prompt. NB: F17 (righe NPC incollate senza raccordo) e' stato commentato su #52, non serve voce qui.
+[ ] **prompt tuning pass dedicato**: rivedere e calibrare i prompt DM/NPC. Ora ha una base empirica — `model_smoke.py` misura la compliance, e le issue #51/#52/#53 hanno i numeri. Include la qualita' di `axis_changes` (ADR 0005). Da fare col factoring di ADR 0004, non prima. **Owner, playtest ADR 0020 (F16)**: il DM resta troppo passivo — gli hook forniti dai tool (corvi / "something watched you pass", graffi freschi, dragging sound) vengono narrati ma mai trasformati in eventi, e il mondo non agisce finche' il player non scrive la prossima azione. Includere la DM agency nel tuning, senza pero' far parlare il DM al posto del player (vedi #119).
 [ ] LangSmith: distinguere nelle tracce lo stato completo passato ai nodi LangGraph (`world_state` e `world_baseline`) dal payload effettivamente inviato al modello; verificare i prompt reali, non inferirli dalla vista dello stato
 [ ] slop-buster: lista parole/n-gram in saga.config.yaml + check post-prosa nel DM (qualita' prosa = pillar) [ai_rpg]
 [ ] popolare suggested_actions (oggi None) con blocklist di placeholder per filtrare scelte malformate [dnd-llm-game]
@@ -113,7 +105,7 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 # ============================================================
 
 ## secondari — combat / gioco
-[ ] **tempo minimo per turno** (punto 5, 2026-10-26): valutare un avanzamento minimo configurabile quando nessun tool muove l'orologio; conversazioni e combattimenti hanno lasciato il clock fermo. Coordinare con F1 (doppio avanzamento di `advance_time`), senza aggiungere un'altra applicazione del tempo.
+[ ] **tempo minimo per turno** (punto 5, 2026-10-26): valutare un avanzamento minimo configurabile quando nessun tool muove l'orologio; conversazioni e combattimenti hanno lasciato il clock fermo. Coordinare con F1 (doppio avanzamento di `advance_time`), senza aggiungere un'altra applicazione del tempo. **Evidenza playtest ADR 0020 (F10)**: `advance_time` mai chiamato in 21 turni; orologio avanzato solo da 4 `move_to` (480 → 681 minuti). Il modello non percepisce l'obbligo: o il prompt non lo spinge abbastanza, o serve un avanzamento automatico minima.
 [ ] toggle prompt combat full/compresso, CONFIGURABILE in saga.config.yaml [NEQ]
 [ ] op_dominant: reframe narrativo su tier-gap forte (combattente molto superiore) [aidm]
 [ ] focus-budget: limite caratteri dell'azione come stat di gioco [llm-rpg]

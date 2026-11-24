@@ -109,8 +109,8 @@ memory:
     jobs:
       max_attempts: 4 # Total persisted attempts, including the initial attempt.
       retry_backoff_seconds: [5, 30, 120] # Delays between recoverable attempts.
-      request_timeout_seconds: 120 # Maximum duration of one complete producer attempt.
-      lease_seconds: 150 # Claim lease; must exceed the complete producer timeout.
+      request_timeout_seconds: 300 # Maximum duration of one complete producer attempt.
+      lease_seconds: 360 # Claim lease; must exceed the complete producer timeout.
       poll_seconds: 5 # Worker interval while looking for eligible durable jobs.
     admission:
       wait_timeout_seconds: 10 # Maximum bounded wait before rejecting an action as memory-busy.
