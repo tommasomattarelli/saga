@@ -9,7 +9,7 @@
       "args": ["app.main:app", "--host", "127.0.0.1", "--port", "8000"],
       "cwd": "${workspaceFolder}/backend",
       "python": "${workspaceFolder}/backend/.venv/bin/python",
-      "envFile": "${workspaceFolder}/.env",
+      "envFile": "${workspaceFolder}/.env.debug",
       "env": {
         "DATABASE_URL": "postgresql+asyncpg://saga:saga@localhost:5432/saga",
         "SAGA_ENVIRONMENT": "dev"
@@ -28,7 +28,7 @@
       ],
       "cwd": "${workspaceFolder}/backend",
       "python": "${workspaceFolder}/backend/.venv/bin/python",
-      "envFile": "${workspaceFolder}/.env",
+      "envFile": "${workspaceFolder}/.env.debug",
       "env": {
         "DATABASE_URL": "postgresql+asyncpg://saga:saga@localhost:5432/saga",
         "TEST_DATABASE_URL": "postgresql+asyncpg://saga_test:saga_test@localhost:5433/saga_test",

@@ -5,32 +5,44 @@ from __future__ import annotations
 import copy
 import json
 import logging
-from typing import Any
+from typing import Any, cast
+from uuid import uuid4
 
 import structlog
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from app.ai.context import build_context
-from app.ai.exceptions import PROVIDER_SDK_ERRORS, ContentPolicyError, provider_failure_message
+from app.ai.generation_errors import Adapter
+from app.ai.generation_execution_ledger import (
+    GenerationExecutionError,
+    GenerationOutcomeStatus,
+    InMemoryGenerationLedger,
+)
 from app.ai.prompts.dm import DMPromptContext, DMPromptState, render_dm_prompt
 from app.ai.providers.schemas import TEXT_SIGNATURE_KEY, TOOL_CALL_SIGNATURES_KEY
 from app.ai.providers.usage import usage_scope
-from app.ai.router import get_user_generation
+from app.ai.router import get_generation_recovery_policy, get_user_generation
 from app.ai.sanitizer import detect_injection, sanitize_player_input
-from app.ai.tools.dm_tools import get_tool_schemas
+from app.ai.session_affinity import campaign_session_affinity
 from app.core.death import check_player_death
 from app.core.dm.dialogue_composition import clean_narration, compose_segments, transcript
 from app.core.dm.dialogue_reminder import dialogue_reminder
+from app.core.dm.dm_generation import (
+    build_dm_generation_request,
+    canonical_tool_arguments,
+    execute_dm_generation,
+)
 from app.core.dm.dm_helpers import get_or_create_segment, messages_to_raw, raw_history_to_lc
 from app.core.dm.game_state import GameState
 from app.core.dm.loop_policy import closing_step, dm_call_limit, step_tools
 from app.core.dm.npc_context import NarrativeObservation
 from app.core.dm.npc_results import flush_interaction_history
-from app.core.engine import CONTENT_POLICY_NARRATION
+from app.core.dm.operation_recorder import OperationRecorder
 from app.core.npc_resolver import npcs_at_current_location
 from app.exceptions import AIProviderError
-from app.memory.world_state import migrate_world_state
+from app.memory.operation_delta import OperationState
+from app.memory.operation_results import DeathResult
 from app.models.quest import QuestRegistry
 
 _llm_io = logging.getLogger("llm_io")
@@ -41,7 +53,8 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
     from sqlalchemy import select
 
     from app.dependencies import get_db_context
-    from app.memory.recall import embed_recall_query, snapshot_recall_query
+    from app.memory.context_snapshot import capture_turn_context
+    from app.memory.recall import embed_recall_query
     from app.models.campaign import Campaign
 
     campaign_id = state["campaign_id"]
@@ -52,40 +65,41 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
 
     _, model_cfg = await get_user_generation(state["user_id"])
 
-    async with get_db_context() as db:
-        result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
-        campaign: Campaign = result.scalar_one()
-        try:
-            recall_snapshot = await snapshot_recall_query(db, campaign.id)
-        except Exception:
-            logger.exception("recall_snapshot_failed", campaign_id=campaign_id)
-            recall_snapshot = None
+    turn_context = state.get("turn_context")
+    if turn_context is None:
+        async with get_db_context() as db:
+            result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
+            campaign: Campaign = result.scalar_one()
+            turn_context = await capture_turn_context(db, campaign)
+    elif str(turn_context.campaign_id) != campaign_id:
+        raise ValueError("The turn context does not match the requested campaign.")
+    recall_snapshot = turn_context.recall_snapshot
 
     query_embedding = (
         await embed_recall_query(recall_snapshot, player_action) if recall_snapshot else None
     )
 
     async with get_db_context() as db:
-        result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
-        campaign = result.scalar_one()
+        context = await build_context(
+            turn_context, player_action, db, query_embedding=query_embedding
+        )
 
-        context = await build_context(campaign, player_action, db, query_embedding=query_embedding)
-
-    lc_messages = raw_history_to_lc(context.messages[:-1])
+    lc_messages = raw_history_to_lc(cast(list[dict], context.messages[:-1]))
     lc_messages.append(HumanMessage(content=player_action))
 
     return {
         "player_action": player_action,
         "messages": lc_messages,
-        "world_state": migrate_world_state(campaign.world_state or {}),
-        "char_data": campaign.character_data or {},
-        "quests": QuestRegistry.model_validate(campaign.quests or {}),
-        "world_baseline": campaign.world_baseline or {},
-        "difficulty": str(campaign.difficulty),
+        "world_state": copy.deepcopy(turn_context.scene.world_state),
+        "char_data": copy.deepcopy(turn_context.scene.character_data),
+        "quests": copy.deepcopy(turn_context.scene.quests),
+        "world_baseline": copy.deepcopy(turn_context.scene.world_baseline),
+        "difficulty": turn_context.difficulty,
         "model_used": model_cfg.model,
         "importance_score": context.importance_score,
         "system_prompt": context.system_prompt,
         "prompt_context": context.prompt_context,
+        "turn_context": turn_context,
         "model_config": {
             "provider": model_cfg.provider,
             "model": model_cfg.model,
@@ -101,26 +115,41 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
     closing = closing_step(state)
     allowed_tools = step_tools(state["world_state"], closing=closing)
     system_prompt = step_system_prompt(state, allowed_tools, closing)
-    tool_schemas = get_tool_schemas(allowed=allowed_tools)
 
     logger.info(
         "dm_node_step",
         step=state["step_count"],
         tools=sorted(allowed_tools),
-        tool_count=len(tool_schemas),
+        tool_count=len(allowed_tools),
     )
 
     messages_raw = messages_to_raw(state["messages"])
+    turn_context = state.get("turn_context")
+    previous_head_turn_id = (
+        str(turn_context.head_turn_id)
+        if turn_context is not None and turn_context.head_turn_id is not None
+        else None
+    )
+    request = build_dm_generation_request(
+        system_prompt,
+        cast(list[dict[str, object]], messages_raw),
+        config=model_cfg,
+        allowed_tools=allowed_tools,
+        campaign_id=state["campaign_id"],
+        player_action=state["player_action"],
+        step=state["step_count"],
+        previous_head_turn_id=previous_head_turn_id,
+        session_affinity=campaign_session_affinity(),
+    )
 
     _llm_io.info(
         json.dumps(
             {
-                "direction": "input",
+                "event": "generation_input",
                 "step": state["step_count"],
                 "model": model_cfg.model,
-                "system_preview": system_prompt[:300],
                 "messages_count": len(messages_raw),
-                "tools": sorted(allowed_tools),
+                "tool_count": len(request.tool_declarations),
             },
             ensure_ascii=False,
         )
@@ -128,50 +157,81 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
 
     try:
         with usage_scope(role="dm", step=state["step_count"]):
-            response = await provider.generate_with_tools(
-                system_prompt=system_prompt,
-                messages=messages_raw,
-                tools=tool_schemas,
-                model=model_cfg.model,
-                max_tokens=model_cfg.max_tokens,
+            execution = await execute_dm_generation(
+                request,
+                provider,
+                InMemoryGenerationLedger(),
+                get_generation_recovery_policy(),
+                Adapter(model_cfg.provider),
             )
-    except PROVIDER_SDK_ERRORS as exc:
-        raise AIProviderError(model_cfg.provider, provider_failure_message(exc)) from exc
-    except ContentPolicyError:
-        response_text = CONTENT_POLICY_NARRATION
-        ai_msg = AIMessage(content=response_text, tool_calls=[])
-        return {
-            "messages": [ai_msg],
-            "narration": state["narration"] + response_text,
-            "step_count": state["step_count"] + 1,
-            **_record_narration(state, response_text),
-        }
+    except GenerationExecutionError as exc:
+        raise AIProviderError(model_cfg.provider, str(exc)) from exc
 
-    text = response.text or ""
-    tool_calls_raw = response.tool_calls
+    receipt = next(
+        (
+            outcome.receipt
+            for outcome in reversed(execution.sends)
+            if outcome.status is GenerationOutcomeStatus.VALID and outcome.receipt is not None
+        ),
+        None,
+    )
+    if receipt is None:
+        raise RuntimeError("Successful DM generation did not retain its raw receipt.")
+
+    text = execution.value.text or ""
+    tool_calls_raw = receipt.tool_calls
 
     _llm_io.info(
         json.dumps(
             {
-                "direction": "output",
+                "event": "generation_output",
                 "step": state["step_count"],
-                "text_preview": text[:200],
-                "tool_calls": [{"name": tc.name, "args": tc.arguments} for tc in tool_calls_raw],
+                "model": model_cfg.model,
+                "tool_call_count": len(tool_calls_raw),
             },
             ensure_ascii=False,
         )
     )
 
-    lc_tool_calls = [
-        {"id": tc.id, "name": tc.name, "args": tc.arguments, "type": "tool_call"}
-        for tc in tool_calls_raw
-    ]
+    lc_tool_calls = []
+    wire_tool_calls = []
+    signatures: dict[str, bytes] = {}
+    for call in tool_calls_raw:
+        call_id = call.call_id if call.call_id is not None else f"saga-call-{uuid4().hex}"
+        lc_tool_calls.append(
+            {
+                "id": call_id,
+                "name": call.name or "",
+                "args": canonical_tool_arguments(call, request),
+                "type": "tool_call",
+            }
+        )
+        wire_tool_calls.append(
+            {
+                "id": call_id,
+                "type": "function",
+                "function": {
+                    "name": call.name,
+                    "arguments": (
+                        call.arguments.raw_text_value
+                        if call.arguments.kind == "raw_text"
+                        else json.dumps(call.arguments.structured_value, ensure_ascii=False)
+                    ),
+                },
+            }
+        )
+        if call.signature is not None:
+            signatures[call_id] = call.signature
+
     ai_msg = AIMessage(content=text, tool_calls=lc_tool_calls)
-    signatures = {tc.id: tc.signature for tc in tool_calls_raw if tc.signature is not None}
+    if receipt.text is not None:
+        ai_msg.additional_kwargs["generation_text"] = receipt.text
+    if wire_tool_calls:
+        ai_msg.additional_kwargs["tool_calls"] = wire_tool_calls
     if signatures:
         ai_msg.additional_kwargs[TOOL_CALL_SIGNATURES_KEY] = signatures
-    if response.text_signature is not None:
-        ai_msg.additional_kwargs[TEXT_SIGNATURE_KEY] = response.text_signature
+    if receipt.text_signature is not None:
+        ai_msg.additional_kwargs[TEXT_SIGNATURE_KEY] = receipt.text_signature
 
     public_text, removed = clean_narration(
         text, state["step_count"], state["narration_segments"], state.get("npc_lines", [])
@@ -226,13 +286,16 @@ def _record_narration(state: GameState, text: str) -> dict:
 
 def post_process_node(state: GameState) -> dict[str, Any]:
     world_state = copy.deepcopy(state["world_state"])
-    char_data = dict(state["char_data"])
+    char_data = copy.deepcopy(state["char_data"])
+    operations = OperationRecorder(state.get("operations", []))
+    step = max(state["step_count"] - 1, 0)
     segments = compose_segments(state["narration_segments"], state.get("npc_lines", []))
-    flush_interaction_history(world_state, state.get("npc_beats", []))
+    flush_interaction_history(world_state, state.get("npc_beats", []), operations, step=step)
 
     # The difficulty rides the state from context_node. It used to be read off
     # char_data, a key nothing ever wrote, so every campaign silently resolved as
     # "never dies" — Ironman included (ADR 0003 S3).
+    before = OperationState.capture(world_state, char_data, {})
     death_result = check_player_death(char_data, state["difficulty"], world_state)
     death_event: dict | None = None
     if death_result.action != "alive":
@@ -246,8 +309,28 @@ def post_process_node(state: GameState) -> dict[str, Any]:
         if death_result.fate_interventions_remaining is not None:
             world_state["fate_interventions_left"] = death_result.fate_interventions_remaining
 
+    operations.append(
+        origin="finalization",
+        name="check_player_death",
+        arguments={"difficulty": state["difficulty"]},
+        outcome="succeeded",
+        step=step,
+        before=before,
+        after=OperationState.capture(world_state, char_data, {}),
+        result=DeathResult.model_validate(
+            {
+                "description": death_result.narrative_instruction or "Death policy checked.",
+                "action": death_result.action,
+                "is_dead": death_result.is_dead,
+                "fate_interventions_remaining": death_result.fate_interventions_remaining,
+            }
+        ),
+    )
+
     return {
         "world_state": world_state,
+        "char_data": char_data,
+        "operations": operations.records,
         "death_event": death_event,
         "narration": transcript(segments),
         "narration_segments": [segment.model_dump(mode="json") for segment in segments],

@@ -65,6 +65,28 @@ describe("game-store", () => {
     expect(useGameStore.getState().freshTurnNumber).toBeNull();
   });
 
+  it("replaces complete world and character snapshots so removed keys stay removed", () => {
+    const initialCharacter = makeCampaign().character_data;
+    useGameStore.getState().setCampaign(
+      makeCampaign({
+        world_state: { location: "town", weather: "rain" },
+        character_data: { ...initialCharacter, archetype: "ranger", notes: "old note" },
+      }),
+    );
+    useGameStore.getState().applyTurn({
+      ...makeTurn(2),
+      turn_id: "00000000-0000-4000-8000-000000000010",
+      head_turn_id: "00000000-0000-4000-8000-000000000010",
+      context_epoch: 0,
+      world_state: { location: "forest" },
+      character_data: { ...initialCharacter, notes: "" },
+    });
+
+    expect(useGameStore.getState().campaign?.world_state).toEqual({ location: "forest" });
+    expect(useGameStore.getState().campaign?.character_data.notes).toBe("");
+    expect(useGameStore.getState().campaign?.character_data.archetype).toBeUndefined();
+  });
+
   it("updateWorldState merges into campaign.world_state", () => {
     useGameStore.getState().setCampaign(makeCampaign({ world_state: { location: "town" } }));
     useGameStore.getState().updateWorldState({ weather: "rain" });

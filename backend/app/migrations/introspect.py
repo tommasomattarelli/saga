@@ -42,6 +42,7 @@ _CONSTRAINT_TYPES: dict[str, ConstraintKind] = {
     "f": "foreign_key",
     "c": "check",
     "x": "exclusion",
+    "t": "constraint_trigger",
 }
 _TYPE_KINDS: dict[str, TypeKind] = {
     "b": "base",

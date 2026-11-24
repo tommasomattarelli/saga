@@ -67,7 +67,7 @@ async def test_a_beat_is_parallel_live_and_applied_in_call_order(
         ],
     )
     result = await _take_turn(auth_client, created["id"], "THE REAL PLAYER ACTION")
-    assert len(inputs) == 2
+    assert len(inputs) == (4 if one_fails else 2)
     assert all("THE REAL PLAYER ACTION" in request["messages"][0]["content"] for request in inputs)
     aldric = next(r for r in inputs if "- Name: Aldric\n" in r["messages"][0]["content"])
     assert "recently arrived" in aldric["messages"][0]["content"]
@@ -234,10 +234,11 @@ async def test_penultimate_actor_intention_cannot_resolve_damage_in_final_step(
                     "attack", "attack", attacker="Lyra", target=created["character_data"]["name"]
                 ),
             ),
+            _reply("She remains poised to strike."),
         ],
     )
     result = await _take_turn(auth_client, created["id"])
-    assert len(dm) == 2
+    assert len(dm) == 3
     assert result["character_data"]["hp"] == created["character_data"]["hp"]
     assert "Prepares to strike" in dm[1]["messages"][-1]["content"]
     lyra = next(n for n in result["world_state"]["npcs"].values() if n["name"] == "Lyra")

@@ -5,6 +5,7 @@ import io
 import json
 import uuid
 from collections.abc import AsyncIterator
+from typing import cast
 
 import eval.dialogue.suite as dialogue_suite
 import httpx
@@ -30,10 +31,11 @@ async def provider() -> AsyncIterator[tuple[LocalProvider, list[httpx.Request]]]
         requests.append(request)
         body = json.loads(request.content)
         content = (
-            '{"status":"speaking","lines":["I do not know you."]}'
-            if "response_format" in body
-            else "The square is quiet."
+            '{"text":"The square is quiet."}'
+            if body.get("tools")
+            else '{"status":"speaking","lines":["I do not know you."]}'
         )
+        message = {"role": "assistant", "content": content}
         return httpx.Response(
             200,
             json={
@@ -44,7 +46,7 @@ async def provider() -> AsyncIterator[tuple[LocalProvider, list[httpx.Request]]]
                 "choices": [
                     {
                         "index": 0,
-                        "message": {"role": "assistant", "content": content},
+                        "message": message,
                         "finish_reason": "stop",
                     }
                 ],
@@ -58,7 +60,7 @@ async def provider() -> AsyncIterator[tuple[LocalProvider, list[httpx.Request]]]
         )
 
     transport = httpx.AsyncClient(transport=httpx.MockTransport(complete))
-    local = LocalProvider("https://openrouter.ai/api/v1", "test-key")
+    local = LocalProvider("https://openrouter.ai/api/v1", "test-key", provider_kind="openrouter")
     await local.client.close()
     local.client = AsyncOpenAI(
         base_url="https://openrouter.ai/api/v1",
@@ -137,7 +139,8 @@ async def test_parallel_trial_clients_keep_one_header_for_dm_and_actors_without_
     assert "x-session-id" not in original.client.default_headers
     assert original.client.max_retries == 0
     assert all(
-        trace.provider is not original and trace.provider.client.max_retries == 0
+        trace.provider is not original
+        and cast(LocalProvider, trace.provider).client.max_retries == 0
         for trace in traces
     )
     for attempt in ledger.results():
@@ -208,7 +211,17 @@ async def test_runner_shares_session_across_cases_repetitions_and_resume(
         completed,
         ledger,
         output,
-        {model: (original, ModelConfig("openrouter", model, 60000))},
+        {
+            model: (
+                original,
+                ModelConfig(
+                    "openrouter",
+                    model,
+                    60000,
+                    destination_fingerprint="test:destination",
+                ),
+            )
+        },
         uuid.uuid4(),
         "commit",
         run_case,
@@ -232,7 +245,17 @@ async def test_runner_shares_session_across_cases_repetitions_and_resume(
         evidence,
         ledger,
         output,
-        {model: (original, ModelConfig("openrouter", model, 60000))},
+        {
+            model: (
+                original,
+                ModelConfig(
+                    "openrouter",
+                    model,
+                    60000,
+                    destination_fingerprint="test:destination",
+                ),
+            )
+        },
         uuid.uuid4(),
         "commit",
         run_case,

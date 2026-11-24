@@ -9,9 +9,18 @@ import openai
 import structlog
 
 from app.ai.exceptions import ContentPolicyError
+from app.ai.generation_attempt import generation_attempt_is_single
+from app.ai.generation_contracts import (
+    FormatMode,
+    GenerationRequest,
+    GenerationToolReceipt,
+    RawGenerationReceipt,
+    RawToolArguments,
+)
 from app.ai.providers.base import AIProvider
 from app.ai.providers.openai_compat import first_choice, stream_choice, strip_provider_metadata
 from app.ai.providers.schemas import AgentResponse, ToolCall
+from app.ai.providers.usage import capture_usage, extract_usage_metadata
 from app.config import settings
 
 logger = structlog.get_logger()
@@ -24,6 +33,72 @@ class OpenAIProvider(AIProvider):
         self.client = openai.AsyncOpenAI(
             api_key=api_key or settings.openai_api_key,
             base_url=base_url,
+        )
+
+    async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
+        system_prompt = request.system_prompt
+        if request.format_mode is FormatMode.PROMPT_ONLY:
+            schema = json.dumps(
+                request.canonical_schema,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            system_prompt = f"{system_prompt}\n\nReturn JSON matching this schema:\n{schema}"
+
+        messages = [{"role": "system", "content": system_prompt}] + strip_provider_metadata(
+            request.messages
+        )
+        kwargs: dict[str, object] = {
+            "model": request.model,
+            "messages": messages,
+            "max_completion_tokens": request.output_limit.effective,
+        }
+        if request.format_mode is FormatMode.STRICT_NATIVE:
+            kwargs["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": request.contract.name,
+                    "strict": True,
+                    "schema": request.wire_schema,
+                },
+            }
+        elif request.format_mode is FormatMode.JSON_MODE:
+            kwargs["response_format"] = {"type": "json_object"}
+        elif request.format_mode is not FormatMode.PROMPT_ONLY:
+            raise ValueError("Unsupported generation format mode.")
+
+        if request.tool_declarations:
+            kwargs["tools"] = request.tool_declarations
+            kwargs["tool_choice"] = "auto"
+
+        client = self.client.with_options(max_retries=0)
+        raw_response = await client.chat.completions.with_raw_response.create(**kwargs)  # type: ignore[call-overload]
+        response = raw_response.parse()
+        if not response.choices:
+            first_choice(response, "openai")
+        choice = response.choices[0]
+        message = choice.message
+        capture_usage(response, model=request.model)
+        tool_calls = tuple(
+            GenerationToolReceipt(
+                call_id=tool_call.id,
+                name=tool_call.function.name,
+                arguments=RawToolArguments.raw_text(tool_call.function.arguments),
+            )
+            for tool_call in message.tool_calls or ()
+        )
+
+        return RawGenerationReceipt(
+            text=message.content,
+            tool_calls=tool_calls,
+            finish_reason=choice.finish_reason,
+            refusal=message.refusal,
+            blocked_reason="content_filter" if choice.finish_reason == "content_filter" else None,
+            response_id=response.id,
+            model_id=response.model,
+            usage=extract_usage_metadata(response, model=request.model),
+            raw_candidate=raw_response.http_response.text,
         )
 
     async def generate(
@@ -42,7 +117,12 @@ class OpenAIProvider(AIProvider):
         }
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
-        response = await self.client.chat.completions.create(**kwargs)
+        client = (
+            self.client.with_options(max_retries=0)
+            if generation_attempt_is_single()
+            else self.client
+        )
+        response = await client.chat.completions.create(**kwargs)
         choice = first_choice(response, "openai")
         if choice.finish_reason == "content_filter":
             raise ContentPolicyError("openai", "Response blocked by content filter")

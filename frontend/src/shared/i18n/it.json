@@ -133,6 +133,10 @@
       "model_required": "Indica il modello da usare.",
       "endpoint_required": "Scegli un endpoint locale configurato.",
       "endpoint_choose": "Scegli un endpoint",
+      "json_fallback": "Consenti il ripiego alla modalità JSON",
+      "json_fallback_hint": "Usa la modalità JSON se l'output strutturato rigoroso non è disponibile.",
+      "prompt_fallback": "Consenti il ripiego alle sole istruzioni nel prompt",
+      "prompt_fallback_hint": "Usa le istruzioni dello schema nel prompt se la modalità JSON non è disponibile. Queste scelte valgono solo per questo modello e destinazione; se li cambi, vengono azzerate.",
       "save": "Salva",
       "saving": "Salvataggio…",
       "use_default": "Usa il default dell'istanza",
@@ -196,7 +200,15 @@
     "invalid_credentials": "Credenziali non valide.",
     "request_failed": "Richiesta fallita. Controlla i dati inseriti.",
     "server_error": "Errore del server. Riprova più tardi.",
-    "action_failed": "L'azione non è andata a buon fine. Il testo è ancora lì — riprova."
+    "action_failed": "L'azione non è andata a buon fine. Il testo è ancora lì — riprova.",
+    "memory_busy": "La memoria è occupata. L'azione non è stata accettata; riprova tra poco.",
+    "memory_retry_required": "La memoria richiede un nuovo tentativo esplicito prima di continuare.",
+    "memory_configuration_required": "La memoria non è disponibile. Chiedi al gestore di verificare impostazioni e credenziali.",
+    "memory_retry": "Riprova memoria, poi reinvia",
+    "memory_retry_failed": "Il nuovo tentativo memoria non è riuscito. Puoi ancora riprovare l'azione.",
+    "action_in_progress": "Questa azione è già in elaborazione. Non è stato avviato un nuovo tentativo automatico.",
+    "action_context_changed": "La storia della campagna è cambiata. Aggiorniamo la storia prima di continuare.",
+    "campaign_history_required": "Questa storia non può continuare con il contratto di memoria attuale."
   },
   "map": {
     "close": "Chiudi mappa",

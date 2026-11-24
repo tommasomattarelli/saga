@@ -13,6 +13,9 @@ export interface Campaign {
   status: CampaignStatus;
   difficulty: Difficulty;
   turn_number: number;
+  active_head_turn_id?: string | null;
+  context_epoch?: number;
+  memory_policy_id?: string | null;
   character_data: CharacterData;
   world_state: WorldState;
   quests: QuestRegistry;
@@ -179,6 +182,10 @@ export interface DiceResult {
 }
 
 export interface TurnResponse {
+  request_id?: string;
+  turn_id?: string;
+  head_turn_id?: string;
+  context_epoch?: number;
   turn_number: number;
   player_action?: string;
   narration: string;
@@ -186,8 +193,8 @@ export interface TurnResponse {
   dice_results?: DiceResult[] | null;
   /** @deprecated use dice_results — journal endpoint backward-compat */
   dice_rolls?: Record<string, DiceRollResult> | null;
-  world_state?: Record<string, unknown>;
-  character_data?: Record<string, unknown>;
+  world_state?: WorldState;
+  character_data?: CharacterData;
   quests?: QuestRegistry;
   scene_mood: string | null;
   tool_events?: Record<string, unknown>[];

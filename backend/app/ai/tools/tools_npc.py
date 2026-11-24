@@ -61,7 +61,12 @@ class UpdateNpc(DmTool):
         self, world_state: dict, char_data: dict, baseline: dict | None
     ) -> ToolResult:
         def reject(message: str) -> ToolResult:
-            return ToolResult(description=message, world_state=world_state, char_data=char_data)
+            return ToolResult(
+                description=message,
+                world_state=world_state,
+                char_data=char_data,
+                outcome="rejected",
+            )
 
         taxonomy = (baseline or {}).get("taxonomy")
         declared = [f.name for f in resolve_npc_fields(taxonomy)]
@@ -146,7 +151,12 @@ class UpdateNpc(DmTool):
 
 
 def _reject(world_state: dict, char_data: dict, message: str) -> ToolResult:
-    return ToolResult(description=message, world_state=world_state, char_data=char_data)
+    return ToolResult(
+        description=message,
+        world_state=world_state,
+        char_data=char_data,
+        outcome="rejected",
+    )
 
 
 @register

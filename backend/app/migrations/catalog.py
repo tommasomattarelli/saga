@@ -8,7 +8,9 @@ RelationKind = Literal[
     "table", "partitioned_table", "view", "materialized_view", "foreign_table", "sequence"
 ]
 TypeKind = Literal["base", "composite", "domain", "enum", "range", "multirange"]
-ConstraintKind = Literal["primary_key", "unique", "foreign_key", "check", "exclusion"]
+ConstraintKind = Literal[
+    "primary_key", "unique", "foreign_key", "check", "exclusion", "constraint_trigger"
+]
 
 
 class ColumnSnapshot(TypedDict):
@@ -146,6 +148,7 @@ def is_schema_snapshot(value: object) -> TypeGuard[SchemaSnapshot]:
                     "foreign_key",
                     "check",
                     "exclusion",
+                    "constraint_trigger",
                 }
                 or not _text_or_none(constraint["definition"])
             ):

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ProfilePatch } from "../api/settings-api";
+import type { ProfilePatch, SettingsResponse } from "../api/settings-api";
 import {
   ActionButton,
   ErrorNote,
@@ -17,6 +17,24 @@ const CREDENTIAL_COPY: Record<string, string> = {
   not_required: "settings.ai.credential_not_required",
 };
 
+type GenerationProfile = readonly [string | null, string | null, string | null];
+
+const generationProfile = (
+  provider: string | null | undefined,
+  model: string | null | undefined,
+  endpoint: string | null | undefined,
+): GenerationProfile => {
+  const selectedProvider = provider || null;
+  return [
+    selectedProvider,
+    selectedProvider ? model?.trim() || null : null,
+    selectedProvider === "local" ? endpoint || null : null,
+  ];
+};
+
+const sameGenerationProfile = (left: GenerationProfile, right: GenerationProfile) =>
+  left[0] === right[0] && left[1] === right[1] && left[2] === right[2];
+
 interface ProfileEditorProps {
   kind: "generation" | "embedding";
   title: string;
@@ -28,9 +46,21 @@ interface ProfileEditorProps {
   inUseProvider: string;
   inUseModel: string;
   credentialSource: string;
+  settingsResponse: SettingsResponse;
   saving: boolean;
   errorMessage: string | null;
-  onSave: (patch: ProfilePatch) => void;
+  onSave: (patch: ProfilePatch) => Promise<SettingsResponse>;
+}
+
+interface FormatChoiceSubmission {
+  fingerprint: string | null;
+  revision: { json: number; prompt: number };
+  targetRevision: number;
+  submitted: { json: boolean; prompt: boolean };
+  submittedProfile: GenerationProfile;
+  baselineProfile: GenerationProfile;
+  useDefault: boolean;
+  baseline: SettingsResponse;
 }
 
 export function ProfileEditor(props: ProfileEditorProps) {
@@ -38,6 +68,19 @@ export function ProfileEditor(props: ProfileEditorProps) {
   const [provider, setProvider] = useState(props.provider ?? "");
   const [model, setModel] = useState(props.model ?? "");
   const [endpoint, setEndpoint] = useState(props.localEndpoint ?? "");
+  const [formatChoices, setFormatChoices] = useState({
+    json: props.settingsResponse.generation_allow_json_mode_fallback,
+    prompt: props.settingsResponse.generation_allow_prompt_only_fallback,
+    dirty: { json: false, prompt: false },
+  });
+  const [pendingFormatSave, setPendingFormatSave] = useState<FormatChoiceSubmission | null>(null);
+  const formatChoiceRevision = useRef({ json: 0, prompt: 0 });
+  const profileTargetRevision = useRef(0);
+  const fingerprint = useRef(props.settingsResponse.generation_format_fingerprint);
+  const acknowledgedSettings = useRef<{
+    baseline: SettingsResponse;
+    response: SettingsResponse;
+  } | null>(null);
 
   /* The draft follows the stored profile: a save of THIS editor brings the
      values back from the server, a save of the other editor leaves them
@@ -47,6 +90,104 @@ export function ProfileEditor(props: ProfileEditorProps) {
     setModel(props.model ?? "");
     setEndpoint(props.localEndpoint ?? "");
   }, [props.provider, props.model, props.localEndpoint]);
+
+  useEffect(() => {
+    if (pendingFormatSave) return;
+    const acknowledgement = acknowledgedSettings.current;
+    if (acknowledgement) {
+      if (props.settingsResponse === acknowledgement.response) acknowledgedSettings.current = null;
+      else if (props.settingsResponse === acknowledgement.baseline) return;
+      else acknowledgedSettings.current = null;
+    }
+    const currentFingerprint = props.settingsResponse.generation_format_fingerprint;
+    const fingerprintChanged = fingerprint.current !== currentFingerprint;
+    fingerprint.current = currentFingerprint;
+    if (fingerprintChanged) {
+      setFormatChoices({
+        json: props.settingsResponse.generation_allow_json_mode_fallback,
+        prompt: props.settingsResponse.generation_allow_prompt_only_fallback,
+        dirty: { json: false, prompt: false },
+      });
+      return;
+    }
+    if (
+      provider !== (props.provider ?? "") ||
+      model !== (props.model ?? "") ||
+      endpoint !== (props.localEndpoint ?? "")
+    )
+      return;
+    setFormatChoices((current) => ({
+      ...current,
+      json: current.dirty.json
+        ? current.json
+        : props.settingsResponse.generation_allow_json_mode_fallback,
+      prompt: current.dirty.prompt
+        ? current.prompt
+        : props.settingsResponse.generation_allow_prompt_only_fallback,
+    }));
+  }, [
+    props.settingsResponse,
+    props.provider,
+    props.model,
+    props.localEndpoint,
+    provider,
+    model,
+    endpoint,
+    pendingFormatSave,
+  ]);
+
+  const clearFormatChoices = () => {
+    profileTargetRevision.current += 1;
+    setFormatChoices({
+      json: false,
+      prompt: false,
+      dirty: { json: false, prompt: false },
+    });
+  };
+
+  const acknowledgeFormatChoices = (
+    submission: FormatChoiceSubmission,
+    response: SettingsResponse,
+  ) => {
+    const fingerprintChanged = submission.fingerprint !== response.generation_format_fingerprint;
+    const responseProfile = generationProfile(
+      response.generation_provider,
+      response.generation_model,
+      response.generation_local_endpoint,
+    );
+    const submittedProfileMatchesResponse = sameGenerationProfile(
+      submission.submittedProfile,
+      responseProfile,
+    );
+    const profileChanged = !sameGenerationProfile(
+      submission.submittedProfile,
+      submission.baselineProfile,
+    );
+    const preserveIntent =
+      profileTargetRevision.current === submission.targetRevision &&
+      (!fingerprintChanged ||
+        (profileChanged && submittedProfileMatchesResponse && !submission.useDefault));
+    acknowledgedSettings.current = { baseline: submission.baseline, response };
+    fingerprint.current = response.generation_format_fingerprint;
+    setFormatChoices((current) => {
+      const keepJson =
+        preserveIntent &&
+        current.dirty.json &&
+        (formatChoiceRevision.current.json !== submission.revision.json ||
+          (!fingerprintChanged && !submission.submitted.json));
+      const keepPrompt =
+        preserveIntent &&
+        current.dirty.prompt &&
+        (formatChoiceRevision.current.prompt !== submission.revision.prompt ||
+          (!fingerprintChanged && !submission.submitted.prompt));
+      return {
+        json: keepJson ? current.json : response.generation_allow_json_mode_fallback,
+        prompt: keepPrompt ? current.prompt : response.generation_allow_prompt_only_fallback,
+        dirty: { json: keepJson, prompt: keepPrompt },
+      };
+    });
+    setPendingFormatSave(null);
+  };
 
   const isLocal = provider === "local";
   const inherits = provider === "";
@@ -68,6 +209,12 @@ export function ProfileEditor(props: ProfileEditorProps) {
         generation_provider: nextProvider || null,
         generation_model: nextProvider ? nextModel.trim() : null,
         generation_local_endpoint: nextProvider === "local" ? nextEndpoint : null,
+        ...(formatChoices.dirty.json
+          ? { generation_allow_json_mode_fallback: formatChoices.json }
+          : {}),
+        ...(formatChoices.dirty.prompt
+          ? { generation_allow_prompt_only_fallback: formatChoices.prompt }
+          : {}),
       };
     }
     return {
@@ -77,15 +224,62 @@ export function ProfileEditor(props: ProfileEditorProps) {
     };
   };
 
+  const saveProfile = async (patch: ProfilePatch, useDefault = false) => {
+    const submission: FormatChoiceSubmission = {
+      fingerprint: fingerprint.current,
+      revision: { ...formatChoiceRevision.current },
+      targetRevision: profileTargetRevision.current,
+      submitted: {
+        json: patch.generation_allow_json_mode_fallback !== undefined,
+        prompt: patch.generation_allow_prompt_only_fallback !== undefined,
+      },
+      submittedProfile: generationProfile(
+        patch.generation_provider,
+        patch.generation_model,
+        patch.generation_local_endpoint,
+      ),
+      baselineProfile: generationProfile(
+        props.settingsResponse.generation_provider,
+        props.settingsResponse.generation_model,
+        props.settingsResponse.generation_local_endpoint,
+      ),
+      useDefault,
+      baseline: props.settingsResponse,
+    };
+    setPendingFormatSave(submission);
+    try {
+      const response = await props.onSave(patch);
+      if (useDefault) {
+        setProvider("");
+        setModel("");
+        setEndpoint("");
+      }
+      acknowledgeFormatChoices(submission, response);
+    } catch {
+      setPendingFormatSave(null);
+    }
+  };
+
   const handleSave = () => {
     if (!canSave) return;
-    props.onSave(patchFor(provider, model, endpoint));
+    void saveProfile(patchFor(provider, model, endpoint));
   };
 
   /* The draft is cleared only by the server answer: a refused save keeps
      everything the player typed. */
   const handleUseDefault = () => {
-    props.onSave(patchFor("", "", ""));
+    if (props.kind !== "generation") {
+      void saveProfile(patchFor("", "", ""), true);
+      return;
+    }
+    void saveProfile(
+      {
+        generation_provider: null,
+        generation_model: null,
+        generation_local_endpoint: null,
+      },
+      true,
+    );
   };
 
   const providerLabel = (id: string) => t(`settings.ai.${id}`, { defaultValue: id });
@@ -109,6 +303,7 @@ export function ProfileEditor(props: ProfileEditorProps) {
           value={provider}
           onChange={(e) => {
             const next = e.target.value;
+            if (props.kind === "generation" && next !== provider) clearFormatChoices();
             setProvider(next);
             if (next !== "local") setEndpoint("");
             if (!next) setModel("");
@@ -133,7 +328,10 @@ export function ProfileEditor(props: ProfileEditorProps) {
           value={model}
           disabled={inherits}
           placeholder={inherits ? t("settings.ai.model_inherit_placeholder") : ""}
-          onChange={(e) => setModel(e.target.value)}
+          onChange={(e) => {
+            if (props.kind === "generation" && e.target.value !== model) clearFormatChoices();
+            setModel(e.target.value);
+          }}
         />
       </Field>
 
@@ -142,7 +340,10 @@ export function ProfileEditor(props: ProfileEditorProps) {
           <SelectInput
             id={`${props.kind}-endpoint`}
             value={endpoint}
-            onChange={(e) => setEndpoint(e.target.value)}
+            onChange={(e) => {
+              if (props.kind === "generation" && e.target.value !== endpoint) clearFormatChoices();
+              setEndpoint(e.target.value);
+            }}
           >
             <option value="">{t("settings.ai.endpoint_choose")}</option>
             {props.localEndpoints.map((name) => (
@@ -152,6 +353,55 @@ export function ProfileEditor(props: ProfileEditorProps) {
             ))}
           </SelectInput>
         </Field>
+      ) : null}
+
+      {props.kind === "generation" ? (
+        <div className="mb-2">
+          <label className="flex items-start gap-2 font-display text-[11px]">
+            <input
+              type="checkbox"
+              aria-label={t("settings.ai.json_fallback")}
+              checked={formatChoices.json}
+              onChange={(event) => {
+                formatChoiceRevision.current.json += 1;
+                const checked = event.target.checked;
+                setFormatChoices((current) => ({
+                  ...current,
+                  json: checked,
+                  dirty: { ...current.dirty, json: true },
+                }));
+              }}
+            />
+            <span>
+              {t("settings.ai.json_fallback")}
+              <span className="block" style={{ color: "var(--ink-faded)" }}>
+                {t("settings.ai.json_fallback_hint")}
+              </span>
+            </span>
+          </label>
+          <label className="mt-2 flex items-start gap-2 font-display text-[11px]">
+            <input
+              type="checkbox"
+              aria-label={t("settings.ai.prompt_fallback")}
+              checked={formatChoices.prompt}
+              onChange={(event) => {
+                formatChoiceRevision.current.prompt += 1;
+                const checked = event.target.checked;
+                setFormatChoices((current) => ({
+                  ...current,
+                  prompt: checked,
+                  dirty: { ...current.dirty, prompt: true },
+                }));
+              }}
+            />
+            <span>
+              {t("settings.ai.prompt_fallback")}
+              <span className="block" style={{ color: "var(--ink-faded)" }}>
+                {t("settings.ai.prompt_fallback_hint")}
+              </span>
+            </span>
+          </label>
+        </div>
       ) : null}
 
       {modelMissing ? <ErrorNote>{t("settings.ai.model_required")}</ErrorNote> : null}

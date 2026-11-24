@@ -9,10 +9,13 @@ from app.ai.tools.dm_tools import (
     MoveTo,
     RemoveItem,
     SetSceneMood,
+    UpdateNpc,
     UpdateQuest,
     execute_tool,
+    get_tool,
     get_tool_schemas,
 )
+from app.ai.wire_contracts import wire_model_for
 
 # ── Schema generation ─────────────────────────────────────────────────────────
 
@@ -33,6 +36,20 @@ def test_schema_openai_format():
     assert "parameters" in schema["function"]
     assert schema["function"]["parameters"]["type"] == "object"
     assert "attacker" in schema["function"]["parameters"]["properties"]
+
+
+def test_generation_tool_schemas_preserve_canonical_constraints_and_defaults():
+    from app.core.dm.dm_generation import generation_tool_declarations
+
+    names = {schema["function"]["name"] for schema in get_tool_schemas()}
+    schemas = generation_tool_declarations(names)
+
+    assert {schema["function"]["name"] for schema in schemas} == names
+    for schema in schemas:
+        tool = get_tool(schema["function"]["name"])
+        assert tool is not None
+        model = wire_model_for(tool) if tool in {UpdateNpc, ChangeNpcPsychology} else tool
+        assert schema["function"]["parameters"] == model.model_json_schema()
 
 
 def test_visible_tools_set():

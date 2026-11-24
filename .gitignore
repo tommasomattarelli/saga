@@ -47,6 +47,7 @@ docker-compose.override.yml
 
 # Logs
 *.log
+*.log.*
 
 # Coverage
 htmlcov/
@@ -71,3 +72,5 @@ playwright-report/
 
 # OpenCode local dev plugin state
 .opencode/state/
+
+.env.debug

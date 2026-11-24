@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.migrations.adopt import adopt_unversioned_database
 
-BACKEND_DIR = Path(__file__).resolve().parents[2]
+BACKEND_DIR = Path(__file__).resolve().parents[3]
 REPO_ROOT = BACKEND_DIR.parent
 PRECHANGE_COMMIT = "261ad5f"
 
@@ -53,11 +53,15 @@ FACT_IN_CLEAN_CAMPAIGN = "99999999-9999-9999-9999-999999999999"
 _BASELINE_SCRIPT = """
 import asyncio
 import os
+from pathlib import Path
 
 from sqlalchemy.ext.asyncio import create_async_engine
 
-import app.models  # noqa: F401  registers the pre-change models
+import app.models
 from app.models.base import Base
+
+if not Path(app.models.__file__).resolve().is_relative_to(Path(__file__).resolve().parent):
+    raise RuntimeError("frozen models were not loaded from the archived backend")
 
 
 async def main() -> None:

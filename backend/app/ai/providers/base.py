@@ -6,8 +6,12 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 from app.ai.providers.schemas import AgentResponse
+
+if TYPE_CHECKING:
+    from app.ai.generation_contracts import GenerationRequest, RawGenerationReceipt
 
 _llm_io = logging.getLogger("llm_io")
 
@@ -49,6 +53,9 @@ class AIProvider(ABC):
         """Generate a response with tool-calling support."""
         raise NotImplementedError(f"{self.__class__.__name__} does not support tool calling")
 
+    async def send(self, request: GenerationRequest) -> RawGenerationReceipt:
+        raise NotImplementedError(f"{self.__class__.__name__} does not support typed generation")
+
 
 async def logged_generate(
     provider: AIProvider,
@@ -60,21 +67,19 @@ async def logged_generate(
     max_tokens: int = 2000,
     json_mode: bool = False,
 ) -> str:
-    """Wrap provider.generate() with full I/O logging to llm_io.log."""
+    """Wrap provider.generate() with safe metadata logging."""
     _llm_io.info(
         json.dumps(
             {
-                "direction": "input",
+                "event": "generation_input",
                 "caller": caller,
                 "model": model,
-                "system_prompt": system_prompt,
-                "messages": messages,
+                "message_count": len(messages),
+                "max_tokens": max_tokens,
+                "json_mode": json_mode,
             },
             ensure_ascii=False,
-            indent=2,
         )
-        + "\n"
-        + ("─" * 80)
     )
 
     result = await provider.generate(
@@ -88,15 +93,12 @@ async def logged_generate(
     _llm_io.info(
         json.dumps(
             {
-                "direction": "output",
+                "event": "generation_output",
                 "caller": caller,
-                "text": result,
+                "model": model,
             },
             ensure_ascii=False,
-            indent=2,
         )
-        + "\n"
-        + ("═" * 80)
     )
 
     return result
@@ -129,7 +131,9 @@ def get_provider(
             from app.config import settings
 
             _providers[cache_key] = LocalProvider(
-                base_url=base_url or settings.local_model_url, api_key=api_key
+                base_url=base_url or settings.local_model_url,
+                api_key=api_key,
+                provider_kind="local",
             )
         elif name == "openrouter":
             from app.ai.providers.local import LocalProvider
@@ -138,6 +142,7 @@ def get_provider(
             _providers[cache_key] = LocalProvider(
                 base_url="https://openrouter.ai/api/v1",
                 api_key=api_key or settings.openrouter_api_key,
+                provider_kind="openrouter",
             )
         else:
             raise ValueError(f"Unknown AI provider: {name}")

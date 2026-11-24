@@ -66,16 +66,14 @@ async def _progress(db: AsyncSession, index: EmbeddingIndex | None) -> IndexProg
         return None
     rows = await db.execute(
         text(
-            "SELECT source_type, work_state, count(*) FROM source_embeddings"
-            " WHERE index_id = :iid GROUP BY 1, 2"
+            "SELECT work_state, count(*) FROM source_embeddings"
+            " WHERE index_id = :iid AND source_type = 'memory_fact' GROUP BY 1"
         ),
         {"iid": index.id},
     )
-    total = embedded = pending = failed = turns = facts = 0
-    for source_type, work_state, count in rows.fetchall():
+    total = embedded = pending = failed = 0
+    for work_state, count in rows.fetchall():
         total += count
-        turns += count if source_type == "turn" else 0
-        facts += count if source_type == "memory_fact" else 0
         if work_state == EmbeddingWorkState.EMBEDDED.value:
             embedded += count
         elif work_state == EmbeddingWorkState.PENDING.value:
@@ -87,8 +85,8 @@ async def _progress(db: AsyncSession, index: EmbeddingIndex | None) -> IndexProg
         "embedded": embedded,
         "pending": pending,
         "failed": failed,
-        "turn_total": turns,
-        "fact_total": facts,
+        "turn_total": 0,
+        "fact_total": total,
     }
 
 

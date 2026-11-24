@@ -1,5 +1,4 @@
 import uuid
-from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 import pytest
@@ -47,6 +46,7 @@ def test_list_campaigns(mocker, mock_user_dependency):
                             status=CampaignStatus.ACTIVE,
                             difficulty=Difficulty.HARD,
                             turn_number=1,
+                            context_epoch=0,
                             character_data={},
                             world_state={},
                             quests={},
@@ -127,6 +127,7 @@ def test_get_campaign(mocker, mock_user_dependency):
         status=CampaignStatus.ACTIVE,
         difficulty=Difficulty.HARD,
         turn_number=1,
+        context_epoch=0,
         character_data={},
         world_state={},
         quests={},
@@ -192,77 +193,19 @@ def test_update_status(mocker, mock_user_dependency):
     app.dependency_overrides.clear()
 
 
-def test_post_action(mocker, mock_user_dependency):
-    """Test the new REST POST /action endpoint (replaces WebSocket + /turn)."""
+def test_post_action_requires_idempotency_and_context_fields(mocker, mock_user_dependency):
     mock_db = mocker.AsyncMock()
-    mock_db.add = mocker.Mock()
-    mock_db.commit = mocker.AsyncMock()
-    mock_db.execute = mocker.AsyncMock()
-    camp_id = str(uuid.uuid4())
 
-    camp = Campaign(
-        id=uuid.UUID(camp_id),
-        user_id=mock_user_dependency.id,
-        name="Test Campaign",
-        world_slug="fantasy",
-        status=CampaignStatus.ACTIVE,
-        difficulty=Difficulty.HARD,
-        turn_number=1,
-        character_data={"name": "Hero", "hp": {"current": 10, "max": 10}},
-        world_state={},
-        quests={},
-        created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC),
-    )
-
-    class MockCampaignResult:
-        def scalar_one_or_none(self):
-            return camp
-
-        def scalar_one(self):
-            # Used only by the atomic turn-number claim (UPDATE ... RETURNING).
-            return 2
-
-        def first(self):
-            return (camp_id,)
-
-        def scalars(self):
-            result = mocker.Mock()
-            result.all.return_value = []
-            return result
-
-    mock_db.execute.return_value = MockCampaignResult()
-
-    @asynccontextmanager
-    async def fake_db_ctx():
+    async def override_get_db():
         yield mock_db
 
-    mocker.patch("app.api.turns.get_db_context", side_effect=fake_db_ctx)
+    app.dependency_overrides[get_db] = override_get_db
+    claim = mocker.patch("app.api.turns.claim_action", new=mocker.AsyncMock())
 
-    # Mock dm_graph.ainvoke to avoid real LLM calls
-    fake_state = {
-        "narration": "You take a step forward.",
-        "narration_segments": None,
-        "dice_results": [],
-        "npc_dialogues": [],
-        "world_state": {},
-        "char_data": {"name": "Hero", "hp": {"current": 10, "max": 10}},
-        "scene_mood": "neutral",
-        "tool_events": [],
-        "death_event": None,
-        "model_used": "gpt-4o",
-        "importance_score": 5,
-        "time_passed_minutes": 0,
-    }
-    mocker.patch("app.api.turns.dm_graph.ainvoke", return_value=fake_state)
-    mocker.patch("app.api.turns.compress_turn_to_summary", return_value="A step forward.")
-    mocker.patch("app.api.turns.extract_and_store_facts")
-    mocker.patch("app.api.turns._background_compression")
+    response = client.post(
+        f"/api/campaigns/{uuid.uuid4()}/action", json={"action": "Walk forward"}
+    )
 
-    response = client.post(f"/api/campaigns/{camp_id}/action", json={"action": "Walk forward"})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["turn_number"] == 2
-    assert "You take a step" in data["narration"]
-
+    assert response.status_code == 422
+    claim.assert_not_awaited()
     app.dependency_overrides.clear()

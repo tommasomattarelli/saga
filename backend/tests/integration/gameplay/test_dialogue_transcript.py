@@ -4,18 +4,16 @@ from unittest.mock import AsyncMock, patch
 
 from sqlalchemy import select
 
-from app.ai.generation_context import generation_context
 from app.ai.providers.schemas import ToolCall
 from app.dependencies import get_db_context
-from app.memory.compressor import compress_turns_batch_llm
-from app.memory.fact_extractor import extract_facts
-from app.memory.global_summary import update_global_summary
+from app.memory.batch_source_contracts import BatchInput
+from app.memory.producer_prompts import prepare_request
+from app.memory.production_policy import FactsPolicy, GlobalPolicy
 from app.models.turn import Turn
 from app.schemas.campaign import TurnResponse
 from tests.integration.gameplay.test_quest_persistence import (
     _create_campaign,
     _openai_provider,
-    _owner,
     _reply,
     _script,
     _take_turn,
@@ -70,20 +68,40 @@ async def test_complete_transcript_is_the_single_persisted_and_memory_source(
         assert row["narration"] == actual["narration"]
         assert row["narration_segments"] == actual["narration_segments"]
 
-    prompts = []
-
-    async def generate(**kwargs):
-        prompts.append(kwargs["messages"][0]["content"])
-        return '{"summary":"A promise was made.","facts":[]}'
-
-    provider.generate.side_effect = generate
-    with generation_context(await _owner(auth_client)):
-        await extract_facts("I listen.", turn.narration)
-        await compress_turns_batch_llm([turn])
-        async with get_db_context() as db:
-            await update_global_summary(created["id"], 1, db)
-            await db.commit()
-    assert len(prompts) == 3
+    source = BatchInput.model_validate(
+        {
+            "turns": (
+                {
+                    "reference": "t1",
+                    "turn_id": turn.id,
+                    "player_action": turn.player_action,
+                    "narration": turn.narration,
+                    "operations": None,
+                },
+            )
+        }
+    )
+    facts_policy = FactsPolicy.model_validate(
+        {
+            "max_per_batch": 4,
+            "importance_levels": [
+                {"name": "ordinary", "criteria": "Useful later", "examples": "A clue."}
+            ],
+        }
+    )
+    prompts = [
+        prepare_request(kind, source, language="en", facts_policy=facts_policy).user_prompt
+        for kind in ("summary", "facts", "batch")
+    ]
+    prompts.append(
+        prepare_request(
+            "global",
+            source,
+            language="en",
+            facts_policy=facts_policy,
+            global_policy=GlobalPolicy(target_words=100),
+        ).user_prompt
+    )
     for prompt in prompts:
         assert prompt.count("A sealed promise.") == prompt.count("Do not forget.") == 1
         assert "[[npc" not in prompt and "NPC dialogues:" not in prompt

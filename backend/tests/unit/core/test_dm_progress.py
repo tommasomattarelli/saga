@@ -1,3 +1,4 @@
+import pytest
 from langchain_core.messages import AIMessage
 
 from app.core.dm.progress import StepProgress
@@ -64,35 +65,30 @@ def test_omitted_tool_defaults_do_not_create_fake_novelty():
     assert not second.changed({}, {}, QuestRegistry())
 
 
-async def test_rejected_closing_calls_each_keep_their_provider_result_id():
+async def test_disallowed_closing_tool_response_is_rejected_before_execution():
     from app.core.dm.dm_tools_executor import tools_node
 
     calls = [
         {"id": f"call-{i}", "name": name, "args": {}}
         for i, name in enumerate(["invoke_npc", "request_dice", "attack"])
     ]
-    result = await tools_node(
-        {
-            "messages": [AIMessage(content="", tool_calls=calls)],
-            "world_state": {},
-            "char_data": {},
-            "step_count": 8,
-            "max_agent_steps": 8,
-            "tool_events": [],
-            "dice_results": [],
-            "npc_dialogues": [],
-            "called_npcs": [],
-            "scene_mood": "neutral",
-            "time_passed_minutes": 0,
-            "narration_segments": [],
-            "narration": "",
-            "allowed_tools": ["advance_time", "log_event", "set_scene_mood"],
-            "closing_step": True,
-        }
-    )
-    assert {message.tool_call_id for message in result["messages"]} == {
-        call["id"] for call in calls
-    }
-    assert len(result["messages"]) == len(calls)
-    assert result["dice_results"] == result["npc_lines"] == result["tool_events"] == []
-    assert result["world_state"] == result["char_data"] == {}
+    with pytest.raises(ValueError, match="Tool response rejected before execution"):
+        await tools_node(
+            {
+                "messages": [AIMessage(content="", tool_calls=calls)],
+                "world_state": {},
+                "char_data": {},
+                "step_count": 8,
+                "max_agent_steps": 8,
+                "tool_events": [],
+                "dice_results": [],
+                "npc_dialogues": [],
+                "called_npcs": [],
+                "scene_mood": "neutral",
+                "time_passed_minutes": 0,
+                "narration_segments": [],
+                "narration": "",
+                "allowed_tools": ["advance_time", "log_event", "set_scene_mood"],
+                "closing_step": True,
+            }
+        )

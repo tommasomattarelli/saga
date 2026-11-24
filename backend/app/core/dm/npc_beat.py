@@ -13,9 +13,12 @@ from app.core.dm.game_state import GameState
 from app.core.dm.npc_context import NPCBeat, PublicNPCResult, visible_actor_context
 from app.core.dm.npc_prehook import prepare_npc_calls
 from app.core.dm.npc_results import apply_actor_effects
+from app.core.dm.operation_recorder import OperationRecorder
 from app.core.dm.progress import StepProgress
 from app.core.npc_resolver import npcs_at_current_location
 from app.core.psychology import resolve_psychology
+from app.memory.operation_delta import OperationState
+from app.memory.operation_results import ErrorResult, NPCResult
 
 
 async def execute_npc_beat(
@@ -26,13 +29,23 @@ async def execute_npc_beat(
     beats: list[NPCBeat],
     registry: list[NPCLine],
     progress: StepProgress,
+    operations: OperationRecorder,
 ) -> tuple[dict, dict, list[ToolMessage]]:
     config = get_gameplay_config()
     baseline = state.get("world_baseline") or {}
-    selected, notes = prepare_npc_calls(calls, world_state, config, baseline)
+    step = state["step_count"] - 1
+    beat = len(beats)
+    selected, notes = prepare_npc_calls(
+        calls,
+        world_state,
+        config,
+        baseline,
+        operations=operations,
+        step=step,
+        beat=beat,
+    )
     location = world_state.get("meta", {}).get("current_location", "")
     observers = frozenset(npcs_at_current_location(world_state))
-    step = state["step_count"] - 1
     actors = []
     for candidate in selected:
         profile = copy.deepcopy(world_state["npcs"][candidate.npc_id])
@@ -81,7 +94,19 @@ async def execute_npc_beat(
         if isinstance(result, NPCFailure):
             notes[candidate.call_index] = result.note
             progress.record("invoke_npc", args, result.note)
+            operations.append(
+                origin="npc",
+                name="invoke_npc",
+                arguments=calls[candidate.call_index].get("args", {}),
+                outcome="failed",
+                step=step,
+                beat=beat,
+                result=ErrorResult(
+                    description=result.note, reason="npc_failed", npc_id=candidate.npc_id
+                ),
+            )
             continue
+        before = OperationState.capture(world_state, char_data, {})
         world_state, char_data = apply_actor_effects(
             candidate.npc_id,
             result,
@@ -108,6 +133,24 @@ async def execute_npc_beat(
         if result.action:
             note += f"\nDescriptive action/intention: {result.action}"
         notes[candidate.call_index] = note
+        operations.append(
+            origin="npc",
+            name="invoke_npc",
+            arguments=calls[candidate.call_index].get("args", {}),
+            outcome="succeeded",
+            step=step,
+            beat=beat,
+            before=before,
+            after=OperationState.capture(world_state, char_data, {}),
+            result=NPCResult(
+                description=note,
+                npc_id=candidate.npc_id,
+                status=result.status,
+                lines=list(result.lines),
+                action=result.action,
+                axis_changes=result.axis_changes,
+            ),
+        )
         progress.record(
             "invoke_npc", args, {"lines": result.lines, "action": result.action}, playable=True
         )

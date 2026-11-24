@@ -22,6 +22,9 @@ const mockCampaign = {
   status: "active",
   difficulty: "easy",
   turn_number: 3,
+  active_head_turn_id: "00000000-0000-4000-8000-000000000015",
+  context_epoch: 4,
+  memory_policy_id: "policy-1",
   character_data: {
     name: "Tomma",
     level: 2,
@@ -61,8 +64,20 @@ describe("useCampaignData", () => {
 
   it("populates turn history in reversed order", async () => {
     const turns = [
-      { turn_number: 1, narration: "First", scene_mood: null, player_action: "go" },
-      { turn_number: 2, narration: "Second", scene_mood: null, player_action: "look" },
+      {
+        turn_id: "turn-1",
+        turn_number: 1,
+        narration: "First",
+        scene_mood: null,
+        player_action: "go",
+      },
+      {
+        turn_id: "00000000-0000-4000-8000-000000000016",
+        turn_number: 2,
+        narration: "Second",
+        scene_mood: null,
+        player_action: "look",
+      },
     ];
     mockGetTurns.mockResolvedValue({ data: turns } as never);
 
@@ -74,6 +89,15 @@ describe("useCampaignData", () => {
       // getTurns returns desc from server; hook reverses to asc for display
       expect(history[0].turn_number).toBe(2);
     });
+  });
+
+  it("clears old history when the current campaign has no journal turns", async () => {
+    useGameStore.setState({
+      turnHistory: [{ turn_number: 9, narration: "Old campaign", scene_mood: null }] as never,
+    });
+    renderHook(() => useCampaignData("c1"), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(useGameStore.getState().turnHistory).toEqual([]));
   });
 
   it("does not query when campaignId is undefined", () => {

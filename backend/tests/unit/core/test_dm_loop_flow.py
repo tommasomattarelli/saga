@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from langchain_core.messages import AIMessage
 
+from app.ai.tools.tools_base import ToolResult
+
 
 def _make_state(**overrides) -> dict:
     base: dict = {
@@ -75,11 +77,13 @@ class TestConsecutiveEmptySteps:
         tc = {"id": "1", "name": "log_event", "args": {"description": "x"}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
-        mock_result = MagicMock()
-        mock_result.world_state = {}
-        mock_result.char_data = {}
-        mock_result.description = "Event logged."
-        mock_result.extra = {}
+        mock_result = ToolResult(
+            description="Event logged.",
+            world_state={},
+            char_data={},
+            extra={},
+            outcome="succeeded",
+        )
 
         mock_tool_cls = MagicMock()
         mock_tool_cls.visible.return_value = False
@@ -102,11 +106,13 @@ class TestConsecutiveEmptySteps:
         tc = {"id": "1", "name": "log_event", "args": {"description": "x"}, "type": "tool_call"}
         ai_msg = AIMessage(content="", tool_calls=[tc])
 
-        mock_result = MagicMock()
-        mock_result.world_state = {}
-        mock_result.char_data = {}
-        mock_result.description = "Event logged."
-        mock_result.extra = {}
+        mock_result = ToolResult(
+            description="Event logged.",
+            world_state={},
+            char_data={},
+            extra={},
+            outcome="succeeded",
+        )
 
         mock_tool_cls = MagicMock()
         mock_tool_cls.visible.return_value = False

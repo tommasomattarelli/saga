@@ -4,12 +4,13 @@ import { useGameStore } from "../../../shared/stores/game-store";
 
 interface ActionInputProps {
   onAction: (action: string) => Promise<void>;
+  disabled?: boolean;
 }
 
 // ponytail: backend sanitize_player_input is the real guard; this is just UX feedback
 const MAX_ACTION_LENGTH = 500;
 
-export default function ActionInput({ onAction }: ActionInputProps) {
+export default function ActionInput({ onAction, disabled = false }: ActionInputProps) {
   const { t } = useTranslation();
   const [action, setAction] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -29,7 +30,7 @@ export default function ActionInput({ onAction }: ActionInputProps) {
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
   }, [action]);
 
-  const blocked = isLoading || hasPendingDice;
+  const blocked = isLoading || hasPendingDice || disabled;
 
   const sendAction = useCallback(
     async (text: string) => {

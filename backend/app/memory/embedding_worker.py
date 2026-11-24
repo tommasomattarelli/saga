@@ -57,7 +57,8 @@ async def cutover(db: AsyncSession, claim: Claim, cfg: EmbeddingRebuildConfig) -
     unfinished = await db.execute(
         text(
             "SELECT count(*) FROM source_embeddings"
-            " WHERE index_id = :iid AND work_state <> 'embedded'"
+            " WHERE index_id = :iid AND source_type = 'memory_fact'"
+            " AND work_state <> 'embedded'"
         ),
         {"iid": index.id},
     )
@@ -144,7 +145,8 @@ async def scan_once() -> int:
                 " WHERE ei.rebuild_state IN ('queued', 'running')"
                 "    OR (ei.is_active AND ei.last_error IS NULL AND EXISTS ("
                 "        SELECT 1 FROM source_embeddings se"
-                "        WHERE se.index_id = ei.id AND se.work_state = 'pending'))"
+                "        WHERE se.index_id = ei.id AND se.source_type = 'memory_fact'"
+                "          AND se.work_state = 'pending'))"
                 " GROUP BY ei.campaign_id"
                 " ORDER BY priority"
             )

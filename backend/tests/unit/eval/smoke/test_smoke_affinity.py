@@ -31,20 +31,31 @@ async def test_smoke_dm_and_actor_repetitions_bind_header_to_checkpoint_identity
                         "finish_reason": "stop",
                         "message": {
                             "role": "assistant",
-                            "content": '{"status":"silent","lines":[]}',
+                            "content": (
+                                '{"status":"speaking","lines":["The road is quiet."],'
+                                '"action":null,"axis_changes":[],"reveals_secret":false}'
+                            ),
                         },
                     }
                 ],
             },
         )
 
-    provider = LocalProvider("https://openrouter.ai/api/v1", "test")
+    provider = LocalProvider("https://openrouter.ai/api/v1", "test", provider_kind="openrouter")
     await provider.client.close()
     async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as http:
         provider.client = openai.AsyncOpenAI(
             api_key="test", base_url="https://openrouter.ai/api/v1", http_client=http
         )
-        generation = provider, ModelConfig("openrouter", "m:free", 60000)
+        generation = (
+            provider,
+            ModelConfig(
+                "openrouter",
+                "m:free",
+                60000,
+                destination_fingerprint="offline-test-destination",
+            ),
+        )
         session = session_id_for_model("checkpoint", "m:free")
         ledger = RequestLedger(tmp_path / "calls.jsonl", budget=4)
         for repetition in range(2):
