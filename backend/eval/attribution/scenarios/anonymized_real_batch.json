@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "turns": [
+    {
+      "reference": "t1",
+      "turn_id": "10000000-0000-4000-8000-000000000001",
+      "player_action": "I look around and take in the scene",
+      "narration": "You stand at the center of an ancient stone circle carved into a forest clearing. Moss-clad pillars rise around you, their surfaces lush with green and veined with faint silver light that pulses like a slow, sleeping heartbeat. The air is clear and cool, smelling of pine resin and damp earth, and spring morning light filters through the canopy in pale shafts. Beyond the ring, the trees press close, their trunks straight and old, shadows pooling beneath the undergrowth.\n\nVela, the forest ranger, stands near one of the standing stones, her hand resting on the haft of a tool at her belt. She watches you with narrowed eyes, her expression guarded and suspicious, as if waiting to see what you will do next.\n\nThe hum of the pillars grows slightly louder, a vibration you feel in your teeth, and somewhere in the treeline a branch snaps—too sharp to be wind.",
+      "operations": []
+    },
+    {
+      "reference": "t2",
+      "turn_id": "10000000-0000-4000-8000-000000000002",
+      "player_action": "I ask Vela what she knows about the road to Ashford.",
+      "narration": "Vela eyes you warily, her hand drifting toward the knife at her belt. \nVela: \"Ashford's road runs east from the shrine, through the pines. Why do you ask?\"",
+      "operations": [
+        {
+          "id": "20000000-0000-4000-8000-000000000001",
+          "ordinal": 1,
+          "step": 0,
+          "beat": 0,
+          "payload": {
+            "origin": "npc",
+            "name": "invoke_npc",
+            "outcome": "succeeded",
+            "arguments": {
+              "name": "Vela",
+              "context": "The player asks her what she knows about the road to Ashford"
+            },
+            "result": {
+              "kind": "npc",
+              "npc_id": "30000000-0000-4000-8000-000000000001",
+              "status": "speaking",
+              "action": "She eyes the player warily, hand drifting toward her belt knife.",
+              "axis_changes": {
+                "trust": -1
+              }
+            },
+            "deltas": [
+              {
+                "scope": "world_state",
+                "path": [
+                  "npcs",
+                  "30000000-0000-4000-8000-000000000001",
+                  "met_player"
+                ],
+                "before": {
+                  "presence": "present",
+                  "value": false
+                },
+                "after": {
+                  "presence": "present",
+                  "value": true
+                }
+              },
+              {
+                "scope": "world_state",
+                "path": [
+                  "npcs",
+                  "30000000-0000-4000-8000-000000000001",
+                  "psychology",
+                  "trust"
+                ],
+                "before": {
+                  "presence": "present",
+                  "value": -20
+                },
+                "after": {
+                  "presence": "present",
+                  "value": -23
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "reference": "t3",
+      "turn_id": "10000000-0000-4000-8000-000000000003",
+      "player_action": "I show Vela a small copper lark token and tell her: \"Kestrel the ferryman swore the sealed charter is under the third stair of the shrine, wrapped in green wax. Remember that.",
+      "narration": "Vela takes the copper token, turns it in her fingers with a sharp-eyed glance, then slips it into her pouch. \nVela: \"Kestrel sent you with a lark?\"\n She studies the shadows beneath the standing stones, weighing your words against the silence of the shrine. \nVela: \"The third stair. Green wax.\"\n A beat passes, and her jaw sets. \nVela: \"I'll look. Don't expect me to thank you for it.\"",
+      "operations": [
+        {
+          "id": "20000000-0000-4000-8000-000000000002",
+          "ordinal": 1,
+          "step": 0,
+          "beat": 0,
+          "payload": {
+            "origin": "npc",
+            "name": "invoke_npc",
+            "outcome": "succeeded",
+            "arguments": {
+              "name": "Vela",
+              "context": "The player shows her a small copper lark token and claims Kestrel the ferryman swore a sealed charter lies under the third stair of the shrine, wrapped in green wax, asking her to remember it."
+            },
+            "result": {
+              "kind": "npc",
+              "npc_id": "30000000-0000-4000-8000-000000000001",
+              "status": "speaking",
+              "action": "She takes the copper token, turns it in her fingers with a sharp-eyed glance, then slips it into her pouch.",
+              "axis_changes": {
+                "trust": 1
+              }
+            },
+            "deltas": [
+              {
+                "scope": "world_state",
+                "path": [
+                  "npcs",
+                  "30000000-0000-4000-8000-000000000001",
+                  "psychology",
+                  "trust"
+                ],
+                "before": {
+                  "presence": "present",
+                  "value": -23
+                },
+                "after": {
+                  "presence": "present",
+                  "value": -22
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "reference": "t4",
+      "turn_id": "10000000-0000-4000-8000-000000000004",
+      "player_action": "I examine the carved symbols on the standing stones.",
+      "narration": "You step close to the nearest pillar and run your fingers over the deep-carved symbols—spirals, crossed lines, and glyphs that seem to shift under the pillar's faint silver glow. Some marks look recent, others worn smooth by centuries of rain and moss. You trace the pattern beneath the hum, trying to read what the stones were raised to say.\nThe symbols resolve under your gaze into a deliberate language, not random ornament. You read a ward bound around the shrine—a binding meant to keep something in, or keep the world out. The glyphs name the place as a threshold, and beneath the spirals you make out a smaller, sharper inscription: a direction to descend, three steps down, where something lies sealed beneath green wax. The silver hum in the stone seems to answer your reading, brighter now, as if the pillars themselves acknowledge that you have deciphered their warning.",
+      "operations": [
+        {
+          "id": "20000000-0000-4000-8000-000000000003",
+          "ordinal": 1,
+          "step": 0,
+          "beat": null,
+          "payload": {
+            "origin": "tool",
+            "name": "request_dice",
+            "outcome": "succeeded",
+            "arguments": {
+              "stat": "INT",
+              "check": "investigation",
+              "reason": "Deciphering the carved symbols on the shrine's standing stones",
+              "advantage": false,
+              "difficulty": "normal",
+              "disadvantage": false,
+              "hazard_class": null
+            },
+            "result": {
+              "kind": "check",
+              "description": "Investigation check (normal): rolled 19 (+1 modifier, +1 difficulty) → full_success. Context: Deciphering the carved symbols on the shrine's standing stones",
+              "checks": {
+                "Investigation": {
+                  "expression": "1d20+2",
+                  "rolls": [
+                    17
+                  ],
+                  "modifier": 1,
+                  "difficulty": "normal",
+                  "difficulty_draw": 1,
+                  "total": 19,
+                  "success": true,
+                  "outcome": "full_success",
+                  "is_critical": false,
+                  "hazard_damage": null
+                }
+              }
+            },
+            "deltas": []
+          }
+        }
+      ]
+    }
+  ]
+}

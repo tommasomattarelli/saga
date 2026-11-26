@@ -54,19 +54,26 @@ def test_rendered_examples_are_one_delimited_json_object_and_match_output_schema
     assert all(turn.operations is None for turn in source.turns)
 
 
-def test_fact_example_teaches_commitment_belief_and_failed_attempt_with_attribution() -> None:
-    output = FactsPayload.model_validate_json(json.dumps(parse_example("facts")["output"]))
-    assert [fact.assertion_type for fact in output.facts] == ["intention", "belief", "occurrence"]
-    assert output.facts[0].category == "commitment"
-    assert output.facts[0].attribution == (0,)
-    assert output.facts[0].entities[0].name == "Neris"
-    assert output.facts[1].assertion_type == "belief"
-    assert output.facts[1].attribution == (0,)
-    assert output.facts[1].entities[0].name == "Mira"
-    assert output.facts[2].assertion_type == "occurrence"
-    assert output.facts[2].attribution == ()
-    assert len(output.facts[2].source_turns) == 1
-    assert output.facts[2].source_turns[0] == "t2"
+def test_fact_example_teaches_all_four_fact_types_with_attribution() -> None:
+    output = FactsPayload.model_validate_json(json.dumps(parse_example("facts", 4)["output"]))
+    assert [fact.assertion_type for fact in output.facts] == [
+        "statement",
+        "intention",
+        "belief",
+        "occurrence",
+    ]
+    assert output.facts[0].category == "information"
+    assert output.facts[0].entities[0].name == "the player"
+    assert output.facts[1].category == "commitment"
+    assert output.facts[1].attribution == (1,)
+    assert output.facts[1].entities[1].name == "Neris"
+    assert output.facts[2].assertion_type == "belief"
+    assert output.facts[2].attribution == (0,)
+    assert output.facts[2].entities[0].name == "Mira"
+    assert output.facts[3].assertion_type == "occurrence"
+    assert output.facts[3].attribution == ()
+    assert len(output.facts[3].source_turns) == 1
+    assert output.facts[3].source_turns[0] == "t2"
     assert all(
         entity.model_dump().get("canonical_ref") is None
         for fact in output.facts
@@ -74,11 +81,44 @@ def test_fact_example_teaches_commitment_belief_and_failed_attempt_with_attribut
     )
 
 
-@pytest.mark.parametrize(("cap", "expected"), [(0, 0), (1, 1), (3, 3)])
+def test_fact_example_teaches_attribution_indices_are_local_to_each_fact() -> None:
+    output = FactsPayload.model_validate_json(json.dumps(parse_example("facts", 4)["output"]))
+    player_report, commitment = output.facts[0], output.facts[1]
+    assert [entity.name for entity in player_report.entities] == [
+        "the player",
+        "Morrowglass",
+        "Neris",
+    ]
+    assert [entity.name for entity in commitment.entities] == ["the player", "Neris"]
+    assert commitment.attribution == (1,)
+    assert commitment.entities[commitment.attribution[0]].name == "Neris"
+
+
+def test_fact_example_separates_player_report_from_npc_commitment() -> None:
+    output = FactsPayload.model_validate_json(json.dumps(parse_example("facts")["output"]))
+    report = next(fact for fact in output.facts if fact.assertion_type == "statement")
+    commitment = next(fact for fact in output.facts if fact.assertion_type == "intention")
+
+    assert output.facts[0] == report
+    assert output.facts[1] == commitment
+    assert report.category == "information"
+    assert "Morrowglass" in report.content
+    speaker = report.entities[report.attribution[0]]
+    assert (speaker.name, speaker.type) == ("the player", "player")
+    source_indices = {
+        index for index, entity in enumerate(report.entities) if entity.name == "Morrowglass"
+    }
+    assert source_indices.isdisjoint(report.attribution)
+    assert "charter" not in commitment.content
+
+
+@pytest.mark.parametrize(("cap", "expected"), [(0, 0), (1, 1), (3, 3), (4, 4)])
 def test_fact_example_obeys_configured_cap_and_importance_level(cap: int, expected: int) -> None:
     payload = FactsPayload.model_validate_json(json.dumps(parse_example("facts", cap)["output"]))
     assert len(payload.facts) == expected
     assert all(fact.importance.level == "custom" for fact in payload.facts)
+    if cap == 3:
+        assert all(fact.assertion_type != "occurrence" for fact in payload.facts)
 
 
 def test_batch_example_combines_summary_and_facts_under_one_output_and_turn_membership() -> None:

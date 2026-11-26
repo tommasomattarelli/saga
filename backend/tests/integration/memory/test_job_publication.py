@@ -24,6 +24,7 @@ from app.models.memory_fact import MemoryFact, MemoryFactSource
 from app.models.memory_generation import MemoryGeneration
 from app.models.memory_job import MemoryJob, MemoryJobAttempt
 from app.models.source_embedding import SourceEmbedding
+from app.models.turn import Turn
 from app.models.user import User
 from tests.integration.memory.job_support import (
     _durable_generation,
@@ -37,11 +38,15 @@ from tests.integration.memory.storage_support import HistoryFixture
 async def _claimed_job(
     f: HistoryFixture,
     *,
+    turns: tuple[Turn, ...] | None = None,
+    manifest_hash: str | None = None,
     raw_by_role: dict[str, str] | None = None,
     status_by_role: dict[str, str] | None = None,
 ) -> tuple[MemoryJob, JobClaim, tuple[MemoryGeneration, ...], MemoryBatch, MemoryState]:
-    first = await f.turn()
-    second = await f.turn(first)
+    if turns is None:
+        first = await f.turn()
+        turns = (first, await f.turn(first))
+    selected = turns
     source = BatchInput(
         turns=tuple(
             BatchTurnSource(
@@ -51,7 +56,7 @@ async def _claimed_job(
                 narration=turn.narration,
                 operations=None,
             )
-            for index, turn in enumerate((first, second), start=1)
+            for index, turn in enumerate(selected, start=1)
         )
     )
     item = MemoryBatch(
@@ -59,8 +64,8 @@ async def _claimed_job(
         campaign_id=f.campaign.id,
         policy_id=f.policy.id,
         previous_batch_id=None,
-        source_head_turn_id=second.id,
-        manifest_hash=source.source_hash(),
+        source_head_turn_id=selected[-1].id,
+        manifest_hash=manifest_hash or source.source_hash(),
     )
     f.session.add(item)
     await f.session.flush()
@@ -68,15 +73,14 @@ async def _claimed_job(
         MemoryBatchTurn(
             campaign_id=f.campaign.id, batch_id=item.id, ordinal=index, turn_id=turn.id
         )
-        for index, turn in enumerate((first, second), start=1)
+        for index, turn in enumerate(selected, start=1)
     )
     state = MemoryState(
         id=uuid4(), campaign_id=f.campaign.id, policy_id=f.policy.id, context_epoch=0
     )
     f.session.add(state)
     await f.session.commit()
-    turns = [first, second]
-    f.campaign.active_head_turn_id = turns[-1].id
+    f.campaign.active_head_turn_id = selected[-1].id
     f.campaign.active_memory_state_id = state.id
     source = await load_batch_input(f.session, f.campaign.id, item.id)
     manifest = build_job_manifest(
