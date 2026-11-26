@@ -70,6 +70,7 @@ def score_scenario(scenario: Scenario, evidence: dict[str, object]) -> ScenarioS
             index
             for index, expected in enumerate(scenario.expected)
             if _covers(str(fact.get("content", "")), expected.key_phrases)
+            and fact.get("assertion_type") == expected.kind
         ]
         claim_speakers: set[tuple[str, str]] = set()
         for index in covered:
@@ -93,9 +94,11 @@ def score_scenario(scenario: Scenario, evidence: dict[str, object]) -> ScenarioS
             expected = scenario.expected[rule.claim]
             target = (rule.speaker.name.casefold(), rule.speaker.type)
             for fact in facts:
-                if _covers(
-                    str(fact.get("content", "")), expected.key_phrases
-                ) and target in _speakers(fact):
+                if (
+                    _covers(str(fact.get("content", "")), expected.key_phrases)
+                    and fact.get("assertion_type") == expected.kind
+                    and target in _speakers(fact)
+                ):
                     forbidden_hits.append(f"{scenario.name}: forbidden claim {rule.claim}")
 
     total = len(scenario.expected)

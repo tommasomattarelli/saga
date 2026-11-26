@@ -64,6 +64,8 @@ def test_fact_instructions_scope_speaker_boundaries_to_batch_and_facts_prompts()
         "A declarative fact (statement, belief, intention) reports exactly one",
         "preface, context or summary",
         "the attribution is the reporter",
+        "Indices are local to",
+        "Do not merge an occurrence with a statement",
     )
     for kind in ("batch", "facts"):
         prepared = request(kind)

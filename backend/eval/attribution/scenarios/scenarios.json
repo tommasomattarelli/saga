@@ -25,6 +25,18 @@
           "look",
           "third stair"
         ]
+      },
+      {
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        },
+        "kind": "statement",
+        "key_phrases": [
+          "road",
+          "east",
+          "shrine"
+        ]
       }
     ],
     "forbidden": [
@@ -166,7 +178,7 @@
           "name": "Vela",
           "type": "npc"
         },
-        "kind": "belief",
+        "kind": "statement",
         "key_phrases": [
           "lies",
           "bridge"
@@ -336,7 +348,7 @@
           "name": "the player",
           "type": "player"
         },
-        "kind": "belief",
+        "kind": "statement",
         "key_phrases": [
           "map",
           "mill"
@@ -643,7 +655,7 @@
           "name": "Vela",
           "type": "npc"
         },
-        "kind": "belief",
+        "kind": "statement",
         "key_phrases": [
           "mill",
           "silver key"

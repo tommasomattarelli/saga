@@ -65,8 +65,8 @@ def test_fact_example_teaches_all_four_fact_types_with_attribution() -> None:
     assert output.facts[0].category == "information"
     assert output.facts[0].entities[0].name == "the player"
     assert output.facts[1].category == "commitment"
-    assert output.facts[1].attribution == (0,)
-    assert output.facts[1].entities[0].name == "Neris"
+    assert output.facts[1].attribution == (1,)
+    assert output.facts[1].entities[1].name == "Neris"
     assert output.facts[2].assertion_type == "belief"
     assert output.facts[2].attribution == (0,)
     assert output.facts[2].entities[0].name == "Mira"
@@ -79,6 +79,19 @@ def test_fact_example_teaches_all_four_fact_types_with_attribution() -> None:
         for fact in output.facts
         for entity in fact.entities
     )
+
+
+def test_fact_example_teaches_attribution_indices_are_local_to_each_fact() -> None:
+    output = FactsPayload.model_validate_json(json.dumps(parse_example("facts", 4)["output"]))
+    player_report, commitment = output.facts[0], output.facts[1]
+    assert [entity.name for entity in player_report.entities] == [
+        "the player",
+        "Morrowglass",
+        "Neris",
+    ]
+    assert [entity.name for entity in commitment.entities] == ["the player", "Neris"]
+    assert commitment.attribution == (1,)
+    assert commitment.entities[commitment.attribution[0]].name == "Neris"
 
 
 def test_fact_example_separates_player_report_from_npc_commitment() -> None:

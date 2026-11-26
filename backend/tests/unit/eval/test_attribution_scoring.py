@@ -47,9 +47,14 @@ def test_reporter_claim_and_npc_commitment_score_as_two_matched_facts() -> None:
                 "npc",
                 "intention",
             ),
+            _fact(
+                "Vela said the road east from the shrine leads to Ashford.",
+                "Vela",
+                "npc",
+            ),
         ),
     )
-    assert (score.matched, score.expected) == (2, 2)
+    assert (score.matched, score.expected) == (3, 3)
     assert not score.hard_fail
     assert not score.extra_declarative
 
@@ -70,11 +75,11 @@ def test_wrong_speaker_and_bundled_claims_are_hard_failures() -> None:
     assert wrong.hard_fail
 
     bundled = score_scenario(
-        scenarios["player_claim_npc_commitment"],
+        scenarios[REAL_BATCH],
         _evidence(
             _fact(
-                "The player told Vela that Kestrel swore the charter lay under the third stair, "
-                "wrapped in green wax, and Vela will check it at dawn.",
+                "The player told Vela that Kestrel swore the sealed charter lies under the third "
+                "stair, wrapped in green wax, and that Ashford's road runs east from the shrine.",
                 "the player",
                 "player",
             )
@@ -83,6 +88,31 @@ def test_wrong_speaker_and_bundled_claims_are_hard_failures() -> None:
     assert bundled.bundled
     assert bundled.hard_fail
     assert overall((wrong, bundled), REAL_BATCH)["green"] is False
+
+
+def test_claim_phrases_in_a_fact_of_another_kind_are_not_forbidden() -> None:
+    scenario = next(s for s in load_scenarios() if s.name == REAL_BATCH)
+    score = score_scenario(
+        scenario,
+        _evidence(
+            _fact(
+                "The player told Vela that Kestrel swore the charter lies under the third stair, "
+                "wrapped in green wax.",
+                "the player",
+                "player",
+            ),
+            _fact(
+                "Vela agreed to look for the sealed charter under the third stair wrapped in green "
+                "wax.",
+                "Vela",
+                "npc",
+                "intention",
+            ),
+        ),
+    )
+    assert not score.hard_fail
+    assert not score.bundled
+    assert not score.forbidden_hits
 
 
 def test_manifest_preparation_and_validation_are_offline_and_sealed(tmp_path) -> None:
