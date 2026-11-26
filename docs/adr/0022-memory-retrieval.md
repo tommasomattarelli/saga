@@ -1,6 +1,6 @@
 # ADR 0022 — Memory retrieval: deterministic multi-query, hybrid, no write path
 
-- **Status**: Proposed (design closed by the owner interview on 2026-11-24; not yet implemented). Numeric weights and thresholds remain **Refined** and must be fixed by the benchmark in §8, not by intuition.
+- **Status**: Proposed (design closed by the owner interview on 2026-11-24; implemented 2026-11-26). `rrf_k`, entity-name and critical boosts were fixed by the E2 run on 2026-11-27; canonical-ref, recency, anchor cap and dedup threshold remain **Refined** and unmeasured.
 - **Date**: 2026-11-24.
 - **Context items / sources**: ADR 0001, 0002 (Proposed — its recall half is superseded here), 0005, 0007, 0008, 0018, 0020, 0021; ADR 0020 playtest (`scratch/findings-playtest-adr-020.md`, F6/F7/F8/F10); external surveys `scratch/research/retrieval-prior-art-2026.md` and `scratch/research/query-construction-if-2026.md`.
 
@@ -125,6 +125,8 @@ The defect is therefore not "the ranking is wrong" but: **retrieval uses the wea
 
 - **E1 — Offline benchmark with labels (Decided).** The controlled source used during 0020 S6 (52 turns, 13 batches of 4) was **local-only evidence under `scratch/` and is no longer on disk**; it must be **regenerated**, not merely referenced. Use the deterministic builder `python -m eval.memory_scenarios.build --out <dir> --batch-size 4 --raw-turns 8 --intermediate-limit 2 --global-updates 9` from `backend/` (`eval/memory_scenarios/build.py`, fixed seed and `uuid5` identities). Then author 20-30 **query → expected facts** pairs against the facts that producer run actually emits: the generated annotations hold per-turn world-state expectations, **not** query→fact labels, so labels are new manual work; each query also needs its own state snapshot for the anchor and the boosts. Query embeddings are provider calls (`openai/text-embedding-3-small` via OpenRouter) and therefore require **explicit owner authorisation for each manifest** per `backend/eval/README.md`; a CLI flag is not consent, and the 0020 playtest runs grant no inherited approval. Compute them once per variant — up to ~90 texts for three query forms × 20-30 queries — then variant comparison is pure SQL with no provider calls. The anchor-length sweep changes the embedded text, so each length needs a **separately authorised batch**; it is not part of the free SQL comparison.
 - **E2 — Variants to compare (Decided).** (a) naked action with cosine top-3, baseline; (b) single composed query; (c) multi-query + RRF; (d) + canonical-ref entity boost; (e) + name-match, critical and recency boosts; (f) + unconditional injection of `critical` facts, behind `recall.critical_always_include` and `recall.max_critical_inject`, reporting injected tokens so the slot accounting is visible. Plus a dedup on/off variant and the separately authorised anchor-length sweep. Variants (a)-(d) isolate the query, fusion and canonical-ref signal; **(e) is a boost-family comparison** — its three boosts are tuned together, not individually. Unconditional critical inclusion comes from the research and the closest analogue (aidm v5); variant (f) measures it rather than assuming it.
+  **Sn note (2026-11-27, implementation).** The offline E2 run used the regenerated deterministic 52-turn source (45 produced facts, 20 hand-labelled queries) and a real `to_tsquery` over `simple`. recall@5 was 0.759 for the composed query, 0.677 for the naked-action baseline, and 0.548–0.589 for the shipped action+anchor+lexical RRF. The lexical branch matched all 25 candidates on every query with the full lexeme OR — the degenerate case E3 was meant to expose — and restricting it to gazetteer names did not help on these short queries. Weights are fixed from the production-matching variant (k=20, entity-name 0.01, critical 0.02); the anchor branch remains per R2/R3 because these labels are ad-hoc and short, not complex scenes. R1 write-time enrichment stays open, and the lexical OR construction is a follow-up. The owner intends to revisit replacing the anchor branch with the composed vector (variant c2: recall@5 0.741 with k=20 and 0.02 boosts) when ADR 0022 is reviewed for acceptance; the shipped architecture is unchanged for now.
+
 - **E3 — Metrics (Decided).** recall@5, MRR@5, contamination@5 (stale or contradicted facts in the top 5), injected tokens, p50/p95 latency of the retrieval path alone, **lexical-branch hit counts** (so a degenerate lexical query is visible), boost-family ablations from E2 (individual weights are not isolated), and the number of facts dropped by dedup.
 - **E4 — No inherited authorisation (Decided).** The initial embedding batches and any live run require explicit owner authorisation for that manifest, per `backend/eval/README.md`. The 0020 playtest runs are historical evidence, not consent for new calls.
 - **E5 — The canary probe remains separate work (Decided).** To isolate consumption of the global checkpoint the canary detail must exist **only** in that source: not as a fact, not as an embedding, not in raw turns. That is fixed with #115, not by bending retrieval.
@@ -140,8 +142,9 @@ The defect is therefore not "the ranking is wrong" but: **retrieval uses the wea
 | F1-F2: fallback chain, retrieval-specific logging | Decided | §3 F |
 | S1-S3: runtime config, migration, legacy untouched | Decided | §3 S |
 | E1-E5: labelled benchmark, six variants, metrics, owner gate | Decided | §3 E |
-| Boost weights, `rrf_k`, anchor cap, dedup threshold | **Refined**, measured by E2/E3 sweeps | §3 E |
-| 20-30 labelled query→fact pairs + per-query state snapshots | **TODO — work, not a decision** | E1 |
+| `rrf_k` 20, entity-name 0.01, critical 0.02 | Fixed by E2 on 2026-11-27 (production-matching variant) | §3 E2 Sn note |
+| Canonical-ref, recency, anchor cap, dedup threshold | **Refined**, not measurable on the synthetic labels | §3 E2 Sn note |
+| 20 hand-labelled query→fact pairs | Done in S4; per-query state snapshots were not authored | E1 |
 | Real-DB test plan for generated column, fusion, fallback, branch isolation | **Refined** | S2, C1, F1 |
 | LLM escalation for distant anaphora | **TODO**, trigger: low top-1 or unresolved anaphora | §3 R5 |
 | DM `recall` tool | **TODO**, trigger: evidence the model would use it (F10 says it would not) | §2 |
@@ -170,7 +173,7 @@ The defect is therefore not "the ranking is wrong" but: **retrieval uses the wea
 
 **Trade-off**: two embeddings per turn instead of one (in one batch call) and two search branches; a migration for the generated column; ~50 extra tokens per turn in rendering; a typed DTO and an eval-harness adaptation; distant anaphora remains uncovered until further judgement.
 
-**Risks**: boost weights are still numbers to tune — with wrong weights the system can be worse than the naked baseline, and E2 exists precisely to catch that; the quality of the `ordinary`/`critical` rubric caps the value of the matching boost; write-time enrichment and the reranker remain open leverage that E2 may show is needed.
+**Risks**: E2 measured the shipped RRF below the naked baseline on short ad-hoc labels (see the 2026-11-27 Sn note); complex scenes may behave differently, so the boost weights are fixed from that run but are not a quality acceptance; write-time enrichment, the lexical OR construction and the reranker remain open leverage.
 
 ## 7. Relationship to other ADRs
 
@@ -199,3 +202,7 @@ No live call or production-quality conclusion follows from S1-S3. Every run cont
 - `scratch/research/query-construction-if-2026.md` — follow-up: official docs for AI Dungeon, NovelAI, SillyTavern and KoboldAI; aidm source (`retrieval.ts`, `tiers.ts`); NarrativeEngine-P; HyDE, Query2Doc, RAG-Fusion, Self-RAG, Adaptive-RAG, FLARE and "Better Together" (2026). Sources carry quality tags; vendor claims were not treated as efficacy evidence.
 - `scratch/findings-playtest-adr-020.md` — F6 (attribution), F7 (duplicated canary), F8 (noise), F10 (ignored tools).
 - Code claims in §1 were verified by grep/Read during the interview and the review pass, not assumed from documents.
+
+## 10. Owner direction — composed query as the second dense branch (2026-11-27)
+
+At acceptance review, switch the second dense branch of R2 from the anchor-only vector to the composed vector (`action + anchor`), keeping RRF, the lexical branch and the ancestry guard unchanged. This is variant c2 of E2: recall@5 0.741 with `rrf_k=20`, `entity_name=0.02` and `critical=0.02`, versus 0.589 for the shipped action+anchor+lexical variant and 0.759 for the single composed vector. The scene signal is preserved inside the composed text; the anchor-only branch is dropped because it carries location and presence but no intent. Provider cost is unchanged: two texts in one `embed_texts` batch, now `action` and `composed`. No production change is made until the owner confirms this direction at the end-of-ADR review; the config values committed for S4 remain those measured on the shipped variant.

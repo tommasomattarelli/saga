@@ -26,3 +26,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Recall builds a deterministic scene anchor and an OR/prefix full-text query, embedded in one batch (ADR 0022).
 - A helper now scores fused recall candidates with metadata boosts, deduplication and bounded selection (ADR 0022).
 - Recall now injects a typed `<recalled_memories>` block with attribution and age via the hybrid pipeline (ADR 0022).
+- Retrieval RRF and boost weights were measured on the regenerated controlled source and fixed in config (ADR 0022 E2).

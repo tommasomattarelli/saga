@@ -122,7 +122,7 @@ recall:
   enabled: true
   candidate_pool: 25 # candidates per retriever before fusion
   inject_limit: 5 # slots in the <recalled_memories> block
-  rrf_k: 60 # provisional until the E2 benchmark fixes it
+  rrf_k: 20 # measured by the ADR 0022 E2 offline benchmark
   critical_always_include: false # toggles variant (f) in production
   max_critical_inject: 5 # hard bound on critical facts occupying the slots
   query:
@@ -130,10 +130,10 @@ recall:
     recent_narration_turns: 2
     anchor_max_chars: 200 # provisional until the E2 anchor-length sweep
   boosts:
-    entity_canonical_ref: 0.0 # provisional until E2; 0 keeps the baseline inert
-    entity_name: 0.0
-    critical: 0.0
-    recency_tiebreak: 0.0
+    entity_canonical_ref: 0.0 # not measurable on the synthetic labels; no canonical refs there
+    entity_name: 0.01 # measured by E2
+    critical: 0.02 # measured by E2
+    recency_tiebreak: 0.0 # not measurable without turn-age labels
   dedup:
     enabled: true
     similarity_threshold: 1.0 # exact-only until E2 fixes the near-duplicate threshold
