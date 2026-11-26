@@ -173,7 +173,7 @@ async def _recall(fixture: HistoryFixture, ancestry_ids: tuple[UUID, ...], limit
         index.id,
         legacy_space(),
         384,
-        (1.0,) + (0.0,) * 383,
+        {"action": (1.0,) + (0.0,) * 383},
     )
     return await search_similar_facts(
         fixture.campaign.id,

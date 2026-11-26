@@ -67,7 +67,9 @@ async def search_similar_facts(
                 )
             )
         )
-        .order_by(SourceEmbedding.embedding.cosine_distance(list(query_embedding.vector)))
+        .order_by(
+            SourceEmbedding.embedding.cosine_distance(list(query_embedding.vectors["action"]))
+        )
         .limit(limit)
     )
     return list(result.scalars().all())
