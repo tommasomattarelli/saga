@@ -131,8 +131,8 @@ recall:
     anchor_max_chars: 200 # provisional until the E2 anchor-length sweep
   boosts:
     entity_canonical_ref: 0.0 # not measurable on the synthetic labels; no canonical refs there
-    entity_name: 0.01 # measured by E2
-    critical: 0.02 # measured by E2
+    entity_name: 0.02 # measured by E2 c2 (composed second dense branch)
+    critical: 0.02 # measured by E2 c2
     recency_tiebreak: 0.0 # not measurable without turn-age labels
   dedup:
     enabled: true

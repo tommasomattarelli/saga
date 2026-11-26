@@ -1,3 +1,4 @@
+import json
 import uuid
 from collections.abc import Mapping
 
@@ -35,7 +36,7 @@ async def _hybrid(
     lexical_query: str,
     *,
     use_action: bool = True,
-    use_anchor: bool = True,
+    use_composed: bool = True,
     use_lexical: bool = True,
 ) -> list[HybridHit]:
     index = await fixture.session.scalar(
@@ -53,7 +54,7 @@ async def _hybrid(
         vectors=vectors,
         lexical_query=lexical_query,
         use_action=use_action,
-        use_anchor=use_anchor,
+        use_composed=use_composed,
         use_lexical=use_lexical,
     )
 
@@ -79,13 +80,54 @@ async def test_hybrid_fuses_dense_and_lexical_ranks(
 
     hits = await _hybrid(
         fixture,
-        vectors={"action": (1.0,) + (0.0,) * 383, "anchor": (0.0,) * 384},
+        vectors={"action": (1.0,) + (0.0,) * 383, "composed": (0.0,) * 384},
         lexical_query="lyra",
-        use_anchor=False,
+        use_composed=False,
     )
 
     assert [hit.fact_id for hit in hits] == [fact.id]
     assert hits[0].score > 1 / 61  # the same fact contributes to both dense and lexical ranks
+
+
+async def test_composed_vector_drives_second_dense_branch(
+    history_fixture: HistoryFixture,
+) -> None:
+    fixture = history_fixture
+    fixture.session.add(_index(fixture))
+    await fixture.session.commit()
+    payload = json.loads(_fact_payload("Lyra kept the silver key."))
+    payload["facts"].append({**payload["facts"][0], "content": "Aldric watched the gate."})
+    _job, claim, generations, _batch, _state = await _claimed_job(
+        fixture,
+        raw_by_role={
+            "summary": '{"text":"Composed summary."}',
+            "facts": json.dumps(payload),
+        },
+    )
+    assert await publish_job(fixture.session, claim, outputs_for(generations))
+    await fixture.session.commit()
+    target = await fixture.session.scalar(
+        select(MemoryFact).where(MemoryFact.content == "Lyra kept the silver key.")
+    )
+    distractor = await fixture.session.scalar(
+        select(MemoryFact).where(MemoryFact.content == "Aldric watched the gate.")
+    )
+    assert target is not None and distractor is not None
+    await _embed_fact(fixture, target, [0.0, 1.0] + [0.0] * 382)
+    await _embed_fact(fixture, distractor, [1.0] + [0.0] * 383)
+
+    hits = await _hybrid(
+        fixture,
+        vectors={
+            "action": (1.0,) + (0.0,) * 383,
+            "composed": (0.0, 1.0) + (0.0,) * 382,
+        },
+        lexical_query="",
+        use_action=False,
+    )
+
+    assert hits and hits[0].fact_id == target.id
+    assert hits[0].score > next(hit.score for hit in hits if hit.fact_id == distractor.id)
 
 
 async def test_lexical_only_search_needs_no_embedding_index(
@@ -117,7 +159,7 @@ async def test_lexical_only_search_needs_no_embedding_index(
         pool=25,
         rrf_k=60,
         use_action=False,
-        use_anchor=False,
+        use_composed=False,
     )
 
     assert [hit.fact_id for hit in hits] == [fact.id]
@@ -158,7 +200,7 @@ async def test_future_batch_is_excluded_from_dense_and_lexical_branches(
 
     hits = await _hybrid(
         fixture,
-        vectors={"action": (1.0,) + (0.0,) * 383, "anchor": (0.0, 1.0) + (0.0,) * 382},
+        vectors={"action": (1.0,) + (0.0,) * 383, "composed": (0.0, 1.0) + (0.0,) * 382},
         lexical_query="lyra",
     )
 

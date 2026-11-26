@@ -30,7 +30,7 @@ def _prepared(campaign_id: uuid.UUID, index_id: uuid.UUID) -> PreparedRecallQuer
         index_id,
         legacy_space(),
         2,
-        {"action": (1.0, 0.0), "anchor": (0.0, 1.0)},
+        {"action": (1.0, 0.0), "composed": (0.0, 1.0)},
     )
 
 
@@ -135,7 +135,8 @@ async def test_hybrid_pipeline_maps_hits_to_typed_facts(env, mocker):
     assert call["ancestry_turn_ids"] == snapshot.ancestry_turn_ids
     assert call["pool"] == env.config.candidate_pool
     assert call["rrf_k"] == env.config.rrf_k
-    assert (call["use_action"], call["use_anchor"], call["use_lexical"]) == (True, True, True)
+    assert (call["use_action"], call["use_composed"], call["use_lexical"]) == (True, True, True)
+    assert env.logger.info.call_args.kwargs["branches"] == ("action", "composed", "lexical")
     rank_call = env.rank.call_args.kwargs
     assert rank_call["canonical_refs"] == frozenset({("npc", "npc-lyra"), ("quest", "find_lyra")})
     assert rank_call["ages"] == {hit.fact_id: 7}
@@ -149,7 +150,7 @@ async def test_lexical_only_when_embedding_unavailable(env, mocker):
     await recall_facts(snapshot, "find the map", mocker.Mock(), None)
 
     call = env.search.call_args.kwargs
-    assert (call["use_action"], call["use_anchor"], call["use_lexical"]) == (False, False, True)
+    assert (call["use_action"], call["use_composed"], call["use_lexical"]) == (False, False, True)
     assert call["vectors"] == {}
     assert call["index_id"] == snapshot.recall_snapshot.index_id
     assert "lexical" in env.logger.info.call_args.kwargs["branches"]
@@ -164,7 +165,7 @@ async def test_lexical_only_without_recall_snapshot_still_searches(env, mocker):
     call = env.search.call_args.kwargs
     assert call["index_id"] is None
     assert call["dimension"] is None
-    assert (call["use_action"], call["use_anchor"], call["use_lexical"]) == (False, False, True)
+    assert (call["use_action"], call["use_composed"], call["use_lexical"]) == (False, False, True)
     assert env.logger.info.call_args.kwargs["outcome"] == "no_results"
 
 
@@ -177,7 +178,7 @@ async def test_dense_only_when_lexical_query_is_empty(env, mocker):
     await recall_facts(snapshot, "wait", mocker.Mock(), prepared)
 
     call = env.search.call_args.kwargs
-    assert (call["use_action"], call["use_anchor"], call["use_lexical"]) == (True, True, False)
+    assert (call["use_action"], call["use_composed"], call["use_lexical"]) == (True, True, False)
     assert "lexical" not in env.logger.info.call_args.kwargs["branches"]
 
 

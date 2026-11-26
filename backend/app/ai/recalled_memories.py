@@ -107,7 +107,7 @@ async def recall_facts(
 
         use_dense = query_embedding is not None
         if use_dense:
-            branches.extend(("action", "anchor"))
+            branches.extend(("action", "composed"))
         else:
             unavailable.append("dense")
 
@@ -139,7 +139,7 @@ async def recall_facts(
                     pool=config.candidate_pool,
                     rrf_k=config.rrf_k,
                     use_action=use_dense,
-                    use_anchor=use_dense,
+                    use_composed=use_dense,
                     use_lexical=bool(lexical_query),
                 )
             except Exception as exc:

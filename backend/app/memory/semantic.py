@@ -119,13 +119,13 @@ action_dense AS (
     ORDER BY se.embedding <=> :action_vector
     LIMIT :pool
 ),
-anchor_dense AS (
+composed_dense AS (
     SELECT f.id AS fact_id,
-           row_number() OVER (ORDER BY se.embedding <=> :anchor_vector) AS rank
+           row_number() OVER (ORDER BY se.embedding <=> :composed_vector) AS rank
     FROM memory_facts f
     JOIN source_embeddings se
       ON se.memory_fact_id = f.id AND se.campaign_id = f.campaign_id
-    WHERE :use_anchor
+    WHERE :use_composed
       AND f.campaign_id = :campaign_id
       AND se.index_id = :index_id
       AND se.campaign_id = :campaign_id
@@ -134,7 +134,7 @@ anchor_dense AS (
       AND vector_dims(se.embedding) = :dimension"""
     + _ANCESTRY_GUARD
     + """
-    ORDER BY se.embedding <=> :anchor_vector
+    ORDER BY se.embedding <=> :composed_vector
     LIMIT :pool
 ),
 lexical AS (
@@ -154,7 +154,7 @@ fused AS (
     SELECT fact_id, sum(1.0 / (:rrf_k + rank)) AS score
     FROM (
         SELECT fact_id, rank FROM action_dense
-        UNION ALL SELECT fact_id, rank FROM anchor_dense
+        UNION ALL SELECT fact_id, rank FROM composed_dense
         UNION ALL SELECT fact_id, rank FROM lexical
     ) candidates
     GROUP BY fact_id
@@ -170,7 +170,7 @@ LIMIT :pool
     bindparam("index_id", type_=PG_UUID(as_uuid=True)),
     bindparam("ancestry", type_=ARRAY(PG_UUID(as_uuid=True))),
     bindparam("action_vector", type_=Vector()),
-    bindparam("anchor_vector", type_=Vector()),
+    bindparam("composed_vector", type_=Vector()),
     bindparam("dimension", type_=Integer),
     bindparam("pool", type_=Integer),
     bindparam("rrf_k", type_=Integer),
@@ -190,7 +190,7 @@ async def search_hybrid_facts(
     pool: int,
     rrf_k: int,
     use_action: bool = True,
-    use_anchor: bool = True,
+    use_composed: bool = True,
     use_lexical: bool = True,
 ) -> list[HybridHit]:
     if not ancestry_turn_ids:
@@ -203,13 +203,13 @@ async def search_hybrid_facts(
             "index_id": index_id,
             "dimension": dimension,
             "action_vector": list(vectors.get("action", zero)),
-            "anchor_vector": list(vectors.get("anchor", zero)),
+            "composed_vector": list(vectors.get("composed", zero)),
             "ancestry": list(ancestry_turn_ids),
             "lexical_query": lexical_query,
             "pool": pool,
             "rrf_k": rrf_k,
             "use_action": use_action,
-            "use_anchor": use_anchor,
+            "use_composed": use_composed,
             "use_lexical": use_lexical,
         },
     )

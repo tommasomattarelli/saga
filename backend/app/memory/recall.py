@@ -121,9 +121,10 @@ async def snapshot_recall_query(db: AsyncSession, campaign_id: uuid.UUID) -> Rec
 async def embed_recall_query(
     snapshot: RecallSnapshot, action: str, anchor: str
 ) -> PreparedRecallQuery | None:
+    composed = f"{action} {anchor}".strip()
     try:
         batch: EmbeddingBatch = await embed_texts(
-            snapshot.space, [action, anchor], user_id=snapshot.owner_id
+            snapshot.space, [action, composed], user_id=snapshot.owner_id
         )
     except Exception:
         return None
@@ -140,5 +141,5 @@ async def embed_recall_query(
         snapshot.index_id,
         snapshot.space,
         snapshot.dimension,
-        {"action": batch.vectors[0], "anchor": batch.vectors[1]},
+        {"action": batch.vectors[0], "composed": batch.vectors[1]},
     )

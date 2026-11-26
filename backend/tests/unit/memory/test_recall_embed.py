@@ -7,7 +7,7 @@ from app.memory.recall import RecallSnapshot, embed_recall_query
 
 
 @pytest.mark.asyncio
-async def test_embed_recall_query_sends_action_and_anchor_in_one_batch(monkeypatch) -> None:
+async def test_embed_recall_query_sends_action_and_composed_in_one_batch(monkeypatch) -> None:
     captured: list[str] = []
 
     async def fake_embed_texts(space, texts, *, user_id):
@@ -21,9 +21,9 @@ async def test_embed_recall_query_sends_action_and_anchor_in_one_batch(monkeypat
 
     prepared = await embed_recall_query(snapshot, "open the door", "At Thornhaven, with Lyra.")
 
-    assert captured == ["open the door", "At Thornhaven, with Lyra."]
+    assert captured == ["open the door", "open the door At Thornhaven, with Lyra."]
     assert prepared is not None
-    assert prepared.vectors == {"action": (1.0, 0.0), "anchor": (0.0, 1.0)}
+    assert prepared.vectors == {"action": (1.0, 0.0), "composed": (0.0, 1.0)}
 
 
 @pytest.mark.asyncio
