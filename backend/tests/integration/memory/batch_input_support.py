@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from app.memory.operation_contracts import OperationPayload, RecordedOperation
 from app.models.turn import Turn
@@ -33,9 +33,10 @@ async def recorded_turn(
     action: str,
     narration: str,
     operations: list[RecordedOperation] | None = None,
+    turn_id: UUID | None = None,
 ) -> Turn:
     turn = Turn(
-        id=uuid4(),
+        id=turn_id or uuid4(),
         campaign_id=f.campaign.id,
         continuation_id=f.root.id,
         parent_turn_id=parent.id if parent else None,

@@ -1,0 +1,663 @@
+[
+  {
+    "name": "real_batch_anonymized",
+    "source_file": "anonymized_real_batch.json",
+    "expected": [
+      {
+        "speaker": {
+          "name": "the player",
+          "type": "player"
+        },
+        "kind": "statement",
+        "key_phrases": [
+          "charter",
+          "third stair",
+          "green wax"
+        ]
+      },
+      {
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        },
+        "kind": "intention",
+        "key_phrases": [
+          "look",
+          "third stair"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "claim": 0,
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        }
+      }
+    ]
+  },
+  {
+    "name": "player_claim_npc_commitment",
+    "source": {
+      "schema_version": 1,
+      "turns": [
+        {
+          "reference": "t1",
+          "turn_id": "40000000-0000-4000-8000-000000000100",
+          "player_action": "I tell Vela that Kestrel swore the sealed charter lies under the third stair, wrapped in green wax. I ask her to check it.",
+          "narration": "Vela: \"I will check the third stair at dawn.\"",
+          "operations": [
+            {
+              "id": "40000000-0000-4000-8000-000000000901",
+              "ordinal": 1,
+              "step": null,
+              "beat": null,
+              "payload": {
+                "origin": "npc",
+                "name": "invoke_npc",
+                "outcome": "succeeded",
+                "arguments": {
+                  "name": "Vela",
+                  "context": "The player asks her to check the third stair."
+                },
+                "result": {
+                  "kind": "npc",
+                  "npc_id": "40000000-0000-4000-8000-000000000501",
+                  "status": "speaking",
+                  "action": null,
+                  "axis_changes": {}
+                },
+                "deltas": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "expected": [
+      {
+        "speaker": {
+          "name": "the player",
+          "type": "player"
+        },
+        "kind": "statement",
+        "key_phrases": [
+          "charter",
+          "third stair",
+          "green wax"
+        ]
+      },
+      {
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        },
+        "kind": "intention",
+        "key_phrases": [
+          "check",
+          "dawn"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "claim": 0,
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        }
+      }
+    ]
+  },
+  {
+    "name": "player_cites_npc_npc_reacts",
+    "source": {
+      "schema_version": 1,
+      "turns": [
+        {
+          "reference": "t1",
+          "turn_id": "40000000-0000-4000-8000-000000000100",
+          "player_action": "I tell Vela that Kestrel the ferryman claimed the bridge is guarded by a silver wraith.",
+          "narration": "Vela: \"Kestrel lies about that bridge.\"",
+          "operations": [
+            {
+              "id": "40000000-0000-4000-8000-000000000901",
+              "ordinal": 1,
+              "step": null,
+              "beat": null,
+              "payload": {
+                "origin": "npc",
+                "name": "invoke_npc",
+                "outcome": "succeeded",
+                "arguments": {
+                  "name": "Vela",
+                  "context": "The player cites Kestrel about the bridge."
+                },
+                "result": {
+                  "kind": "npc",
+                  "npc_id": "40000000-0000-4000-8000-000000000501",
+                  "status": "speaking",
+                  "action": null,
+                  "axis_changes": {}
+                },
+                "deltas": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "expected": [
+      {
+        "speaker": {
+          "name": "the player",
+          "type": "player"
+        },
+        "kind": "statement",
+        "key_phrases": [
+          "Kestrel",
+          "bridge",
+          "wraith"
+        ]
+      },
+      {
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        },
+        "kind": "belief",
+        "key_phrases": [
+          "lies",
+          "bridge"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "claim": 0,
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        }
+      },
+      {
+        "claim": 1,
+        "speaker": {
+          "name": "Kestrel",
+          "type": "npc"
+        }
+      }
+    ]
+  },
+  {
+    "name": "two_npcs_distinct_claims",
+    "source": {
+      "schema_version": 1,
+      "turns": [
+        {
+          "reference": "t1",
+          "turn_id": "40000000-0000-4000-8000-000000000100",
+          "player_action": "I ask Vela and Mira what they think of the sealed door.",
+          "narration": "Vela: \"I believe the seal can be broken with silver.\" Mira: \"I intend to ask the archivist before we try.\"",
+          "operations": [
+            {
+              "id": "40000000-0000-4000-8000-000000000901",
+              "ordinal": 1,
+              "step": null,
+              "beat": null,
+              "payload": {
+                "origin": "npc",
+                "name": "invoke_npc",
+                "outcome": "succeeded",
+                "arguments": {
+                  "name": "Vela",
+                  "context": "The player asks about the sealed door."
+                },
+                "result": {
+                  "kind": "npc",
+                  "npc_id": "40000000-0000-4000-8000-000000000501",
+                  "status": "speaking",
+                  "action": null,
+                  "axis_changes": {}
+                },
+                "deltas": []
+              }
+            },
+            {
+              "id": "40000000-0000-4000-8000-000000000902",
+              "ordinal": 2,
+              "step": null,
+              "beat": null,
+              "payload": {
+                "origin": "npc",
+                "name": "invoke_npc",
+                "outcome": "succeeded",
+                "arguments": {
+                  "name": "Mira",
+                  "context": "The player asks about the sealed door."
+                },
+                "result": {
+                  "kind": "npc",
+                  "npc_id": "40000000-0000-4000-8000-000000000502",
+                  "status": "speaking",
+                  "action": null,
+                  "axis_changes": {}
+                },
+                "deltas": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "expected": [
+      {
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        },
+        "kind": "belief",
+        "key_phrases": [
+          "silver",
+          "seal"
+        ]
+      },
+      {
+        "speaker": {
+          "name": "Mira",
+          "type": "npc"
+        },
+        "kind": "intention",
+        "key_phrases": [
+          "archivist",
+          "ask"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "claim": 0,
+        "speaker": {
+          "name": "Mira",
+          "type": "npc"
+        }
+      },
+      {
+        "claim": 1,
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        }
+      }
+    ]
+  },
+  {
+    "name": "player_belief_npc_intention",
+    "source": {
+      "schema_version": 1,
+      "turns": [
+        {
+          "reference": "t1",
+          "turn_id": "40000000-0000-4000-8000-000000000100",
+          "player_action": "I tell Vela I believe the map is hidden in the mill.",
+          "narration": "Vela: \"I intend to search the mill tonight.\"",
+          "operations": [
+            {
+              "id": "40000000-0000-4000-8000-000000000901",
+              "ordinal": 1,
+              "step": null,
+              "beat": null,
+              "payload": {
+                "origin": "npc",
+                "name": "invoke_npc",
+                "outcome": "succeeded",
+                "arguments": {
+                  "name": "Vela",
+                  "context": "The player shares a belief about the map."
+                },
+                "result": {
+                  "kind": "npc",
+                  "npc_id": "40000000-0000-4000-8000-000000000501",
+                  "status": "speaking",
+                  "action": null,
+                  "axis_changes": {}
+                },
+                "deltas": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "expected": [
+      {
+        "speaker": {
+          "name": "the player",
+          "type": "player"
+        },
+        "kind": "belief",
+        "key_phrases": [
+          "map",
+          "mill"
+        ]
+      },
+      {
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        },
+        "kind": "intention",
+        "key_phrases": [
+          "search",
+          "tonight"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "claim": 0,
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        }
+      }
+    ]
+  },
+  {
+    "name": "npc_reports_third_party_player_replies",
+    "source": {
+      "schema_version": 1,
+      "turns": [
+        {
+          "reference": "t1",
+          "turn_id": "40000000-0000-4000-8000-000000000100",
+          "player_action": "I ask Vela about the missing watch.",
+          "narration": "Vela: \"The watchman left the gate open at midnight.\" I tell Vela: \"Then I will guard the gate myself.\"",
+          "operations": [
+            {
+              "id": "40000000-0000-4000-8000-000000000901",
+              "ordinal": 1,
+              "step": null,
+              "beat": null,
+              "payload": {
+                "origin": "npc",
+                "name": "invoke_npc",
+                "outcome": "succeeded",
+                "arguments": {
+                  "name": "Vela",
+                  "context": "The player asks about the missing watch."
+                },
+                "result": {
+                  "kind": "npc",
+                  "npc_id": "40000000-0000-4000-8000-000000000501",
+                  "status": "speaking",
+                  "action": null,
+                  "axis_changes": {}
+                },
+                "deltas": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "expected": [
+      {
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        },
+        "kind": "statement",
+        "key_phrases": [
+          "watchman",
+          "midnight"
+        ]
+      },
+      {
+        "speaker": {
+          "name": "the player",
+          "type": "player"
+        },
+        "kind": "intention",
+        "key_phrases": [
+          "guard",
+          "gate"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "claim": 0,
+        "speaker": {
+          "name": "the player",
+          "type": "player"
+        }
+      },
+      {
+        "claim": 1,
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        }
+      }
+    ]
+  },
+  {
+    "name": "player_reports_named_source",
+    "source": {
+      "schema_version": 1,
+      "turns": [
+        {
+          "reference": "t1",
+          "turn_id": "40000000-0000-4000-8000-000000000100",
+          "player_action": "I tell Vela: \"Kestrel swore to me that the silver key is beneath the third stair.\"",
+          "narration": "Vela says nothing.",
+          "operations": [
+            {
+              "id": "40000000-0000-4000-8000-000000000901",
+              "ordinal": 1,
+              "step": null,
+              "beat": null,
+              "payload": {
+                "origin": "npc",
+                "name": "invoke_npc",
+                "outcome": "succeeded",
+                "arguments": {
+                  "name": "Vela",
+                  "context": "The player reports a claim from Kestrel."
+                },
+                "result": {
+                  "kind": "npc",
+                  "npc_id": "40000000-0000-4000-8000-000000000501",
+                  "status": "silent",
+                  "action": null,
+                  "axis_changes": {}
+                },
+                "deltas": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "expected": [
+      {
+        "speaker": {
+          "name": "the player",
+          "type": "player"
+        },
+        "kind": "statement",
+        "key_phrases": [
+          "Kestrel",
+          "silver key",
+          "third stair"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "claim": 0,
+        "speaker": {
+          "name": "Kestrel",
+          "type": "npc"
+        }
+      }
+    ]
+  },
+  {
+    "name": "occurrence_multiple_actors",
+    "source": {
+      "schema_version": 1,
+      "turns": [
+        {
+          "reference": "t1",
+          "turn_id": "40000000-0000-4000-8000-000000000100",
+          "player_action": "I watch Vela and Mira lift the stone.",
+          "narration": "Vela and Mira lift the stone together and the old seal breaks.",
+          "operations": [
+            {
+              "id": "40000000-0000-4000-8000-000000000901",
+              "ordinal": 1,
+              "step": null,
+              "beat": null,
+              "payload": {
+                "origin": "npc",
+                "name": "invoke_npc",
+                "outcome": "succeeded",
+                "arguments": {
+                  "name": "Vela",
+                  "context": "The player watches the stone being lifted."
+                },
+                "result": {
+                  "kind": "npc",
+                  "npc_id": "40000000-0000-4000-8000-000000000501",
+                  "status": "speaking",
+                  "action": null,
+                  "axis_changes": {}
+                },
+                "deltas": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "expected": [
+      {
+        "speaker": null,
+        "kind": "occurrence",
+        "key_phrases": [
+          "stone",
+          "seal"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "claim": 0,
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        }
+      }
+    ]
+  },
+  {
+    "name": "no_declarative_claims",
+    "source": {
+      "schema_version": 1,
+      "turns": [
+        {
+          "reference": "t1",
+          "turn_id": "40000000-0000-4000-8000-000000000100",
+          "player_action": "I walk to the shrine.",
+          "narration": "I reach the shrine and the gate is shut.",
+          "operations": null
+        }
+      ]
+    },
+    "expected": [],
+    "forbidden": [
+      {
+        "kinds": [
+          "statement",
+          "belief",
+          "intention"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "interleaved_topics",
+    "source": {
+      "schema_version": 1,
+      "turns": [
+        {
+          "reference": "t1",
+          "turn_id": "40000000-0000-4000-8000-000000000100",
+          "player_action": "I tell Vela: \"The watchman took the silver key.\"",
+          "narration": "Vela: \"The silver key is in the mill.\"",
+          "operations": [
+            {
+              "id": "40000000-0000-4000-8000-000000000901",
+              "ordinal": 1,
+              "step": null,
+              "beat": null,
+              "payload": {
+                "origin": "npc",
+                "name": "invoke_npc",
+                "outcome": "succeeded",
+                "arguments": {
+                  "name": "Vela",
+                  "context": "The player mentions the watchman and the key."
+                },
+                "result": {
+                  "kind": "npc",
+                  "npc_id": "40000000-0000-4000-8000-000000000501",
+                  "status": "speaking",
+                  "action": null,
+                  "axis_changes": {}
+                },
+                "deltas": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "expected": [
+      {
+        "speaker": {
+          "name": "the player",
+          "type": "player"
+        },
+        "kind": "statement",
+        "key_phrases": [
+          "watchman",
+          "silver key"
+        ]
+      },
+      {
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        },
+        "kind": "belief",
+        "key_phrases": [
+          "mill",
+          "silver key"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "claim": 0,
+        "speaker": {
+          "name": "Vela",
+          "type": "npc"
+        }
+      }
+    ]
+  }
+]

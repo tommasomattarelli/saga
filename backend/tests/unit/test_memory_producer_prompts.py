@@ -58,6 +58,23 @@ def test_legacy_prompt_keeps_head_schema_manifest_while_executor_prompt_is_schem
     assert prepared.instruction_hash == digest("memory-v1\n" + prepared.system_prompt)
 
 
+def test_fact_instructions_scope_speaker_boundaries_to_batch_and_facts_prompts() -> None:
+    rules = (
+        "Speaker boundaries: `player_action` is the player's own words and claims",
+        "A declarative fact (statement, belief, intention) reports exactly one",
+        "preface, context or summary",
+        "the attribution is the reporter",
+    )
+    for kind in ("batch", "facts"):
+        prepared = request(kind)
+        assert all(rule in prepared.system_prompt for rule in rules)
+    for kind in ("summary", "global"):
+        prepared = request(
+            kind, global_policy=GlobalPolicy(target_words=200) if kind == "global" else None
+        )
+        assert not any(rule in prepared.system_prompt for rule in rules)
+
+
 def test_prompt_keeps_all_turn_source_verbatim_including_empty_operations() -> None:
     batch = source(
         action="CHASE the silver fox", narration="It vanishes into fog.", operations=False
