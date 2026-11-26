@@ -12,10 +12,9 @@ class TestSanitizer:
     def test_strips_whitespace(self):
         assert sanitize_player_input("  hello  ") == "hello"
 
-    def test_truncates_long_input(self):
+    def test_does_not_silently_truncate_long_input(self):
         long_input = "a" * 3000
-        result = sanitize_player_input(long_input)
-        assert len(result) == 2000
+        assert sanitize_player_input(long_input) == long_input
 
     def test_removes_null_bytes(self):
         assert sanitize_player_input("hello\x00world") == "helloworld"

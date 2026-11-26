@@ -60,12 +60,8 @@ def parse_json_payload(raw: str) -> dict | list | None:
 
 
 def sanitize_player_input(text: str) -> str:
-    """Sanitize player input to prevent injection (max 2000 chars)."""
-    sanitized = text.strip()
-    sanitized = sanitized.replace("\x00", "")
-    if len(sanitized) > 2000:
-        sanitized = sanitized[:2000]
-    return sanitized
+    """Sanitize player input to prevent injection; length is enforced at the API boundary."""
+    return text.strip().replace("\x00", "")
 
 
 def detect_injection(text: str) -> bool:

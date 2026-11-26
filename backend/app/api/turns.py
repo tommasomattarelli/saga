@@ -43,6 +43,13 @@ async def submit_action(
     request.state.rate_limit_user_id = str(user.id)
     with generation_context(user.id), campaign_session(campaign_id):
         try:
+            max_action_chars = get_gameplay_config().max_action_chars
+            if len(body.action) > max_action_chars:
+                raise ActionError(
+                    "action_too_long",
+                    f"The action must be at most {max_action_chars} characters.",
+                    status_code=422,
+                )
             claim = await claim_action(campaign_id, user.id, body)
             if isinstance(claim, TurnResponse):
                 return claim
