@@ -16,3 +16,6 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ### Highlights
 
 - [Memory & AI] Keep player reports and NPC commitments as separate memory facts with reporter attribution (#123)
+### Internal
+
+- ADR 0022/0023: designed hybrid retrieval with deterministic multi-query and a relational state graph; ADR 0002 is superseded by both.

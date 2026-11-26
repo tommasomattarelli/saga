@@ -81,7 +81,7 @@ Raw knobs over presets, all in `saga.config.yaml` (std 14), every knob with an e
 hard min/max; model + params per subsystem (now including `STATE_AUDIT` and `DIRECTOR`).
 First fruit already shipped in design: 0004's **whitelisted per-campaign
 `config_override`** is exactly this principle's guardrail applied per-campaign. The
-memory-depth knobs land with 0002 S1 (`recall.*` family). No further design needed here.
+memory-depth knobs land in ADR 0022 (`recall.*` family, which supersedes 0002's recall half). No further design needed here.
 
 ## 3. Narrator-corrector / turn editing — deferred (unchanged)
 
