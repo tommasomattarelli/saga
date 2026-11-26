@@ -17,4 +17,4 @@ instructions: |
   Distinguish intentions, failed attempts and rejected actions from completed events.
   The summary object contains only a nonempty text field.
 example_output: |
-  {"text":"Neris promised to return the bronze key by dusk. Mira said she believed the arch could be crossed safely, but had not tested it. Neris later tried the key in the sealed door; it did not turn, and Neris still held it without having fulfilled the promise."}
+  {"text":"The player told Neris that Morrowglass swore the sealed charter lay under the third stair, wrapped in green wax. Neris promised to return the bronze key by dusk. Mira said she believed the arch could be crossed safely, but had not tested it. Neris later tried the key in the sealed door; it did not turn, and Neris still held it without having fulfilled the promise."}

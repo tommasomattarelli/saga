@@ -12,3 +12,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 `[Unreleased]` is reset; this root file keeps only `[Unreleased]`.
 
 ## [Unreleased]
+
+### Highlights
+
+- [Memory & AI] Keep player reports and NPC commitments as separate memory facts with reporter attribution (#123)
