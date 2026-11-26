@@ -81,15 +81,8 @@ The defect is therefore not "the ranking is wrong" but: **retrieval uses the wea
   - `age_turns` is derived by joining `memory_fact_sources` → `memory_batch_turns` and counting completed turns in the **active continuation**; production facts have `turn_number IS NULL` by check constraint (`memory_fact.py:68-70`) and that number is not campaign-unique, so it cannot be used.
   - `speaker` is resolved from `fact_metadata.attribution` (indices into `entities`), not invented: `statement → said`, `belief → believed`, `intention → intended`; occurrences have no speaker.
   - `critical` adds a marker; `ordinary` is omitted.
-  - Rendering is localised with an explicit table (no `str | RecalledFact` union anywhere):
-    | token | en | it |
-    |---|---|---|
-    | age | `turns ago` / `1 turn ago` | `turni fa` / `1 turno fa` |
-    | statement | `said` | `disse` |
-    | belief | `believed` | `credeva` |
-    | intention | `intended` | `intendeva` |
-    | critical | `critical` | `critico` |
-    | category | `event/information/commitment/relationship/state_change` | `evento/informazione/impegno/relazione/cambiamento` |
+  - Rendering uses fixed English tokens (`turns ago` / `1 turn ago`, `said`/`believed`/`intended`, `critical`, and the category strings), with no `str | RecalledFact` union anywhere.
+  - **Owner decision (2026-11-26).** The original en/it token table is retired: a per-language table grows linearly with every new campaign language and this repo has no i18n runtime to back it. Only the `<recalled_memories>` tokens are English-only; the surrounding `<instructions>` remain localized by `templates/dm.yaml`.
   - The eval harness is adapted at all four call sites: `Scenario.recalled_memories()` returns `tuple[RecalledFact, ...]` via an explicit adapter with documented defaults (age 0, category `information`, `assertion_type statement`, no speaker), updating `eval/scenario_tools/scenario.py:33,51,56,269`, `eval/support/live_calls.py:93-95` (removing the `type: ignore`), `eval/dialogue/trial.py:99`, `eval/dialogue/pipeline.py:67`, both signatures in `ai/prompts/dm.py:45,76`, and `tests/unit/ai/test_prompt_templates.py:73`.
   Estimated cost 8-12 tokens per fact.
 - **P2 — Block at the tail (Decided).** `<recalled_memories>` moves **after `<quests>`**, as the last system-prompt block: closest to the user message and least disruptive to the shared prefix of stable blocks. No current test asserts absolute block order (`test_prompt_templates.py:84` only checks instructions-before-history; `test_dm_prompt_xml.py:210` only checks `<quests>` presence), so S5 adds an explicit order assertion.
@@ -143,7 +136,7 @@ The defect is therefore not "the ranking is wrong" but: **retrieval uses the wea
 | R1-R6: deterministic multi-query, state-derived gazetteer, no write path, no silent input cut | Decided | §3 R |
 | C1-C4: dense+FTS hybrid with shared ancestry guard, generated column, `simple`, no hard filters | Decided | §3 C |
 | K1-K4: split entity boost, critical, recency tie-break, pool 25 → 5, text dedup, no access count | Decided | §3 K |
-| P1-P3: typed rendering with speaker and language, tail block, no new authority rule | Decided | §3 P |
+| P1-P3: typed English rendering with speaker, tail block, no new authority rule | Decided | §3 P |
 | F1-F2: fallback chain, retrieval-specific logging | Decided | §3 F |
 | S1-S3: runtime config, migration, legacy untouched | Decided | §3 S |
 | E1-E5: labelled benchmark, six variants, metrics, owner gate | Decided | §3 E |
@@ -194,7 +187,7 @@ The defect is therefore not "the ranking is wrong" but: **retrieval uses the wea
 
 - **S1 — Schema and SQL.** Migration for the generated column, replacing the old dead-column path; dense+lexical query with RRF and the **same ancestry predicate on both branches and on the fused result**. Real-PostgreSQL integration tests with facts in different batches and two continuations reusing the same `turn_number`.
 - **S2 — Query and gazetteer.** Two vectors in one `embed_texts` call, `PreparedRecallQuery` extended, anchor built from `snapshot.history` outside the DB session, gazetteer from `met_player OR last_interactions`, matching against all known names, OR/prefix lexical construction. Tests for short anaphora, cited-but-unmet names and lexical hit counts.
-- **S3 — Ranking, dedup, rendering, fallback.** Split boosts, 25→5 selection, highest-score dedup survival, typed `RecalledFact`, localized tokens, tail block, fallback chain, retrieval-specific logging, harness adaptation. Tests that the turn never fails, that the log distinguishes the two faults, and that block order is asserted.
+- **S3 — Ranking, dedup, rendering, fallback.** Split boosts, 25→5 selection, highest-score dedup survival, typed `RecalledFact`, English tokens, tail block, fallback chain, retrieval-specific logging, harness adaptation. Tests that the turn never fails, that the log distinguishes the two faults, and that block order is asserted.
 - **S4 — Evaluation.** Build the labelled pairs and their state snapshots, authorised embedding batches, offline harness comparing variants (a)-(f) plus sweeps. Refined weights are fixed here.
 - **S5 — Cutover.** Enable the `recall:` block, remove the hardcoded `limit=3`, replace the sanitizer cut with `gameplay.max_action_chars` plus a structured pre-claim rejection (R6), bilingual prompt test, prompt-order test, full check of both stacks.
 

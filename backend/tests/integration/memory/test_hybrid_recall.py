@@ -88,6 +88,41 @@ async def test_hybrid_fuses_dense_and_lexical_ranks(
     assert hits[0].score > 1 / 61  # the same fact contributes to both dense and lexical ranks
 
 
+async def test_lexical_only_search_needs_no_embedding_index(
+    history_fixture: HistoryFixture,
+) -> None:
+    fixture = history_fixture
+    _job, claim, generations, _batch, _state = await _claimed_job(
+        fixture,
+        raw_by_role={
+            "summary": '{"text":"No index summary."}',
+            "facts": _fact_payload("Lyra kept the silver key."),
+        },
+    )
+    assert await publish_job(fixture.session, claim, outputs_for(generations))
+    await fixture.session.commit()
+    fact = await fixture.session.scalar(
+        select(MemoryFact).where(MemoryFact.content == "Lyra kept the silver key.")
+    )
+    assert fact is not None
+
+    hits = await search_hybrid_facts(
+        fixture.session,
+        campaign_id=fixture.campaign.id,
+        index_id=None,
+        dimension=None,
+        vectors={},
+        lexical_query="lyra",
+        ancestry_turn_ids=await _ancestry(fixture),
+        pool=25,
+        rrf_k=60,
+        use_action=False,
+        use_anchor=False,
+    )
+
+    assert [hit.fact_id for hit in hits] == [fact.id]
+
+
 async def test_future_batch_is_excluded_from_dense_and_lexical_branches(
     history_fixture: HistoryFixture,
 ) -> None:

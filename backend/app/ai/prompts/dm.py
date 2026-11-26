@@ -1,5 +1,6 @@
 """DM system prompt — agentic version with XML structure and selective context."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from xml.sax.saxutils import escape
 
@@ -22,12 +23,38 @@ BASE_DM_PROMPT: str = template("dm", "base_dm_prompt")
 
 
 @dataclass(frozen=True)
+class RecalledFact:
+    content: str
+    category: str = "information"
+    age_turns: int = 0
+    speaker: str | None = None
+    importance: str = "ordinary"
+    assertion_type: str = "statement"
+
+
+def _render_recalled_fact(fact: RecalledFact) -> str:
+    parts: list[str] = []
+    if fact.age_turns > 0:
+        parts.append("1 turn ago" if fact.age_turns == 1 else f"{fact.age_turns} turns ago")
+    parts.append(fact.category)
+    if fact.speaker and fact.assertion_type in {"statement", "belief", "intention"}:
+        verb = {"statement": "said", "belief": "believed", "intention": "intended"}[
+            fact.assertion_type
+        ]
+        parts.append(f"{escape(fact.speaker)} {verb}")
+    if fact.importance == "critical":
+        parts.append("critical")
+    content = escape(fact.content.strip())
+    return f"  - ({' · '.join(parts)}) {content}" if parts else f"  - {content}"
+
+
+@dataclass(frozen=True)
 class DMPromptContext:
     language: str = "en"
     persona: str = ""
     summary_context: str = ""
     global_summary: str = ""
-    recalled_memories: tuple[str, ...] = ()
+    recalled_memories: tuple[RecalledFact, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -42,7 +69,7 @@ def campaign_prompt_context(
     campaign: Campaign,
     summary_context: str = "",
     global_summary: str = "",
-    recalled_memories: list[str] | None = None,
+    recalled_memories: Sequence[RecalledFact] | None = None,
 ) -> DMPromptContext:
     persona = getattr(campaign, "persona_xml", None)
     if not isinstance(persona, str) or not persona.strip():
@@ -54,7 +81,7 @@ def campaign_prompt_context(
         persona=persona.strip(),
         summary_context=summary_context,
         global_summary=global_summary,
-        recalled_memories=tuple(recalled_memories or []),
+        recalled_memories=tuple(recalled_memories or ()),
     )
 
 
@@ -73,7 +100,7 @@ def build_dm_system_prompt(
     campaign: Campaign,
     summary_context: str = "",
     global_summary: str = "",
-    recalled_memories: list[str] | None = None,
+    recalled_memories: Sequence[RecalledFact] | None = None,
     *,
     allowed_tools: set[str] | None = None,
     closing: bool = False,
@@ -209,14 +236,6 @@ def render_dm_prompt(
     if context.summary_context:
         lines.append(f'\n<history label="story_so_far">\n{context.summary_context}\n</history>')
 
-    # <recalled_memories> — targeted pgvector retrieval for current action
-    if context.recalled_memories:
-        lines.append("\n<recalled_memories>")
-        for memory in context.recalled_memories:
-            if memory and memory.strip():
-                lines.append(f"  - {memory.strip()}")
-        lines.append("</recalled_memories>")
-
     # <quests> — ADR 0019 A5: active tags and descriptions only. No display names,
     # objectives or concluded archive in the permanent DM context.
     registry = scene.quests
@@ -225,5 +244,14 @@ def render_dm_prompt(
         for quest in registry.active:
             lines.append(f'  <quest id="{quest.id}">{escape(quest.description)}</quest>')
         lines.append("</quests>")
+
+    # <recalled_memories> — typed retrieval results, last so they sit closest to the
+    # user message (ADR 0022 P2).
+    if context.recalled_memories:
+        lines.append("\n<recalled_memories>")
+        for fact in context.recalled_memories:
+            if fact.content.strip():
+                lines.append(_render_recalled_fact(fact))
+        lines.append("</recalled_memories>")
 
     return "\n".join(lines)

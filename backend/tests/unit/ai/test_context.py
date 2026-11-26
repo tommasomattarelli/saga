@@ -42,7 +42,7 @@ async def test_build_context_uses_frozen_snapshot_without_campaign_reads(mocker)
     db.execute = mocker.AsyncMock(
         side_effect=AssertionError("snapshot path queried campaign/history")
     )
-    mocker.patch("app.ai.context.search_similar_facts", mocker.AsyncMock(return_value=[]))
+    mocker.patch("app.ai.context.recall_facts", mocker.AsyncMock(return_value=()))
 
     context = await build_context(turn_context, "Current action", db)
 
@@ -60,7 +60,7 @@ async def test_build_context_preserves_all_history_without_token_truncation(mock
     turn_context = snapshot(
         (HistoryMessage("user", "x" * 5000), HistoryMessage("assistant", "y" * 5000))
     )
-    mocker.patch("app.ai.context.search_similar_facts", mocker.AsyncMock(return_value=[]))
+    mocker.patch("app.ai.context.recall_facts", mocker.AsyncMock(return_value=()))
 
     context = await build_context(turn_context, "current", mocker.Mock())
 

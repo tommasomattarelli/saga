@@ -89,7 +89,7 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
     )
     query_embedding = (
         await embed_recall_query(recall_snapshot, player_action, anchor)
-        if recall_snapshot
+        if recall_snapshot and recall_config.enabled
         else None
     )
 

@@ -106,7 +106,7 @@ async def test_complete_transcript_is_the_single_persisted_and_memory_source(
         assert prompt.count("A sealed promise.") == prompt.count("Do not forget.") == 1
         assert "[[npc" not in prompt and "NPC dialogues:" not in prompt
 
-    with patch("app.ai.context._recall_memories", new=AsyncMock(return_value=[])):
+    with patch("app.ai.context.recall_facts", new=AsyncMock(return_value=())):
         await _take_turn(auth_client, created["id"], "I wait.")
     history = [m["content"] for m in requests[-1]["messages"] if m["role"] == "assistant"]
     assert history == [actual["narration"]]

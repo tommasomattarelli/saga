@@ -182,8 +182,8 @@ async def search_hybrid_facts(
     db: AsyncSession,
     *,
     campaign_id: uuid.UUID,
-    index_id: uuid.UUID,
-    dimension: int,
+    index_id: uuid.UUID | None,
+    dimension: int | None,
     vectors: Mapping[str, tuple[float, ...]],
     lexical_query: str,
     ancestry_turn_ids: tuple[uuid.UUID, ...],
@@ -195,7 +195,7 @@ async def search_hybrid_facts(
 ) -> list[HybridHit]:
     if not ancestry_turn_ids:
         return []
-    zero = (0.0,) * dimension
+    zero = (0.0,) * (dimension or 1)
     result = await db.execute(
         _HYBRID_SQL,
         {

@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.ai.context import build_context
+from app.ai.prompts.dm import RecalledFact
 from app.ai.providers.schemas import ToolCall
 from app.ai.router import get_gameplay_config
 from app.config_loader import load_saga_config
@@ -166,8 +167,8 @@ async def test_step_prompt_refreshes_mutations_but_loads_history_and_recall_once
     with (
         patch("app.core.dm.dm_nodes.build_context", wraps=build_context) as context,
         patch(
-            "app.ai.context._recall_memories",
-            new=AsyncMock(return_value=["Remembered checkpoint fact."]),
+            "app.ai.context.recall_facts",
+            new=AsyncMock(return_value=(RecalledFact(content="Remembered checkpoint fact."),)),
         ) as recall,
     ):
         await _take_turn(auth_client, campaign["id"])

@@ -92,7 +92,7 @@ def dm_request(sc: Scenario, probe: str, config: ModelConfig) -> dict:
             global_summary=sc.global_summary,
             recalled_memories=sc.recalled_memories(probe),
             allowed_tools=allowed,
-        ),  # type: ignore[arg-type]
+        ),
         "messages": sc.messages(probe),
         "tools": get_tool_schemas(allowed),
         "model": config.model,
