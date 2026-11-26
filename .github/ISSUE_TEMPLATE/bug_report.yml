@@ -1,6 +1,6 @@
 name: Bug report
 description: Something in SAGA is broken or behaves wrongly
-labels: ["type: bug"]
+type: Bug
 body:
   - type: markdown
     attributes:

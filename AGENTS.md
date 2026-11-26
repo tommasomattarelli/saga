@@ -115,12 +115,12 @@ Issues carry the **same title grammar as commits**, so issue → branch → comm
 
 - **When something earns an issue**: a defect someone can hit, or a user-visible ask. Not every thought. Design directions, refactors and "we should look at this someday" stay in `TODO.md` — an issue you would open and close yourself in the same session was never an issue.
 - **Title**: `type(scope): subject` — e.g. `fix(dm): npc resolver loops on a near-miss name`. Same types and scopes as commits. **Rewrite it at triage** — asking a player to know Conventional Commits costs them minutes and saves you seconds.
-- **Labels — three orthogonal axes**, one value each from the first two:
-  - `type:` — `bug` · `feature` · `enhancement` · `docs` · `refactor` · `question`
-  - `prio:` — `P0-critical` (blocks play, corrupts data, leaks secrets) · `P1-high` (major feature broken, no workaround) · `P2-medium` (wrong but has a workaround) · `P3-low` (cosmetic/polish)
-  - `area:` — mirrors the commit scopes (`dm`, `ai`, `world`, `combat`, `memory`, `frontend`, `api`, `auth`, `config`, `installer`, `infra`); more than one is fine.
+- **Type — native GitHub issue type**, one value: `Bug` · `Feature` · `Task`. The issue forms set it at creation.
+- **Fields — set at triage**, never by the reporter (GitHub fields cannot be pre-filled by issue forms):
+  - `Priority` — `Urgent` (blocks play, corrupts data, leaks secrets) · `High` (major feature broken, no workaround) · `Medium` (wrong but has a workaround) · `Low` (cosmetic/polish).
+  - `Area` — mirrors the commit scopes (`dm`, `ai`, `world`, `combat`, `memory`, `frontend`, `api`, `auth`, `config`, `installer`, `infra`); more than one is fine.
   - Status labels are additive: `needs-repro`, `blocked`, `good first issue`, `help wanted`.
-- **Title, `prio:` and `area:` are set at triage, never by the reporter** — the forms deliberately don't ask for any of them.
+- **Title, `Priority` and `Area` are set at triage, never by the reporter** — the forms deliberately don't ask for any of them.
 - **Templates**: YAML forms in `.github/ISSUE_TEMPLATE/` (blank issues disabled). Kept deliberately loose — free prose, only the fields that decide whether a report is actionable at all are required (version, install + provider, what happened, repro). Every added required field is a report that doesn't get filed; don't grow them back.
 - **Branches are not per-issue**: a branch is one *reviewable unit of work*. Several issues that are logically the same change (same module, same fix) belong on one branch and close together — the PR body carries a `Closes #NN` per issue. Splitting related work to keep a 1:1 issue↔branch map buys nothing and costs a review round each.
 - **Closing the loop**: the fix commit names the issue — `fix(dm): … (#NN)` — and the PR body says `Closes #NN`. `release.sh` then tags the release note `(#NN)`.

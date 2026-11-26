@@ -1,6 +1,6 @@
 name: Feature request
 description: Propose something new for SAGA, or an improvement to what is there
-labels: ["type: feature"]
+type: Feature
 body:
   - type: markdown
     attributes:
