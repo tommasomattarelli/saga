@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
+from dataclasses import dataclass
 
-from sqlalchemy import exists, func, select
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import Integer, Text, bindparam, exists, func, select, text
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.memory.document_contracts import FactMetadata
 from app.memory.recall import PreparedRecallQuery
 from app.models.memory_batch import MemoryBatchTurn
 from app.models.memory_fact import MemoryFact
@@ -65,3 +71,156 @@ async def search_similar_facts(
         .limit(limit)
     )
     return list(result.scalars().all())
+
+
+@dataclass(frozen=True)
+class HybridHit:
+    fact_id: uuid.UUID
+    content: str
+    category: str | None
+    assertion_type: str | None
+    fact_metadata: FactMetadata | None
+    score: float
+
+
+_ANCESTRY_GUARD = """
+    AND EXISTS (
+        SELECT 1 FROM memory_batch_turns bt
+        WHERE bt.batch_id = f.batch_id AND bt.campaign_id = f.campaign_id
+    )
+    AND NOT EXISTS (
+        SELECT 1 FROM memory_batch_turns bt
+        WHERE bt.batch_id = f.batch_id
+          AND bt.campaign_id = f.campaign_id
+          AND bt.turn_id <> ALL(:ancestry)
+    )
+"""
+
+_HYBRID_SQL = text(
+    """
+WITH
+action_dense AS (
+    SELECT f.id AS fact_id,
+           row_number() OVER (ORDER BY se.embedding <=> :action_vector) AS rank
+    FROM memory_facts f
+    JOIN source_embeddings se
+      ON se.memory_fact_id = f.id AND se.campaign_id = f.campaign_id
+    WHERE :use_action
+      AND f.campaign_id = :campaign_id
+      AND se.index_id = :index_id
+      AND se.campaign_id = :campaign_id
+      AND se.work_state = 'embedded'
+      AND se.embedding IS NOT NULL
+      AND vector_dims(se.embedding) = :dimension"""
+    + _ANCESTRY_GUARD
+    + """
+    ORDER BY se.embedding <=> :action_vector
+    LIMIT :pool
+),
+anchor_dense AS (
+    SELECT f.id AS fact_id,
+           row_number() OVER (ORDER BY se.embedding <=> :anchor_vector) AS rank
+    FROM memory_facts f
+    JOIN source_embeddings se
+      ON se.memory_fact_id = f.id AND se.campaign_id = f.campaign_id
+    WHERE :use_anchor
+      AND f.campaign_id = :campaign_id
+      AND se.index_id = :index_id
+      AND se.campaign_id = :campaign_id
+      AND se.work_state = 'embedded'
+      AND se.embedding IS NOT NULL
+      AND vector_dims(se.embedding) = :dimension"""
+    + _ANCESTRY_GUARD
+    + """
+    ORDER BY se.embedding <=> :anchor_vector
+    LIMIT :pool
+),
+lexical AS (
+    SELECT f.id AS fact_id,
+           row_number() OVER (
+               ORDER BY ts_rank_cd(f.search_vector, to_tsquery('simple', :lexical_query)) DESC
+           ) AS rank
+    FROM memory_facts f
+    WHERE :use_lexical
+      AND f.campaign_id = :campaign_id
+      AND f.search_vector @@ to_tsquery('simple', :lexical_query)"""
+    + _ANCESTRY_GUARD
+    + """
+    LIMIT :pool
+),
+fused AS (
+    SELECT fact_id, sum(1.0 / (:rrf_k + rank)) AS score
+    FROM (
+        SELECT fact_id, rank FROM action_dense
+        UNION ALL SELECT fact_id, rank FROM anchor_dense
+        UNION ALL SELECT fact_id, rank FROM lexical
+    ) candidates
+    GROUP BY fact_id
+)
+SELECT f.id AS fact_id, f.content, f.category, f.assertion_type, f.fact_metadata, fused.score
+FROM fused
+JOIN memory_facts f ON f.id = fused.fact_id
+ORDER BY fused.score DESC, f.id
+LIMIT :pool
+"""
+).bindparams(
+    bindparam("campaign_id", type_=PG_UUID(as_uuid=True)),
+    bindparam("index_id", type_=PG_UUID(as_uuid=True)),
+    bindparam("ancestry", type_=ARRAY(PG_UUID(as_uuid=True))),
+    bindparam("action_vector", type_=Vector()),
+    bindparam("anchor_vector", type_=Vector()),
+    bindparam("dimension", type_=Integer),
+    bindparam("pool", type_=Integer),
+    bindparam("rrf_k", type_=Integer),
+    bindparam("lexical_query", type_=Text),
+)
+
+
+async def search_hybrid_facts(
+    db: AsyncSession,
+    *,
+    campaign_id: uuid.UUID,
+    index_id: uuid.UUID,
+    dimension: int,
+    vectors: Mapping[str, tuple[float, ...]],
+    lexical_query: str,
+    ancestry_turn_ids: tuple[uuid.UUID, ...],
+    pool: int,
+    rrf_k: int,
+    use_action: bool = True,
+    use_anchor: bool = True,
+    use_lexical: bool = True,
+) -> list[HybridHit]:
+    if not ancestry_turn_ids:
+        return []
+    zero = (0.0,) * dimension
+    result = await db.execute(
+        _HYBRID_SQL,
+        {
+            "campaign_id": campaign_id,
+            "index_id": index_id,
+            "dimension": dimension,
+            "action_vector": list(vectors.get("action", zero)),
+            "anchor_vector": list(vectors.get("anchor", zero)),
+            "ancestry": list(ancestry_turn_ids),
+            "lexical_query": lexical_query,
+            "pool": pool,
+            "rrf_k": rrf_k,
+            "use_action": use_action,
+            "use_anchor": use_anchor,
+            "use_lexical": use_lexical,
+        },
+    )
+    return [
+        HybridHit(
+            fact_id=row.fact_id,
+            content=row.content,
+            category=row.category,
+            assertion_type=row.assertion_type,
+            fact_metadata=(
+                FactMetadata.model_validate(row.fact_metadata) if row.fact_metadata else None
+            ),
+            score=float(row.score),
+        )
+        for row in result.mappings()
+    ]
