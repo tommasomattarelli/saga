@@ -3,6 +3,7 @@ import uuid
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     CheckConstraint,
+    Computed,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -30,7 +31,9 @@ class MemoryFact(Base, UUIDMixin, TimestampMixin):
     entity_type: Mapped[str | None] = mapped_column(String(50), index=True)
     content: Mapped[str] = mapped_column(Text)
     embedding: Mapped[list | None] = mapped_column(Vector(384), nullable=True)
-    search_vector: Mapped[str | None] = mapped_column(TSVECTOR, nullable=True)
+    search_vector: Mapped[str | None] = mapped_column(
+        TSVECTOR, Computed("to_tsvector('simple'::regconfig, content)", persisted=True)
+    )
     batch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     policy_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     ordinal: Mapped[int | None] = mapped_column(Integer)

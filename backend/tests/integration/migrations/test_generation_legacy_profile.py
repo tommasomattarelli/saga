@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai import router
 from app.exceptions import ValidationError
 from app.security.encryption import encrypt_api_key
-from tests.integration.migrations.migration_db import DisposableDatabase
+from tests.integration.migrations.migration_db import HEAD_REVISION, DisposableDatabase
 from tests.integration.migrations.test_migration_chain import _insert_campaign, _insert_user
 
 
@@ -89,7 +89,7 @@ async def test_generation_profile_does_not_load_legacy_campaign_columns(
         assert not any("from campaigns" in sql for sql in statements)
         assert (await database.fetch_one("SELECT version_num FROM alembic_version"))[
             0
-        ] == "019_memory_payload_retention"
+        ] == HEAD_REVISION
         assert (
             str(
                 (
