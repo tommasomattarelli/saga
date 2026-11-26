@@ -19,3 +19,4 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ### Internal
 
 - ADR 0022/0023: designed hybrid retrieval with deterministic multi-query and a relational state graph; ADR 0002 is superseded by both.
+- Retrieval knobs and the player-action length limit are now declared in `saga.config.yaml` (ADR 0022).
