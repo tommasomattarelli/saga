@@ -60,31 +60,28 @@ def _endpoint_name(ref: dict, world_state: dict) -> str:
     return str(ref_id)
 
 
-def _relation_time(edge: dict, language: str, now_minutes: int) -> tuple[str, str]:
-    turns = edge.get("since_turn")
+def _relation_time(edge: dict, now_minutes: int) -> tuple[str, str]:
     since = edge.get("since_game_minutes")
     elapsed = max(0, now_minutes - since) if since is not None else 0
     days = elapsed // 1440
     hours = (elapsed % 1440) // 60
-    technical = f"{turns or 0}t/{days}d{hours}h"
-    italian = language == "it"
+    technical = f"{days}d{hours}h"
     pieces = []
-    if turns is not None:
-        pieces.append(f"{turns} {'turni fa' if italian else 'turns ago'}")
     if days:
-        pieces.append(f"{days} {'giorni' if italian else 'days'}")
+        pieces.append(f"{days} days")
     if hours:
-        pieces.append(f"{hours} {'ore' if italian else 'hours'}")
-    return technical, ", ".join(pieces)
+        pieces.append(f"{hours} hours")
+    return technical, ", ".join(pieces) if pieces else "just now"
 
 
-def _relation_row(edge: dict, world_state: dict, language: str, now_minutes: int) -> str:
-    technical, human = _relation_time(edge, language, now_minutes)
-    since = f" since={quoteattr(technical)} ago={quoteattr(human)}" if human else ""
+def _relation_row(edge: dict, world_state: dict, now_minutes: int) -> str:
+    technical, human = _relation_time(edge, now_minutes)
+    why = f" why={quoteattr(str(edge['label']))}" if edge.get("label") else ""
     return (
         f"    <relation from={quoteattr(_endpoint_name(edge['src'], world_state))} "
         f"to={quoteattr(_endpoint_name(edge['dst'], world_state))} "
-        f"kind={quoteattr(str(edge['kind']))} stance={quoteattr(str(edge['stance']))}{since}/>"
+        f"kind={quoteattr(str(edge['kind']))} stance={quoteattr(str(edge['stance']))} "
+        f"since={quoteattr(technical)} ago={quoteattr(human)}{why}/>"
     )
 
 
@@ -246,24 +243,43 @@ def render_dm_prompt(
     graph = get_graph_config()
     now_minutes = int((scene.world_state.get("clock") or {}).get("total_minutes", 0))
     relations = scene.world_state.get("relations", [])
-    prominent = [edge for edge in relations if edge.get("prominent")][
-        : graph.prominent_max_relations
-    ]
+    ranked = sorted(relations, key=lambda edge: -abs(int(edge.get("stance", 0))))
     present_ids = set(npcs_present)
-    secondary = [
+
+    def has_faction(edge: dict) -> bool:
+        return any(ref.get("type") == "faction" for ref in (edge["src"], edge["dst"]))
+
+    prominent_all = [edge for edge in ranked if edge.get("prominent") and not has_faction(edge)]
+    faction_all = [
+        edge for edge in ranked if has_faction(edge) and int(edge.get("stance", 0)) != 0
+    ]
+    secondary_all = [
         edge
-        for edge in relations
+        for edge in ranked
         if not edge.get("prominent")
+        and not has_faction(edge)
         and any(
             ref.get("type") == "npc" and ref.get("id") in present_ids
             for ref in (edge["src"], edge["dst"])
         )
-    ][: graph.scene_max_relations]
+    ]
+    prominent = prominent_all[: graph.prominent_max_relations]
+    factions = faction_all[: graph.faction_max_relations]
+    secondary = secondary_all[: graph.scene_max_relations]
 
-    lines.append("  <relations>")
+    lines.append(
+        f'  <relations shown="{len(prominent)}" omitted="{len(prominent_all) - len(prominent)}">'
+    )
     for edge in prominent:
-        lines.append(_relation_row(edge, scene.world_state, context.language, now_minutes))
+        lines.append(_relation_row(edge, scene.world_state, now_minutes))
     lines.append("  </relations>")
+
+    lines.append(
+        f'  <factions shown="{len(factions)}" omitted="{len(faction_all) - len(factions)}">'
+    )
+    for edge in factions:
+        lines.append(_relation_row(edge, scene.world_state, now_minutes))
+    lines.append("  </factions>")
 
     if npcs_present:
         baseline = scene.world_baseline
@@ -271,7 +287,9 @@ def render_dm_prompt(
         psychology = resolve_psychology(taxonomy)
         # G3: only scene-flagged traits reach the DM; the rest is npc_director-only.
         scene_fields = [f.name for f in resolve_npc_fields(taxonomy) if f.scene]
-        lines.append("  <npcs_present>")
+        omitted = len(secondary_all) - len(secondary)
+        omitted_attr = f' relations_omitted="{omitted}"' if omitted else ""
+        lines.append(f"  <npcs_present{omitted_attr}>")
         for npc in npcs_present.values():
             traits = npc.get("traits", {})
             attrs = "".join(
@@ -282,7 +300,7 @@ def render_dm_prompt(
             axes = _salient_axis_attrs(npc, psychology)
             lines.append(f'    <npc name="{npc.get("name", "")}"{attrs}{axes}/>')
         for edge in secondary:
-            lines.append(_relation_row(edge, scene.world_state, context.language, now_minutes))
+            lines.append(_relation_row(edge, scene.world_state, now_minutes))
         lines.append("  </npcs_present>")
 
     if time_str:

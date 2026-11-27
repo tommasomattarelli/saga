@@ -11,6 +11,7 @@ from app.core.npc_resolver import resolve_npc
 from app.core.relations import (
     relation_kind_default,
     relation_kind_defaults,
+    relation_kind_descriptions,
     resolve_faction_slug,
     upsert_relation_edge,
 )
@@ -64,7 +65,10 @@ class UpdateRelation(DmTool):
 
     @classmethod
     def tool_description(cls) -> str:
-        kinds = ", ".join(k.kind for k in get_graph_config().default_relation_kinds)
+        kinds = ", ".join(
+            f"{kind.kind}: {kind.description}" if kind.description else kind.kind
+            for kind in get_graph_config().default_relation_kinds
+        )
         return (
             f"Open or update a relation between two typed refs. Known kinds: {kinds}. "
             "Closing an edge is a separate history record; this tool only upserts open edges."
@@ -75,8 +79,11 @@ class UpdateRelation(DmTool):
         schema = cast(dict[str, Any], super().to_generation_schema(taxonomy))
         if taxonomy:
             kinds = relation_kind_defaults(taxonomy)
+            descriptions = relation_kind_descriptions(taxonomy)
             world = ", ".join(
-                f"{kind} (prominent={prominent})" for kind, prominent in kinds.items()
+                f"{kind} (prominent={prominent})"
+                + (f": {descriptions[kind]}" if kind in descriptions else "")
+                for kind, prominent in kinds.items()
             )
             schema["function"]["description"] += f" World kinds: {world}."
         return schema

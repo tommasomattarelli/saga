@@ -75,6 +75,7 @@ class RelationKindDef(BaseModel):
 
     kind: str = Field(min_length=1)
     prominent: bool = False
+    description: str = ""
 
 
 class AuthoredRelation(BaseModel):

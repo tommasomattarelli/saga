@@ -145,22 +145,33 @@ graph:
   max_relations: 200 # hard bound on stored edges
   prominent_max_relations: 12 # hard bound on always-present <relations> rows
   scene_max_relations: 20 # hard bound on <npcs_present> rows
+  faction_max_relations: 8 # hard bound on <factions> rows
   extract_max_per_batch: 8 # hard bound on relations[] from one batch
   default_relation_kinds:
     - kind: ally
       prominent: false
+      description: "Cooperates with the player without a lasting bond"
     - kind: companion
       prominent: true
+      description: "Travels with the player as a lasting companion"
     - kind: faction
       prominent: false
+      description: "Stance between two factions"
     - kind: reputation
       prominent: true
+      description: "Standing of a faction toward the player"
     - kind: enemy
       prominent: false
+      description: "Disposable hostile foe; shown only while present in the scene"
+    - kind: nemesis
+      prominent: true
+      description: "Main recurring adversary, always visible to the DM"
     - kind: friend
       prominent: false
+      description: "Close personal friend"
     - kind: rival
       prominent: false
+      description: "Personal rivalry without open hostility"
 
 # ---------------------------------------------------------------------------
 # Gameplay Settings — runtime behavior

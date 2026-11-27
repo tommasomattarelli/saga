@@ -17,6 +17,22 @@ def relation_kind_default(kind: str, kinds: dict[str, bool]) -> tuple[bool | Non
     return None, sorted(kinds)
 
 
+def relation_kind_descriptions(taxonomy: dict) -> dict[str, str]:
+    descriptions = {
+        kind.kind: kind.description
+        for kind in get_graph_config().default_relation_kinds
+        if kind.description
+    }
+    descriptions.update(
+        {
+            entry["kind"]: entry["description"]
+            for entry in taxonomy.get("relation_kinds", [])
+            if entry.get("description")
+        }
+    )
+    return descriptions
+
+
 def upsert_relation_edge(
     edges: list[dict], edge: dict, max_edges: int | None = None
 ) -> bool | None:

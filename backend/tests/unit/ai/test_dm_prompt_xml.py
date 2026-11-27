@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 from app.ai.prompts.dm import build_dm_system_prompt
 from app.core.npc_resolver import npcs_at_current_location
+from app.memory.graph_config import GraphConfig
 from app.models.campaign import Difficulty
 
 
@@ -158,12 +159,10 @@ def test_scene_npc_shows_condition_and_scene_traits_only():
     assert '<npc name="Guard" role="Watch"/>' in prompt
 
 
-def test_scene_relations_are_always_visible_and_time_is_bilingual():
+def test_scene_relation_carries_reason_and_game_time_only():
     npc_id = "11111111-0000-0000-0000-000000000003"  # Aldric, away from the scene
-    present_id = "11111111-0000-0000-0000-000000000001"
     ws = {
         **_WORLD_STATE,
-        "factions": {"guild": {"name": "Merchants Guild"}},
         "relations": [
             {
                 "src": {"type": "npc", "id": npc_id},
@@ -174,17 +173,7 @@ def test_scene_relations_are_always_visible_and_time_is_bilingual():
                 "prominent": True,
                 "since_turn": 18,
                 "since_game_minutes": (3 * 24 + 17) * 60 - (3 * 1440 + 4 * 60),
-            },
-            {
-                "src": {"type": "npc", "id": present_id},
-                "dst": {"type": "faction", "id": "guild"},
-                "kind": "ally",
-                "stance": 20,
-                "label": "Trades fairly",
-                "prominent": False,
-                "since_turn": 2,
-                "since_game_minutes": 60,
-            },
+            }
         ],
     }
     campaign = _make_campaign(ws, _CHAR_DATA)
@@ -192,12 +181,142 @@ def test_scene_relations_are_always_visible_and_time_is_bilingual():
     prompt = build_dm_system_prompt(campaign)
 
     assert (
-        '<relations>\n    <relation from="Aldric" to="player" kind="companion" stance="60"'
-        in prompt
+        '<relation from="Aldric" to="player" kind="companion" stance="60" '
+        'since="3d4h" ago="3 days, 4 hours" why="Travels with you"/>' in prompt
     )
-    assert 'since="18t/3d4h" ago="18 turni fa, 3 giorni, 4 ore"/>' in prompt
-    assert 'from="Marta" to="Merchants Guild"' in prompt
-    assert "<relations>" in prompt and "</relations>" in prompt
+    assert "18 turni" not in prompt
+    assert "18 turns" not in prompt
+    assert "18t/" not in prompt
+
+
+def test_scene_faction_relations_use_own_block_and_drop_neutral():
+    ws = {
+        **_WORLD_STATE,
+        "factions": {
+            "guild": {"name": "Merchants Guild"},
+            "council": {"name": "Council"},
+        },
+        "relations": [
+            {
+                "src": {"type": "faction", "id": "guild"},
+                "dst": {"type": "faction", "id": "council"},
+                "kind": "faction",
+                "stance": -70,
+                "label": "fearful hostility",
+                "prominent": False,
+            },
+            {
+                "src": {"type": "faction", "id": "guild"},
+                "dst": {"type": "player", "id": None},
+                "kind": "reputation",
+                "stance": 0,
+                "label": "neutral",
+                "prominent": True,
+            },
+            {
+                "src": {"type": "faction", "id": "council"},
+                "dst": {"type": "player", "id": None},
+                "kind": "reputation",
+                "stance": 40,
+                "label": "trusted",
+                "prominent": True,
+            },
+        ],
+    }
+    prompt = build_dm_system_prompt(_make_campaign(ws, _CHAR_DATA))
+    relations_block = prompt.split("<relations", 1)[1].split("</relations>", 1)[0]
+    factions_block = prompt.split("<factions", 1)[1].split("</factions>", 1)[0]
+
+    assert 'from="Merchants Guild" to="Council"' in factions_block
+    assert 'why="fearful hostility"' in factions_block
+    assert 'from="Council" to="player"' in factions_block
+    assert 'why="trusted"' in factions_block
+    assert "neutral" not in factions_block
+    assert "Merchants Guild" not in relations_block
+
+
+def test_scene_relation_blocks_rank_by_stance_and_report_omitted(monkeypatch):
+    monkeypatch.setattr(
+        "app.ai.prompts.dm.get_graph_config",
+        lambda: GraphConfig(
+            max_relations=50,
+            prominent_max_relations=1,
+            scene_max_relations=1,
+            faction_max_relations=1,
+            extract_max_per_batch=8,
+        ),
+    )
+    present_id = "11111111-0000-0000-0000-000000000001"  # Marta
+    guard_id = "11111111-0000-0000-0000-000000000002"  # Guard
+    away_id = "11111111-0000-0000-0000-000000000003"  # Aldric
+    ws = {
+        **_WORLD_STATE,
+        "factions": {
+            "guild": {"name": "Merchants Guild"},
+            "council": {"name": "Council"},
+        },
+        "relations": [
+            {
+                "src": {"type": "npc", "id": away_id},
+                "dst": {"type": "player", "id": None},
+                "kind": "ally",
+                "stance": 20,
+                "label": "weak ally",
+                "prominent": True,
+            },
+            {
+                "src": {"type": "npc", "id": guard_id},
+                "dst": {"type": "player", "id": None},
+                "kind": "nemesis",
+                "stance": 80,
+                "label": "sworn foe",
+                "prominent": True,
+            },
+            {
+                "src": {"type": "faction", "id": "guild"},
+                "dst": {"type": "faction", "id": "council"},
+                "kind": "faction",
+                "stance": -10,
+                "label": "mild distrust",
+                "prominent": False,
+            },
+            {
+                "src": {"type": "faction", "id": "council"},
+                "dst": {"type": "faction", "id": "guild"},
+                "kind": "faction",
+                "stance": -80,
+                "label": "open war",
+                "prominent": False,
+            },
+            {
+                "src": {"type": "npc", "id": present_id},
+                "dst": {"type": "player", "id": None},
+                "kind": "ally",
+                "stance": 5,
+                "label": "polite",
+                "prominent": False,
+            },
+            {
+                "src": {"type": "npc", "id": guard_id},
+                "dst": {"type": "player", "id": None},
+                "kind": "ally",
+                "stance": 50,
+                "label": "helps in a fight",
+                "prominent": False,
+            },
+        ],
+    }
+    prompt = build_dm_system_prompt(_make_campaign(ws, _CHAR_DATA))
+    relations_block = prompt.split("<relations", 1)[1].split("</relations>", 1)[0]
+    factions_block = prompt.split("<factions", 1)[1].split("</factions>", 1)[0]
+    present_block = prompt.split("<npcs_present", 1)[1].split("</npcs_present>", 1)[0]
+
+    assert '<relations shown="1" omitted="1">' in prompt
+    assert 'stance="80"' in relations_block and "weak ally" not in relations_block
+    assert '<factions shown="1" omitted="1">' in prompt
+    assert 'stance="-80"' in factions_block and "mild distrust" not in factions_block
+    assert 'relations_omitted="1"' in prompt
+    assert 'stance="50"' in present_block and "polite" not in present_block
 
 
 def test_scene_relation_escapes_quoted_endpoint_names():

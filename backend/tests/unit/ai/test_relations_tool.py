@@ -120,11 +120,17 @@ def test_unknown_kind_is_rejected_with_candidates():
     assert "ally" in result.description
 
 
+def test_tool_description_explains_kinds():
+    description = tools_relation.UpdateRelation.tool_description().lower()
+    assert "travels with the player" in description
+    assert "always visible" in description
+
+
 def test_generation_schema_exposes_world_kinds():
     schema = tools_relation.UpdateRelation.to_generation_schema(
-        {"relation_kinds": [{"kind": "oath", "prominent": True}]}
+        {"relation_kinds": [{"kind": "oath", "prominent": True, "description": "a sacred oath"}]}
     )
-    assert "oath (prominent=True)" in schema["function"]["description"]
+    assert "oath (prominent=True): a sacred oath" in schema["function"]["description"]
 
 
 def test_cap_allows_updating_an_existing_edge(monkeypatch):
@@ -136,6 +142,7 @@ def test_cap_allows_updating_an_existing_edge(monkeypatch):
                 "max_relations": 1,
                 "prominent_max_relations": 1,
                 "scene_max_relations": 1,
+                "faction_max_relations": 1,
                 "extract_max_per_batch": 1,
             }
         ),
