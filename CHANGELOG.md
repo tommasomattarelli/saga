@@ -18,6 +18,8 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - [Memory & AI] Keep player reports and NPC commitments as separate memory facts with reporter attribution (#123)
 - [Gameplay] Player actions longer than `gameplay.max_action_chars` are rejected before a turn is claimed, instead of being silently truncated (ADR 0022 R6).
 - [UI] Retire the character sheet reputation tab and align faction types with the world-state v9 contract (ADR 0023).
+- [World & DM] DM relation notebook shows why each link exists and only in-game time; relations are ranked by importance with cap overflow reported (ADR 0023).
+- [World & DM] Faction lore gets its own prompt block and name list; zero-stance reputation bands stay visible (ADR 0023).
 ### Internal
 
 - ADR 0022/0023: landed hybrid recall and relational graph designs; ADR 0002 is superseded by both.
@@ -30,6 +32,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - Batch output carries `relations[]` with typed wire refs, frozen clock/depth and tool-wins precedence (ADR 0023).
 - DM `<scene>` renders prominent relations always and local ones with present NPCs; both silent scene caps are gone (ADR 0023).
 - ADR 0023 accepted with implementation notes; live playtest and the real-DB gate run remain owner-gated.
+- ADR 0023 refined after PR review: kind descriptions, nemesis default, faction cap and autonomous-NPC TODO.
 - Recall fuses dense and full-text candidates in one history-isolated query, then ranks and dedups them into a typed `<recalled_memories>` block (ADR 0022).
 - The second dense branch embeds the composed action-and-scene query; `search_vector` is Postgres-generated and retrieval knobs live in config (ADR 0022).
 - `rrf_k=20` is measured; 0.02 boosts are owner-accepted without a gain, with labelled pairs and an offline comparator for recall@5/MRR@5 (ADR 0022).

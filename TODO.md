@@ -100,6 +100,7 @@ GUI, mappa, avatar e OAuth restano successivi alla stabilizzazione; sotto rimang
 [ ] WorldBuilder accept-not-reject: il DM accetta le asserzioni del player come canon salvo ambiguita' fisica (player co-autore), niente REJECT [aidm]
 [ ] meta-channel: intent /meta che NON consuma un turno di gioco (feedback al DM fuori dalla narrativa) [aidm]
 [ ] "player input come ispirazione" (parcheggiato da ADR 0013, e' gameplay non UI) → merita un ADR suo
+[ ] NPC come agenti autonomi: entrano/escono dalla scena e agiscono senza input del player; la presenza risolve anche la visibilità delle relazioni secondarie (ADR 0023) [aidm]
 
 ## homebrew / custom
 [ ] **obiettivi delle quest create dal DM — futuro**: valutare una compilazione AI separata; per ora restano vuoti, senza chiamate aggiuntive o obiettivi nel contesto strutturato del DM (ADR 0019).
