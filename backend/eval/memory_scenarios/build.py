@@ -110,6 +110,7 @@ async def _run_turn(
                 "move_to",
                 "request_dice",
                 "change_npc_psychology",
+                "update_relation",
                 "invoke_npc",
             ],
             "closing_step": False,

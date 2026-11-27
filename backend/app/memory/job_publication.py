@@ -99,8 +99,12 @@ async def _validated_payload(
         receipt = decode_receipt(generation.receipt, generation.raw_candidate)
     except ValueError:
         raise MemoryOutputError("A persisted memory receipt is invalid.") from None
-    fixed_fields = frozen.model_dump(mode="json", exclude={"request_identity_hash", "format_mode"})
-    stored_fields = stored_request.model_dump(mode="json", exclude={"format_mode"})
+    fixed_fields = frozen.model_dump(
+        mode="json", exclude={"request_identity_hash", "initial_prefix_hash", "format_mode"}
+    )
+    stored_fields = stored_request.model_dump(
+        mode="json", exclude={"initial_prefix_hash", "format_mode"}
+    )
     if (
         stored_request.digest != generation.request_identity_hash
         or stored_request.snapshot_json != generation.request_identity_snapshot
