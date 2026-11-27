@@ -23,7 +23,7 @@ from app.ai.wire_contracts import wire_model_for
 def test_get_tool_schemas_returns_all():
     schemas = get_tool_schemas()
     names = {s["function"]["name"] for s in schemas}
-    assert len(schemas) == 16
+    assert len(schemas) == 17
     assert {"attack", "request_dice", "heal", "invoke_npc"} <= names
     # ADR 0003 B1/C1 — combat is not a mode, and no tool takes an HP number.
     assert not names & {"start_combat", "end_combat", "apply_damage", "update_hp"}

@@ -15,3 +15,20 @@ def relation_kind_default(kind: str, kinds: dict[str, bool]) -> tuple[bool | Non
     if kind in kinds:
         return kinds[kind], []
     return None, sorted(kinds)
+
+
+def resolve_faction_slug(name: str, world_state: dict) -> tuple[str | None, str, list[str]]:
+    factions = world_state.get("factions", {})
+    wanted = name.strip().casefold()
+    slug_matches = [slug for slug in factions if slug.casefold() == wanted]
+    display_matches = [
+        slug
+        for slug, faction in factions.items()
+        if str(faction.get("name", "")).strip().casefold() == wanted
+    ]
+    pool = slug_matches or display_matches
+    if len(pool) == 1:
+        return pool[0], "", []
+    if len(pool) > 1:
+        return None, f"Multiple factions match '{name}' — specify which one.", sorted(pool)
+    return None, f"{name} is not a known faction.", sorted(factions)

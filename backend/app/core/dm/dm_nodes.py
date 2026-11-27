@@ -154,6 +154,7 @@ async def dm_node(state: GameState, config: RunnableConfig) -> dict[str, Any]:
         step=state["step_count"],
         previous_head_turn_id=previous_head_turn_id,
         session_affinity=campaign_session_affinity(),
+        taxonomy=(state.get("world_baseline") or {}).get("taxonomy"),
     )
 
     _llm_io.info(

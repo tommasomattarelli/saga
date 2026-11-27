@@ -144,7 +144,7 @@ class DmTool(BaseModel):
         }
 
     @classmethod
-    def to_generation_schema(cls) -> dict[str, object]:
+    def to_generation_schema(cls, taxonomy: dict | None = None) -> dict[str, object]:
         from app.ai.tools.tools_npc import UpdateNpc
         from app.ai.tools.tools_world import ChangeNpcPsychology
         from app.ai.wire_contracts import wire_model_for

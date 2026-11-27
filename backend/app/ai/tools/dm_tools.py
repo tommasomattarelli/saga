@@ -18,6 +18,7 @@ from app.ai.tools.tools_base import (
 )
 from app.ai.tools.tools_inventory import AddItem, RemoveItem
 from app.ai.tools.tools_npc import KillNpc, RemoveNpc, RestoreNpc, UpdateNpc
+from app.ai.tools.tools_relation import UpdateRelation
 from app.ai.tools.tools_resolution import Attack, Heal
 from app.ai.tools.tools_special import InvokeNpc, RequestDice
 from app.ai.tools.tools_world import (
@@ -52,6 +53,7 @@ __all__ = [
     "ToolResult",
     "UpdateNpc",
     "UpdateQuest",
+    "UpdateRelation",
     "VISIBLE_TOOLS",
     "execute_tool",
     "get_tool",

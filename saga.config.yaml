@@ -369,6 +369,7 @@ tool_groups:
       - log_event
       - update_quest
       - update_npc
+      - update_relation
       - request_dice     # every d20 check in the game, in or out of combat (ADR 0003 A1)
       - attack           # ADR 0003 B4 — combat is not a mode, so this is always available
       - heal             # ADR 0003 B7 — replaces the free-number update_hp

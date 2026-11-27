@@ -60,6 +60,7 @@ def build_dm_generation_request(
     step: int,
     previous_head_turn_id: str | None,
     session_affinity: str | None,
+    taxonomy: dict | None = None,
 ) -> GenerationRequest:
     destination = config.destination_fingerprint
     if not destination:
@@ -77,7 +78,7 @@ def build_dm_generation_request(
             separators=(",", ":"),
         ).encode()
     ).hexdigest()
-    declarations = generation_tool_declarations(allowed_tools)
+    declarations = generation_tool_declarations(allowed_tools, taxonomy)
     return GenerationRequest.create(
         system_prompt,
         messages,
@@ -97,9 +98,11 @@ def build_dm_generation_request(
     )
 
 
-def generation_tool_declarations(allowed_tools: set[str]) -> list[dict[str, object]]:
+def generation_tool_declarations(
+    allowed_tools: set[str], taxonomy: dict | None = None
+) -> list[dict[str, object]]:
     return [
-        tool.to_generation_schema()
+        tool.to_generation_schema(taxonomy)
         for name in sorted(allowed_tools)
         if (tool := get_tool(name)) is not None
     ]
