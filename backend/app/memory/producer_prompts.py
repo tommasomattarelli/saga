@@ -47,6 +47,16 @@ def canonical(value: object) -> str:
     )
 
 
+def without_since_turn(value: object) -> object:
+    if isinstance(value, dict):
+        return {
+            key: without_since_turn(item) for key, item in value.items() if key != "since_turn"
+        }
+    if isinstance(value, list):
+        return [without_since_turn(item) for item in value]
+    return value
+
+
 def digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -153,16 +163,20 @@ def prepare_request(
     system_prompt = "\n\n".join(
         [*sections, template("memory_production", "output"), canonical(schema)]
     )
-    evidence: dict[str, object] = {"source": source.model_dump(mode="json")}
+    evidence: dict[str, object] = {"source": without_since_turn(source.model_dump(mode="json"))}
     if kind == "global":
-        evidence["previous"] = previous.model_dump(mode="json") if previous else None
+        evidence["previous"] = (
+            without_since_turn(previous.model_dump(mode="json")) if previous else None
+        )
     return PreparedMemoryRequest(
         kind=kind,
         source=source,
         facts_policy=facts_policy,
         system_prompt=system_prompt,
         executor_system_prompt=executor_system_prompt,
-        user_prompt=canonical({**settings, **evidence}),
+        user_prompt=canonical(
+            {key: value for key, value in settings.items() if key != "relation_kinds"} | evidence
+        ),
         source_hash=digest(canonical(evidence)) if kind == "global" else source.source_hash(),
         instruction_hash=digest(PRODUCER_VERSION + "\n" + system_prompt),
     )

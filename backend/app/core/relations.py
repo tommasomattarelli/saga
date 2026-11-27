@@ -11,6 +11,21 @@ def relation_kind_defaults(taxonomy: dict) -> dict[str, bool]:
     return kinds
 
 
+def relation_zero_stance_kinds(taxonomy: dict) -> frozenset[str]:
+    kinds = {
+        kind.kind for kind in get_graph_config().default_relation_kinds if kind.zero_stance_allowed
+    }
+    for entry in taxonomy.get("relation_kinds", []):
+        allowed = entry.get("zero_stance_allowed")
+        if allowed is None:
+            continue
+        if allowed:
+            kinds.add(entry["kind"])
+        else:
+            kinds.discard(entry["kind"])
+    return frozenset(kinds)
+
+
 def relation_kind_default(kind: str, kinds: dict[str, bool]) -> tuple[bool | None, list[str]]:
     if kind in kinds:
         return kinds[kind], []

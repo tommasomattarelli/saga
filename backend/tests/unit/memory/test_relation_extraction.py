@@ -29,7 +29,7 @@ def _source(*, operations: list[dict] | None = None) -> BatchInput:
     )
 
 
-def _payload(kind: str = "companion", src: str = "Mira") -> FactsPayload:
+def _payload(kind: str = "companion", src: str = "Mira", stance: int = 40) -> FactsPayload:
     return FactsPayload.model_validate(
         {
             "facts": [],
@@ -38,7 +38,7 @@ def _payload(kind: str = "companion", src: str = "Mira") -> FactsPayload:
                     "src": {"type": "npc", "name": src},
                     "dst": {"type": "faction", "name": "The Hollow"},
                     "kind": kind,
-                    "stance": 40,
+                    "stance": stance,
                     "label": "Trusted with the key",
                     "source_turns": ["t1"],
                 }
@@ -107,6 +107,18 @@ def test_tool_written_triple_wins():
         _payload(), _source(operations=[_npc_operation(), tool_operation]), world, {}
     )
     assert resolved == ()
+
+
+def test_zero_stance_is_only_allowed_for_standing_bands():
+    world = {"factions": {"the-hollow": {"name": "The Hollow"}}}
+    source = _source(operations=[_npc_operation()])
+    assert resolve_relations(_payload(stance=0), source, world, {}) == ()
+    reputation = _payload(kind="reputation", stance=0)
+    assert len(resolve_relations(reputation, source, world, {})) == 1
+    taxonomy = {
+        "relation_kinds": [{"kind": "reputation", "prominent": True, "zero_stance_allowed": False}]
+    }
+    assert resolve_relations(reputation, source, world, taxonomy) == ()
 
 
 def test_unknown_kind_reports_candidates():

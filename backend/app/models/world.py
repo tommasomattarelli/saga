@@ -76,6 +76,7 @@ class RelationKindDef(BaseModel):
     kind: str = Field(min_length=1)
     prominent: bool = False
     description: str = ""
+    zero_stance_allowed: bool | None = None
 
 
 class AuthoredRelation(BaseModel):

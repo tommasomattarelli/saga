@@ -156,9 +156,11 @@ graph:
       description: "Travels with the player as a lasting companion"
     - kind: faction
       prominent: false
+      zero_stance_allowed: true
       description: "Stance between two factions"
     - kind: reputation
       prominent: true
+      zero_stance_allowed: true
       description: "Standing of a faction toward the player"
     - kind: enemy
       prominent: false

@@ -3,6 +3,9 @@ instructions: |
   and the original source batch, not a patch, append-only log or summary of summaries.
   Preserve established earlier information unless these sources explicitly resolve or
   correct it. A new statement does not automatically supersede an established event.
+  A speaker-labelled line is that speaker's claim, not a narrator fact: when someone says
+  where an object was kept or what happened, report the claim as attributed and keep the
+  narrator's observed provenance separate.
   story_so_far preserves the main narrative path and consequences.
   open_threads preserves promises, mysteries, debts and unresolved questions as of the
   incorporated history, not as authoritative current world state.

@@ -6,7 +6,12 @@ from uuid import UUID
 
 from pydantic import Field, field_validator, model_validator
 
-from app.core.relations import relation_kind_default, relation_kind_defaults, resolve_faction_slug
+from app.core.relations import (
+    relation_kind_default,
+    relation_kind_defaults,
+    relation_zero_stance_kinds,
+    resolve_faction_slug,
+)
 from app.memory.batch_source_contracts import BatchInput, NPCSourceResult
 from app.memory.document_contracts import (
     CanonicalReference,
@@ -261,6 +266,7 @@ def resolve_relations(
     if len(payload.relations) > graph.extract_max_per_batch:
         raise MemoryOutputError("The generated relations exceed the batch limit.", ("relations",))
     kinds = relation_kind_defaults(taxonomy)
+    zero_stance = relation_zero_stance_kinds(taxonomy)
     turns = {turn.reference: turn for turn in source.turns}
     candidates = entity_candidates(source)
 
@@ -317,6 +323,9 @@ def resolve_relations(
         if src is None or dst is None:
             continue
         if ((src.type, src.id), (dst.type, dst.id), relation.kind) in tool_written:
+            continue
+        if relation.stance == 0 and relation.kind not in zero_stance:
+            # Zero stance has no durable meaning outside standing bands.
             continue
         first = turns[relation.source_turns[0]]
         resolved.append(

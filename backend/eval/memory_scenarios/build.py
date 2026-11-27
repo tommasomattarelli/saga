@@ -158,7 +158,7 @@ def initial_world() -> tuple[dict[str, object], dict[str, object], dict[str, obj
         counter += 1
         return uuid5(NAMESPACE, f"world-node:{counter}")
 
-    with patch.object(world_instantiation, "uuid4", side_effect=seeded_uuid):
+    with _seeded_rng(0), patch.object(world_instantiation, "uuid4", side_effect=seeded_uuid):
         baseline, world_state, quest_data = world_instantiation.instantiate_world(asset)
     start = world_state["meta"]["current_location"]
     npc_name = next(

@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr, ValidationError
 
 from app.memory.batch_source_contracts import BatchInput
 from app.memory.document_contracts import GlobalPayload
-from app.memory.graph_config import get_graph_config
 from app.memory.job_contracts import MemoryJobManifest
 from app.memory.producer_prompts import (
     PRODUCER_VERSION,
@@ -15,6 +14,7 @@ from app.memory.producer_prompts import (
     canonical,
     digest,
     prepare_request,
+    without_since_turn,
 )
 from app.memory.production_policy import FactsPolicy, GlobalPolicy
 
@@ -159,25 +159,22 @@ def _validate_request_evidence(
         raise ValueError("Frozen memory request evidence is invalid.") from exc
     if not isinstance(evidence, dict):
         raise ValueError("Frozen memory request evidence is invalid.")
-    expected_keys = {"language", "facts_policy", "global_policy", "relation_kinds", "source"}
+    expected_keys = {"language", "facts_policy", "global_policy", "source"}
     if job_kind == "global":
         expected_keys.add("previous")
     if set(evidence) != expected_keys or evidence["language"] != language:
         raise ValueError("Frozen memory request settings are inconsistent.")
-    if canonical(evidence["relation_kinds"]) != canonical(
-        [kind.model_dump() for kind in get_graph_config().default_relation_kinds]
-    ):
-        raise ValueError("Frozen memory relation kinds do not match.")
     if canonical(evidence["facts_policy"]) != canonical(facts_policy.model_dump(mode="json")):
         raise ValueError("Frozen memory facts policy does not match.")
-    if canonical(evidence["source"]) != canonical(source.model_dump(mode="json")):
+    source_evidence = without_since_turn(source.model_dump(mode="json"))
+    if canonical(evidence["source"]) != canonical(source_evidence):
         raise ValueError("Frozen memory request source does not match.")
     global_policy: GlobalPolicy | None = None
     previous: GlobalPayload | None = None
     if job_kind == "batch":
         if evidence["global_policy"] is not None:
             raise ValueError("Batch request cannot include a global policy.")
-        evidence_for_hash: dict[str, object] = {"source": source.model_dump(mode="json")}
+        prompt_evidence: dict[str, object] = {"source": source_evidence}
         expected_hash = source.source_hash()
     else:
         if evidence["global_policy"] is None:
@@ -191,11 +188,11 @@ def _validate_request_evidence(
             )
         except (ValidationError, ValueError, TypeError) as exc:
             raise ValueError("Frozen global request settings are invalid.") from exc
-        evidence_for_hash = {
-            "source": source.model_dump(mode="json"),
-            "previous": previous.model_dump(mode="json") if previous else None,
+        prompt_evidence = {
+            "source": source_evidence,
+            "previous": without_since_turn(previous.model_dump(mode="json")) if previous else None,
         }
-        expected_hash = digest(canonical(evidence_for_hash))
+        expected_hash = digest(canonical(prompt_evidence))
     if request.source_hash != expected_hash:
         raise ValueError("Frozen memory request source hash is invalid.")
     expected_prompt = canonical(
@@ -203,10 +200,7 @@ def _validate_request_evidence(
             "language": language,
             "facts_policy": facts_policy.model_dump(mode="json"),
             "global_policy": global_policy.model_dump(mode="json") if global_policy else None,
-            "relation_kinds": [
-                kind.model_dump() for kind in get_graph_config().default_relation_kinds
-            ],
-            **evidence_for_hash,
+            **prompt_evidence,
         }
     )
     if request.user_prompt != expected_prompt:
