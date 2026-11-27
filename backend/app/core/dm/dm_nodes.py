@@ -54,7 +54,9 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
 
     from app.dependencies import get_db_context
     from app.memory.context_snapshot import capture_turn_context
+    from app.memory.query_construction import build_scene_anchor
     from app.memory.recall import embed_recall_query
+    from app.memory.recall_config import get_recall_config
     from app.models.campaign import Campaign
 
     campaign_id = state["campaign_id"]
@@ -75,8 +77,20 @@ async def context_node(state: GameState, config: RunnableConfig) -> dict[str, An
         raise ValueError("The turn context does not match the requested campaign.")
     recall_snapshot = turn_context.recall_snapshot
 
+    recall_config = get_recall_config()
+    anchor = build_scene_anchor(
+        turn_context.scene.world_state,
+        turn_context.scene.world_baseline,
+        turn_context.history,
+        recall_snapshot.known_names if recall_snapshot else (),
+        include_scene=recall_config.query.include_scene,
+        recent_turns=recall_config.query.recent_narration_turns,
+        max_chars=recall_config.query.anchor_max_chars,
+    )
     query_embedding = (
-        await embed_recall_query(recall_snapshot, player_action) if recall_snapshot else None
+        await embed_recall_query(recall_snapshot, player_action, anchor)
+        if recall_snapshot and recall_config.enabled
+        else None
     )
 
     async with get_db_context() as db:

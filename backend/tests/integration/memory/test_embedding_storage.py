@@ -246,8 +246,9 @@ async def test_recall_stays_on_snapshotted_index_with_vectors_after_cutover(
     )
     await db_session.close()
 
-    async def swap_active_and_embed(space, query, *, user_id):
+    async def swap_active_and_embed(space, texts, *, user_id):
         assert_no_db_held()
+        assert texts == ["who guards the gate?", "who guards the gate?"]
         assert space.requested_dimensions == (384 if legacy else None)
         target_id = uuid.uuid4()
         async with engine.begin() as conn:
@@ -279,10 +280,11 @@ async def test_recall_stays_on_snapshotted_index_with_vectors_after_cutover(
                     "vector": str([0.2] * new_dimension),
                 },
             )
-        return EmbeddingBatch(space, old_dimension, (tuple([0.1] * old_dimension),))
+        vector = tuple([0.1] * old_dimension)
+        return EmbeddingBatch(space, old_dimension, (vector, vector))
 
-    with patch("app.memory.recall.embed_query_for_index", new=swap_active_and_embed):
-        prepared = await embed_recall_query(snapshot, "who guards the gate?")
+    with patch("app.memory.recall.embed_texts", new=swap_active_and_embed):
+        prepared = await embed_recall_query(snapshot, "who guards the gate?", "")
     assert prepared is not None
     assert prepared.index_id == old_index_id
     assert prepared.dimension == old_dimension
@@ -296,12 +298,12 @@ async def test_recall_stays_on_snapshotted_index_with_vectors_after_cutover(
         )
     assert [item.id for item in facts] == [fact.id]
 
-    async def failed_query(space, query, *, user_id):
+    async def failed_query(space, texts, *, user_id):
         assert_no_db_held()
         raise RuntimeError("provider unavailable")
 
-    with patch("app.memory.recall.embed_query_for_index", new=failed_query):
-        assert await embed_recall_query(snapshot, "who guards the gate?") is None
+    with patch("app.memory.recall.embed_texts", new=failed_query):
+        assert await embed_recall_query(snapshot, "who guards the gate?", "") is None
 
 
 @pytest.mark.parametrize("scenario", ["empty", "unknown_dimension", "pending_fact", "turn_only"])
@@ -362,7 +364,7 @@ async def test_recall_skips_provider_for_indexes_without_recallable_facts(
     await db_session.commit()
 
     provider = AsyncMock()
-    with patch("app.memory.recall.embed_query_for_index", new=provider):
+    with patch("app.memory.recall.embed_texts", new=provider):
         snapshot = await snapshot_recall_query(db_session, campaign.id)
     assert snapshot is None
     provider.assert_not_called()
@@ -382,7 +384,7 @@ async def test_recall_rejects_query_prepared_for_another_campaign(
         uuid.uuid4(),
         legacy_space(),
         384,
-        (0.1,) * 384,
+        {"action": (0.1,) * 384},
     )
     assert (
         await search_similar_facts(other.id, "query", db_session, query_embedding=prepared) == []

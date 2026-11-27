@@ -61,7 +61,7 @@ def test_filtered_prompt_and_schemas_have_the_same_obligations():
 
 @pytest.mark.parametrize("closing", [False, True])
 def test_current_state_authority_is_explicit_without_erasing_historical_context(closing):
-    from app.ai.prompts.dm import build_dm_system_prompt
+    from app.ai.prompts.dm import RecalledFact, build_dm_system_prompt
     from app.models.campaign import Campaign
 
     campaign = Campaign(world_state={}, character_data={}, quests={}, language="en")
@@ -70,7 +70,7 @@ def test_current_state_authority_is_explicit_without_erasing_historical_context(
     prompt = build_dm_system_prompt(
         campaign,
         summary_context=summary,
-        recalled_memories=[memory],
+        recalled_memories=(RecalledFact(content=memory),),
         allowed_tools={"advance_time"} if closing else {"move_to"},
         closing=closing,
     )

@@ -1,5 +1,7 @@
 """Tests for gameplay and summarization configuration."""
 
+import pytest
+
 from app.ai.router import (
     _NPC_VERBOSITY_MAP,
     GameplayConfig,
@@ -14,6 +16,11 @@ class TestGameplayConfig:
         assert config.auto_create_npcs is True
         assert config.npc_auto_create_detail == "standard"
         assert config.consecutive_empty_steps_max == 2
+        assert config.max_action_chars == 2000
+
+    def test_max_action_chars_must_be_positive(self):
+        with pytest.raises(ValueError, match="action length limit"):
+            GameplayConfig(max_action_chars=0)
 
     def test_max_npc_calls_mapping(self):
         assert GameplayConfig(npc_verbosity="null").max_npc_calls == 0
@@ -48,3 +55,7 @@ class TestGetGameplayConfig:
         monkeypatch.setenv("SAGA_GAMEPLAY_NPC_AUTO_CREATE_DETAIL", "rich")
         config = get_gameplay_config()
         assert config.npc_auto_create_detail == "rich"
+
+    def test_env_override_max_action_chars(self, monkeypatch):
+        monkeypatch.setenv("SAGA_GAMEPLAY_MAX_ACTION_CHARS", "50")
+        assert get_gameplay_config().max_action_chars == 50

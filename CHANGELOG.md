@@ -16,3 +16,10 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 ### Highlights
 
 - [Memory & AI] Keep player reports and NPC commitments as separate memory facts with reporter attribution (#123)
+- [Gameplay] Player actions longer than `gameplay.max_action_chars` are rejected before a turn is claimed, instead of being silently truncated (ADR 0022 R6).
+### Internal
+
+- ADR 0022/0023: landed hybrid recall and relational graph designs; ADR 0002 is superseded by both.
+- Recall fuses dense and full-text candidates in one history-isolated query, then ranks and dedups them into a typed `<recalled_memories>` block (ADR 0022).
+- The second dense branch embeds the composed action-and-scene query; `search_vector` is Postgres-generated and retrieval knobs live in config (ADR 0022).
+- `rrf_k=20` is measured; 0.02 boosts are owner-accepted without a gain, with labelled pairs and an offline comparator for recall@5/MRR@5 (ADR 0022).

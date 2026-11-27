@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy import func, select
 
+from app.ai.router import get_gameplay_config
 from app.exceptions import AIProviderError
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.source_embedding import SourceEmbedding
@@ -47,6 +48,21 @@ async def _create_campaign(auth_client) -> str:
     )
     assert resp.status_code == 201
     return resp.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_overlong_action_is_rejected_before_claim(auth_client, db_session):
+    campaign_id = await _create_campaign(auth_client)
+    body = await action_body(auth_client, campaign_id, "a")
+    body["action"] = "a" * (get_gameplay_config().max_action_chars + 1)
+
+    with patch("app.api.turns.claim_action", new=AsyncMock()) as claim:
+        response = await auth_client.post(f"/api/campaigns/{campaign_id}/action", json=body)
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "action_too_long"
+    claim.assert_not_awaited()
+    assert await db_session.scalar(select(func.count()).select_from(Turn)) == 0
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from sqlalchemy import func, select
@@ -15,9 +16,10 @@ from app.ai.embedding_config import (
     legacy_space,
     local_space,
 )
-from app.ai.embeddings import embed_query_for_index
+from app.ai.embeddings import embed_texts
 from app.models.campaign import Campaign
 from app.models.embedding_index import EmbeddingIndex
+from app.models.memory_fact import MemoryFact
 from app.models.source_embedding import EmbeddingSourceType, EmbeddingWorkState, SourceEmbedding
 
 
@@ -28,7 +30,7 @@ class PreparedRecallQuery:
     index_id: uuid.UUID
     space: EmbeddingSpace
     dimension: int
-    vector: tuple[float, ...]
+    vectors: Mapping[str, tuple[float, ...]]
 
 
 @dataclass(frozen=True)
@@ -38,6 +40,7 @@ class RecallSnapshot:
     index_id: uuid.UUID
     dimension: int
     space: EmbeddingSpace
+    known_names: tuple[str, ...] = ()
 
 
 async def snapshot_recall_query(db: AsyncSession, campaign_id: uuid.UUID) -> RecallSnapshot | None:
@@ -89,21 +92,47 @@ async def snapshot_recall_query(db: AsyncSession, campaign_id: uuid.UUID) -> Rec
             return None
     except ValueError:
         return None
-    return RecallSnapshot(owner_id, campaign_id, index.id, index.dimension, space)
+    metadata_rows = (
+        (
+            await db.execute(
+                select(MemoryFact.fact_metadata).where(
+                    MemoryFact.campaign_id == campaign_id,
+                    MemoryFact.fact_metadata.isnot(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    known_names = tuple(
+        sorted(
+            {
+                entity.name
+                for metadata in metadata_rows
+                if metadata is not None
+                for entity in metadata.entities
+                if entity.name
+            }
+        )
+    )
+    return RecallSnapshot(owner_id, campaign_id, index.id, index.dimension, space, known_names)
 
 
-async def embed_recall_query(snapshot: RecallSnapshot, query: str) -> PreparedRecallQuery | None:
+async def embed_recall_query(
+    snapshot: RecallSnapshot, action: str, anchor: str
+) -> PreparedRecallQuery | None:
+    composed = f"{action} {anchor}".strip()
     try:
-        batch: EmbeddingBatch = await embed_query_for_index(
-            snapshot.space, query, user_id=snapshot.owner_id
+        batch: EmbeddingBatch = await embed_texts(
+            snapshot.space, [action, composed], user_id=snapshot.owner_id
         )
     except Exception:
         return None
     if (
         batch.dimension != snapshot.dimension
         or batch.space != snapshot.space
-        or len(batch.vectors) != 1
-        or len(batch.vectors[0]) != snapshot.dimension
+        or len(batch.vectors) != 2
+        or any(len(vector) != snapshot.dimension for vector in batch.vectors)
     ):
         return None
     return PreparedRecallQuery(
@@ -112,5 +141,5 @@ async def embed_recall_query(snapshot: RecallSnapshot, query: str) -> PreparedRe
         snapshot.index_id,
         snapshot.space,
         snapshot.dimension,
-        batch.vectors[0],
+        {"action": batch.vectors[0], "composed": batch.vectors[1]},
     )

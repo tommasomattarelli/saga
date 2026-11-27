@@ -18,6 +18,7 @@ from types import SimpleNamespace
 
 import yaml
 
+from app.ai.prompts.dm import RecalledFact
 from eval.probes.probes import PROBES, Stimulus
 
 BUILT = Path(__file__).resolve().parents[1] / "scenarios" / "built"
@@ -48,12 +49,15 @@ class Scenario:
         """
         return {p.name for p in PROBES} - set(self.stimuli)
 
-    def recalled_memories(self, probe_name: str) -> list[str]:
+    def recalled_memories(self, probe_name: str) -> tuple[RecalledFact, ...]:
         """Recall is authored per probe, not searched. The harness has no vector
         store, and it should not have one: what the DM is *given* is the controlled
         input — whether retrieval ranks well is a different measurement, and mixing
-        the two would put both into one number."""
-        return self.recall.get(probe_name, [])
+        the two would put both into one number.
+
+        YAML strings are adapted here, once: age 0, category `information`,
+        assertion_type `statement`, no speaker, importance `ordinary`."""
+        return tuple(RecalledFact(content=text) for text in self.recall.get(probe_name, ()))
 
     def messages(self, probe_name: str) -> list[dict]:
         """Scenario history, then this probe's turn — with the injected NPC result

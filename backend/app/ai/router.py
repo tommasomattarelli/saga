@@ -229,12 +229,15 @@ class GameplayConfig:
     npc_narrative_max_chars: int = 1000
     npc_condition_max_chars: int = 80
     npc_name_match_threshold: float = 0.85
+    max_action_chars: int = 2000
 
     def __post_init__(self) -> None:
         if self.max_agent_steps < 1 or self.consecutive_empty_steps_max < 1:
             raise ValueError("DM call and stall limits must be positive integers.")
         if self.npc_max_lines < 1 or self.npc_narrative_max_chars < 1:
             raise ValueError("NPC line and narrative limits must be positive integers.")
+        if self.max_action_chars < 1:
+            raise ValueError("The action length limit must be a positive integer.")
 
     @property
     def max_npc_calls(self) -> int:
@@ -293,5 +296,8 @@ def get_gameplay_config() -> GameplayConfig:
                 "SAGA_GAMEPLAY_NPC_NAME_MATCH_THRESHOLD",
                 gp.get("npc_name_match_threshold", 0.85),
             )
+        ),
+        max_action_chars=int(
+            os.getenv("SAGA_GAMEPLAY_MAX_ACTION_CHARS", gp.get("max_action_chars", 2000))
         ),
     )

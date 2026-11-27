@@ -16,6 +16,7 @@ commands below from `backend/`.
 | `eval/cache/` | Separate OpenRouter cache diagnostic |
 | `eval/integrated_memory/` | Guarded API-to-DB memory replay, persisted-source evidence and offline run preparation |
 | `eval/memory_scenarios/` | Controlled memory sources replayed through real operation handlers |
+| `eval/recall/` | Typed query→fact labels and the offline recall comparison adapter |
 | `eval/memory_capture.py` | Read-only capture of unambiguous legacy campaign transcripts |
 | `eval/scenarios/` | Authored transcripts, overlays, stimuli and built fixtures |
 
@@ -46,6 +47,17 @@ capture/derivation CLIs are retired; the authored gold transcript and its
 overlays remain offline builder inputs. Authored transcripts are not reviewed
 saturated-memory evidence. Integrated S6 preparation is described separately
 below; preparation is not live authorization or quality evidence.
+
+## Recall retrieval evaluation (ADR 0022 S4)
+
+`eval.recall.labels` validates query → expected-fact pairs and maps expected
+fact contents to indices in a producer run. Labels name facts by content, not
+by position, so regenerating a controlled source cannot silently re-point them.
+`eval.recall.compare` supplies the ranking primitives (cosine top-K, RRF, boost
+ordering, recall@5 and MRR@5) over already-computed vectors and lexical
+rankings. Loading labels, indexing them and comparing variants are offline and
+make no provider or database calls; the inputs still come from separately
+authorised evidence, as described below. No CLI flag is owner consent.
 
 ## Offline preparation
 
