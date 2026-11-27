@@ -139,6 +139,26 @@ recall:
     similarity_threshold: 1.0 # exact-only until E2 fixes the near-duplicate threshold
 
 # ---------------------------------------------------------------------------
+# Relational graph — ADR 0023. Runtime-global; retuning is visible on the same campaign.
+# ---------------------------------------------------------------------------
+graph:
+  max_relations: 200 # hard bound on stored edges
+  prominent_max_relations: 12 # hard bound on always-present <relations> rows
+  scene_max_relations: 20 # hard bound on <npcs_present> rows
+  extract_max_per_batch: 8 # hard bound on relations[] from one batch
+  default_relation_kinds:
+    - kind: ally
+      prominent: false
+    - kind: companion
+      prominent: true
+    - kind: enemy
+      prominent: false
+    - kind: friend
+      prominent: false
+    - kind: rival
+      prominent: false
+
+# ---------------------------------------------------------------------------
 # Gameplay Settings — runtime behavior
 # ---------------------------------------------------------------------------
 gameplay:
