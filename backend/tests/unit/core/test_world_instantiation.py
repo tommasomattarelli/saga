@@ -134,7 +134,6 @@ class TestOverlay:
         assert state["node_status"] == {}
         assert state["edge_overrides"] == []
         assert state["consumed_encounters"] == {}
-        assert state["relations"] == []
         assert "combat_state" not in state  # combat is not a mode (ADR 0003 B1)
         assert state["clock"]["total_minutes"] == 480
 
@@ -155,6 +154,21 @@ class TestOverlay:
         faction = state["factions"]["the-hollow"]
         assert faction["name"] == "The Hollow"
         assert "disposition" not in faction
+
+    def test_authored_relations_seeded(self):
+        _, state, _ = instantiated()
+        edges = state["relations"]
+        faction_edge = next(e for e in edges if e["kind"] == "faction")
+        assert faction_edge["stance"] == -70
+        assert faction_edge["prominent"] is False
+        band = next(e for e in edges if e["kind"] == "reputation")
+        assert band["dst"] == {"type": "player", "id": None}
+        assert band["label"] == "neutral" and band["prominent"] is True
+        ally = next(e for e in edges if e["kind"] == "ally")
+        lyra_id = next(k for k, npc in state["npcs"].items() if npc["name"] == "Lyra")
+        assert ally["src"] == {"type": "npc", "id": lyra_id}
+        assert ally["prominent"] is True
+        assert all(e["since_turn"] == 0 and e["since_game_minutes"] == 480 for e in edges)
 
 
 class TestQuests:

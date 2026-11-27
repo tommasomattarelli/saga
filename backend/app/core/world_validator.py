@@ -8,6 +8,7 @@ per-kind param contract the static models cannot check.
 from app.core.npc_classes import DEFAULT_NPC_CLASSES
 from app.core.npc_fields import DEFAULT_NPC_FIELDS
 from app.core.psychology import DEFAULT_PSYCHOLOGY
+from app.core.relations import relation_kind_default, relation_kind_defaults
 from app.core.world_loader import WorldAsset
 from app.models.world import KindDef, ParamDef, ParamValue, WorldNode
 
@@ -105,6 +106,7 @@ def _check_references(asset: WorldAsset) -> list[str]:
     declared = [f.name for f in npc_fields]
     npc_classes = asset.taxonomy.npc_classes or DEFAULT_NPC_CLASSES
     declared_classes = [c.name for c in npc_classes]
+    relation_kinds = relation_kind_defaults(asset.taxonomy.model_dump())
     for npc in asset.npcs.values():
         if npc.location is not None and npc.location not in asset.nodes:
             errors.append(f"npc {npc.slug}: location '{npc.location}' does not exist")
@@ -120,6 +122,21 @@ def _check_references(asset: WorldAsset) -> list[str]:
                 errors.append(
                     f"npc {npc.slug}: unknown npc field '{key}' — "
                     f"declared fields: {', '.join(declared)}"
+                )
+        for relation in npc.relations:
+            _, candidates = relation_kind_default(relation.kind, relation_kinds)
+            if candidates:
+                errors.append(
+                    f"npc {npc.slug}: unknown relation kind '{relation.kind}' — "
+                    f"declared kinds: {', '.join(candidates)}"
+                )
+            if (
+                relation.target != "player"
+                and relation.target not in asset.npcs
+                and relation.target not in asset.factions
+            ):
+                errors.append(
+                    f"npc {npc.slug}: relation target '{relation.target}' does not exist"
                 )
         for axis_name, value in npc.psychology.items():
             axis = psychology.axes.get(axis_name)

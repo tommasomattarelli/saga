@@ -6,3 +6,5 @@ psychology:
 personality: "Sharp-eyed, practical, quietly curious."
 motivation: "Understand why people keep waking at the shrine."
 secret: "She woke at the shrine herself, three years ago."
+relations:
+  - {target: player, kind: ally, stance: 20, label: "Wary ally", prominent: true}

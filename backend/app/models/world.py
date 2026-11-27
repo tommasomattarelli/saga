@@ -70,6 +70,23 @@ class TaxonomyDefaults(BaseModel):
     elevation_m: float = 0
 
 
+class RelationKindDef(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: str = Field(min_length=1)
+    prominent: bool = False
+
+
+class AuthoredRelation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    target: str = Field(min_length=1)
+    kind: str = Field(min_length=1)
+    stance: int = Field(ge=-100, le=100)
+    label: str = ""
+    prominent: bool | None = None
+
+
 class Taxonomy(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -83,6 +100,8 @@ class Taxonomy(BaseModel):
     npc_fields: list[NpcFieldDef] | None = None
     # ADR 0003 B3b: optional world-defined NPC classes; None → bundled default.
     npc_classes: list[NpcClassDef] | None = None
+    # ADR 0023: relation kinds are opaque labels; `prominent` picks always-visible edges.
+    relation_kinds: list[RelationKindDef] = []
 
     @model_validator(mode="after")
     def _check_uniqueness_and_defaults(self) -> "Taxonomy":
@@ -92,6 +111,7 @@ class Taxonomy(BaseModel):
             ("travel_mode", [m.name for m in self.travel_modes]),
             ("npc_field", [f.name for f in self.npc_fields or []]),
             ("npc_class", [c.name for c in self.npc_classes or []]),
+            ("relation_kind", [k.kind for k in self.relation_kinds]),
         ]:
             if len(names) != len(set(names)):
                 raise ValueError(f"duplicate {label} names in taxonomy")
@@ -246,6 +266,7 @@ class NpcRecord(BaseModel):
     location: str | None = None
     psychology: dict[str, int] = {}
     faction: str | None = None
+    relations: list[AuthoredRelation] = []
 
     # ADR 0003 B3 — optional authored statblock. `npc_class` supplies the template;
     # the rest override it where the world says so. Absent → drawn from the class.

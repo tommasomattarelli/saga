@@ -267,3 +267,19 @@ class TestReferences:
             {"name": "Guild", "relations": {"phantoms": {"stance": -5}}},
         )
         assert any("phantoms" in e for e in errors_of(world_dir))
+
+    def test_npc_relation_kind_rejected_with_candidates(self, world_dir):
+        write(world_dir / "taxonomy.yaml", {**TAXONOMY, "relation_kinds": [{"kind": "ally"}]})
+        write(
+            world_dir / "npcs" / "bob.yaml",
+            {"name": "Bob", "relations": [{"target": "player", "kind": "bogus", "stance": 5}]},
+        )
+        errors = errors_of(world_dir)
+        assert any("bogus" in e and "ally" in e for e in errors)
+
+    def test_npc_relation_target_must_exist(self, world_dir):
+        write(
+            world_dir / "npcs" / "bob.yaml",
+            {"name": "Bob", "relations": [{"target": "phantoms", "kind": "ally", "stance": 5}]},
+        )
+        assert any("phantoms" in e for e in errors_of(world_dir))

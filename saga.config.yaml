@@ -151,6 +151,10 @@ graph:
       prominent: false
     - kind: companion
       prominent: true
+    - kind: faction
+      prominent: false
+    - kind: reputation
+      prominent: true
     - kind: enemy
       prominent: false
     - kind: friend
