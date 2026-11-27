@@ -135,7 +135,7 @@ def _seed_relations(asset: WorldAsset, npcs: dict[str, dict]) -> list[dict]:
                 {"type": "faction", "id": faction.slug},
                 {"type": "player", "id": None},
                 "reputation",
-                0,
+                band.threshold,
                 band.label,
                 None,
             )

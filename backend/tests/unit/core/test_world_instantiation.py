@@ -6,6 +6,7 @@ from pathlib import Path
 from app.core.world_instantiation import instantiate_world
 from app.core.world_loader import load_world
 from app.memory.world_state import CURRENT_SCHEMA_VERSION
+from app.models.world import ReputationTier
 
 EXAMPLE_WORLD = Path(__file__).parents[4] / "worlds" / "the-awakening"
 
@@ -169,6 +170,22 @@ class TestOverlay:
         assert ally["src"] == {"type": "npc", "id": lyra_id}
         assert ally["prominent"] is True
         assert all(e["since_turn"] == 0 and e["since_game_minutes"] == 480 for e in edges)
+
+    def test_hostile_band_seeds_nonzero_stance(self):
+        asset = load_world(EXAMPLE_WORLD)
+        asset.factions["the-hollow"].reputation_tiers = [
+            ReputationTier(threshold=-50, label="hostile"),
+            ReputationTier(threshold=50, label="trusted"),
+        ]
+        _, state, _ = instantiate_world(asset)
+        band = next(
+            edge
+            for edge in state["relations"]
+            if edge["kind"] == "reputation"
+            and edge["src"] == {"type": "faction", "id": "the-hollow"}
+        )
+        assert band["stance"] == -50
+        assert band["label"] == "hostile"
 
 
 class TestQuests:

@@ -189,12 +189,12 @@ def test_scene_relation_carries_reason_and_game_time_only():
     assert "18t/" not in prompt
 
 
-def test_scene_faction_relations_use_own_block_and_drop_neutral():
+def test_scene_faction_relations_keep_bands_and_name_factions():
     ws = {
         **_WORLD_STATE,
         "factions": {
-            "guild": {"name": "Merchants Guild"},
-            "council": {"name": "Council"},
+            "guild": {"name": "Merchants Guild", "description": "Traders of the town"},
+            "council": {"name": "Council", "description": "Village elders"},
         },
         "relations": [
             {
@@ -203,6 +203,14 @@ def test_scene_faction_relations_use_own_block_and_drop_neutral():
                 "kind": "faction",
                 "stance": -70,
                 "label": "fearful hostility",
+                "prominent": False,
+            },
+            {
+                "src": {"type": "faction", "id": "guild"},
+                "dst": {"type": "faction", "id": "council"},
+                "kind": "faction",
+                "stance": 0,
+                "label": "indifferent",
                 "prominent": False,
             },
             {
@@ -229,10 +237,112 @@ def test_scene_faction_relations_use_own_block_and_drop_neutral():
 
     assert 'from="Merchants Guild" to="Council"' in factions_block
     assert 'why="fearful hostility"' in factions_block
-    assert 'from="Council" to="player"' in factions_block
+    assert 'why="neutral"' in factions_block  # reputation band survives a zero stance
     assert 'why="trusted"' in factions_block
-    assert "neutral" not in factions_block
+    assert "indifferent" not in factions_block
     assert "Merchants Guild" not in relations_block
+    assert (
+        "<factions_known>Merchants Guild: Traders of the town | "
+        "Council: Village elders</factions_known>" in prompt
+    )
+
+
+def test_scene_reputation_band_leads_faction_cap():
+    hostiles = [
+        {
+            "src": {"type": "faction", "id": "guild"},
+            "dst": {"type": "faction", "id": "council"},
+            "kind": "faction",
+            "stance": -10 * (index + 1),
+            "label": f"feud {index}",
+            "prominent": False,
+        }
+        for index in range(9)
+    ]
+    ws = {
+        **_WORLD_STATE,
+        "factions": {"guild": {"name": "Guild"}, "council": {"name": "Council"}},
+        "relations": hostiles
+        + [
+            {
+                "src": {"type": "faction", "id": "guild"},
+                "dst": {"type": "player", "id": None},
+                "kind": "reputation",
+                "stance": 0,
+                "label": "neutral",
+                "prominent": True,
+            }
+        ],
+    }
+    prompt = build_dm_system_prompt(_make_campaign(ws, _CHAR_DATA))
+    factions_block = prompt.split("<factions ", 1)[1].split("</factions>", 1)[0]
+
+    assert 'why="neutral"' in factions_block
+    assert '<factions shown="8" omitted="2">' in prompt
+
+
+def test_scene_npc_faction_edges_follow_scene_presence():
+    present_id = "11111111-0000-0000-0000-000000000001"  # Marta
+    away_id = "11111111-0000-0000-0000-000000000003"  # Aldric
+    ws = {
+        **_WORLD_STATE,
+        "factions": {"guild": {"name": "Merchants Guild"}},
+        "relations": [
+            {
+                "src": {"type": "npc", "id": present_id},
+                "dst": {"type": "faction", "id": "guild"},
+                "kind": "ally",
+                "stance": 30,
+                "label": "trades fairly",
+                "prominent": False,
+            },
+            {
+                "src": {"type": "npc", "id": away_id},
+                "dst": {"type": "faction", "id": "guild"},
+                "kind": "ally",
+                "stance": 30,
+                "label": "former member",
+                "prominent": False,
+            },
+            {
+                "src": {"type": "npc", "id": away_id},
+                "dst": {"type": "faction", "id": "guild"},
+                "kind": "nemesis",
+                "stance": -90,
+                "label": "hunted by the guild",
+                "prominent": True,
+            },
+        ],
+    }
+    prompt = build_dm_system_prompt(_make_campaign(ws, _CHAR_DATA))
+    relations_block = prompt.split("<relations", 1)[1].split("</relations>", 1)[0]
+    present_block = prompt.split("<npcs_present", 1)[1].split("</npcs_present>", 1)[0]
+
+    assert 'why="trades fairly"' in present_block
+    assert "former member" not in prompt
+    assert 'why="hunted by the guild"' in relations_block
+    assert "<factions " not in prompt
+
+
+def test_scene_relation_omits_unknown_clock():
+    ws = {
+        **_WORLD_STATE,
+        "clock": {"total_minutes": 600},
+        "relations": [
+            {
+                "src": {"type": "npc", "id": "11111111-0000-0000-0000-000000000003"},
+                "dst": {"type": "player", "id": None},
+                "kind": "ally",
+                "stance": 20,
+                "label": "old debt",
+                "prominent": True,
+            }
+        ],
+    }
+    prompt = build_dm_system_prompt(_make_campaign(ws, _CHAR_DATA))
+    assert 'why="old debt"' in prompt
+    assert "since=" not in prompt
+    assert "ago=" not in prompt
 
 
 def test_scene_relation_blocks_rank_by_stance_and_report_omitted(monkeypatch):

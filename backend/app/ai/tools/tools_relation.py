@@ -64,13 +64,17 @@ class UpdateRelation(DmTool):
         return "update_relation"
 
     @classmethod
-    def tool_description(cls) -> str:
-        kinds = ", ".join(
-            f"{kind.kind}: {kind.description}" if kind.description else kind.kind
-            for kind in get_graph_config().default_relation_kinds
-        )
+    def tool_description(cls, taxonomy: dict | None = None) -> str:
+        kinds = relation_kind_defaults(taxonomy or {})
+        descriptions = relation_kind_descriptions(taxonomy or {})
+        entries = []
+        for kind, prominent in kinds.items():
+            label = f"{kind} (prominent=True)" if prominent else kind
+            description = descriptions.get(kind)
+            entries.append(f"{label}: {description}" if description else label)
+        catalog = ", ".join(entries)
         return (
-            f"Open or update a relation between two typed refs. Known kinds: {kinds}. "
+            f"Open or update a relation between two typed refs. Known kinds: {catalog}. "
             "Closing an edge is a separate history record; this tool only upserts open edges."
         )
 
@@ -78,14 +82,7 @@ class UpdateRelation(DmTool):
     def to_generation_schema(cls, taxonomy: dict | None = None) -> dict[str, object]:
         schema = cast(dict[str, Any], super().to_generation_schema(taxonomy))
         if taxonomy:
-            kinds = relation_kind_defaults(taxonomy)
-            descriptions = relation_kind_descriptions(taxonomy)
-            world = ", ".join(
-                f"{kind} (prominent={prominent})"
-                + (f": {descriptions[kind]}" if kind in descriptions else "")
-                for kind, prominent in kinds.items()
-            )
-            schema["function"]["description"] += f" World kinds: {world}."
+            schema["function"]["description"] = cls.tool_description(taxonomy)
         return schema
 
     @classmethod

@@ -62,7 +62,9 @@ def _endpoint_name(ref: dict, world_state: dict) -> str:
 
 def _relation_time(edge: dict, now_minutes: int) -> tuple[str, str]:
     since = edge.get("since_game_minutes")
-    elapsed = max(0, now_minutes - since) if since is not None else 0
+    if since is None:
+        return "", ""
+    elapsed = max(0, now_minutes - since)
     days = elapsed // 1440
     hours = (elapsed % 1440) // 60
     technical = f"{days}d{hours}h"
@@ -76,12 +78,13 @@ def _relation_time(edge: dict, now_minutes: int) -> tuple[str, str]:
 
 def _relation_row(edge: dict, world_state: dict, now_minutes: int) -> str:
     technical, human = _relation_time(edge, now_minutes)
+    since = f" since={quoteattr(technical)} ago={quoteattr(human)}" if technical else ""
     why = f" why={quoteattr(str(edge['label']))}" if edge.get("label") else ""
     return (
         f"    <relation from={quoteattr(_endpoint_name(edge['src'], world_state))} "
         f"to={quoteattr(_endpoint_name(edge['dst'], world_state))} "
-        f"kind={quoteattr(str(edge['kind']))} stance={quoteattr(str(edge['stance']))} "
-        f"since={quoteattr(technical)} ago={quoteattr(human)}{why}/>"
+        f"kind={quoteattr(str(edge['kind']))} stance={quoteattr(str(edge['stance']))}"
+        f"{since}{why}/>"
     )
 
 
@@ -246,18 +249,28 @@ def render_dm_prompt(
     ranked = sorted(relations, key=lambda edge: -abs(int(edge.get("stance", 0))))
     present_ids = set(npcs_present)
 
-    def has_faction(edge: dict) -> bool:
-        return any(ref.get("type") == "faction" for ref in (edge["src"], edge["dst"]))
+    def is_world_edge(edge: dict) -> bool:
+        types = {ref.get("type") for ref in (edge["src"], edge["dst"])}
+        return types == {"faction"} or types == {"faction", "player"}
 
-    prominent_all = [edge for edge in ranked if edge.get("prominent") and not has_faction(edge)]
-    faction_all = [
-        edge for edge in ranked if has_faction(edge) and int(edge.get("stance", 0)) != 0
-    ]
+    prominent_all = [edge for edge in ranked if edge.get("prominent") and not is_world_edge(edge)]
+    faction_all = sorted(
+        (
+            edge
+            for edge in ranked
+            if is_world_edge(edge)
+            and (int(edge.get("stance", 0)) != 0 or edge.get("kind") == "reputation")
+        ),
+        key=lambda edge: (
+            edge.get("kind") != "reputation",
+            -abs(int(edge.get("stance", 0))),
+        ),
+    )
     secondary_all = [
         edge
         for edge in ranked
         if not edge.get("prominent")
-        and not has_faction(edge)
+        and not is_world_edge(edge)
         and any(
             ref.get("type") == "npc" and ref.get("id") in present_ids
             for ref in (edge["src"], edge["dst"])
@@ -274,12 +287,20 @@ def render_dm_prompt(
         lines.append(_relation_row(edge, scene.world_state, now_minutes))
     lines.append("  </relations>")
 
-    lines.append(
-        f'  <factions shown="{len(factions)}" omitted="{len(faction_all) - len(factions)}">'
+    known = " | ".join(
+        f"{escape(str(faction.get('name', slug)))}: {escape(str(faction.get('description', '')))}"
+        for slug, faction in scene.world_state.get("factions", {}).items()
     )
-    for edge in factions:
-        lines.append(_relation_row(edge, scene.world_state, now_minutes))
-    lines.append("  </factions>")
+    if known:
+        lines.append(f"  <factions_known>{known}</factions_known>")
+
+    if factions:
+        lines.append(
+            f'  <factions shown="{len(factions)}" omitted="{len(faction_all) - len(factions)}">'
+        )
+        for edge in factions:
+            lines.append(_relation_row(edge, scene.world_state, now_minutes))
+        lines.append("  </factions>")
 
     if npcs_present:
         baseline = scene.world_baseline

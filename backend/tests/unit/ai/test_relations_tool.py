@@ -124,13 +124,18 @@ def test_tool_description_explains_kinds():
     description = tools_relation.UpdateRelation.tool_description().lower()
     assert "travels with the player" in description
     assert "always visible" in description
+    assert "companion (prominent=true)" in description
+    assert description.count("ally:") == 1
 
 
-def test_generation_schema_exposes_world_kinds():
+def test_generation_schema_lists_config_and_world_kinds_once():
     schema = tools_relation.UpdateRelation.to_generation_schema(
         {"relation_kinds": [{"kind": "oath", "prominent": True, "description": "a sacred oath"}]}
     )
-    assert "oath (prominent=True): a sacred oath" in schema["function"]["description"]
+    description = schema["function"]["description"]
+    assert "oath (prominent=True): a sacred oath" in description
+    assert "ally:" in description
+    assert description.count("ally:") == 1
 
 
 def test_cap_allows_updating_an_existing_edge(monkeypatch):
