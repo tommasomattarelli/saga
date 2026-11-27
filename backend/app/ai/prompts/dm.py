@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import escape, quoteattr
 
 from app.ai.prompts.loader import template
 from app.ai.prompts.obligations import compose_obligations
@@ -15,6 +15,7 @@ from app.core.npc_fields import resolve_npc_fields
 from app.core.npc_resolver import npcs_at_current_location
 from app.core.psychology import band_label, is_salient, resolve_psychology
 from app.core.world_access import WorldView
+from app.memory.graph_config import get_graph_config
 from app.models.campaign import Campaign
 from app.models.psychology import PsychologyDef
 from app.models.quest import QuestRegistry
@@ -46,6 +47,45 @@ def _render_recalled_fact(fact: RecalledFact) -> str:
         parts.append("critical")
     content = escape(fact.content.strip())
     return f"  - ({' · '.join(parts)}) {content}" if parts else f"  - {content}"
+
+
+def _endpoint_name(ref: dict, world_state: dict) -> str:
+    kind, ref_id = ref.get("type"), ref.get("id")
+    if kind == "player":
+        return "player"
+    if kind == "npc":
+        return str(world_state.get("npcs", {}).get(ref_id, {}).get("name", ref_id))
+    if kind == "faction":
+        return str(world_state.get("factions", {}).get(ref_id, {}).get("name", ref_id))
+    return str(ref_id)
+
+
+def _relation_time(edge: dict, language: str, now_minutes: int) -> tuple[str, str]:
+    turns = edge.get("since_turn")
+    since = edge.get("since_game_minutes")
+    elapsed = max(0, now_minutes - since) if since is not None else 0
+    days = elapsed // 1440
+    hours = (elapsed % 1440) // 60
+    technical = f"{turns or 0}t/{days}d{hours}h"
+    italian = language == "it"
+    pieces = []
+    if turns is not None:
+        pieces.append(f"{turns} {'turni fa' if italian else 'turns ago'}")
+    if days:
+        pieces.append(f"{days} {'giorni' if italian else 'days'}")
+    if hours:
+        pieces.append(f"{hours} {'ore' if italian else 'hours'}")
+    return technical, ", ".join(pieces)
+
+
+def _relation_row(edge: dict, world_state: dict, language: str, now_minutes: int) -> str:
+    technical, human = _relation_time(edge, language, now_minutes)
+    since = f" since={quoteattr(technical)} ago={quoteattr(human)}" if human else ""
+    return (
+        f"    <relation from={quoteattr(_endpoint_name(edge['src'], world_state))} "
+        f"to={quoteattr(_endpoint_name(edge['dst'], world_state))} "
+        f"kind={quoteattr(str(edge['kind']))} stance={quoteattr(str(edge['stance']))}{since}/>"
+    )
 
 
 @dataclass(frozen=True)
@@ -203,6 +243,28 @@ def render_dm_prompt(
         lines.append(f'  <location name="{current_location}">')
         lines.append("  </location>")
 
+    graph = get_graph_config()
+    now_minutes = int((scene.world_state.get("clock") or {}).get("total_minutes", 0))
+    relations = scene.world_state.get("relations", [])
+    prominent = [edge for edge in relations if edge.get("prominent")][
+        : graph.prominent_max_relations
+    ]
+    present_ids = set(npcs_present)
+    secondary = [
+        edge
+        for edge in relations
+        if not edge.get("prominent")
+        and any(
+            ref.get("type") == "npc" and ref.get("id") in present_ids
+            for ref in (edge["src"], edge["dst"])
+        )
+    ][: graph.scene_max_relations]
+
+    lines.append("  <relations>")
+    for edge in prominent:
+        lines.append(_relation_row(edge, scene.world_state, context.language, now_minutes))
+    lines.append("  </relations>")
+
     if npcs_present:
         baseline = scene.world_baseline
         taxonomy = baseline.get("taxonomy") if isinstance(baseline, dict) else None
@@ -219,6 +281,8 @@ def render_dm_prompt(
                 attrs += f' condition="{npc["condition"]}"'
             axes = _salient_axis_attrs(npc, psychology)
             lines.append(f'    <npc name="{npc.get("name", "")}"{attrs}{axes}/>')
+        for edge in secondary:
+            lines.append(_relation_row(edge, scene.world_state, context.language, now_minutes))
         lines.append("  </npcs_present>")
 
     if time_str:

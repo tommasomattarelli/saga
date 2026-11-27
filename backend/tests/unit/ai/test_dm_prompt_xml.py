@@ -158,6 +158,74 @@ def test_scene_npc_shows_condition_and_scene_traits_only():
     assert '<npc name="Guard" role="Watch"/>' in prompt
 
 
+def test_scene_relations_are_always_visible_and_time_is_bilingual():
+    npc_id = "11111111-0000-0000-0000-000000000003"  # Aldric, away from the scene
+    present_id = "11111111-0000-0000-0000-000000000001"
+    ws = {
+        **_WORLD_STATE,
+        "factions": {"guild": {"name": "Merchants Guild"}},
+        "relations": [
+            {
+                "src": {"type": "npc", "id": npc_id},
+                "dst": {"type": "player", "id": None},
+                "kind": "companion",
+                "stance": 60,
+                "label": "Travels with you",
+                "prominent": True,
+                "since_turn": 18,
+                "since_game_minutes": (3 * 24 + 17) * 60 - (3 * 1440 + 4 * 60),
+            },
+            {
+                "src": {"type": "npc", "id": present_id},
+                "dst": {"type": "faction", "id": "guild"},
+                "kind": "ally",
+                "stance": 20,
+                "label": "Trades fairly",
+                "prominent": False,
+                "since_turn": 2,
+                "since_game_minutes": 60,
+            },
+        ],
+    }
+    campaign = _make_campaign(ws, _CHAR_DATA)
+    campaign.language = "it"
+    prompt = build_dm_system_prompt(campaign)
+
+    assert (
+        '<relations>\n    <relation from="Aldric" to="player" kind="companion" stance="60"'
+        in prompt
+    )
+    assert 'since="18t/3d4h" ago="18 turni fa, 3 giorni, 4 ore"/>' in prompt
+    assert 'from="Marta" to="Merchants Guild"' in prompt
+    assert "<relations>" in prompt and "</relations>" in prompt
+
+
+def test_scene_relation_escapes_quoted_endpoint_names():
+    ws = {
+        "meta": {"current_location": "Thornhaven"},
+        "npcs": {
+            "q1": {
+                "name": 'The "Grey" One',
+                "lifecycle": "alive",
+                "location": "Thornhaven",
+            }
+        },
+        "relations": [
+            {
+                "src": {"type": "npc", "id": "q1"},
+                "dst": {"type": "player", "id": None},
+                "kind": "ally",
+                "stance": 10,
+                "prominent": True,
+                "since_turn": 1,
+                "since_game_minutes": 480,
+            }
+        ],
+    }
+    prompt = build_dm_system_prompt(_make_campaign(ws, _CHAR_DATA))
+    assert "from='The \"Grey\" One'" in prompt or 'from="The &quot;Grey&quot; One"' in prompt
+
+
 def test_time_and_weather_in_scene():
     campaign = _make_campaign(_WORLD_STATE, _CHAR_DATA)
     prompt = build_dm_system_prompt(campaign)

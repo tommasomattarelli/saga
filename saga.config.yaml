@@ -326,8 +326,6 @@ world:
     show_travel_options: true
     max_travel_options: 6
     include_node_status: true
-    description_max_chars: 600
-    scene_context_max_tokens: 700
 
 # ---------------------------------------------------------------------------
 # API — rate limiting
