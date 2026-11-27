@@ -16,8 +16,6 @@ def _scene_knobs() -> dict:
         "show_travel_options": True,
         "max_travel_options": 6,
         "include_node_status": True,
-        "description_max_chars": 600,
-        "scene_context_max_tokens": 700,
         **(world_cfg.get("scene") or {}),
     }
 
@@ -66,9 +64,8 @@ def render_location_block(view: WorldView, position: str) -> list[str]:
     lines.append(f'  <location name="{node["name"]}"{path_attr}>')
 
     description = (node.get("description") or "").strip()
-    max_chars = int(knobs["description_max_chars"])
     if description:
-        lines.append(f"    {description[:max_chars]}")
+        lines.append(f"    {description}")
 
     if knobs["include_node_status"] and node.get("status"):
         status = node["status"]
@@ -102,16 +99,4 @@ def render_location_block(view: WorldView, position: str) -> list[str]:
                 lines.append("    </travel_options>")
 
     lines.append("  </location>")
-
-    # Hard token cap (~4 chars/token): truncate from the tail, keep the closing tag.
-    max_chars_total = int(knobs["scene_context_max_tokens"]) * 4
-    if sum(len(line) for line in lines) > max_chars_total:
-        kept: list[str] = []
-        used = 0
-        for line in lines[:-1]:
-            if used + len(line) > max_chars_total:
-                break
-            kept.append(line)
-            used += len(line)
-        lines = [*kept, "  </location>"]
     return lines

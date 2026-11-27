@@ -74,6 +74,7 @@ class Turn(Base, UUIDMixin, TimestampMixin):
     continuation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     parent_turn_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     history_depth: Mapped[int | None] = mapped_column(Integer)
+    game_minutes: Mapped[int | None] = mapped_column(Integer)
     operations_version: Mapped[int | None] = mapped_column(Integer)
     operation_count: Mapped[int | None] = mapped_column(Integer)
     parent_depth: Mapped[int | None] = mapped_column(

@@ -25,7 +25,11 @@ async def test_manual_save_lifecycle(auth_client: AsyncClient, db_session):
     # 2. Patch world_state directly on DB to simulate engine updates
     result = await db_session.execute(select(Campaign).where(Campaign.id == campaign_id))
     db_campaign = result.scalar_one()
-    db_campaign.world_state = {"location": "Inn", "day": 1}
+    db_campaign.world_state = {
+        "location": "Inn",
+        "day": 1,
+        "relations": [{"kind": "ally"}],
+    }
     await db_session.commit()
     await db_session.refresh(db_campaign)
 
@@ -49,9 +53,8 @@ async def test_manual_save_lifecycle(auth_client: AsyncClient, db_session):
     snapshot = db_save.campaign_snapshot
     # The snapshot captures world_state and character_data at save time
     assert snapshot["character_data"]["hp"] == 20
-    # world_state should be present (may be {} if the API doesn't see our DB patch in time
-    # due to connection isolation — this is itself a useful finding)
     assert "world_state" in snapshot
+    assert snapshot["world_state"]["relations"] == [{"kind": "ally"}]
 
 
 @pytest.mark.asyncio

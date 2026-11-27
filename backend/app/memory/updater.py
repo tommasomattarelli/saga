@@ -108,17 +108,6 @@ def _handle_companion_loyalty(state: dict, update: dict, char_data: dict) -> dic
     return state
 
 
-@_register_handler("reputation_change")
-def _handle_reputation(state: dict, update: dict, char_data: dict) -> dict:
-    """Adjust player reputation with a faction or group."""
-    target = update.get("target", "")
-    change = int(update.get("change", 0))
-    reputation = char_data.setdefault("reputation", {})
-    current = reputation.get(target, 0)
-    reputation[target] = max(-100, min(100, current + change))
-    return state
-
-
 @_register_handler("event_log_entry")
 def _handle_event_log(state: dict, update: dict, char_data: dict) -> dict:
     """Append an entry to the narrative event log."""
@@ -165,6 +154,8 @@ def apply_typed_updates(
                     update=update,
                     exc_info=True,
                 )
+        elif update_type == "reputation_change":
+            logger.warning("retired_reputation_change_ignored", update=update)
         elif update_type == "quest_update":
             # ADR 0019 A1 — quests have their own registry and tool; the old
             # character-data path must never be revived by the generic merge.

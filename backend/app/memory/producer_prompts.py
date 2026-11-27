@@ -12,6 +12,7 @@ from app.ai.prompts.loader import template
 from app.ai.response_contracts import ResponseContract
 from app.memory.batch_source_contracts import BatchInput
 from app.memory.document_contracts import GlobalPayload, SummaryPayload
+from app.memory.graph_config import get_graph_config
 from app.memory.producer_contracts import (
     BatchPayload,
     FactsPayload,
@@ -24,7 +25,7 @@ from app.memory.production_policy import FactsPolicy, GlobalPolicy
 
 ProducerKind = Literal["batch", "summary", "facts", "global"]
 MemoryPayload = BatchPayload | FactsPayload | SummaryPayload | GlobalPayload
-PRODUCER_VERSION = "memory-v1"
+PRODUCER_VERSION = "memory-v2"
 OUTPUT_MODELS: dict[ProducerKind, type[BaseModel]] = {
     "batch": BatchPayload,
     "summary": SummaryPayload,
@@ -44,6 +45,16 @@ def canonical(value: object) -> str:
     return json.dumps(
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
     )
+
+
+def without_since_turn(value: object) -> object:
+    if isinstance(value, dict):
+        return {
+            key: without_since_turn(item) for key, item in value.items() if key != "since_turn"
+        }
+    if isinstance(value, list):
+        return [without_since_turn(item) for item in value]
+    return value
 
 
 def digest(value: str) -> str:
@@ -141,6 +152,9 @@ def prepare_request(
         "language": language,
         "facts_policy": facts_policy.model_dump(mode="json"),
         "global_policy": global_policy.model_dump(mode="json") if global_policy else None,
+        "relation_kinds": [
+            kind.model_dump() for kind in get_graph_config().default_relation_kinds
+        ],
     }
     sections.append(canonical(settings))
     executor_system_prompt = "\n\n".join(
@@ -149,16 +163,20 @@ def prepare_request(
     system_prompt = "\n\n".join(
         [*sections, template("memory_production", "output"), canonical(schema)]
     )
-    evidence: dict[str, object] = {"source": source.model_dump(mode="json")}
+    evidence: dict[str, object] = {"source": without_since_turn(source.model_dump(mode="json"))}
     if kind == "global":
-        evidence["previous"] = previous.model_dump(mode="json") if previous else None
+        evidence["previous"] = (
+            without_since_turn(previous.model_dump(mode="json")) if previous else None
+        )
     return PreparedMemoryRequest(
         kind=kind,
         source=source,
         facts_policy=facts_policy,
         system_prompt=system_prompt,
         executor_system_prompt=executor_system_prompt,
-        user_prompt=canonical({**settings, **evidence}),
+        user_prompt=canonical(
+            {key: value for key, value in settings.items() if key != "relation_kinds"} | evidence
+        ),
         source_hash=digest(canonical(evidence)) if kind == "global" else source.source_hash(),
         instruction_hash=digest(PRODUCER_VERSION + "\n" + system_prompt),
     )

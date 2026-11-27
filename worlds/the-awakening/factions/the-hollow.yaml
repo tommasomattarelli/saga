@@ -7,5 +7,9 @@ relations:
   thornhaven-council:
     stance: -7
     label: "contemptuous secrecy"
+reputation_tiers:
+  - {threshold: -50, label: "hostile"}
+  - {threshold: 0, label: "neutral"}
+  - {threshold: 50, label: "trusted"}
 resources:
   - {name: relics, quantity: 3}

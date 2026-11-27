@@ -6,6 +6,7 @@ from pathlib import Path
 from app.core.world_instantiation import instantiate_world
 from app.core.world_loader import load_world
 from app.memory.world_state import CURRENT_SCHEMA_VERSION
+from app.models.world import ReputationTier
 
 EXAMPLE_WORLD = Path(__file__).parents[4] / "worlds" / "the-awakening"
 
@@ -149,9 +150,42 @@ class TestOverlay:
         assert state["weather"] == "clear"
         assert "canopy of ancient oaks" in state["meta"]["opening_narration"]
 
-    def test_factions_seeded_by_name(self):
+    def test_factions_seeded_by_slug(self):
         _, state, _ = instantiated()
-        assert state["factions"]["The Hollow"]["disposition"] == 0
+        faction = state["factions"]["the-hollow"]
+        assert faction["name"] == "The Hollow"
+        assert "disposition" not in faction
+
+    def test_authored_relations_seeded(self):
+        _, state, _ = instantiated()
+        edges = state["relations"]
+        faction_edge = next(e for e in edges if e["kind"] == "faction")
+        assert faction_edge["stance"] == -70
+        assert faction_edge["prominent"] is False
+        band = next(e for e in edges if e["kind"] == "reputation")
+        assert band["dst"] == {"type": "player", "id": None}
+        assert band["label"] == "neutral" and band["prominent"] is True
+        ally = next(e for e in edges if e["kind"] == "ally")
+        lyra_id = next(k for k, npc in state["npcs"].items() if npc["name"] == "Lyra")
+        assert ally["src"] == {"type": "npc", "id": lyra_id}
+        assert ally["prominent"] is True
+        assert all(e["since_turn"] == 0 and e["since_game_minutes"] == 480 for e in edges)
+
+    def test_hostile_band_seeds_nonzero_stance(self):
+        asset = load_world(EXAMPLE_WORLD)
+        asset.factions["the-hollow"].reputation_tiers = [
+            ReputationTier(threshold=-50, label="hostile"),
+            ReputationTier(threshold=50, label="trusted"),
+        ]
+        _, state, _ = instantiate_world(asset)
+        band = next(
+            edge
+            for edge in state["relations"]
+            if edge["kind"] == "reputation"
+            and edge["src"] == {"type": "faction", "id": "the-hollow"}
+        )
+        assert band["stance"] == -50
+        assert band["label"] == "hostile"
 
 
 class TestQuests:

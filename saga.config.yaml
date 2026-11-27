@@ -139,6 +139,43 @@ recall:
     similarity_threshold: 1.0 # exact-only until E2 fixes the near-duplicate threshold
 
 # ---------------------------------------------------------------------------
+# Relational graph — ADR 0023. Runtime-global; retuning is visible on the same campaign.
+# ---------------------------------------------------------------------------
+graph:
+  max_relations: 200 # hard bound on stored edges
+  prominent_max_relations: 12 # hard bound on always-present <relations> rows
+  scene_max_relations: 20 # hard bound on <npcs_present> rows
+  faction_max_relations: 8 # hard bound on <factions> rows
+  extract_max_per_batch: 8 # hard bound on relations[] from one batch
+  default_relation_kinds:
+    - kind: ally
+      prominent: false
+      description: "Cooperates with the player without a lasting bond"
+    - kind: companion
+      prominent: true
+      description: "Travels with the player as a lasting companion"
+    - kind: faction
+      prominent: false
+      zero_stance_allowed: true
+      description: "Stance between two factions"
+    - kind: reputation
+      prominent: true
+      zero_stance_allowed: true
+      description: "Standing of a faction toward the player"
+    - kind: enemy
+      prominent: false
+      description: "Disposable hostile foe; shown only while present in the scene"
+    - kind: nemesis
+      prominent: true
+      description: "Main recurring adversary, always visible to the DM"
+    - kind: friend
+      prominent: false
+      description: "Close personal friend"
+    - kind: rival
+      prominent: false
+      description: "Personal rivalry without open hostility"
+
+# ---------------------------------------------------------------------------
 # Gameplay Settings — runtime behavior
 # ---------------------------------------------------------------------------
 gameplay:
@@ -302,8 +339,6 @@ world:
     show_travel_options: true
     max_travel_options: 6
     include_node_status: true
-    description_max_chars: 600
-    scene_context_max_tokens: 700
 
 # ---------------------------------------------------------------------------
 # API — rate limiting
@@ -345,6 +380,7 @@ tool_groups:
       - log_event
       - update_quest
       - update_npc
+      - update_relation
       - request_dice     # every d20 check in the game, in or out of combat (ADR 0003 A1)
       - attack           # ADR 0003 B4 — combat is not a mode, so this is always available
       - heal             # ADR 0003 B7 — replaces the free-number update_hp

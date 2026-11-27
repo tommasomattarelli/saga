@@ -66,6 +66,7 @@ class ExportTurn(_ExportRow):
     continuation_id: UUID | None
     parent_turn_id: UUID | None
     history_depth: NullableNonNegativeInt
+    game_minutes: NullableNonNegativeInt = None
     parent_depth: NullableNonNegativeInt
     operations_version: Literal[1] | None
     operation_count: NullableNonNegativeInt

@@ -95,6 +95,17 @@ class _Heal(_ArgumentsV1):
     reason: str = ""
 
 
+class _Relation(_ArgumentsV1):
+    src_type: Literal["npc", "faction", "player"]
+    src: str
+    dst_type: Literal["npc", "faction", "player"]
+    dst: str
+    kind: str
+    stance: int
+    label: str = ""
+    prominent: bool | None = None
+
+
 V1_ARGUMENTS: Mapping[str, type[BaseModel]] = MappingProxyType(
     {
         "add_item": _AddItem,
@@ -113,5 +124,6 @@ V1_ARGUMENTS: Mapping[str, type[BaseModel]] = MappingProxyType(
         "request_dice": _Dice,
         "attack": _Attack,
         "heal": _Heal,
+        "update_relation": _Relation,
     }
 )

@@ -43,9 +43,10 @@ def _payload(kind: ProducerKind, raw: str, facts_policy: FactsPolicy) -> BaseMod
                 template("memory_summary", "example_output")
             ),
             facts=selected,
+            relations=authored.relations,
         )
         if kind == "batch"
-        else FactsPayload(facts=selected)
+        else FactsPayload(facts=selected, relations=authored.relations)
     )
     validate_facts(payload, _source(kind), facts_policy)
     return payload

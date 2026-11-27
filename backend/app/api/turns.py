@@ -62,6 +62,10 @@ def _initial_state(claim: ActionClaim, body: TurnSubmit, user: User) -> GameStat
     context = claim.context
     return {
         "player_action": body.action,
+        "history_depth": claim.history_depth,
+        "game_minutes": int(
+            (context.scene.world_state.get("clock") or {}).get("total_minutes", 0)
+        ),
         "campaign_id": str(claim.campaign_id),
         "user_id": str(user.id),
         "messages": [],

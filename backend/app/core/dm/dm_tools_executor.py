@@ -166,6 +166,8 @@ async def tools_node(state: GameState) -> dict[str, Any]:
             char_data,
             baseline=state.get("world_baseline"),
             quests=quests,
+            since_turn=state.get("history_depth", 0),
+            since_game_minutes=state.get("game_minutes"),
         )
         world_state = tool_result.world_state
         char_data = tool_result.char_data

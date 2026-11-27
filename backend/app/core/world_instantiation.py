@@ -7,13 +7,18 @@ the initial overlay (`world_state`) + quests from `scenario.yaml`.
 
 from uuid import uuid4
 
+import structlog
+
 from app.core.npc_classes import DEFAULT_NPC_CLASSES, draw_statblock, statblock_defaults
 from app.core.npc_fields import DEFAULT_NPC_FIELDS, default_traits
 from app.core.psychology import DEFAULT_PSYCHOLOGY, default_values
+from app.core.relations import relation_kind_default, relation_kind_defaults
 from app.core.world_loader import WorldAsset
 from app.memory.world_state import CURRENT_SCHEMA_VERSION, GameClock
 from app.models.npc import NpcEngineRecord
 from app.models.quest import QuestRecord, QuestRegistry
+
+logger = structlog.get_logger()
 
 
 def _global_km(asset: WorldAsset, slug: str, cache: dict[str, dict | None]) -> dict | None:
@@ -84,6 +89,81 @@ def _build_baseline(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
     }
 
 
+def _seed_relations(asset: WorldAsset, npcs: dict[str, dict]) -> list[dict]:
+    kinds = relation_kind_defaults(asset.taxonomy.model_dump())
+    edges: list[dict] = []
+
+    def add(src: dict, dst: dict, kind: str, stance: int, label: str, prominent: bool | None):
+        default, candidates = relation_kind_default(kind, kinds)
+        if default is None:
+            logger.warning("authored_relation_kind_dropped", kind=kind, candidates=candidates)
+            return
+        edges.append(
+            {
+                "src": src,
+                "dst": dst,
+                "kind": kind,
+                "stance": stance,
+                "label": label,
+                "prominent": default if prominent is None else prominent,
+                "since_turn": 0,
+                "since_game_minutes": 480,
+            }
+        )
+
+    by_slug = {npc["slug"]: npc_id for npc_id, npc in npcs.items()}
+    for faction in asset.factions.values():
+        for target_slug, relation in faction.relations.items():
+            if target_slug not in asset.factions:
+                logger.warning("authored_relation_target_dropped", target=target_slug)
+                continue
+            add(
+                {"type": "faction", "id": faction.slug},
+                {"type": "faction", "id": target_slug},
+                "faction",
+                relation.stance * 10,
+                relation.label,
+                None,
+            )
+        if faction.reputation_tiers:
+            band = max(
+                (t for t in faction.reputation_tiers if t.threshold <= 0),
+                key=lambda t: t.threshold,
+                default=min(faction.reputation_tiers, key=lambda t: t.threshold),
+            )
+            add(
+                {"type": "faction", "id": faction.slug},
+                {"type": "player", "id": None},
+                "reputation",
+                band.threshold,
+                band.label,
+                None,
+            )
+    for authored in asset.npcs.values():
+        src_id = by_slug.get(authored.slug)
+        if src_id is None:
+            continue
+        for authored_relation in authored.relations:
+            if authored_relation.target == "player":
+                dst = {"type": "player", "id": None}
+            elif authored_relation.target in by_slug:
+                dst = {"type": "npc", "id": by_slug[authored_relation.target]}
+            elif authored_relation.target in asset.factions:
+                dst = {"type": "faction", "id": authored_relation.target}
+            else:
+                logger.warning("authored_relation_target_dropped", target=authored_relation.target)
+                continue
+            add(
+                {"type": "npc", "id": src_id},
+                dst,
+                authored_relation.kind,
+                authored_relation.stance,
+                authored_relation.label,
+                authored_relation.prominent,
+            )
+    return edges
+
+
 def _build_world_state(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
     opening = asset.scenario.opening if asset.scenario else None
     start_id = slug_map[opening.start_location] if opening else slug_map[asset.root_slug]
@@ -125,9 +205,9 @@ def _build_world_state(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
         "npcs": npcs,
         "companions": {},
         "factions": {
-            f.name: {"description": f.description, "disposition": 0}
-            for f in asset.factions.values()
+            f.slug: {"name": f.name, "description": f.description} for f in asset.factions.values()
         },
+        "relations": _seed_relations(asset, npcs),
         "narrative": {"event_log": []},
         "fate_interventions_left": 3,
         "time_of_day": (opening.time_of_day if opening else "") or "morning",

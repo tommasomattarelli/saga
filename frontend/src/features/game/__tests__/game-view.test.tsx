@@ -54,7 +54,6 @@ describe("GameView Component", () => {
       gold: 0,
       background: "",
       notes: "",
-      reputation: {},
     },
     world_state: { location: "Mystic Cave" },
     quests: { active: [], completed: [], failed: [], abandoned: [] },

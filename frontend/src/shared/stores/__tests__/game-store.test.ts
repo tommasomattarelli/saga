@@ -23,7 +23,6 @@ const makeCampaign = (overrides: Partial<Campaign> = {}): Campaign => ({
     gold: 0,
     background: "",
     notes: "",
-    reputation: {},
   },
   world_state: {},
   quests: { active: [], completed: [], failed: [], abandoned: [] },

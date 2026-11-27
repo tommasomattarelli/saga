@@ -39,8 +39,8 @@ async def test_create_campaign_instantiates_world(auth_client, test_user):
     assert start == world_state["meta"]["current_location"]
     assert marta["location"] != start  # Marta is in Thornhaven, not at the shrine
 
-    # Factions seeded
-    assert "The Hollow" in world_state["factions"]
+    # Factions seeded by slug (ADR 0023 F1)
+    assert world_state["factions"]["the-hollow"]["name"] == "The Hollow"
 
     # Opening seeds time/weather/narration
     assert world_state["time_of_day"] == "morning"

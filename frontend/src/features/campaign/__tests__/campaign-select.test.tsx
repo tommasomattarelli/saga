@@ -49,7 +49,6 @@ describe("CampaignSelect Component", () => {
         gold: 0,
         background: "",
         notes: "",
-        reputation: {},
       },
       world_state: {},
       quests: { active: [], completed: [], failed: [], abandoned: [] },

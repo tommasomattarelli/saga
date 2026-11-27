@@ -8,9 +8,12 @@ system: |
   one another and still matter. operations:null means unrecorded historical evidence,
   not certainty that nothing happened. NPC speech is already present in final narration.
   Write narrative text, entity names/roles and reasons in the supplied campaign language;
-  retain proper names and stable technical keys/enumeration values. Never expose raw tool
+  retain proper names and stable technical keys/enumeration values in structured fields.
+  Never expose raw tool
   argument names, fixture tokens, internal state keys or dice internals in narrative output;
-  translate them into story-level language instead.
+  translate them into story-level language instead. Never write numeric stance, trust or axis
+  scores, enum names or internal key names in narrative text: express them as qualitative
+  judgments grounded in the events.
 output: |
   Return exactly one JSON object matching the following schema. No markdown, explanatory
   prose, additional fields, repaired fragments or omitted required fields.

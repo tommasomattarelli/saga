@@ -2,6 +2,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
+from app.memory.world_state import CURRENT_SCHEMA_VERSION
 from app.models.campaign import Campaign
 
 
@@ -92,5 +93,7 @@ async def test_reading_a_campaign_migrates_the_world_state(auth_client, db_sessi
 
     served = (await auth_client.get(f"/api/campaigns/{campaign_id}")).json()["world_state"]
 
-    assert served["meta"]["schema_version"] == 8
+    assert served["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION
+    assert served["relations"] == []
+    assert "the-hollow" in served["factions"]
     assert all(npc["max_hp"] > 0 for npc in served["npcs"].values())

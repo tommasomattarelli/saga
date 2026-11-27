@@ -59,10 +59,10 @@ def test_status_rendered_when_present(world):
     assert "in fiamme" in block
 
 
-def test_block_respects_token_cap(world):
+def test_block_keeps_the_full_description(world):
     baseline, state = world
     thorn_id = baseline["slug_map"]["thornhaven"]
-    baseline["nodes"][thorn_id]["description"] = "x" * 100_000
+    description = "x" * 100_000
+    baseline["nodes"][thorn_id]["description"] = description
     block = render_at(baseline, state, "thornhaven")
-    assert len(block) <= 700 * 4 + len("  </location>") + 1
-    assert block.rstrip().endswith("</location>")
+    assert description in block

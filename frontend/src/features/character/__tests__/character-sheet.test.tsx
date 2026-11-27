@@ -20,7 +20,6 @@ describe("CharacterSheet Component", () => {
     gold: 100,
     background: "Noble",
     notes: "Tough guy",
-    reputation: {},
   };
 
   const createMockCampaign = (charData: CharacterData | null): Campaign => ({
@@ -53,6 +52,7 @@ describe("CharacterSheet Component", () => {
     expect(screen.getByText(/strength/i)).toBeInTheDocument();
     expect(screen.getByText("18")).toBeInTheDocument();
     expect(screen.getByText("+4")).toBeInTheDocument();
+    expect(screen.queryByText("Reputation")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Skills"));
     expect(screen.getByText(/athletics/i)).toBeInTheDocument();

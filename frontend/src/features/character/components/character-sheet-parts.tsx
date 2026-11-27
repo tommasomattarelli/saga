@@ -20,8 +20,8 @@ function orderedAbilities(abilities: Record<string, number>): string[] {
   return [...known, ...extra];
 }
 
-type TabKey = "stats" | "inventory" | "skills" | "reputation" | "background";
-const TABS: TabKey[] = ["stats", "inventory", "skills", "reputation", "background"];
+type TabKey = "stats" | "inventory" | "skills" | "background";
+const TABS: TabKey[] = ["stats", "inventory", "skills", "background"];
 
 /* One row per entry — the shared list pattern of the sheet (no bars: abilities are uncapped) */
 function Row({ left, right }: { left: React.ReactNode; right: React.ReactNode }) {
@@ -105,27 +105,6 @@ function TabContent({ tab, char }: { tab: TabKey; char: CharacterData }) {
             key={skill}
             left={<span className="capitalize">{skill}</span>}
             right={<span style={{ color: "var(--ink-faded)" }}>Lv {data.level}</span>}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  if (tab === "reputation") {
-    const reps = Object.entries(char.reputation ?? {});
-    if (reps.length === 0) return <EmptyLine text={t("char.empty_reputation")} />;
-    return (
-      <div>
-        {reps.map(([faction, score]) => (
-          <Row
-            key={faction}
-            left={faction}
-            right={
-              <span style={{ color: score >= 0 ? "var(--accent)" : "var(--blood)" }}>
-                {score >= 0 ? "+" : ""}
-                {score}
-              </span>
-            }
           />
         ))}
       </div>

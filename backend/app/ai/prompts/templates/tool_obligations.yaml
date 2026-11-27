@@ -25,6 +25,8 @@ change_npc_psychology: |-
   Use change_npc_psychology for a narrated shift in an NPC's feelings outside the actor's own conversation updates. Use world-defined axes; the engine validates presence, axes and deltas. Narrate the returned result rather than assuming the shift succeeded.
 update_npc: |-
   Establish or change NPC identity, condition, traits or location with update_npc. Respect the existing record and canonical identity. The tool validates which fields may change and whether a new NPC may be created; narrate its result, not a presumed mutation.
+update_relation: |-
+  Record a change in who stands with whom through update_relation(src_type, src, dst_type, dst, kind, stance, label). Resolve endpoints by name; the player is the sentinel. Use the world's relation kinds and let stance carry hostility or loyalty; narrate only the outcome the engine returns.
 kill_npc: |-
   Use kill_npc for a narrative death outside damage resolution. A lethal attack already records death, so do not kill that NPC again. Narrate only the returned outcome or rejection.
 remove_npc: |-

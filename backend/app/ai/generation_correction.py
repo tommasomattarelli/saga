@@ -112,7 +112,8 @@ def _feedback(
     )
     lines.append(
         "Return a complete replacement response, not a patch. Do not invent sources, "
-        "entities or other content that the original request does not support."
+        "entities or other content that the original request does not support. Keep every "
+        "field that the diagnostics do not flag byte-identical to the previous output."
     )
     return {"role": "user", "content": "\n".join(lines)}
 

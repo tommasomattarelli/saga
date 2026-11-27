@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal, Self, cast
 from uuid import UUID
 
 from pydantic import Field, field_validator, model_validator
 
+from app.core.relations import (
+    relation_kind_default,
+    relation_kind_defaults,
+    relation_zero_stance_kinds,
+    resolve_faction_slug,
+)
 from app.memory.batch_source_contracts import BatchInput, NPCSourceResult
 from app.memory.document_contracts import (
     CanonicalReference,
@@ -17,6 +23,7 @@ from app.memory.document_contracts import (
     SummaryPayload,
     _DocumentModel,
 )
+from app.memory.graph_config import get_graph_config
 from app.memory.production_policy import FactsPolicy
 
 FactCategory = Literal["event", "information", "commitment", "relationship", "state_change"]
@@ -85,11 +92,56 @@ class GeneratedFact(_DocumentModel):
 
 class FactsPayload(_DocumentModel):
     facts: tuple[GeneratedFact, ...]
+    relations: tuple[GeneratedRelation, ...] = ()
 
     @field_validator("facts", mode="before")
     @classmethod
     def freeze_facts(cls, value: object) -> object:
         return tuple(value) if isinstance(value, list) else value
+
+    @field_validator("relations", mode="before")
+    @classmethod
+    def freeze_relations(cls, value: object) -> object:
+        return tuple(value) if isinstance(value, list) else value
+
+
+RelationEndpointType = Literal["npc", "faction", "player", "quest"]
+
+
+class RelationRef(_DocumentModel):
+    type: RelationEndpointType
+    name: NonEmptyText
+
+
+class GeneratedRelation(_DocumentModel):
+    src: RelationRef
+    dst: RelationRef
+    kind: NonEmptyText
+    stance: int = Field(ge=-100, le=100)
+    label: str = ""
+    prominent: bool | None = None
+    source_turns: tuple[TurnReference, ...] = Field(min_length=1)
+
+    @field_validator("source_turns", mode="before")
+    @classmethod
+    def freeze_turns(cls, value: object) -> object:
+        return tuple(value) if isinstance(value, list) else value
+
+
+class RelationEndpoint(_DocumentModel):
+    type: RelationEndpointType
+    id: str | None
+
+
+class ResolvedRelation(_DocumentModel):
+    src: RelationEndpoint
+    dst: RelationEndpoint
+    kind: NonEmptyText
+    stance: int
+    label: str
+    prominent: bool
+    since_turn: int | None
+    since_game_minutes: int | None
 
 
 class BatchPayload(FactsPayload):
@@ -111,11 +163,9 @@ def validate_source(source: BatchInput) -> None:
         raise MemoryOutputError("Batch source identities and references must be unique.")
 
 
-def resolve_entities(fact: GeneratedFact, source: BatchInput) -> tuple[FactEntity, ...]:
+def entity_candidates(source: BatchInput) -> dict[tuple[str, str], set[str]]:
     candidates: dict[tuple[str, str], set[str]] = defaultdict(set)
     for turn in source.turns:
-        if turn.reference not in fact.source_turns:
-            continue
         for operation in turn.operations or ():
             payload = operation.payload
             if payload.outcome != "succeeded":
@@ -137,6 +187,12 @@ def resolve_entities(fact: GeneratedFact, source: BatchInput) -> tuple[FactEntit
                     and quest_id
                 ):
                     candidates[("quest", name.strip().casefold())].add(quest_id)
+    return candidates
+
+
+def resolve_entities(fact: GeneratedFact, source: BatchInput) -> tuple[FactEntity, ...]:
+    scoped = BatchInput(turns=tuple(t for t in source.turns if t.reference in fact.source_turns))
+    candidates = entity_candidates(scoped)
     entities = []
     for entity in fact.entities:
         ids = candidates[(entity.type, entity.name.strip().casefold())]
@@ -195,6 +251,93 @@ def resolve_facts(payload: FactsPayload, source: BatchInput) -> tuple[ResolvedFa
                     importance=fact.importance,
                 ),
                 source_turn_ids=tuple(turns[reference] for reference in fact.source_turns),
+            )
+        )
+    return tuple(resolved)
+
+
+def resolve_relations(
+    payload: FactsPayload,
+    source: BatchInput,
+    world_state: dict,
+    taxonomy: dict,
+) -> tuple[ResolvedRelation, ...]:
+    graph = get_graph_config()
+    if len(payload.relations) > graph.extract_max_per_batch:
+        raise MemoryOutputError("The generated relations exceed the batch limit.", ("relations",))
+    kinds = relation_kind_defaults(taxonomy)
+    zero_stance = relation_zero_stance_kinds(taxonomy)
+    turns = {turn.reference: turn for turn in source.turns}
+    candidates = entity_candidates(source)
+
+    def endpoint(kind: RelationEndpointType, name: str) -> RelationEndpoint | None:
+        if kind == "player":
+            return RelationEndpoint(type="player", id=None)
+        if kind in {"npc", "quest"}:
+            ids = candidates[(kind, name.strip().casefold())]
+            if len(ids) != 1:
+                return None
+            return RelationEndpoint(type=kind, id=next(iter(ids)))
+        slug, _, _ = resolve_faction_slug(name, world_state)
+        return RelationEndpoint(type="faction", id=slug) if slug else None
+
+    tool_written: set[tuple[tuple[str, str | None], tuple[str, str | None], str]] = set()
+    for turn in source.turns:
+        for operation in turn.operations or ():
+            arguments = operation.payload.arguments
+            if (
+                operation.payload.origin != "tool"
+                or operation.payload.name != "update_relation"
+                or operation.payload.outcome != "succeeded"
+            ):
+                continue
+            src_type = arguments.get("src_type")
+            dst_type = arguments.get("dst_type")
+            src_name = arguments.get("src")
+            dst_name = arguments.get("dst")
+            kind = arguments.get("kind")
+            if not all(
+                isinstance(value, str) for value in (src_type, dst_type, src_name, dst_name, kind)
+            ):
+                continue
+            src = endpoint(cast(RelationEndpointType, src_type), cast(str, src_name))
+            dst = endpoint(cast(RelationEndpointType, dst_type), cast(str, dst_name))
+            if src is not None and dst is not None:
+                tool_written.add(((src.type, src.id), (dst.type, dst.id), cast(str, kind)))
+
+    resolved: list[ResolvedRelation] = []
+    for relation in payload.relations:
+        default, candidates_kinds = relation_kind_default(relation.kind, kinds)
+        if default is None:
+            raise MemoryOutputError(
+                f"Unknown relation kind '{relation.kind}'. Known kinds: "
+                f"{', '.join(candidates_kinds)}.",
+                ("relations", relation.kind),
+            )
+        if not set(relation.source_turns) <= set(turns):
+            raise MemoryOutputError(
+                "A relation references a turn outside its batch.", ("relations", "source_turns")
+            )
+        src = endpoint(relation.src.type, relation.src.name)
+        dst = endpoint(relation.dst.type, relation.dst.name)
+        if src is None or dst is None:
+            continue
+        if ((src.type, src.id), (dst.type, dst.id), relation.kind) in tool_written:
+            continue
+        if relation.stance == 0 and relation.kind not in zero_stance:
+            # Zero stance has no durable meaning outside standing bands.
+            continue
+        first = turns[relation.source_turns[0]]
+        resolved.append(
+            ResolvedRelation(
+                src=src,
+                dst=dst,
+                kind=relation.kind,
+                stance=relation.stance,
+                label=relation.label,
+                prominent=default if relation.prominent is None else relation.prominent,
+                since_turn=first.history_depth,
+                since_game_minutes=first.game_minutes,
             )
         )
     return tuple(resolved)

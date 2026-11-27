@@ -22,7 +22,7 @@ from app.memory.job_contracts import (
     MemoryJobManifest,
 )
 from app.memory.job_publication import JobOutput
-from app.memory.producer_prompts import PreparedMemoryRequest
+from app.memory.producer_prompts import PRODUCER_VERSION, PreparedMemoryRequest
 from app.memory.producers import build_generation_request
 from app.models.memory_batch import MemoryBatch
 from app.models.memory_document import MemoryState
@@ -140,7 +140,7 @@ def mark_current_contract(
             logical_result_id=f"test:{job.id}:{role}",
             initial_prefix_hash="a" * 64,
             contract_name=f"memory-{role}",
-            contract_version="memory-v1",
+            contract_version=PRODUCER_VERSION,
             contract_schema_hash="b" * 64,
             effective_schema_hash="c" * 64,
             wire_encoding_version="wire-v1",

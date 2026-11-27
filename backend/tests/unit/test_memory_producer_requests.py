@@ -1,6 +1,7 @@
 import pytest
 
 from app.ai.router import ModelConfig
+from app.memory.batch_source_contracts import BatchInput
 from app.memory.producer_prompts import prepare_request
 from tests.unit.test_memory_producers import facts_policy, request, schema_object, source
 
@@ -17,6 +18,17 @@ def test_request_hashes_track_source_and_instruction_independently() -> None:
     changed_language = prepare_request("facts", batch, language="en", facts_policy=facts_policy())
     assert first.source_hash == changed_language.source_hash
     assert first.instruction_hash != changed_language.instruction_hash
+
+
+def test_source_hash_tracks_frozen_clock_and_depth() -> None:
+    batch = source()
+    advanced = BatchInput(
+        turns=tuple(
+            turn.model_copy(update={"history_depth": 2, "game_minutes": 600})
+            for turn in batch.turns
+        )
+    )
+    assert advanced.source_hash() != batch.source_hash()
 
 
 def test_generation_request_factory_freezes_each_memory_role_and_effective_policy() -> None:

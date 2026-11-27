@@ -66,6 +66,27 @@ def test_known_successful_arguments_use_the_versioned_storage_schema() -> None:
     assert OperationPayload.model_validate_json(json.dumps(payload)).outcome == "rejected"
 
 
+def test_update_relation_operation_uses_versioned_storage_schema() -> None:
+    payload = {
+        "origin": "tool",
+        "name": "update_relation",
+        "outcome": "succeeded",
+        "arguments": {
+            "src_type": "npc",
+            "src": "Lyra",
+            "dst_type": "player",
+            "dst": "player",
+            "kind": "ally",
+            "stance": 45,
+            "label": "kept the promise",
+            "prominent": None,
+        },
+        "result": {"kind": "message", "description": "Opened ally relation (stance 45)."},
+        "deltas": [],
+    }
+    assert OperationPayload.model_validate_json(json.dumps(payload)).name == "update_relation"
+
+
 def test_persisted_arguments_do_not_depend_on_runtime_tool_registration() -> None:
     with patch("app.ai.tools.dm_tools.get_tool", return_value=None):
         payload = OperationPayload.model_validate_json(

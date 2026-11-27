@@ -1,5 +1,6 @@
 from app.ai.prompts.loader import template
 from app.config_loader import load_saga_config
+from app.memory.graph_config import get_graph_config
 from app.memory.producer_examples import worked_example
 from app.memory.producer_prompts import (
     PRODUCER_VERSION,
@@ -32,6 +33,9 @@ def test_legacy_prompt_keeps_head_schema_manifest_while_executor_prompt_is_schem
         "language": "it",
         "facts_policy": prepared.facts_policy.model_dump(mode="json"),
         "global_policy": None,
+        "relation_kinds": [
+            kind.model_dump() for kind in get_graph_config().default_relation_kinds
+        ],
     }
     legacy_sections = [
         template("memory_production", "system"),
@@ -48,14 +52,14 @@ def test_legacy_prompt_keeps_head_schema_manifest_while_executor_prompt_is_schem
         template("memory_production", "executor_output"),
     ]
 
-    assert PRODUCER_VERSION == "memory-v1"
+    assert PRODUCER_VERSION == "memory-v2"
     assert prepared.system_prompt == "\n\n".join(legacy_sections)
     assert "matching the following schema" in prepared.system_prompt
     assert canonical(prepared.response_schema) in prepared.system_prompt
     assert prepared.executor_system_prompt == "\n\n".join(executor_sections)
     assert "structured response contract" in prepared.executor_system_prompt
     assert canonical(prepared.response_schema) not in prepared.executor_system_prompt
-    assert prepared.instruction_hash == digest("memory-v1\n" + prepared.system_prompt)
+    assert prepared.instruction_hash == digest("memory-v2\n" + prepared.system_prompt)
 
 
 def test_fact_instructions_scope_speaker_boundaries_to_batch_and_facts_prompts() -> None:

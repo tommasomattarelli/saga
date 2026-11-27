@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from collections.abc import Callable
 from uuid import uuid4
 
@@ -72,11 +73,12 @@ ALLOWED_WORLD_STATE_KEYS: frozenset[str] = frozenset(
         "edge_overrides",
         "consumed_encounters",
         "pending_travel",
+        "relations",
     }
 )
 
 
-CURRENT_SCHEMA_VERSION: int = 8
+CURRENT_SCHEMA_VERSION: int = 9
 
 _MIGRATIONS: dict[int, Callable[[dict], dict]] = {}
 
@@ -198,6 +200,26 @@ def _migrate_v7_to_v8(state: dict) -> dict:
     # B8 renames the death modes away, and the counter with them.
     state["fate_interventions_left"] = state.pop("destino_lives", 3)
     state["meta"]["schema_version"] = 8
+    return state
+
+
+@_register_migration(8)
+def _migrate_v8_to_v9(state: dict) -> dict:
+    # ADR 0023: edges ride the overlay; faction keys move from display name to slug.
+    state.setdefault("relations", [])
+    if "factions" in state:
+        rekeyed: dict[str, dict] = {}
+        for name, faction in state["factions"].items():
+            faction = dict(faction)
+            slug = faction.get("slug") or re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+            if not slug or slug in rekeyed:
+                logger.warning("faction_rekey_unresolved", faction=name, slug=slug)
+                continue
+            faction["name"] = faction.get("name", name)
+            faction.pop("disposition", None)
+            rekeyed[slug] = faction
+        state["factions"] = rekeyed
+    state["meta"]["schema_version"] = 9
     return state
 
 

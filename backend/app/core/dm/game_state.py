@@ -45,6 +45,8 @@ class GameState(TypedDict):
     operations: NotRequired[list[RecordedOperation]]
     dice_results: list[dict[str, Any]]  # pre-rolled, sent to frontend as-is
     time_passed_minutes: int
+    history_depth: NotRequired[int]
+    game_minutes: NotRequired[int | None]
 
     # ── Metadata ─────────────────────────────────────────────────────────────
     model_used: str

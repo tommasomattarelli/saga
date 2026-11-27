@@ -81,6 +81,8 @@ class DmTool(BaseModel):
         char_data: dict,
         baseline: dict | None,
         quests: QuestRegistry | None,
+        since_turn: int = 0,
+        since_game_minutes: int | None = None,
     ) -> ToolResult:
         """Entry point for tools that also read or write the campaign quest registry."""
         return self.execute_with_baseline(world_state, char_data, baseline)
@@ -142,7 +144,7 @@ class DmTool(BaseModel):
         }
 
     @classmethod
-    def to_generation_schema(cls) -> dict[str, object]:
+    def to_generation_schema(cls, taxonomy: dict | None = None) -> dict[str, object]:
         from app.ai.tools.tools_npc import UpdateNpc
         from app.ai.tools.tools_world import ChangeNpcPsychology
         from app.ai.wire_contracts import wire_model_for
@@ -193,6 +195,8 @@ def execute_tool(
     char_data: dict,
     baseline: dict | None = None,
     quests: QuestRegistry | None = None,
+    since_turn: int = 0,
+    since_game_minutes: int | None = None,
 ) -> ToolResult:
     tool_cls = _TOOLS.get(name)
     if not tool_cls:
@@ -214,7 +218,9 @@ def execute_tool(
             error_reason="invalid_arguments",
         )
     try:
-        return instance.execute_with_context(world_state, char_data, baseline, quests)
+        return instance.execute_with_context(
+            world_state, char_data, baseline, quests, since_turn, since_game_minutes
+        )
     except Exception:
         return ToolResult(
             description=f"Tool {name} failed. Try another action.",

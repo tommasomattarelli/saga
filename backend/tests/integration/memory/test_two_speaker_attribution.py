@@ -64,7 +64,17 @@ def _facts_payload(npc_name: str, source_turn: str) -> str:
                     "temporal_references": [],
                     "importance": {"level": "ordinary", "reason": "A commitment with a location."},
                 },
-            ]
+            ],
+            "relations": [
+                {
+                    "src": {"type": "npc", "name": npc_name},
+                    "dst": {"type": "player", "name": "player"},
+                    "kind": "companion",
+                    "stance": 40,
+                    "label": "Trusted with the charter",
+                    "source_turns": [source_turn],
+                }
+            ],
         }
     )
 
@@ -145,6 +155,14 @@ async def _published_facts(
     )
     assert await publish_job(f.session, claim, outputs_for(generations))
     await f.session.commit()
+    campaign = await f.session.get(Campaign, f.campaign.id)
+    assert campaign is not None
+    edges = campaign.world_state.get("relations", [])
+    assert any(
+        edge["src"] == {"type": "npc", "id": _npc_id(source, npc_name)}
+        and edge["dst"] == {"type": "player", "id": None}
+        for edge in edges
+    )
     assert (
         await f.session.scalar(
             select(func.count())
