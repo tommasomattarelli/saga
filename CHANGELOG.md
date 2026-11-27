@@ -25,6 +25,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - World-state rung v9 carries `relations` and keys factions by slug; `reputation_change` is retired (ADR 0023).
 - `graph.*` knobs with hard bounds and per-kind `prominent` defaults live in `saga.config.yaml` (ADR 0023).
 - Authored faction and NPC relations seed the v9 graph with stance bands and `prominent` defaults (ADR 0023).
+- Turns persist claim-time `game_minutes`; batch sources carry the frozen clock and history depth (ADR 0023).
 - Recall fuses dense and full-text candidates in one history-isolated query, then ranks and dedups them into a typed `<recalled_memories>` block (ADR 0022).
 - The second dense branch embeds the composed action-and-scene query; `search_vector` is Postgres-generated and retrieval knobs live in config (ADR 0022).
 - `rrf_k=20` is measured; 0.02 boosts are owner-accepted without a gain, with labelled pairs and an offline comparator for recall@5/MRR@5 (ADR 0022).

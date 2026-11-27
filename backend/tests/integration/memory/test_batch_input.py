@@ -142,6 +142,8 @@ async def test_canonical_source_and_hash_are_stable_between_loads(
     assert first.source_hash() == second.source_hash()
     assert first.source_hash() == hashlib.sha256(first.canonical_json().encode()).hexdigest()
     assert json.loads(first.canonical_json())["turns"][0]["turn_id"] == str(turn.id)
+    assert first.turns[0].history_depth == turn.history_depth
+    assert first.turns[0].game_minutes == turn.game_minutes
 
 
 async def test_load_rejects_batch_from_another_campaign(history_fixture: HistoryFixture) -> None:

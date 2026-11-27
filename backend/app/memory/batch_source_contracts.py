@@ -53,6 +53,8 @@ class BatchTurnSource(OperationModel):
     player_action: str
     narration: str
     operations: tuple[SourceOperation, ...] | None
+    history_depth: int | None = None
+    game_minutes: int | None = None
 
 
 class BatchInput(OperationModel):

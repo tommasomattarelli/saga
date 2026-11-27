@@ -34,6 +34,7 @@ async def recorded_turn(
     narration: str,
     operations: list[RecordedOperation] | None = None,
     turn_id: UUID | None = None,
+    game_minutes: int | None = 480,
 ) -> Turn:
     turn = Turn(
         id=turn_id or uuid4(),
@@ -41,6 +42,7 @@ async def recorded_turn(
         continuation_id=f.root.id,
         parent_turn_id=parent.id if parent else None,
         history_depth=(parent.history_depth + 1) if parent else 1,
+        game_minutes=game_minutes,
         turn_number=number,
         operations_version=1,
         operation_count=len(operations or []),

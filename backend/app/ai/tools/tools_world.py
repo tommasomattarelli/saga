@@ -157,6 +157,8 @@ class UpdateQuest(DmTool):
         char_data: dict,
         baseline: dict | None,
         quests: QuestRegistry | None,
+        since_turn: int = 0,
+        since_game_minutes: int | None = None,
     ) -> ToolResult:
         registry, error = apply_quest_update(
             quests or QuestRegistry(),

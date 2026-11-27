@@ -57,6 +57,7 @@ async def publish_action(claim: ActionClaim, body: TurnSubmit, state: GameState)
             continuation_id=claim.continuation_id,
             parent_turn_id=claim.starting_head_turn_id,
             history_depth=claim.history_depth,
+            game_minutes=state.get("game_minutes"),
             player_action=body.action,
             narration=state["narration"],
             narration_segments=state.get("narration_segments") or None,

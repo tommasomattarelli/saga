@@ -99,6 +99,8 @@ async def load_turn_input(
                 player_action=turn.player_action,
                 narration=turn.narration,
                 operations=projected,
+                history_depth=turn.history_depth,
+                game_minutes=turn.game_minutes,
             )
         )
     return BatchInput(turns=tuple(sources))
