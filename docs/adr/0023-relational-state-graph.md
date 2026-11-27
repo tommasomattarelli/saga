@@ -161,7 +161,7 @@ Four relational fragments exist and all four are dead in runtime. The consumers 
 - **0018 (Accepted)**: embedding spaces and the versioned index are untouched.
 - **0020 (Accepted)**: W1 extends the batch output contract (schema/version/prompt/examples/tests); no producer implementation is rewritten and the fact contract is unchanged. The #123 gate protects the attribution premise. R2 follows 0020 §4's rule that an over-window input must be a recognisable error, not a silent cut.
 - **0021 (Accepted)**: structured generation and bounded recovery are unchanged; a larger batch schema may consume more recovery sends, which the gate test accounts for.
-- **0022 (Proposed)**: separate subsystem. 0022 ranks facts; this ADR manages current relational state. They share the F2 posture and the config-first discipline, not a data model.
+- **0022 (Accepted)**: separate subsystem. 0022 ranks facts; this ADR manages current relational state. They share the F2 posture and the config-first discipline, not a data model.
 
 ## 8. Implementation plan
 

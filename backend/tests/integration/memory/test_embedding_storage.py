@@ -248,7 +248,7 @@ async def test_recall_stays_on_snapshotted_index_with_vectors_after_cutover(
 
     async def swap_active_and_embed(space, texts, *, user_id):
         assert_no_db_held()
-        assert texts == ["who guards the gate?", ""]
+        assert texts == ["who guards the gate?", "who guards the gate?"]
         assert space.requested_dimensions == (384 if legacy else None)
         target_id = uuid.uuid4()
         async with engine.begin() as conn:
