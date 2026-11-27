@@ -29,6 +29,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 - DM `update_relation` opens and upserts edges with typed endpoint resolution and kind validation (ADR 0023).
 - Batch output carries `relations[]` with typed wire refs, frozen clock/depth and tool-wins precedence (ADR 0023).
 - DM `<scene>` renders prominent relations always and local ones with present NPCs; both silent scene caps are gone (ADR 0023).
+- ADR 0023 accepted with implementation notes; live playtest and the real-DB gate run remain owner-gated.
 - Recall fuses dense and full-text candidates in one history-isolated query, then ranks and dedups them into a typed `<recalled_memories>` block (ADR 0022).
 - The second dense branch embeds the composed action-and-scene query; `search_vector` is Postgres-generated and retrieval knobs live in config (ADR 0022).
 - `rrf_k=20` is measured; 0.02 boosts are owner-accepted without a gain, with labelled pairs and an offline comparator for recall@5/MRR@5 (ADR 0022).
