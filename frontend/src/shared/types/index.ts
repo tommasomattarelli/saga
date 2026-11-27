@@ -40,7 +40,6 @@ export interface CharacterData {
   background: string;
   archetype?: string;
   notes: string;
-  reputation: Record<string, number>;
 }
 
 interface SkillData {
@@ -127,7 +126,7 @@ interface CompanionData {
 
 interface FactionData {
   name: string;
-  disposition: number;
+  description?: string;
   active_plan?: string;
 }
 

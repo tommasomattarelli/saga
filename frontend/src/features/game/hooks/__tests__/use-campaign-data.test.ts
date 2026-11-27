@@ -38,7 +38,6 @@ const mockCampaign = {
     gold: 50,
     background: "",
     notes: "",
-    reputation: {},
   },
   world_state: {},
   quests: { active: [], completed: [], failed: [], abandoned: [] },

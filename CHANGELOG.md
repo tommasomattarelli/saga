@@ -17,6 +17,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 - [Memory & AI] Keep player reports and NPC commitments as separate memory facts with reporter attribution (#123)
 - [Gameplay] Player actions longer than `gameplay.max_action_chars` are rejected before a turn is claimed, instead of being silently truncated (ADR 0022 R6).
+- [UI] Retire the character sheet reputation tab and align faction types with the world-state v9 contract (ADR 0023).
 ### Internal
 
 - ADR 0022/0023: landed hybrid recall and relational graph designs; ADR 0002 is superseded by both.
