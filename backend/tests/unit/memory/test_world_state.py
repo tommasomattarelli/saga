@@ -88,6 +88,35 @@ def test_migrate_v6_to_v7_rekeys_and_splits_traits():
     assert "status" not in by_name["Drifter"][1]
 
 
+def test_migrate_v8_to_v9_seeds_relations_and_rekeys_factions():
+    v8_state = {
+        "meta": {"schema_version": 8, "world_name": "Test"},
+        "factions": {
+            "The Hollow": {"description": "A secretive order", "disposition": 0},
+        },
+    }
+    migrated = migrate_world_state(v8_state)
+    assert migrated["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION
+    assert migrated["relations"] == []
+    assert migrated["factions"] == {
+        "the-hollow": {"name": "The Hollow", "description": "A secretive order"}
+    }
+
+
+def test_migrate_v8_to_v9_prefers_stored_slug_and_drops_collisions():
+    v8_state = {
+        "meta": {"schema_version": 8},
+        "factions": {
+            "The Guild": {"slug": "guild", "description": "Merchants"},
+            "The Hollow": {"description": "First"},
+            "The  Hollow": {"description": "Duplicate"},
+        },
+    }
+    migrated = migrate_world_state(v8_state)
+    assert migrated["factions"]["guild"]["name"] == "The Guild"
+    assert len(migrated["factions"]) == 2
+
+
 def test_migrate_up_to_date():
     v4_state = {
         "meta": {"schema_version": 7, "world_name": "Test"},
@@ -114,12 +143,14 @@ def test_validate_world_state():
     state = {
         "meta": {},
         "locations": {},
+        "relations": [{"kind": "ally"}],
         "invalid_key": "should be stripped",
         "another_invalid": 123,
     }
     validated = validate_world_state(state)
     assert "meta" in validated
     assert "locations" in validated
+    assert validated["relations"] == [{"kind": "ally"}]
     assert "invalid_key" not in validated
     assert "another_invalid" not in validated
 
@@ -129,11 +160,13 @@ def test_merge_world_state():
         "meta": {"schema_version": 1},
         "locations": {"town": {"visited": True, "status": "safe"}},
         "factions": {"guards": 50},
+        "relations": [],
     }
 
     updates = {
         "locations": {"town": {"status": "under_attack"}, "forest": {"visited": False}},
         "factions": {"thieves": 10},
+        "relations": [{"kind": "ally"}],
         "invalid_key": "should be dropped",
     }
 
@@ -145,6 +178,7 @@ def test_merge_world_state():
     assert merged["locations"]["forest"]["visited"] is False  # added
     assert merged["factions"]["guards"] == 50  # preserved
     assert merged["factions"]["thieves"] == 10  # added
+    assert merged["relations"] == [{"kind": "ally"}]
     assert "invalid_key" not in merged
 
 

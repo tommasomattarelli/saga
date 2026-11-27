@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 
 from app.memory.job_retention import cleanup_terminal_generation_payloads
 from app.models.campaign import Campaign, Difficulty
@@ -31,6 +32,11 @@ async def test_export_empty_campaign(auth_client: AsyncClient, db_session):
     )
     campaign_id = camp_resp.json()["id"]
 
+    result = await db_session.execute(select(Campaign).where(Campaign.id == campaign_id))
+    campaign = result.scalar_one()
+    campaign.world_state = {**campaign.world_state, "relations": [{"kind": "ally"}]}
+    await db_session.commit()
+
     resp = await auth_client.get(f"/api/export/{campaign_id}")
     assert resp.status_code == 200
 
@@ -46,6 +52,8 @@ async def test_export_empty_campaign(auth_client: AsyncClient, db_session):
     assert camp["name"] == "Export Test"
     assert camp["character_data"]["hp"] == 10
     assert "world_state" in camp
+    assert camp["world_state"]["relations"] == [{"kind": "ally"}]
+    assert "the-hollow" in camp["world_state"]["factions"]
     assert "quests" in camp
 
 

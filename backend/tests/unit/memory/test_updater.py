@@ -197,12 +197,13 @@ class TestEventLog:
 
 
 class TestReputation:
-    def test_increase_reputation(self):
+    def test_retired_reputation_change_is_ignored(self):
         char = {"reputation": {"Merchants Guild": 10}}
-        _, new_char = apply_typed_updates(
+        state, new_char = apply_typed_updates(
             {}, char, [{"key": "reputation_change", "target": "Merchants Guild", "change": 5}]
         )
-        assert new_char["reputation"]["Merchants Guild"] == 15
+        assert new_char == char
+        assert state == {}
 
 
 class TestGenericFallback:

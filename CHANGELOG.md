@@ -21,6 +21,7 @@ This log is curated by hand — it is not a dump of `git log`. Add entries under
 
 - ADR 0022/0023: landed hybrid recall and relational graph designs; ADR 0002 is superseded by both.
 - ADR 0023: refined the graph contract with `prominent` edges defaulted from the kind taxonomy, an always-present `<relations>` block, NPC-scoped secondary rows and two separate row caps.
+- World-state rung v9 carries `relations` and keys factions by slug; `reputation_change` is retired (ADR 0023).
 - Recall fuses dense and full-text candidates in one history-isolated query, then ranks and dedups them into a typed `<recalled_memories>` block (ADR 0022).
 - The second dense branch embeds the composed action-and-scene query; `search_vector` is Postgres-generated and retrieval knobs live in config (ADR 0022).
 - `rrf_k=20` is measured; 0.02 boosts are owner-accepted without a gain, with labelled pairs and an offline comparator for recall@5/MRR@5 (ADR 0022).

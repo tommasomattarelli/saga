@@ -125,9 +125,9 @@ def _build_world_state(asset: WorldAsset, slug_map: dict[str, str]) -> dict:
         "npcs": npcs,
         "companions": {},
         "factions": {
-            f.name: {"description": f.description, "disposition": 0}
-            for f in asset.factions.values()
+            f.slug: {"name": f.name, "description": f.description} for f in asset.factions.values()
         },
+        "relations": [],
         "narrative": {"event_log": []},
         "fate_interventions_left": 3,
         "time_of_day": (opening.time_of_day if opening else "") or "morning",

@@ -86,7 +86,7 @@ class TestRungV8:
 
     def test_it_leaves_the_state_at_the_current_version(self):
         state = migrate_world_state(self._v7_state())
-        assert state["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION == 8
+        assert state["meta"]["schema_version"] == CURRENT_SCHEMA_VERSION
 
     def test_migrating_twice_changes_nothing(self):
         once = migrate_world_state(self._v7_state())
