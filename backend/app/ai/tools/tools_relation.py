@@ -12,6 +12,7 @@ from app.core.relations import (
     relation_kind_default,
     relation_kind_defaults,
     resolve_faction_slug,
+    upsert_relation_edge,
 )
 from app.memory.graph_config import get_graph_config
 from app.models.quest import QuestRegistry
@@ -119,35 +120,22 @@ class UpdateRelation(DmTool):
 
         edges = world_state.setdefault("relations", [])
         prominent = default if self.prominent is None else self.prominent
-        for edge in edges:
-            if (
-                edge["src"] == src_ref
-                and edge["dst"] == dst_ref
-                and edge["kind"] == self.kind
-                and edge.get("until_turn") is None
-            ):
-                edge.update(stance=self.stance, label=self.label, prominent=prominent)
-                return ToolResult(
-                    description=f"Updated {self.kind} relation (stance {self.stance}).",
-                    world_state=world_state,
-                    char_data=char_data,
-                )
-        if len(edges) >= get_graph_config().max_relations:
+        edge = {
+            "src": src_ref,
+            "dst": dst_ref,
+            "kind": self.kind,
+            "stance": self.stance,
+            "label": self.label,
+            "prominent": prominent,
+            "since_turn": since_turn,
+            "since_game_minutes": since_game_minutes,
+        }
+        appended = upsert_relation_edge(edges, edge, get_graph_config().max_relations)
+        if appended is None:
             return reject(f"Relation limit reached ({len(edges)} edges). No new edge was added.")
-        edges.append(
-            {
-                "src": src_ref,
-                "dst": dst_ref,
-                "kind": self.kind,
-                "stance": self.stance,
-                "label": self.label,
-                "prominent": prominent,
-                "since_turn": since_turn,
-                "since_game_minutes": since_game_minutes,
-            }
-        )
         return ToolResult(
-            description=f"Opened {self.kind} relation (stance {self.stance}).",
+            description=f"{'Opened' if appended else 'Updated'} {self.kind} relation "
+            f"(stance {self.stance}).",
             world_state=world_state,
             char_data=char_data,
         )

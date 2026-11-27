@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr, ValidationError
 
 from app.memory.batch_source_contracts import BatchInput
 from app.memory.document_contracts import GlobalPayload
+from app.memory.graph_config import get_graph_config
 from app.memory.job_contracts import MemoryJobManifest
 from app.memory.producer_prompts import (
     PRODUCER_VERSION,
@@ -158,11 +159,15 @@ def _validate_request_evidence(
         raise ValueError("Frozen memory request evidence is invalid.") from exc
     if not isinstance(evidence, dict):
         raise ValueError("Frozen memory request evidence is invalid.")
-    expected_keys = {"language", "facts_policy", "global_policy", "source"}
+    expected_keys = {"language", "facts_policy", "global_policy", "relation_kinds", "source"}
     if job_kind == "global":
         expected_keys.add("previous")
     if set(evidence) != expected_keys or evidence["language"] != language:
         raise ValueError("Frozen memory request settings are inconsistent.")
+    if canonical(evidence["relation_kinds"]) != canonical(
+        [kind.model_dump() for kind in get_graph_config().default_relation_kinds]
+    ):
+        raise ValueError("Frozen memory relation kinds do not match.")
     if canonical(evidence["facts_policy"]) != canonical(facts_policy.model_dump(mode="json")):
         raise ValueError("Frozen memory facts policy does not match.")
     if canonical(evidence["source"]) != canonical(source.model_dump(mode="json")):
@@ -198,6 +203,9 @@ def _validate_request_evidence(
             "language": language,
             "facts_policy": facts_policy.model_dump(mode="json"),
             "global_policy": global_policy.model_dump(mode="json") if global_policy else None,
+            "relation_kinds": [
+                kind.model_dump() for kind in get_graph_config().default_relation_kinds
+            ],
             **evidence_for_hash,
         }
     )

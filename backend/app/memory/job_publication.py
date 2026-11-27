@@ -7,9 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.generation_execution_ledger import GenerationSendKind
 from app.ai.response_validation import ResponseValidationError, validate_response
+from app.core.relations import upsert_relation_edge
 from app.memory.batch_input import load_batch_input
 from app.memory.document_contracts import GlobalPayload
 from app.memory.generation_receipts import decode_receipt
+from app.memory.graph_config import get_graph_config
 from app.memory.job_activation import activate_artifact
 from app.memory.job_claims import JobClaim, load_claim
 from app.memory.job_contracts import MemoryGenerationRequestIdentitySnapshot
@@ -20,6 +22,7 @@ from app.memory.producer_contracts import (
     MemoryOutputError,
     ResolvedFact,
     SummaryPayload,
+    resolve_relations,
     validate_facts,
 )
 from app.memory.producer_prompts import PreparedMemoryRequest, response_contract
@@ -214,6 +217,27 @@ async def publish_job(db: AsyncSession, claim: JobClaim, outputs: tuple[JobOutpu
             if state.context_epoch == job.context_epoch
             else False
         )
+        if activated and isinstance(facts_payload, FactsPayload):
+            world_state = {**campaign.world_state}
+            edges = list(world_state.get("relations", []))
+            world_state["relations"] = edges
+            taxonomy = (campaign.world_baseline or {}).get("taxonomy", {})
+            for relation in resolve_relations(
+                facts_payload, requests[1].source, world_state, taxonomy
+            ):
+                edge = {
+                    "src": relation.src.model_dump(),
+                    "dst": relation.dst.model_dump(),
+                    "kind": relation.kind,
+                    "stance": relation.stance,
+                    "label": relation.label,
+                    "prominent": relation.prominent,
+                    "since_turn": relation.since_turn,
+                    "since_game_minutes": relation.since_game_minutes,
+                }
+                if upsert_relation_edge(edges, edge, get_graph_config().max_relations) is None:
+                    break
+            campaign.world_state = world_state
     else:
         global_payload = payloads[0]
         assert isinstance(global_payload, GlobalPayload)

@@ -17,6 +17,27 @@ def relation_kind_default(kind: str, kinds: dict[str, bool]) -> tuple[bool | Non
     return None, sorted(kinds)
 
 
+def upsert_relation_edge(
+    edges: list[dict], edge: dict, max_edges: int | None = None
+) -> bool | None:
+    """Update an open triple; True appended, False updated, None capped."""
+    for existing in edges:
+        if (
+            existing["src"] == edge["src"]
+            and existing["dst"] == edge["dst"]
+            and existing["kind"] == edge["kind"]
+            and existing.get("until_turn") is None
+        ):
+            existing.update(
+                stance=edge["stance"], label=edge["label"], prominent=edge["prominent"]
+            )
+            return False
+    if max_edges is not None and len(edges) >= max_edges:
+        return None
+    edges.append(edge)
+    return True
+
+
 def resolve_faction_slug(name: str, world_state: dict) -> tuple[str | None, str, list[str]]:
     factions = world_state.get("factions", {})
     wanted = name.strip().casefold()

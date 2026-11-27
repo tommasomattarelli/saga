@@ -12,6 +12,7 @@ from app.ai.prompts.loader import template
 from app.ai.response_contracts import ResponseContract
 from app.memory.batch_source_contracts import BatchInput
 from app.memory.document_contracts import GlobalPayload, SummaryPayload
+from app.memory.graph_config import get_graph_config
 from app.memory.producer_contracts import (
     BatchPayload,
     FactsPayload,
@@ -24,7 +25,7 @@ from app.memory.production_policy import FactsPolicy, GlobalPolicy
 
 ProducerKind = Literal["batch", "summary", "facts", "global"]
 MemoryPayload = BatchPayload | FactsPayload | SummaryPayload | GlobalPayload
-PRODUCER_VERSION = "memory-v1"
+PRODUCER_VERSION = "memory-v2"
 OUTPUT_MODELS: dict[ProducerKind, type[BaseModel]] = {
     "batch": BatchPayload,
     "summary": SummaryPayload,
@@ -141,6 +142,9 @@ def prepare_request(
         "language": language,
         "facts_policy": facts_policy.model_dump(mode="json"),
         "global_policy": global_policy.model_dump(mode="json") if global_policy else None,
+        "relation_kinds": [
+            kind.model_dump() for kind in get_graph_config().default_relation_kinds
+        ],
     }
     sections.append(canonical(settings))
     executor_system_prompt = "\n\n".join(

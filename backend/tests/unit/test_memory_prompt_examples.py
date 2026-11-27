@@ -173,7 +173,9 @@ def test_real_prompt_includes_one_isolated_example_and_composes_specialist_outpu
     assert parse_example("batch")["output"] == {
         "summary": parse_example("summary")["output"],
         "facts": parse_example("facts")["output"]["facts"],
+        "relations": parse_example("facts")["output"]["relations"],
     }
+    assert parse_example("facts")["output"]["relations"]
 
 
 @pytest.mark.parametrize("kind", ["batch", "summary"])
